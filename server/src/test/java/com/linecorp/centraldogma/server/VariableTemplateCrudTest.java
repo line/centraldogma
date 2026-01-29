@@ -53,6 +53,7 @@ import com.linecorp.centraldogma.common.TemplateProcessingException;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.internal.api.variable.Variable;
 import com.linecorp.centraldogma.server.internal.api.variable.VariableType;
+import com.linecorp.centraldogma.server.metadata.UserAndTimestamp;
 import com.linecorp.centraldogma.testing.internal.auth.TestAuthProviderFactory;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
@@ -1961,7 +1962,8 @@ class VariableTemplateCrudTest {
 
     private void createVariable(String projectName, @Nullable String repoName, String id,
                                 VariableType type, String value) {
-        final Variable variable = new Variable(id, type, null, value);
+        final UserAndTimestamp creation = new UserAndTimestamp("tester");
+        final Variable variable = new Variable(id, type, null, value, creation, null);
         final String path;
         if (repoName == null) {
             path = "/api/v1/projects/" + projectName + "/variables";
@@ -1978,7 +1980,8 @@ class VariableTemplateCrudTest {
 
     private void updateVariable(String projectName, @Nullable String repoName, String id,
                                 VariableType type, String value) {
-        final Variable variable = new Variable(id, type, null, value);
+        final UserAndTimestamp creation = new UserAndTimestamp("tester");
+        final Variable variable = new Variable(id, type, null, value, creation, null);
         final String path;
         if (repoName == null) {
             path = "/api/v1/projects/" + projectName + "/variables/" + id;

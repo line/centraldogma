@@ -46,6 +46,7 @@ import {
   UpdateServerStatusRequest,
 } from 'dogma/features/settings/server-status/ServerStatusDto';
 import Router from 'next/router';
+import { VariableDto } from 'dogma/features/project/settings/variables/VariableDto';
 
 export type ApiAction<Arg, Result> = {
   (arg: Arg): { unwrap: () => Promise<Result> };
@@ -553,6 +554,46 @@ export const apiSlice = createApi({
       }),
       invalidatesTags: ['Metadata'],
     }),
+    getVariables: builder.query<VariableDto[], { projectName: string; repoName?: string }>({
+      query: ({ projectName, repoName }) => variableApiPrefix(projectName, repoName),
+      providesTags: ['Metadata'],
+    }),
+    getVariable: builder.query<VariableDto, { projectName: string; repoName?: string; id: string }>({
+      query: ({ projectName, repoName, id }) => `${variableApiPrefix(projectName, repoName)}/${id}`,
+      providesTags: ['Metadata'],
+    }),
+    addNewVariable: builder.mutation<
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      any,
+      { projectName: string; repoName?: string; newVariable: VariableDto }
+    >({
+      query: ({ projectName, repoName, newVariable }) => ({
+        url: variableApiPrefix(projectName, repoName),
+        method: 'POST',
+        body: newVariable,
+      }),
+      invalidatesTags: ['Metadata'],
+    }),
+    updateVariable: builder.mutation<
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      any,
+      { projectName: string; repoName?: string; id: string; variable: VariableDto }
+    >({
+      query: ({ projectName, repoName, id, variable }) => ({
+        url: `${variableApiPrefix(projectName, repoName)}/${id}`,
+        method: 'PUT',
+        body: variable,
+      }),
+      invalidatesTags: ['Metadata'],
+    }),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    deleteVariable: builder.mutation<any, { projectName: string; repoName?: string; id: string }>({
+      query: ({ projectName, repoName, id }) => ({
+        url: `${variableApiPrefix(projectName, repoName)}/${id}`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: ['Metadata'],
+    }),
     getTitle: builder.query<TitleDto, void>({
       query: () => ({
         url: `/title`,
@@ -561,6 +602,15 @@ export const apiSlice = createApi({
     }),
   }),
 });
+
+function variableApiPrefix(projectName: string, repoName?: string): string {
+  let prefix = `/api/v1/projects/${projectName}`;
+  if (repoName) {
+    prefix += `/repos/${repoName}`;
+  }
+  prefix += `/variables`;
+  return prefix;
+}
 
 export const {
   // Project
@@ -625,6 +675,12 @@ export const {
   useAddNewRepoCredentialMutation,
   useUpdateRepoCredentialMutation,
   useDeleteRepoCredentialMutation,
+  // Variable
+  useGetVariablesQuery,
+  useGetVariableQuery,
+  useUpdateVariableMutation,
+  useAddNewVariableMutation,
+  useDeleteVariableMutation,
   // Title
   useGetTitleQuery,
 } = apiSlice;

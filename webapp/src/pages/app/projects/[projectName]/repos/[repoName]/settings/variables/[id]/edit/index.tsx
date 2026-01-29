@@ -15,7 +15,7 @@
  */
 
 import Router, { useRouter } from 'next/router';
-import { useGetCredentialQuery, useUpdateCredentialMutation } from 'dogma/features/api/apiSlice';
+import { useGetVariableQuery, useUpdateVariableMutation } from 'dogma/features/api/apiSlice';
 import { useAppDispatch } from 'dogma/hooks';
 import { Deferred } from 'dogma/common/components/Deferred';
 import { FetchBaseQueryError } from '@reduxjs/toolkit/query';
@@ -24,41 +24,42 @@ import { newNotification } from 'dogma/features/notification/notificationSlice';
 import ErrorMessageParser from 'dogma/features/services/ErrorMessageParser';
 import { Breadcrumbs } from 'dogma/common/components/Breadcrumbs';
 import React from 'react';
-import { CredentialDto } from 'dogma/features/project/settings/credentials/CredentialDto';
-import CredentialForm from 'dogma/features/project/settings/credentials/CredentialForm';
+import { VariableDto } from 'dogma/features/project/settings/variables/VariableDto';
+import VariableForm from 'dogma/features/project/settings/variables/VariableForm';
 
-const CredentialEditPage = () => {
+const RepoVariableEditPage = () => {
   const router = useRouter();
   const projectName = router.query.projectName as string;
+  const repoName = router.query.repoName as string;
   const id = router.query.id as string;
 
-  const { data, isLoading: isCredentialLoading, error } = useGetCredentialQuery({ projectName, id });
-  const [updateCredential, { isLoading: isWaitingMutationResponse }] = useUpdateCredentialMutation();
+  const { data, isLoading: isVariableLoading, error } = useGetVariableQuery({ projectName, repoName, id });
+  const [updateVariable, { isLoading: isWaitingMutationResponse }] = useUpdateVariableMutation();
   const dispatch = useAppDispatch();
 
-  const onSubmit = async (credential: CredentialDto, onSuccess: () => void) => {
+  const onSubmit = async (variable: VariableDto, onSuccess: () => void) => {
     try {
-      credential.name = `projects/${projectName}/credentials/${credential.id}`;
-      const response = await updateCredential({ projectName, id, credential }).unwrap();
+      const response = await updateVariable({ projectName, repoName, id, variable }).unwrap();
       if ((response as { error: FetchBaseQueryError | SerializedError }).error) {
         throw (response as { error: FetchBaseQueryError | SerializedError }).error;
       }
-      dispatch(newNotification(`Credential '${credential.id}' is updated`, `Successfully updated`, 'success'));
+      dispatch(newNotification(`Variable '${variable.id}' is updated`, `Successfully updated`, 'success'));
       onSuccess();
-      Router.push(`/app/projects/${projectName}/settings/credentials/${id}`);
+      Router.push(`/app/projects/${projectName}/repos/${repoName}/settings/variables/${id}`);
     } catch (error) {
-      dispatch(newNotification(`Failed to update the credential`, ErrorMessageParser.parse(error), 'error'));
+      dispatch(newNotification(`Failed to update the variable`, ErrorMessageParser.parse(error), 'error'));
     }
   };
 
   return (
-    <Deferred isLoading={isCredentialLoading} error={error}>
+    <Deferred isLoading={isVariableLoading} error={error}>
       {() => {
         return (
           <>
             <Breadcrumbs path={router.asPath} omitIndexList={[0]} />
-            <CredentialForm
+            <VariableForm
               projectName={projectName}
+              repoName={repoName}
               defaultValue={data}
               onSubmit={onSubmit}
               isWaitingResponse={isWaitingMutationResponse}
@@ -70,4 +71,4 @@ const CredentialEditPage = () => {
   );
 };
 
-export default CredentialEditPage;
+export default RepoVariableEditPage;

@@ -19,42 +19,46 @@ import { Button, Flex, Spacer } from '@chakra-ui/react';
 import Link from 'next/link';
 import { AiOutlinePlus } from 'react-icons/ai';
 import React from 'react';
-import { useGetProjectCredentialsQuery, useDeleteCredentialMutation } from 'dogma/features/api/apiSlice';
-import ProjectSettingsView from 'dogma/features/project/settings/ProjectSettingsView';
-import CredentialList from 'dogma/features/project/settings/credentials/CredentialList';
+import { useDeleteVariableMutation, useGetVariablesQuery } from 'dogma/features/api/apiSlice';
+import VariableList from 'dogma/features/project/settings/variables/VariableList';
+import RepositorySettingsView from 'dogma/features/repo/settings/RepositorySettingsView';
 
-const ProjectCredentialPage = () => {
+const RepositoryVariablePage = () => {
   const router = useRouter();
   const projectName = router.query.projectName ? (router.query.projectName as string) : '';
-  const { data: credentialsData } = useGetProjectCredentialsQuery(projectName);
-  const [deleteCredentialMutation, { isLoading }] = useDeleteCredentialMutation();
+  const repoName = router.query.repoName ? (router.query.repoName as string) : '';
+  const { data: variablesData } = useGetVariablesQuery({ projectName, repoName });
+  const [deleteVariableMutation, { isLoading }] = useDeleteVariableMutation();
 
   return (
-    <ProjectSettingsView projectName={projectName} currentTab={'credentials'}>
+    <RepositorySettingsView projectName={projectName} repoName={repoName} currentTab={'variables'}>
       {() => (
         <>
           <Flex>
             <Spacer />
             <Button
               as={Link}
-              href={`/app/projects/${projectName}/settings/credentials/new`}
+              href={`/app/projects/${projectName}/repos/${repoName}/settings/variables/new`}
               size="sm"
               rightIcon={<AiOutlinePlus />}
               colorScheme="teal"
             >
-              New Credential
+              New Variable
             </Button>
           </Flex>
-          <CredentialList
+          <VariableList
             projectName={projectName}
-            credentials={credentialsData}
-            deleteCredential={(projectName, id) => deleteCredentialMutation({ projectName, id }).unwrap()}
+            repoName={repoName}
+            variables={variablesData}
+            deleteVariable={(projectName, id, repoName) =>
+              deleteVariableMutation({ projectName, repoName, id }).unwrap()
+            }
             isLoading={isLoading}
           />
         </>
       )}
-    </ProjectSettingsView>
+    </RepositorySettingsView>
   );
 };
 
-export default ProjectCredentialPage;
+export default RepositoryVariablePage;
