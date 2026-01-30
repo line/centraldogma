@@ -216,7 +216,7 @@ public interface CentralDogma extends AutoCloseable {
      */
     <T> CompletableFuture<Entry<T>> getFile(String projectName, String repositoryName,
                                             Revision revision, Query<T> query, boolean viewRaw,
-                                            boolean applyTemplate, @Nullable String variableFile);
+                                            boolean renderTemplate, @Nullable String variableFile);
 
     /**
      * Retrieves the files matched by the path pattern.
@@ -264,7 +264,7 @@ public interface CentralDogma extends AutoCloseable {
      */
     CompletableFuture<Map<String, Entry<?>>> getFiles(String projectName, String repositoryName,
                                                       Revision revision, PathPattern pathPattern,
-                                                      boolean viewRaw, boolean applyTemplate,
+                                                      boolean viewRaw, boolean renderTemplate,
                                                       @Nullable String variableFile);
 
     /**
@@ -823,7 +823,7 @@ public interface CentralDogma extends AutoCloseable {
     <T> CompletableFuture<Entry<T>> watchFile(String projectName, String repositoryName,
                                               Revision lastKnownRevision, Query<T> query,
                                               long timeoutMillis, boolean errorOnEntryNotFound,
-                                              boolean viewRaw, boolean applyTemplate,
+                                              boolean viewRaw, boolean renderTemplate,
                                               @Nullable String variableFile,
                                               @Nullable Revision templateRevision);
 

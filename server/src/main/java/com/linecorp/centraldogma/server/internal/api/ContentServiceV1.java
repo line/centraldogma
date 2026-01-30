@@ -327,7 +327,7 @@ public class ContentServiceV1 extends AbstractService {
     }
 
     private <T> EntryTransformer<T> newTemplater(Repository repository, TemplateParams templateParams) {
-        if (!templateParams.applyTemplate()) {
+        if (!templateParams.renderTemplate()) {
             return EntryTransformer.identity();
         } else {
             return entry -> templater.render(repository, entry,

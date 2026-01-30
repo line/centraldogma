@@ -68,7 +68,7 @@ export type GetHistory = {
 export type GetNormalisedRevision = {
   projectName: string;
   repoName: string;
-  revision: number;
+  revision: string;
 };
 
 export type GetFilesByProjectAndRepoName = {
@@ -84,6 +84,7 @@ export type GetFileContent = {
   repoName: string;
   filePath: string;
   revision: string | number;
+  renderTemplate?: boolean;
 };
 
 export type TitleDto = {
@@ -296,8 +297,13 @@ export const apiSlice = createApi({
       providesTags: ['File'],
     }),
     getFileContent: builder.query<FileContentDto, GetFileContent>({
-      query: ({ projectName, repoName, filePath, revision }) =>
-        `/api/v1/projects/${projectName}/repos/${repoName}/contents${filePath}?revision=${revision}&viewRaw=true`,
+      query: function ({ projectName, repoName, filePath, revision, renderTemplate }) {
+        let path = `/api/v1/projects/${projectName}/repos/${repoName}/contents${filePath}?revision=${revision}&viewRaw=true`;
+        if (renderTemplate) {
+          path += `&renderTemplate=true`;
+        }
+        return path;
+      },
       providesTags: ['File'],
     }),
     pushFileChanges: builder.mutation({

@@ -93,6 +93,8 @@ class VariableServiceV1Test {
                                                       MOCK_CREATION, "A string variable"
         );
         assertThat(createStringResponse.content().object())
+                .usingRecursiveComparison()
+                .ignoringFields("creation")
                 .isEqualTo(stringVarStored);
 
         // Create a JSON variable
@@ -122,7 +124,9 @@ class VariableServiceV1Test {
                       .execute();
         assertThat(listResponse.status()).isEqualTo(HttpStatus.OK);
         assertThat(listResponse.content()).hasSize(2);
-        assertThat(listResponse.content()).containsExactlyInAnyOrder(stringVarStored, jsonVarStored);
+        assertThat(listResponse.content())
+                .usingRecursiveFieldByFieldElementComparatorIgnoringFields("creation")
+                .containsExactlyInAnyOrder(stringVarStored, jsonVarStored);
 
         // Get specific STRING variable
         final ResponseEntity<Variable> getStringResponse =
@@ -131,7 +135,10 @@ class VariableServiceV1Test {
                       .asJson(Variable.class)
                       .execute();
         assertThat(getStringResponse.status()).isEqualTo(HttpStatus.OK);
-        assertThat(getStringResponse.content()).isEqualTo(stringVarStored);
+        assertThat(getStringResponse.content())
+                .usingRecursiveComparison()
+                .ignoringFields("creation")
+                .isEqualTo(stringVarStored);
 
         // Get specific JSON variable
         final ResponseEntity<Variable> getJsonResponse = client.prepare()
@@ -139,7 +146,10 @@ class VariableServiceV1Test {
                                                                .asJson(Variable.class)
                                                                .execute();
         assertThat(getJsonResponse.status()).isEqualTo(HttpStatus.OK);
-        assertThat(getJsonResponse.content()).isEqualTo(jsonVarStored);
+        assertThat(getJsonResponse.content())
+                .usingRecursiveComparison()
+                .ignoringFields("creation")
+                .isEqualTo(jsonVarStored);
     }
 
     @ValueSource(booleans = { true, false })

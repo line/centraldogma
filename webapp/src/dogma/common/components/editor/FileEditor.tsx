@@ -30,6 +30,8 @@ import { registerJson5Language } from 'dogma/features/file/Json5Language';
 import { isStructuredFile } from 'dogma/features/file/StructuredFileSupport';
 import { useLocalMonaco } from 'dogma/features/file/MonacoLoader';
 import { Loading } from 'dogma/common/components/Loading';
+import { useGetFileContentQuery } from 'dogma/features/api/apiSlice';
+import ErrorMessageParser from 'dogma/features/services/ErrorMessageParser';
 
 export type FileEditorProps = {
   projectName: string;
@@ -109,6 +111,41 @@ const FileEditor = ({
   const [diffSideBySide, setDiffSideBySide] = useState(false);
   const [editorExpanded, setEditorExpanded] = useState(false);
 
+  const {
+    data: dataWithVariables,
+    error,
+    isLoading,
+  } = useGetFileContentQuery(
+    { projectName, repoName, filePath: path, revision, renderTemplate: true },
+    {
+      refetchOnMountOrArgChange: true,
+      skip: !(readOnly && tabIndex === 1),
+    },
+  );
+
+  let modifiedContent: string;
+  if (readOnly) {
+    if (isLoading) {
+      modifiedContent = 'Loading preview with variables...';
+    } else {
+      if (error) {
+        modifiedContent = `Error loading preview with variables:\n ${ErrorMessageParser.parse(error)}`;
+      } else {
+        modifiedContent = dataWithVariables?.rawContent;
+      }
+    }
+  } else {
+    modifiedContent = editorRef?.current?.getValue();
+  }
+
+  const [cachedRevision, setCachedRevision] = useState('');
+  if (cachedRevision != revision) {
+    setFileContent(displayContent);
+    setCachedRevision(revision + '');
+  }
+
+  console.log(`file content: ${fileContent}, ${originalContent}, revision: ${revision}`);
+
   const monaco = useLocalMonaco();
   if (!monaco) {
     return <Loading />;
@@ -162,8 +199,8 @@ const FileEditor = ({
           <Tab>
             <Heading size="sm">{readOnly ? 'View file' : 'Edit file'}</Heading>
           </Tab>
-          <Tab display={readOnly ? 'none' : 'visible'}>
-            <Heading size="sm">Preview Changes</Heading>
+          <Tab>
+            <Heading size="sm">Preview {readOnly ? 'with Variables' : 'Changes'}</Heading>
           </Tab>
         </TabList>
         <TabPanels>
@@ -210,7 +247,7 @@ const FileEditor = ({
               />
             </Box>
           </TabPanel>
-          <TabPanel display={readOnly ? 'none' : 'visible'}>
+          <TabPanel>
             <Flex mb="2">
               <Spacer />
               <EditModeToggle
@@ -224,7 +261,7 @@ const FileEditor = ({
               language={language}
               theme={colorMode === 'light' ? 'light' : 'vs-dark'}
               original={fileContent}
-              modified={editorRef?.current?.getValue()}
+              modified={modifiedContent}
               options={{
                 autoIndent: 'full',
                 formatOnPaste: true,

@@ -62,7 +62,7 @@ public final class WatcherRequest<T> extends WatchOptions {
     private long maxDelayMillis = DEFAULT_MAX_DELAY_MILLIS;
     private double multiplier = DEFAULT_MULTIPLIER;
     private double jitterRate = DEFAULT_JITTER_RATE;
-    private boolean applyTemplate;
+    private boolean renderTemplate;
     @Nullable
     private String variableFile;
 
@@ -163,8 +163,8 @@ public final class WatcherRequest<T> extends WatchOptions {
      * <p>This option is only valid when watching a single file via
      * {@link CentralDogmaRepository#watcher(Query)}.
      */
-    public WatcherRequest<T> applyTemplate(boolean applyTemplate) {
-        this.applyTemplate = applyTemplate;
+    public WatcherRequest<T> renderTemplate(boolean renderTemplate) {
+        this.renderTemplate = renderTemplate;
         variableFile = null;
         return this;
     }
@@ -177,9 +177,9 @@ public final class WatcherRequest<T> extends WatchOptions {
      * <p>This option is only valid when watching a single file via
      * {@link CentralDogmaRepository#watcher(Query)}.
      */
-    public WatcherRequest<T> applyTemplate(String variableFile) {
+    public WatcherRequest<T> renderTemplate(String variableFile) {
         validateStructuredFilePath(variableFile, "variableFile");
-        applyTemplate = true;
+        renderTemplate = true;
         this.variableFile = variableFile;
         return this;
     }
@@ -215,9 +215,9 @@ public final class WatcherRequest<T> extends WatchOptions {
                     centralDogmaRepo.centralDogma(), blockingTaskExecutor, proName, repoName, query,
                     timeoutMillis(), errorOnEntryNotFound(), mapper, executor, delayOnSuccessMillis,
                     initialDelayMillis, maxDelayMillis, multiplier, jitterRate, meterRegistry,
-                    applyTemplate, variableFile);
+                    renderTemplate, variableFile);
         } else {
-            checkState(!applyTemplate, "applyTemplate can't be set when watching multiple files.");
+            checkState(!renderTemplate, "renderTemplate can't be set when watching multiple files.");
             assert pathPattern != null;
             watcher = new FilesWatcher<>(
                     centralDogmaRepo.centralDogma(), blockingTaskExecutor, proName, repoName, pathPattern,

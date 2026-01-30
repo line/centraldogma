@@ -106,7 +106,7 @@ class VariableTemplateCrudTest {
     }
 
     @Test
-    void applyTemplateWithProjectLevelStringVariable() {
+    void renderTemplateWithProjectLevelStringVariable() {
         createVariable(TEST_PROJECT, null, "serverName", VariableType.STRING, "production-server");
 
         final String templateContent = "{ \"server\": \"${vars.serverName}\" }";
@@ -114,7 +114,7 @@ class VariableTemplateCrudTest {
         testRepo1.commit("Add config template", change).push().join();
 
         final Entry<JsonNode> entry = testRepo1.file(Query.ofJson("/config.json"))
-                                               .applyTemplate(true)
+                                               .renderTemplate(true)
                                                .get()
                                                .join();
 
@@ -122,7 +122,7 @@ class VariableTemplateCrudTest {
     }
 
     @Test
-    void applyTemplateWithProjectLevelJsonVariable() {
+    void renderTemplateWithProjectLevelJsonVariable() {
         final String jsonValue = "{\"host\":\"localhost\",\"port\":8080}";
         createVariable(TEST_PROJECT, null, "dbConfig", VariableType.JSON, jsonValue);
 
@@ -131,7 +131,7 @@ class VariableTemplateCrudTest {
         testRepo1.commit("Add db template", change).push().join();
 
         final Entry<JsonNode> entry = testRepo1.file(Query.ofJson("/db.json"))
-                                               .applyTemplate(true)
+                                               .renderTemplate(true)
                                                .get()
                                                .join();
 
@@ -145,7 +145,7 @@ class VariableTemplateCrudTest {
     }
 
     @Test
-    void applyTemplateWithRepoLevelVariable() {
+    void renderTemplateWithRepoLevelVariable() {
         createVariable(TEST_PROJECT, TEST_REPO_1, "environment", VariableType.STRING, "staging");
 
         final String templateContent = "{ \"environment\": \"${vars.environment}\" }";
@@ -153,7 +153,7 @@ class VariableTemplateCrudTest {
         testRepo1.commit("Add env template", change).push().join();
 
         final Entry<JsonNode> entry = testRepo1.file(Query.ofJson("/env.json"))
-                                               .applyTemplate(true)
+                                               .renderTemplate(true)
                                                .get()
                                                .join();
 
@@ -163,7 +163,7 @@ class VariableTemplateCrudTest {
         assertThatThrownBy(() -> {
             // repo1 variable should not be accessible in repo2
             testRepo2.file(Query.ofText("/env.json"))
-                     .applyTemplate(true)
+                     .renderTemplate(true)
                      .get()
                      .join();
         }).hasCauseInstanceOf(TemplateProcessingException.class);
@@ -180,7 +180,7 @@ class VariableTemplateCrudTest {
 
         // Repo-level should override
         final Entry<String> entry = testRepo1.file(Query.ofText("/version.txt"))
-                                             .applyTemplate(true)
+                                             .renderTemplate(true)
                                              .get()
                                              .join();
 
@@ -188,7 +188,7 @@ class VariableTemplateCrudTest {
 
         testRepo2.commit("Add version template", change).push().join();
         final Entry<String> entry2 = testRepo2.file(Query.ofText("/version.txt"))
-                                              .applyTemplate(true)
+                                              .renderTemplate(true)
                                               .get()
                                               .join();
         // Should use project-level variable as repo2 does not have its own variable.
@@ -211,7 +211,7 @@ class VariableTemplateCrudTest {
         testRepo1.commit("Add db override template", change).push().join();
 
         final Entry<JsonNode> entry = testRepo1.file(Query.ofJson("/db-override.json5"))
-                                               .applyTemplate(true)
+                                               .renderTemplate(true)
                                                .viewRaw(true)
                                                .get()
                                                .join();
@@ -240,7 +240,7 @@ class VariableTemplateCrudTest {
         testRepo1.commit("Add mixed template", change).push().join();
 
         final Entry<String> entry = testRepo1.file(Query.ofText("/mixed.txt"))
-                                             .applyTemplate(true)
+                                             .renderTemplate(true)
                                              .get()
                                              .join();
 
@@ -262,7 +262,7 @@ class VariableTemplateCrudTest {
 
         // Read with repo variable - should show repo value
         Entry<String> entry = testRepo1.file(Query.ofText("/config-override.txt"))
-                                       .applyTemplate(true)
+                                       .renderTemplate(true)
                                        .get()
                                        .join();
         assertThat(entry.content()).isEqualTo("Config: repo-config\n");
@@ -271,7 +271,7 @@ class VariableTemplateCrudTest {
 
         // Read again - should now show project value
         entry = testRepo1.file(Query.ofText("/config-override.txt"))
-                         .applyTemplate(true)
+                         .renderTemplate(true)
                          .get()
                          .join();
         assertThat(entry.content()).isEqualTo("Config: project-config\n");
@@ -287,7 +287,7 @@ class VariableTemplateCrudTest {
 
         // Initially, should use project variable
         Entry<String> entry = testRepo1.file(Query.ofText("/setting.txt"))
-                                       .applyTemplate(true)
+                                       .renderTemplate(true)
                                        .get()
                                        .join();
         assertThat(entry.content()).isEqualTo("Setting: project-setting\n");
@@ -296,7 +296,7 @@ class VariableTemplateCrudTest {
 
         // Now should use repo variable (override)
         entry = testRepo1.file(Query.ofText("/setting.txt"))
-                         .applyTemplate(true)
+                         .renderTemplate(true)
                          .get()
                          .join();
         assertThat(entry.content()).isEqualTo("Setting: repo-setting\n");
@@ -304,14 +304,14 @@ class VariableTemplateCrudTest {
         updateVariable(TEST_PROJECT, TEST_REPO_1, "setting", VariableType.STRING, "updated-repo-setting");
 
         entry = testRepo1.file(Query.ofText("/setting.txt"))
-                         .applyTemplate(true)
+                         .renderTemplate(true)
                          .get()
                          .join();
         assertThat(entry.content()).isEqualTo("Setting: updated-repo-setting\n");
     }
 
     @Test
-    void applyTemplateWithMultipleVariables() {
+    void renderTemplateWithMultipleVariables() {
         createVariable(TEST_PROJECT, null, "appName", VariableType.STRING, "MyApp");
         createVariable(TEST_PROJECT, null, "version", VariableType.STRING, "3.0.0");
         createVariable(TEST_PROJECT, TEST_REPO_1, "env", VariableType.STRING, "production");
@@ -325,7 +325,7 @@ class VariableTemplateCrudTest {
         testRepo1.commit("Add app info template", change).push().join();
 
         final Entry<JsonNode> entry = testRepo1.file(Query.ofYaml("/app-info.yaml"))
-                                               .applyTemplate(true)
+                                               .renderTemplate(true)
                                                .viewRaw(true)
                                                .get()
                                                .join();
@@ -337,7 +337,7 @@ class VariableTemplateCrudTest {
     }
 
     @Test
-    void applyTemplateWithComplexJsonVariable() throws Exception {
+    void renderTemplateWithComplexJsonVariable() throws Exception {
         //language=JSON
         final String complexJson =
                 '{' +
@@ -367,7 +367,7 @@ class VariableTemplateCrudTest {
         testRepo1.commit("Add DB config template", change).push().join();
 
         final Entry<String> entry = testRepo1.file(Query.ofText("/db-config.yaml"))
-                                             .applyTemplate(true)
+                                             .renderTemplate(true)
                                              .viewRaw(true)
                                              .get()
                                              .join();
@@ -381,7 +381,7 @@ class VariableTemplateCrudTest {
     }
 
     @Test
-    void applyTemplateWithFreemarkerDirectives() {
+    void renderTemplateWithFreemarkerDirectives() {
         createVariable(TEST_PROJECT, null, "enabled", VariableType.JSON, "true");
         createVariable(TEST_PROJECT, null, "items", VariableType.JSON, "[\"apple\",\"banana\",\"cherry\"]");
 
@@ -398,7 +398,7 @@ class VariableTemplateCrudTest {
 
         // Read file with template applied
         final Entry<String> entry = testRepo1.file(Query.ofText("/directives.yaml.ftl"))
-                                             .applyTemplate(true)
+                                             .renderTemplate(true)
                                              .get()
                                              .join();
 
@@ -411,7 +411,7 @@ class VariableTemplateCrudTest {
     }
 
     @Test
-    void applyTemplateWithJsonOutput() throws Exception {
+    void renderTemplateWithJsonOutput() throws Exception {
         createVariable(TEST_PROJECT, null, "apiKey", VariableType.STRING, "secret-key-123");
         createVariable(TEST_PROJECT, null, "timeout", VariableType.JSON, "30");
 
@@ -425,7 +425,7 @@ class VariableTemplateCrudTest {
 
         // Read file with template applied and parse as JSON
         final Entry<String> entry = testRepo1.file(Query.ofText("/config.tmpl"))
-                                             .applyTemplate(true)
+                                             .renderTemplate(true)
                                              .get()
                                              .join();
 
@@ -436,13 +436,13 @@ class VariableTemplateCrudTest {
     }
 
     @Test
-    void applyTemplateWithoutVariablesShouldWork() {
+    void renderTemplateWithoutVariablesShouldWork() {
         final String templateContent = "Static content without variables";
         final Change<String> change = Change.ofTextUpsert("/static.txt", templateContent);
         testRepo1.commit("Add static file", change).push().join();
 
         final Entry<String> entry = testRepo1.file(Query.ofText("/static.txt"))
-                                             .applyTemplate(true)
+                                             .renderTemplate(true)
                                              .get()
                                              .join();
 
@@ -450,7 +450,7 @@ class VariableTemplateCrudTest {
     }
 
     @Test
-    void readFileWithoutApplyTemplate() {
+    void readFileWithoutrenderTemplate() {
         createVariable(TEST_PROJECT, null, "varName", VariableType.STRING, "\"value\"");
 
         final String templateContent = "Variable: ${vars.varName}";
@@ -465,20 +465,20 @@ class VariableTemplateCrudTest {
     }
 
     @Test
-    void applyTemplateWithUndefinedVariableShouldFail() {
+    void renderTemplateWithUndefinedVariableShouldFail() {
         final String templateContent = "Value: ${vars.nonExistentVar}";
         final Change<String> change = Change.ofTextUpsert("/fail.txt", templateContent);
         testRepo1.commit("Add failing template", change).push().join();
 
         assertThatThrownBy(() -> testRepo1.file(Query.ofText("/fail.txt"))
-                                          .applyTemplate(true)
+                                          .renderTemplate(true)
                                           .get()
                                           .join())
                 .hasCauseInstanceOf(TemplateProcessingException.class);
     }
 
     @Test
-    void applyTemplateWithMultipleFiles() {
+    void renderTemplateWithMultipleFiles() {
         createVariable(TEST_PROJECT, null, "prefix", VariableType.STRING, "PREFIX");
 
         final Change<String> change1 = Change.ofTextUpsert("/file1.txt", "${vars.prefix}-1");
@@ -486,7 +486,7 @@ class VariableTemplateCrudTest {
         testRepo1.commit("Add templates", change1, change2).push().join();
 
         final Map<String, Entry<?>> entries = testRepo1.file(PathPattern.of("/*.txt"))
-                                                       .applyTemplate(true)
+                                                       .renderTemplate(true)
                                                        .get()
                                                        .join();
 
@@ -504,7 +504,7 @@ class VariableTemplateCrudTest {
         testRepo1.commit("Add counter template", change).push().join();
 
         Entry<String> entry = testRepo1.file(Query.ofText("/counter.txt"))
-                                       .applyTemplate(true)
+                                       .renderTemplate(true)
                                        .get()
                                        .join();
         assertThat(entry.content()).isEqualTo("Count: 1\n");
@@ -512,7 +512,7 @@ class VariableTemplateCrudTest {
         updateVariable(TEST_PROJECT, null, "counter", VariableType.JSON, "2");
 
         entry = testRepo1.file(Query.ofText("/counter.txt"))
-                         .applyTemplate(true)
+                         .renderTemplate(true)
                          .get()
                          .join();
         assertThat(entry.content()).isEqualTo("Count: 2\n");
@@ -527,7 +527,7 @@ class VariableTemplateCrudTest {
         testRepo1.commit("Add temp template", change).push().join();
 
         final Entry<String> entry = testRepo1.file(Query.ofText("/temp.txt"))
-                                             .applyTemplate(true)
+                                             .renderTemplate(true)
                                              .get()
                                              .join();
         assertThat(entry.content()).isEqualTo("Temp: value\n");
@@ -537,7 +537,7 @@ class VariableTemplateCrudTest {
 
         // Reading with template applied should now fail
         assertThatThrownBy(() -> testRepo1.file(Query.ofText("/temp.txt"))
-                                          .applyTemplate(true)
+                                          .renderTemplate(true)
                                           .get()
                                           .join())
                 .hasCauseInstanceOf(TemplateProcessingException.class)
@@ -549,7 +549,7 @@ class VariableTemplateCrudTest {
     // Tests for file-level variables (.variables.json, .variables.json5, .variables.yaml)
 
     @Test
-    void applyTemplateWithDefaultVariablesJsonFile() {
+    void renderTemplateWithDefaultVariablesJsonFile() {
         // Create a .variables.json file in the root directory
         final String variablesJson = "{\"serverName\": \"json-server\", \"port\": 8080}";
         final Change<JsonNode> variablesChange = Change.ofJsonUpsert("/.variables.json", variablesJson);
@@ -560,7 +560,7 @@ class VariableTemplateCrudTest {
         testRepo1.commit("Add config template", change).push().join();
 
         final Entry<JsonNode> entry = testRepo1.file(Query.ofJson("/config.json"))
-                                               .applyTemplate(true)
+                                               .renderTemplate(true)
                                                .get()
                                                .join();
 
@@ -568,7 +568,7 @@ class VariableTemplateCrudTest {
     }
 
     @Test
-    void applyTemplateWithDefaultVariablesJson5File() {
+    void renderTemplateWithDefaultVariablesJson5File() {
         //language=JSON5
         final String variablesJson5 = "{\n" +
                                       "  // Server configuration\n" +
@@ -584,7 +584,7 @@ class VariableTemplateCrudTest {
         testRepo1.commit("Add config template", change).push().join();
 
         final Entry<JsonNode> entry = testRepo1.file(Query.ofJson("/config.json5"))
-                                               .applyTemplate(true)
+                                               .renderTemplate(true)
                                                .get()
                                                .join();
 
@@ -592,7 +592,7 @@ class VariableTemplateCrudTest {
     }
 
     @Test
-    void applyTemplateWithDefaultVariablesYamlFile() {
+    void renderTemplateWithDefaultVariablesYamlFile() {
         final String variablesYaml = "serverName: yaml-server\nport: 7070";
         final Change<String> variablesChange = Change.ofTextUpsert("/.variables.yaml", variablesYaml);
         testRepo1.commit("Add .variables.yaml", variablesChange).push().join();
@@ -603,7 +603,7 @@ class VariableTemplateCrudTest {
 
         // Read file with template applied
         final Entry<JsonNode> entry = testRepo1.file(Query.ofJson("/config.json"))
-                                               .applyTemplate(true)
+                                               .renderTemplate(true)
                                                .get()
                                                .join();
 
@@ -611,7 +611,7 @@ class VariableTemplateCrudTest {
     }
 
     @Test
-    void applyTemplateWithDefaultVariablesYmlFile() {
+    void renderTemplateWithDefaultVariablesYmlFile() {
         // Create a .variables.yml file in the root directory
         final String variablesYml = "serverName: yml-server\nport: 6060";
         final Change<String> variablesChange = Change.ofTextUpsert("/.variables.yml", variablesYml);
@@ -624,7 +624,7 @@ class VariableTemplateCrudTest {
 
         // Read file with template applied
         final Entry<JsonNode> entry = testRepo1.file(Query.ofJson("/config.json"))
-                                               .applyTemplate(true)
+                                               .renderTemplate(true)
                                                .get()
                                                .join();
 
@@ -650,7 +650,7 @@ class VariableTemplateCrudTest {
 
         final Entry<JsonNode> entry = testRepo1.file(Query.ofJson("/priority.json5"))
                                                .viewRaw(true)
-                                               .applyTemplate(true)
+                                               .renderTemplate(true)
                                                .get()
                                                .join();
 
@@ -673,7 +673,7 @@ class VariableTemplateCrudTest {
 
         // .variables.json5 should be used
         final Entry<JsonNode> entry = testRepo1.file(Query.ofJson("/priority.json"))
-                                               .applyTemplate(true)
+                                               .renderTemplate(true)
                                                .get()
                                                .join();
 
@@ -695,7 +695,7 @@ class VariableTemplateCrudTest {
 
         // .variables.yaml should be used
         final Entry<JsonNode> entry = testRepo1.file(Query.ofJson("/priority.json"))
-                                               .applyTemplate(true)
+                                               .renderTemplate(true)
                                                .get()
                                                .join();
 
@@ -718,7 +718,7 @@ class VariableTemplateCrudTest {
 
         // Subdirectory variables should be used for overridden keys
         final Entry<JsonNode> entry = testRepo1.file(Query.ofJson("/subdir/config.json"))
-                                               .applyTemplate(true)
+                                               .renderTemplate(true)
                                                .get()
                                                .join();
 
@@ -747,7 +747,7 @@ class VariableTemplateCrudTest {
 
         // All variables should be available, with subdirectory taking precedence for 'shared'
         final Entry<JsonNode> entry = testRepo1.file(Query.ofJson("/subdir/config.json"))
-                                               .applyTemplate(true)
+                                               .renderTemplate(true)
                                                .get()
                                                .join();
 
@@ -776,7 +776,7 @@ class VariableTemplateCrudTest {
 
         // Entry path variables should override root variables
         final Entry<JsonNode> entry = testRepo1.file(Query.ofJson("/subdir/config.json"))
-                                               .applyTemplate(true)
+                                               .renderTemplate(true)
                                                .get()
                                                .join();
 
@@ -810,7 +810,7 @@ class VariableTemplateCrudTest {
 
         // Client variables should override entry path variables
         final Entry<JsonNode> entry = testRepo1.file(Query.ofJson("/subdir/config.json"))
-                                               .applyTemplate("/vars/client.json")
+                                               .renderTemplate("/vars/client.json")
                                                .get()
                                                .join();
 
@@ -835,7 +835,7 @@ class VariableTemplateCrudTest {
 
         // Root directory variables should be used
         final Entry<JsonNode> entry = testRepo1.file(Query.ofJson("/subdir/config.json"))
-                                               .applyTemplate(true)
+                                               .renderTemplate(true)
                                                .get()
                                                .join();
 
@@ -855,7 +855,7 @@ class VariableTemplateCrudTest {
 
         // File-level should override repo-level
         final Entry<JsonNode> entry = testRepo1.file(Query.ofJson("/config.json"))
-                                               .applyTemplate(true)
+                                               .renderTemplate(true)
                                                .get()
                                                .join();
 
@@ -875,7 +875,7 @@ class VariableTemplateCrudTest {
 
         // File-level should override project-level
         final Entry<JsonNode> entry = testRepo1.file(Query.ofJson("/config.json"))
-                                               .applyTemplate(true)
+                                               .renderTemplate(true)
                                                .get()
                                                .join();
 
@@ -900,7 +900,7 @@ class VariableTemplateCrudTest {
         testRepo1.commit("Add config template", change).push().join();
 
         final Entry<JsonNode> entry = testRepo1.file(Query.ofJson("/config.json"))
-                                               .applyTemplate(true)
+                                               .renderTemplate(true)
                                                .get()
                                                .join();
 
@@ -949,7 +949,7 @@ class VariableTemplateCrudTest {
 
         // All variables should be available, with client file taking precedence for 'priority'
         final Entry<JsonNode> entry = testRepo1.file(Query.ofJson("/subdir/config.json"))
-                                               .applyTemplate("/vars/client.json")
+                                               .renderTemplate("/vars/client.json")
                                                .get()
                                                .join();
 
@@ -985,7 +985,7 @@ class VariableTemplateCrudTest {
         testRepo1.commit("Add db config template", change).push().join();
 
         final Entry<JsonNode> entry = testRepo1.file(Query.ofJson("/db-config.json"))
-                                               .applyTemplate(true)
+                                               .renderTemplate(true)
                                                .get()
                                                .join();
 
@@ -1014,7 +1014,7 @@ class VariableTemplateCrudTest {
         testRepo1.commit("Add db config template", change).push().join();
 
         final Entry<JsonNode> entry = testRepo1.file(Query.ofJson("/db-config.json"))
-                                               .applyTemplate(true)
+                                               .renderTemplate(true)
                                                .get()
                                                .join();
 
@@ -1024,10 +1024,10 @@ class VariableTemplateCrudTest {
                                                   '}');
     }
 
-    // Tests for custom variable files using applyTemplate(variableFile)
+    // Tests for custom variable files using renderTemplate(variableFile)
 
     @Test
-    void applyTemplateWithCustomVariableFile() {
+    void renderTemplateWithCustomVariableFile() {
         final String customVariables = "{\"env\": \"production\", \"region\": \"us-east\"}";
         final Change<JsonNode> variablesChange = Change.ofJsonUpsert("/vars/prod.json", customVariables);
         testRepo1.commit("Add custom variable file", variablesChange).push().join();
@@ -1037,7 +1037,7 @@ class VariableTemplateCrudTest {
         testRepo1.commit("Add config template", change).push().join();
 
         final Entry<JsonNode> entry = testRepo1.file(Query.ofJson("/config.json"))
-                                               .applyTemplate("/vars/prod.json")
+                                               .renderTemplate("/vars/prod.json")
                                                .get()
                                                .join();
 
@@ -1045,7 +1045,7 @@ class VariableTemplateCrudTest {
     }
 
     @Test
-    void applyTemplateWithCustomVariableFileOverridesDefaultVariableFile() {
+    void renderTemplateWithCustomVariableFileOverridesDefaultVariableFile() {
         final String defaultVariables = "{\"env\": \"default\"}";
         final Change<JsonNode> defaultChange = Change.ofJsonUpsert("/.variables.json", defaultVariables);
         final String customVariables = "{\"env\": \"custom\"}";
@@ -1057,7 +1057,7 @@ class VariableTemplateCrudTest {
         testRepo1.commit("Add config template", change).push().join();
 
         final Entry<JsonNode> entry = testRepo1.file(Query.ofJson("/config.json"))
-                                               .applyTemplate("/vars/custom.json")
+                                               .renderTemplate("/vars/custom.json")
                                                .get()
                                                .join();
 
@@ -1066,7 +1066,7 @@ class VariableTemplateCrudTest {
     }
 
     @Test
-    void applyTemplateWithCustomVariableFileMergesWithDefaultVariableFile() {
+    void renderTemplateWithCustomVariableFileMergesWithDefaultVariableFile() {
         // Default has 'defaultVar' and 'shared', custom has 'customVar' and 'shared'
         final String defaultVariables = "{\"defaultVar\": \"from-default\", \"shared\": \"default-value\"}";
         final Change<JsonNode> defaultChange = Change.ofJsonUpsert("/.variables.json", defaultVariables);
@@ -1084,7 +1084,7 @@ class VariableTemplateCrudTest {
         testRepo1.commit("Add config template", change).push().join();
 
         final Entry<JsonNode> entry = testRepo1.file(Query.ofJson("/config.json"))
-                                               .applyTemplate("/vars/custom.json")
+                                               .renderTemplate("/vars/custom.json")
                                                .get()
                                                .join();
 
@@ -1097,7 +1097,7 @@ class VariableTemplateCrudTest {
     }
 
     @Test
-    void applyTemplateWithCustomVariableFileCombinesWithProjectAndRepoVariables() {
+    void renderTemplateWithCustomVariableFileCombinesWithProjectAndRepoVariables() {
         createVariable(TEST_PROJECT, null, "projectVar", VariableType.STRING, "from-project");
         createVariable(TEST_PROJECT, TEST_REPO_1, "repoVar", VariableType.STRING, "from-repo");
         final String customVariables = "{\"fileVar\": \"from-custom-file\"}";
@@ -1114,7 +1114,7 @@ class VariableTemplateCrudTest {
 
         // Read file with template applied using custom variable file
         final Entry<JsonNode> entry = testRepo1.file(Query.ofJson("/config.json"))
-                                               .applyTemplate("/vars/custom.json")
+                                               .renderTemplate("/vars/custom.json")
                                                .get()
                                                .join();
 
@@ -1126,7 +1126,7 @@ class VariableTemplateCrudTest {
     }
 
     @Test
-    void applyTemplateWithMultipleCustomVariableFilesForDifferentEnvironments() {
+    void renderTemplateWithMultipleCustomVariableFilesForDifferentEnvironments() {
         final String devVariables = "{\"env\": \"development\", \"debug\": true}";
         final Change<JsonNode> devChange = Change.ofJsonUpsert("/vars/dev.json", devVariables);
         final String prodVariables = "{\"env\": \"production\", \"debug\": false}";
@@ -1140,7 +1140,7 @@ class VariableTemplateCrudTest {
         testRepo1.commit("Add config template", change).push().join();
 
         final Entry<JsonNode> devEntry = testRepo1.file(Query.ofYaml("/config.yaml"))
-                                                  .applyTemplate("/vars/dev.json")
+                                                  .renderTemplate("/vars/dev.json")
                                                   .viewRaw(true)
                                                   .get()
                                                   .join();
@@ -1152,7 +1152,7 @@ class VariableTemplateCrudTest {
 
         // Read file with prod environment
         final Entry<JsonNode> prodEntry = testRepo1.file(Query.ofYaml("/config.yaml"))
-                                                   .applyTemplate("/vars/prod.json")
+                                                   .renderTemplate("/vars/prod.json")
                                                    .viewRaw(true)
                                                    .get()
                                                    .join();
@@ -1165,7 +1165,7 @@ class VariableTemplateCrudTest {
     }
 
     @Test
-    void applyTemplateWithCustomVariableFileToMultipleFiles() {
+    void renderTemplateWithCustomVariableFileToMultipleFiles() {
         final String customVariables = "{\"prefix\": \"CUSTOM\"}";
         final Change<JsonNode> customChange = Change.ofJsonUpsert("/vars/custom.json", customVariables);
         testRepo1.commit("Add custom variable file", customChange).push().join();
@@ -1179,7 +1179,7 @@ class VariableTemplateCrudTest {
 
         // Read multiple files with template applied using custom variable file
         final Map<String, Entry<?>> entries = testRepo1.file(PathPattern.of("/*.json"))
-                                                       .applyTemplate("/vars/custom.json")
+                                                       .renderTemplate("/vars/custom.json")
                                                        .get()
                                                        .join();
 
@@ -1189,7 +1189,7 @@ class VariableTemplateCrudTest {
     }
 
     @Test
-    void applyTemplateWithJson5CustomVariableFile() {
+    void renderTemplateWithJson5CustomVariableFile() {
         //language=JSON5
         final String customVariables = "{\n" +
                                        "  // Environment configuration\n" +
@@ -1205,7 +1205,7 @@ class VariableTemplateCrudTest {
         testRepo1.commit("Add config template", change).push().join();
 
         final Entry<JsonNode> entry = testRepo1.file(Query.ofJson("/config.json5"))
-                                               .applyTemplate("/vars/staging.json5")
+                                               .renderTemplate("/vars/staging.json5")
                                                .get()
                                                .join();
 
@@ -1213,7 +1213,7 @@ class VariableTemplateCrudTest {
     }
 
     @Test
-    void applyTemplateWithJsonPathQuery() {
+    void renderTemplateWithJsonPathQuery() {
         createVariable(TEST_PROJECT, null, "serverName", VariableType.STRING, "production-server");
 
         final String templateContent = '{' +
@@ -1224,7 +1224,7 @@ class VariableTemplateCrudTest {
         testRepo1.commit("Add config template", change).push().join();
 
         final Entry<JsonNode> entry = testRepo1.file(Query.ofJsonPath("/config.json", "$.server"))
-                                               .applyTemplate(true)
+                                               .renderTemplate(true)
                                                .get()
                                                .join();
 
@@ -1232,7 +1232,7 @@ class VariableTemplateCrudTest {
     }
 
     @Test
-    void applyTemplateWithJsonPathQueryOnNestedObject() {
+    void renderTemplateWithJsonPathQueryOnNestedObject() {
         final String jsonValue = "{\"host\":\"db.example.com\",\"port\":5432}";
         createVariable(TEST_PROJECT, null, "database", VariableType.JSON, jsonValue);
 
@@ -1249,14 +1249,14 @@ class VariableTemplateCrudTest {
         testRepo1.commit("Add db template", change).push().join();
 
         final Entry<JsonNode> hostEntry = testRepo1.file(Query.ofJsonPath("/db.json", "$.db.host"))
-                                                   .applyTemplate(true)
+                                                   .renderTemplate(true)
                                                    .get()
                                                    .join();
         assertThatJson(hostEntry.content()).isEqualTo("\"db.example.com\"");
     }
 
     @Test
-    void applyTemplateWithJsonPathQueryWithFilter() {
+    void renderTemplateWithJsonPathQueryWithFilter() {
         createVariable(TEST_PROJECT, null, "adminRole", VariableType.STRING, "admin");
         createVariable(TEST_PROJECT, null, "userRole", VariableType.STRING, "user");
 
@@ -1273,7 +1273,7 @@ class VariableTemplateCrudTest {
         // Query users with admin role using filter
         final Entry<JsonNode> adminUsers =
                 testRepo1.file(Query.ofJsonPath("/users.json", "$.users[?(@.role == 'admin')]"))
-                         .applyTemplate(true)
+                         .renderTemplate(true)
                          .get()
                          .join();
 
@@ -1284,7 +1284,7 @@ class VariableTemplateCrudTest {
         // Query users with user role
         final Entry<JsonNode> regularUsers =
                 testRepo1.file(Query.ofJsonPath("/users.json", "$.users[?(@.role == 'user')]"))
-                         .applyTemplate(true)
+                         .renderTemplate(true)
                          .get()
                          .join();
 
@@ -1293,7 +1293,7 @@ class VariableTemplateCrudTest {
     }
 
     @Test
-    void applyTemplateWithJsonPathQueryOnYaml() {
+    void renderTemplateWithJsonPathQueryOnYaml() {
         createVariable(TEST_PROJECT, null, "environment", VariableType.STRING, "production");
         createVariable(TEST_PROJECT, null, "replicas", VariableType.JSON, "3");
 
@@ -1308,21 +1308,21 @@ class VariableTemplateCrudTest {
         // Query specific field using JSON path
         final Entry<JsonNode> envEntry =
                 testRepo1.file(Query.ofJsonPath("/deployment.yaml", "$.deployment.environment"))
-                         .applyTemplate(true)
+                         .renderTemplate(true)
                          .get()
                          .join();
         assertThatJson(envEntry.content()).isEqualTo("\"production\"");
 
         final Entry<JsonNode> replicasEntry =
                 testRepo1.file(Query.ofJsonPath("/deployment.yaml", "$.deployment.replicas"))
-                         .applyTemplate(true)
+                         .renderTemplate(true)
                          .get()
                          .join();
         assertThatJson(replicasEntry.content()).isEqualTo("3");
     }
 
     @Test
-    void applyTemplateWithJsonPathQueryOnJson5() {
+    void renderTemplateWithJsonPathQueryOnJson5() {
         createVariable(TEST_PROJECT, null, "theme", VariableType.STRING, "dark");
 
         //language=JSON5
@@ -1339,14 +1339,14 @@ class VariableTemplateCrudTest {
         // Query theme using JSON path
         final Entry<JsonNode> themeEntry =
                 testRepo1.file(Query.ofJsonPath("/settings.json5", "$.settings.theme"))
-                         .applyTemplate(true)
+                         .renderTemplate(true)
                          .get()
                          .join();
         assertThatJson(themeEntry.content()).isEqualTo("\"dark\"");
     }
 
     @Test
-    void applyTemplateWithJsonPathQueryUsingCustomVariableFile() {
+    void renderTemplateWithJsonPathQueryUsingCustomVariableFile() {
         final String customVariables = "{\"env\": \"staging\", \"version\": \"2.0.0\"}";
         final Change<JsonNode> variablesChange = Change.ofJsonUpsert("/vars/staging.json", customVariables);
         testRepo1.commit("Add custom variable file", variablesChange).push().join();
@@ -1363,21 +1363,21 @@ class VariableTemplateCrudTest {
         // Apply template with custom variable file and JSON path query
         final Entry<JsonNode> envEntry =
                 testRepo1.file(Query.ofJsonPath("/app.json", "$.app.env"))
-                         .applyTemplate("/vars/staging.json")
+                         .renderTemplate("/vars/staging.json")
                          .get()
                          .join();
         assertThatJson(envEntry.content()).isEqualTo("\"staging\"");
 
         final Entry<JsonNode> versionEntry =
                 testRepo1.file(Query.ofJsonPath("/app.json", "$.app.version"))
-                         .applyTemplate("/vars/staging.json")
+                         .renderTemplate("/vars/staging.json")
                          .get()
                          .join();
         assertThatJson(versionEntry.content()).isEqualTo("\"2.0.0\"");
     }
 
     @Test
-    void applyTemplateWithJsonPathQueryUsingDefaultVariableFile() {
+    void renderTemplateWithJsonPathQueryUsingDefaultVariableFile() {
         final String variablesJson = "{\"apiVersion\": \"v1\", \"kind\": \"ConfigMap\"}";
         final Change<JsonNode> variablesChange = Change.ofJsonUpsert("/.variables.json", variablesJson);
         testRepo1.commit("Add .variables.json", variablesChange).push().join();
@@ -1393,21 +1393,21 @@ class VariableTemplateCrudTest {
         // Query specific fields after template application
         final Entry<JsonNode> apiVersionEntry =
                 testRepo1.file(Query.ofJsonPath("/k8s-config.json", "$.apiVersion"))
-                         .applyTemplate(true)
+                         .renderTemplate(true)
                          .get()
                          .join();
         assertThatJson(apiVersionEntry.content()).isEqualTo("\"v1\"");
 
         final Entry<JsonNode> kindEntry =
                 testRepo1.file(Query.ofJsonPath("/k8s-config.json", "$.kind"))
-                         .applyTemplate(true)
+                         .renderTemplate(true)
                          .get()
                          .join();
         assertThatJson(kindEntry.content()).isEqualTo("\"ConfigMap\"");
     }
 
     @Test
-    void applyTemplateWithJsonPathQueryCannotUseViewRaw() {
+    void renderTemplateWithJsonPathQueryCannotUseViewRaw() {
         createVariable(TEST_PROJECT, null, "key", VariableType.STRING, "value");
 
         final String templateContent = "{ \"key\": \"${vars.key}\" }";
@@ -1416,7 +1416,7 @@ class VariableTemplateCrudTest {
 
         assertThatThrownBy(() -> {
             testRepo1.file(Query.ofJsonPath("/test.json", "$.key"))
-                     .applyTemplate(true)
+                     .renderTemplate(true)
                      .viewRaw(true)
                      .get()
                      .join();
@@ -1425,7 +1425,7 @@ class VariableTemplateCrudTest {
     }
 
     @Test
-    void applyTemplateWithJsonPathQueryOnWatchedFile() throws InterruptedException {
+    void renderTemplateWithJsonPathQueryOnWatchedFile() throws InterruptedException {
         createVariable(TEST_PROJECT, null, "status", VariableType.STRING, "initializing");
 
         final String initialTemplate = "{ \"status\": \"${vars.status}\" }";
@@ -1439,7 +1439,7 @@ class VariableTemplateCrudTest {
 
         final CompletableFuture<Entry<JsonNode>> future =
                 testRepo1.watch(Query.ofJsonPath("/status.json", "$.status"))
-                         .applyTemplate(true)
+                         .renderTemplate(true)
                          .start(initialResult.revision());
         Thread.sleep(1000);
         // The future should not be done yet because the JSON path query result has not changed.
@@ -1465,7 +1465,7 @@ class VariableTemplateCrudTest {
         // Start watching
         final CompletableFuture<Entry<JsonNode>> future =
                 testRepo1.watch(Query.ofJson("/version.json"))
-                         .applyTemplate(true)
+                         .renderTemplate(true)
                          .start(pushResult.revision());
 
         assertThat(future).isNotDone();
@@ -1490,7 +1490,7 @@ class VariableTemplateCrudTest {
         // Start watching
         final CompletableFuture<Entry<JsonNode>> future =
                 testRepo1.watch(Query.ofJson("/env.json"))
-                         .applyTemplate(true)
+                         .renderTemplate(true)
                          .start(pushResult.revision());
 
         assertThat(future).isNotDone();
@@ -1509,7 +1509,7 @@ class VariableTemplateCrudTest {
         testRepo1.commit("Add config", change).push().join();
 
         try (Watcher<JsonNode> watcher = testRepo1.watcher(Query.ofJson("/config.json"))
-                                                  .applyTemplate(true)
+                                                  .renderTemplate(true)
                                                   .start()) {
 
             assertThatJson(watcher.awaitInitialValue().value()).isEqualTo(" { \"config\": \"fixed\" } ");
@@ -1538,7 +1538,7 @@ class VariableTemplateCrudTest {
 
         // Verify repo-level variable is used initially
         final Entry<JsonNode> initial = testRepo1.file(Query.ofJson("/fallback.json"))
-                                                 .applyTemplate(true)
+                                                 .renderTemplate(true)
                                                  .get()
                                                  .join();
         assertThatJson(initial.content()).isEqualTo("{ \"value\": \"repo-value\" }");
@@ -1546,7 +1546,7 @@ class VariableTemplateCrudTest {
         // Start watching
         final CompletableFuture<Entry<JsonNode>> future =
                 testRepo1.watch(Query.ofJson("/fallback.json"))
-                         .applyTemplate(true)
+                         .renderTemplate(true)
                          .start(pushResult.revision());
 
         assertThat(future).isNotDone();
@@ -1572,7 +1572,7 @@ class VariableTemplateCrudTest {
         // Start watching
         final CompletableFuture<Entry<JsonNode>> future =
                 testRepo1.watch(Query.ofJson("/server.json"))
-                         .applyTemplate(true)
+                         .renderTemplate(true)
                          .start(pushResult.revision());
 
         assertThat(future).isNotDone();
@@ -1600,7 +1600,7 @@ class VariableTemplateCrudTest {
         // Start watching
         final CompletableFuture<Entry<JsonNode>> future =
                 testRepo1.watch(Query.ofYaml("/deployment.yaml"))
-                         .applyTemplate(true)
+                         .renderTemplate(true)
                          .start(pushResult.revision());
 
         assertThat(future).isNotDone();
@@ -1628,7 +1628,7 @@ class VariableTemplateCrudTest {
         // Start watching with custom variable file
         final CompletableFuture<Entry<JsonNode>> future =
                 testRepo1.watch(Query.ofJson("/settings.json"))
-                         .applyTemplate("/vars/custom.json")
+                         .renderTemplate("/vars/custom.json")
                          .start(pushResult.revision());
 
         assertThat(future).isNotDone();
@@ -1657,7 +1657,7 @@ class VariableTemplateCrudTest {
         // Start watching
         final CompletableFuture<Entry<JsonNode>> future =
                 testRepo1.watch(Query.ofJson("/ui.json"))
-                         .applyTemplate(true)
+                         .renderTemplate(true)
                          .start(pushResult.revision());
 
         assertThat(future).isNotDone();
@@ -1684,7 +1684,7 @@ class VariableTemplateCrudTest {
         // First watch
         CompletableFuture<Entry<JsonNode>> future =
                 testRepo1.watch(Query.ofJson("/counter.json"))
-                         .applyTemplate(true)
+                         .renderTemplate(true)
                          .start(pushResult.revision());
 
         assertThat(future).isNotDone();
@@ -1695,7 +1695,7 @@ class VariableTemplateCrudTest {
 
         // Second watch from the previous result
         future = testRepo1.watch(Query.ofJson("/counter.json"))
-                          .applyTemplate(true)
+                          .renderTemplate(true)
                           .start(entry.revision());
 
         Thread.sleep(100);
@@ -1719,7 +1719,7 @@ class VariableTemplateCrudTest {
         // Start watching
         final CompletableFuture<Entry<JsonNode>> future =
                 testRepo1.watch(Query.ofJson("/test.json"))
-                         .applyTemplate(true)
+                         .renderTemplate(true)
                          .start(pushResult.revision());
 
         Thread.sleep(500);
@@ -1750,7 +1750,7 @@ class VariableTemplateCrudTest {
 
         final CompletableFuture<Entry<String>> future =
                 testRepo1.watch(Query.ofText("/message.txt"))
-                         .applyTemplate(true)
+                         .renderTemplate(true)
                          .start(pushResult.revision());
 
         Thread.sleep(500);
@@ -1776,12 +1776,12 @@ class VariableTemplateCrudTest {
 
         final CompletableFuture<Entry<JsonNode>> future1 =
                 testRepo1.watch(Query.ofJson("/info.json"))
-                         .applyTemplate(true)
+                         .renderTemplate(true)
                          .start(pushResult1.revision());
 
         final CompletableFuture<Entry<JsonNode>> future2 =
                 testRepo2.watch(Query.ofJson("/info.json"))
-                         .applyTemplate(true)
+                         .renderTemplate(true)
                          .start(pushResult2.revision());
 
         Thread.sleep(500);
@@ -1817,7 +1817,7 @@ class VariableTemplateCrudTest {
 
         // Create a long-running watcher
         try (Watcher<JsonNode> watcher = testRepo1.watcher(Query.ofJson("/status.json"))
-                                                  .applyTemplate(true)
+                                                  .renderTemplate(true)
                                                   .start()) {
             assertThatJson(watcher.awaitInitialValue().value()).isEqualTo("{ \"status\": \"starting\" }");
             updateVariable(TEST_PROJECT, null, "status", VariableType.STRING, "running");
@@ -1842,7 +1842,7 @@ class VariableTemplateCrudTest {
         testRepo1.commit("Add db template", change).push().join();
 
         try (Watcher<JsonNode> watcher = testRepo1.watcher(Query.ofJson("/db.json"))
-                                                  .applyTemplate(true)
+                                                  .renderTemplate(true)
                                                   .start()) {
             assertThatJson(watcher.awaitInitialValue().value()).isEqualTo("{ \"host\": \"localhost\" }");
 
@@ -1867,7 +1867,7 @@ class VariableTemplateCrudTest {
         testRepo1.commit("Add app template", change).push().join();
 
         try (Watcher<JsonNode> watcher = testRepo1.watcher(Query.ofYaml("/app.yaml"))
-                                                  .applyTemplate(true)
+                                                  .renderTemplate(true)
                                                   .start()) {
             final JsonNode initial = watcher.awaitInitialValue().value();
             assertThatJson(initial).node("version").isEqualTo("1.0.0");
@@ -1897,7 +1897,7 @@ class VariableTemplateCrudTest {
         testRepo1.commit("Add config template", change).push().join();
 
         try (Watcher<JsonNode> watcher = testRepo1.watcher(Query.ofJson("/config.json"))
-                                                  .applyTemplate("/vars/env.json")
+                                                  .renderTemplate("/vars/env.json")
                                                   .start()) {
             assertThatJson(watcher.awaitInitialValue().value()).isEqualTo("{ \"environment\": \"dev\" }");
 
@@ -1922,7 +1922,7 @@ class VariableTemplateCrudTest {
         testRepo1.commit("Add UI settings template", change).push().join();
 
         try (Watcher<JsonNode> watcher = testRepo1.watcher(Query.ofJson("/ui-settings.json"))
-                                                  .applyTemplate(true)
+                                                  .renderTemplate(true)
                                                   .start()) {
             assertThatJson(watcher.awaitInitialValue().value()).isEqualTo("{ \"theme\": \"light\" }");
 
@@ -1947,7 +1947,7 @@ class VariableTemplateCrudTest {
         // Use JSON path to watch only the port
         try (Watcher<JsonNode> watcher =
                      testRepo1.watcher(Query.ofJsonPath("/server-config.json", "$.server.port"))
-                              .applyTemplate(true)
+                              .renderTemplate(true)
                               .start()) {
             assertThatJson(watcher.awaitInitialValue().value()).isEqualTo("\"8080\"");
 
