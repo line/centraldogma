@@ -93,6 +93,15 @@ Automated mirroring from an external Git repository
   - Watchable
   - Access-controlled
 
+Dynamic configuration with templates and variables
+---------------------------------------------------
+- Use ``${vars.varName}`` syntax to interpolate variables in your configuration files
+- Access nested JSON object properties with dot notation (e.g., ``${vars.database.host}``)
+- Define variables at project, repository, or file level with automatic precedence resolution
+- Manage environment-specific configurations with variable files (``/vars/dev.json``, ``/vars/prod.json``)
+- Preview rendered templates in real-time through the Web UI
+
+
 Read more
 ---------
 .. toctree::
@@ -102,6 +111,7 @@ Read more
     concepts
     client-cli
     client-java
+    templates-variables
     mirroring
     auth
     known-issues
