@@ -47,6 +47,7 @@ import com.linecorp.centraldogma.server.mirror.MirrorAccessController;
 import com.linecorp.centraldogma.server.mirror.MirrorDirection;
 import com.linecorp.centraldogma.server.mirror.MirrorResult;
 import com.linecorp.centraldogma.server.mirror.MirrorStatus;
+import com.linecorp.centraldogma.server.mirror.RepositoryUri;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 import com.linecorp.centraldogma.server.storage.repository.MetaRepository;
@@ -75,10 +76,12 @@ class MirrorSchedulingServiceTest {
         when(r.parent()).thenReturn(p);
         when(r.name()).thenReturn("bar");
 
-        final Mirror mirror = new AbstractMirror("my-mirror-1", true, EVERY_SECOND,
-                                                 MirrorDirection.REMOTE_TO_LOCAL,
-                                                 Credential.NONE, r, "/",
-                                                 URI.create("unused://uri"), "/", "", null, null) {
+        final Mirror mirror = new AbstractMirror(
+                "my-mirror-1", true, EVERY_SECOND,
+                MirrorDirection.REMOTE_TO_LOCAL,
+                Credential.NONE, r, "/",
+                RepositoryUri.parse(URI.create("unused://uri.com/a.git"), "git"),
+                null, null) {
             @Override
             protected MirrorResult mirrorLocalToRemote(File workDir, int maxNumFiles, long maxNumBytes,
                                                        Instant triggeredTime) {

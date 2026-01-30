@@ -17,10 +17,10 @@
 package com.linecorp.centraldogma.server.internal.mirror;
 
 import static com.linecorp.centraldogma.server.mirror.MirrorUtil.normalizePath;
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.requireNonNull;
 
 import java.io.File;
-import java.net.URI;
 import java.time.Instant;
 import java.time.ZonedDateTime;
 import java.time.temporal.ChronoUnit;
@@ -35,6 +35,7 @@ import com.cronutils.model.time.ExecutionTime;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.MoreObjects.ToStringHelper;
+import com.google.common.hash.Hashing;
 
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.MirrorException;
@@ -44,6 +45,7 @@ import com.linecorp.centraldogma.server.mirror.Mirror;
 import com.linecorp.centraldogma.server.mirror.MirrorDirection;
 import com.linecorp.centraldogma.server.mirror.MirrorResult;
 import com.linecorp.centraldogma.server.mirror.MirrorStatus;
+import com.linecorp.centraldogma.server.mirror.RepositoryUri;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
 public abstract class AbstractMirror implements Mirror {
@@ -58,9 +60,7 @@ public abstract class AbstractMirror implements Mirror {
     private final Credential credential;
     private final Repository localRepo;
     private final String localPath;
-    private final URI remoteRepoUri;
-    private final String remotePath;
-    private final String remoteBranch;
+    private final RepositoryUri remoteUri;
     @Nullable
     private final String gitignore;
     @Nullable
@@ -71,9 +71,12 @@ public abstract class AbstractMirror implements Mirror {
     private final ExecutionTime executionTime;
     private final long jitterMillis;
 
+    @Nullable
+    private String hashString;
+
     protected AbstractMirror(String id, boolean enabled, @Nullable Cron schedule, MirrorDirection direction,
                              Credential credential, Repository localRepo, String localPath,
-                             URI remoteRepoUri, String remotePath, String remoteBranch,
+                             RepositoryUri remoteUri,
                              @Nullable String gitignore, @Nullable String zone) {
         this.id = requireNonNull(id, "id");
         this.enabled = enabled;
@@ -81,9 +84,7 @@ public abstract class AbstractMirror implements Mirror {
         this.credential = requireNonNull(credential, "credential");
         this.localRepo = requireNonNull(localRepo, "localRepo");
         this.localPath = normalizePath(requireNonNull(localPath, "localPath"));
-        this.remoteRepoUri = requireNonNull(remoteRepoUri, "remoteRepoUri");
-        this.remotePath = normalizePath(requireNonNull(remotePath, "remotePath"));
-        this.remoteBranch = requireNonNull(remoteBranch, "remoteBranch");
+        this.remoteUri = remoteUri;
         this.gitignore = gitignore;
         this.zone = zone;
 
@@ -95,7 +96,7 @@ public abstract class AbstractMirror implements Mirror {
             // Use the properties' hash code so that the same properties result in the same jitter.
             jitterMillis = Math.abs(Objects.hash(this.schedule.asString(), this.direction,
                                                  this.localRepo.parent().name(), this.localRepo.name(),
-                                                 this.remoteRepoUri, this.remotePath, this.remoteBranch) /
+                                                 this.remoteUri) /
                                     (Integer.MAX_VALUE / 60000));
         } else {
             this.schedule = null;
@@ -153,20 +154,11 @@ public abstract class AbstractMirror implements Mirror {
     }
 
     @Override
-    public final URI remoteRepoUri() {
-        return remoteRepoUri;
+    public RepositoryUri remoteUri() {
+        return remoteUri;
     }
 
-    @Override
-    public final String remotePath() {
-        return remotePath;
-    }
-
-    @Override
-    public final String remoteBranch() {
-        return remoteBranch;
-    }
-
+    @Nullable
     @Override
     public final String gitignore() {
         return gitignore;
@@ -224,6 +216,13 @@ public abstract class AbstractMirror implements Mirror {
                                 triggeredTime, Instant.now(), zone);
     }
 
+    String hashString() {
+        if (hashString != null) {
+            return hashString;
+        }
+        return hashString = Hashing.sha256().hashString(toString(), UTF_8).toString();
+    }
+
     @Override
     public String toString() {
         final ToStringHelper helper = MoreObjects.toStringHelper("")
@@ -232,9 +231,7 @@ public abstract class AbstractMirror implements Mirror {
                                                  .add("localProj", localRepo.parent().name())
                                                  .add("localRepo", localRepo.name())
                                                  .add("localPath", localPath)
-                                                 .add("remoteRepo", remoteRepoUri)
-                                                 .add("remotePath", remotePath)
-                                                 .add("remoteBranch", remoteBranch)
+                                                 .add("remoteUri", remoteUri)
                                                  .add("gitignore", gitignore)
                                                  .add("credential", credential);
         if (schedule != null) {
