@@ -40,7 +40,7 @@ final class FileWatcher<T> extends AbstractWatcher<T> {
     private final Function<Object, ? extends T> mapper;
     @Nullable
     private final Executor mapperExecutor;
-    private final boolean applyTemplate;
+    private final boolean renderTemplate;
     @Nullable
     private final String variableFile;
 
@@ -48,7 +48,7 @@ final class FileWatcher<T> extends AbstractWatcher<T> {
                 String repositoryName, Query<T> query, long timeoutMillis, boolean errorOnEntryNotFound,
                 @Nullable Function<Object, ? extends T> mapper, Executor mapperExecutor,
                 long delayOnSuccessMillis, long initialDelayMillis, long maxDelayMillis, double multiplier,
-                double jitterRate, @Nullable MeterRegistry meterRegistry, boolean applyTemplate,
+                double jitterRate, @Nullable MeterRegistry meterRegistry, boolean renderTemplate,
                 @Nullable String variableFile) {
         super(watchScheduler, projectName, repositoryName, query.path(), errorOnEntryNotFound,
               delayOnSuccessMillis, initialDelayMillis, maxDelayMillis, multiplier, jitterRate, meterRegistry);
@@ -60,7 +60,7 @@ final class FileWatcher<T> extends AbstractWatcher<T> {
         this.errorOnEntryNotFound = errorOnEntryNotFound;
         this.mapper = mapper;
         this.mapperExecutor = mapperExecutor;
-        this.applyTemplate = applyTemplate;
+        this.renderTemplate = renderTemplate;
         this.variableFile = variableFile;
     }
 
@@ -69,7 +69,7 @@ final class FileWatcher<T> extends AbstractWatcher<T> {
         final CompletableFuture<Entry<T>> future = centralDogma.watchFile(projectName, repositoryName,
                                                                           lastKnownRevision, query,
                                                                           timeoutMillis, errorOnEntryNotFound,
-                                                                          false, applyTemplate, variableFile,
+                                                                          false, renderTemplate, variableFile,
                                                                           templateRevision);
         if (mapper == null) {
             return future.thenApply(entry -> {

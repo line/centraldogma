@@ -25,7 +25,7 @@ import com.linecorp.centraldogma.common.QueryType;
 class AbstractFileRequest<SELF extends AbstractFileRequest<SELF>> {
 
     private boolean viewRaw;
-    private boolean applyTemplate;
+    private boolean renderTemplate;
     @Nullable
     private String variableFile;
 
@@ -55,8 +55,8 @@ class AbstractFileRequest<SELF extends AbstractFileRequest<SELF>> {
      * content. If {@link #viewRaw(boolean)} is set to false, the template processing will be applied to the
      * normalized content.
      */
-    public SELF applyTemplate(boolean applyTemplate) {
-        this.applyTemplate = applyTemplate;
+    public SELF renderTemplate(boolean renderTemplate) {
+        this.renderTemplate = renderTemplate;
         return self();
     }
 
@@ -69,15 +69,15 @@ class AbstractFileRequest<SELF extends AbstractFileRequest<SELF>> {
      * content. If {@link #viewRaw(boolean)} is set to false, the template processing will be applied to the
      * normalized content.
      */
-    public SELF applyTemplate(String variableFile) {
+    public SELF renderTemplate(String variableFile) {
         validateStructuredFilePath(variableFile, "variableFile");
-        applyTemplate = true;
+        renderTemplate = true;
         this.variableFile = variableFile;
         return self();
     }
 
-    boolean applyTemplate() {
-        return applyTemplate;
+    boolean renderTemplate() {
+        return renderTemplate;
     }
 
     @Nullable

@@ -40,11 +40,11 @@ public final class TemplateParamsConverter implements RequestConverterFunction {
     public TemplateParams convertRequest(
             ServiceRequestContext ctx, AggregatedHttpRequest request, Class<?> expectedResultType,
             @Nullable ParameterizedType expectedParameterizedResultType) throws Exception {
-        final boolean applyTemplate = Boolean.parseBoolean(ctx.queryParam("applyTemplate"));
+        final boolean renderTemplate = Boolean.parseBoolean(ctx.queryParam("renderTemplate"));
         final String variableFile = ctx.queryParam("variableFile");
         final String templateRevStr = ctx.queryParam("templateRevision");
         final Revision templateRevision = templateRevStr != null ? new Revision(templateRevStr) : null;
 
-        return TemplateParams.of(applyTemplate, variableFile, templateRevision);
+        return TemplateParams.of(renderTemplate, variableFile, templateRevision);
     }
 }

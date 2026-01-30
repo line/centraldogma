@@ -35,7 +35,7 @@ interface RepositorySettingsViewProps {
   children?: (meta: ProjectMetadataDto) => ReactNode;
 }
 
-type TabName = 'users' | 'roles' | 'tokens' | 'mirrors' | 'credentials' | 'danger zone';
+type TabName = 'users' | 'roles' | 'tokens' | 'mirrors' | 'credentials' | 'variables' | 'danger zone';
 
 export interface TapInfo {
   name: TabName;
@@ -51,6 +51,7 @@ const TABS: TapInfo[] = [
   { name: 'tokens', path: 'tokens', accessRole: 'ADMIN', allowAnonymous: false },
   { name: 'mirrors', path: 'mirrors', accessRole: 'ADMIN', allowAnonymous: true },
   { name: 'credentials', path: 'credentials', accessRole: 'ADMIN', allowAnonymous: true },
+  { name: 'variables', path: 'variables', accessRole: 'WRITE', allowAnonymous: true },
   { name: 'danger zone', path: 'danger-zone', accessRole: 'ADMIN', allowAnonymous: true },
 ];
 

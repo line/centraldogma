@@ -38,7 +38,7 @@ public final class WatchRequest<T> extends WatchOptions {
     private final CentralDogmaRepository centralDogmaRepo;
     private final Query<T> query;
     private boolean viewRaw;
-    private boolean applyTemplate;
+    private boolean renderTemplate;
     @Nullable
     private String variableFile;
 
@@ -88,8 +88,8 @@ public final class WatchRequest<T> extends WatchOptions {
      * content. If {@link #viewRaw(boolean)} is set to false, the template processing will be applied to the
      * normalized content.
      */
-    public WatchRequest<T> applyTemplate(boolean applyTemplate) {
-        this.applyTemplate = applyTemplate;
+    public WatchRequest<T> renderTemplate(boolean renderTemplate) {
+        this.renderTemplate = renderTemplate;
         variableFile = null;
         return this;
     }
@@ -103,9 +103,9 @@ public final class WatchRequest<T> extends WatchOptions {
      * content. If {@link #viewRaw(boolean)} is set to false, the template processing will be applied to the
      * normalized content.
      */
-    public WatchRequest<T> applyTemplate(String variableFile) {
+    public WatchRequest<T> renderTemplate(String variableFile) {
         validateStructuredFilePath(variableFile, "variableFile");
-        applyTemplate = true;
+        renderTemplate = true;
         this.variableFile = variableFile;
         return this;
     }
@@ -140,6 +140,6 @@ public final class WatchRequest<T> extends WatchOptions {
                                                          centralDogmaRepo.repositoryName(),
                                                          lastKnownRevision, query,
                                                          timeoutMillis(), errorOnEntryNotFound(), viewRaw,
-                                                         applyTemplate, variableFile, null);
+                                                         renderTemplate, variableFile, null);
     }
 }

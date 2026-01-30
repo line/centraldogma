@@ -44,7 +44,7 @@ const FileContentPage = () => {
               </Heading>
               <Tooltip label="Go to History to view all revisions">
                 <Tag borderRadius="full" colorScheme="blue">
-                  Revision {revision} <InfoIcon ml={2} />
+                  Revision {revision} ({data.revision})<InfoIcon ml={2} />
                 </Tag>
               </Tooltip>
             </Flex>
@@ -55,7 +55,7 @@ const FileContentPage = () => {
               originalContent={data.rawContent}
               path={data.path}
               name={fileName}
-              revision={revision}
+              revision={data.revision}
             />
           </Box>
         );

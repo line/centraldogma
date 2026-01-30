@@ -19,36 +19,36 @@ import { Button, Flex, Spacer } from '@chakra-ui/react';
 import Link from 'next/link';
 import { AiOutlinePlus } from 'react-icons/ai';
 import React from 'react';
-import { useGetProjectCredentialsQuery, useDeleteCredentialMutation } from 'dogma/features/api/apiSlice';
+import { useGetVariablesQuery, useDeleteVariableMutation } from 'dogma/features/api/apiSlice';
 import ProjectSettingsView from 'dogma/features/project/settings/ProjectSettingsView';
-import CredentialList from 'dogma/features/project/settings/credentials/CredentialList';
+import VariableList from 'dogma/features/project/settings/variables/VariableList';
 
-const ProjectCredentialPage = () => {
+const ProjectVariablePage = () => {
   const router = useRouter();
   const projectName = router.query.projectName ? (router.query.projectName as string) : '';
-  const { data: credentialsData } = useGetProjectCredentialsQuery(projectName);
-  const [deleteCredentialMutation, { isLoading }] = useDeleteCredentialMutation();
+  const { data: variablesData } = useGetVariablesQuery({ projectName });
+  const [deleteVariableMutation, { isLoading }] = useDeleteVariableMutation();
 
   return (
-    <ProjectSettingsView projectName={projectName} currentTab={'credentials'}>
+    <ProjectSettingsView projectName={projectName} currentTab={'variables'}>
       {() => (
         <>
           <Flex>
             <Spacer />
             <Button
               as={Link}
-              href={`/app/projects/${projectName}/settings/credentials/new`}
+              href={`/app/projects/${projectName}/settings/variables/new`}
               size="sm"
               rightIcon={<AiOutlinePlus />}
               colorScheme="teal"
             >
-              New Credential
+              New Variable
             </Button>
           </Flex>
-          <CredentialList
+          <VariableList
             projectName={projectName}
-            credentials={credentialsData}
-            deleteCredential={(projectName, id) => deleteCredentialMutation({ projectName, id }).unwrap()}
+            variables={variablesData}
+            deleteVariable={(projectName, id) => deleteVariableMutation({ projectName, id }).unwrap()}
             isLoading={isLoading}
           />
         </>
@@ -57,4 +57,4 @@ const ProjectCredentialPage = () => {
   );
 };
 
-export default ProjectCredentialPage;
+export default ProjectVariablePage;

@@ -17,6 +17,7 @@
 import {
   Button,
   HStack,
+  Mark,
   Modal,
   ModalBody,
   ModalCloseButton,
@@ -60,7 +61,11 @@ export const DeleteConfirmationModal = ({
         <ModalHeader>Are you sure?</ModalHeader>
         <ModalCloseButton />
         <ModalBody>
-          Delete {type} &apos;{id}&apos;{from}?
+          Delete {type}{' '}
+          <Mark bg="gray.200" rounded="base" fontWeight="bold" px="1" py="1">
+            {id}
+          </Mark>{' '}
+          {from}?
         </ModalBody>
         <ModalFooter>
           <HStack spacing={3}>

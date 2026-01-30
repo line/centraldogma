@@ -47,6 +47,7 @@ import com.linecorp.centraldogma.server.internal.api.auth.RequiresRepositoryRole
 import com.linecorp.centraldogma.server.internal.storage.repository.git.CrudContext;
 import com.linecorp.centraldogma.server.internal.storage.repository.git.CrudOperation;
 import com.linecorp.centraldogma.server.internal.storage.repository.git.DefaultCrudOperation;
+import com.linecorp.centraldogma.server.metadata.UserAndTimestamp;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 import com.linecorp.centraldogma.server.storage.repository.HasRevision;
@@ -102,12 +103,12 @@ public final class VariableServiceV1 extends AbstractService {
     @ConsumesJson
     @StatusCode(201)
     @Post("/projects/{projectName}/variables")
-    @RequiresProjectRole(ProjectRole.OWNER)
+    @RequiresProjectRole(ProjectRole.MEMBER)
     public CompletableFuture<HasRevision<Variable>> createVariable(@Param String projectName,
                                                                    Variable newVariable,
                                                                    Author author) {
         validateVariable(newVariable);
-        setName(newVariable, projectName, null);
+        setNameAndCreation(newVariable, projectName, null, author);
         return repository.save(crudContext(projectName), newVariable.id(), newVariable, author);
     }
 
@@ -118,13 +119,13 @@ public final class VariableServiceV1 extends AbstractService {
      */
     @ConsumesJson
     @Put("/projects/{projectName}/variables/{id}")
-    @RequiresProjectRole(ProjectRole.OWNER)
+    @RequiresProjectRole(ProjectRole.MEMBER)
     public CompletableFuture<HasRevision<Variable>> updateVariable(@Param String projectName, @Param String id,
                                                                    Variable variable, Author author) {
         checkArgument(id.equals(variable.id()),
                       "ID in the path must be the same as that in the variable object.");
         validateVariable(variable);
-        setName(variable, projectName, null);
+        setNameAndCreation(variable, projectName, null, author);
         return repository.update(crudContext(projectName), id, variable, author);
     }
 
@@ -134,7 +135,7 @@ public final class VariableServiceV1 extends AbstractService {
      * <p>Delete the existing variable.
      */
     @Delete("/projects/{projectName}/variables/{id}")
-    @RequiresProjectRole(ProjectRole.OWNER)
+    @RequiresProjectRole(ProjectRole.MEMBER)
     public CompletableFuture<Void> deleteVariable(@Param String projectName,
                                                   @Param String id, Author author) {
         return repository.delete(crudContext(projectName), id, author).thenAccept(unused -> {});
@@ -145,7 +146,7 @@ public final class VariableServiceV1 extends AbstractService {
      *
      * <p>Returns the list of the variables in the repository.
      */
-    @RequiresRepositoryRole(RepositoryRole.ADMIN)
+    @RequiresRepositoryRole(RepositoryRole.READ)
     @Get("/projects/{projectName}/repos/{repoName}/variables")
     public CompletableFuture<List<Variable>> listRepoVariables(@Param String projectName,
                                                                @Param String repoName) {
@@ -160,7 +161,7 @@ public final class VariableServiceV1 extends AbstractService {
      *
      * <p>Returns the variable for the ID in the repository.
      */
-    @RequiresRepositoryRole(RepositoryRole.ADMIN)
+    @RequiresRepositoryRole(RepositoryRole.READ)
     @Get("/projects/{projectName}/repos/{repoName}/variables/{id}")
     public CompletableFuture<Variable> getRepoVariable(@Param String projectName,
                                                        @Param String repoName,
@@ -182,7 +183,7 @@ public final class VariableServiceV1 extends AbstractService {
      */
     @ConsumesJson
     @StatusCode(201)
-    @RequiresRepositoryRole(RepositoryRole.ADMIN)
+    @RequiresRepositoryRole(RepositoryRole.WRITE)
     @Post("/projects/{projectName}/repos/{repoName}/variables")
     public CompletableFuture<HasRevision<Variable>> createRepoVariable(
             @Param String projectName,
@@ -190,7 +191,7 @@ public final class VariableServiceV1 extends AbstractService {
             Variable newVariable,
             Author author) {
         validateVariable(newVariable);
-        setName(newVariable, projectName, repoName);
+        setNameAndCreation(newVariable, projectName, repoName, author);
         return repository.save(crudContext(projectName, repoName), newVariable.id(), newVariable, author);
     }
 
@@ -200,7 +201,7 @@ public final class VariableServiceV1 extends AbstractService {
      * <p>Update the existing variable in the repository.
      */
     @ConsumesJson
-    @RequiresRepositoryRole(RepositoryRole.ADMIN)
+    @RequiresRepositoryRole(RepositoryRole.WRITE)
     @Put("/projects/{projectName}/repos/{repoName}/variables/{id}")
     public CompletableFuture<HasRevision<Variable>> updateRepoVariable(@Param String projectName,
                                                                        @Param String repoName,
@@ -209,7 +210,7 @@ public final class VariableServiceV1 extends AbstractService {
         checkArgument(id.equals(variable.id()),
                       "ID in the path must be the same as that in the variable object.");
         validateVariable(variable);
-        setName(variable, projectName, repoName);
+        setNameAndCreation(variable, projectName, repoName, author);
         return repository.update(crudContext(projectName, repoName), id, variable, author);
     }
 
@@ -218,7 +219,7 @@ public final class VariableServiceV1 extends AbstractService {
      *
      * <p>Delete the existing variable.
      */
-    @RequiresRepositoryRole(RepositoryRole.ADMIN)
+    @RequiresRepositoryRole(RepositoryRole.WRITE)
     @Delete("/projects/{projectName}/repos/{repoName}/variables/{id}")
     public CompletableFuture<Void> deleteRepoVariable(@Param String projectName,
                                                       @Param String repoName,
@@ -227,13 +228,15 @@ public final class VariableServiceV1 extends AbstractService {
                          .thenAccept(unused -> {});
     }
 
-    private static Variable setName(Variable variable, String projectName, @Nullable String repoName) {
+    private static Variable setNameAndCreation(Variable variable, String projectName, @Nullable String repoName,
+                                               Author author) {
         String name = "projects/" + projectName;
         if (repoName != null) {
             name += "/repos/" + repoName;
         }
         name += "/variables/" + variable.id();
         variable.setName(name);
+        variable.setCreation(UserAndTimestamp.of(author));
         return variable;
     }
 
