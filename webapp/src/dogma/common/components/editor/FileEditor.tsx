@@ -146,8 +146,6 @@ const FileEditor = ({
     }
   }, [cachedRevision, revision, displayContent]);
 
-  console.log(`file content: ${fileContent}, ${originalContent}, revision: ${revision}`);
-
   const monaco = useLocalMonaco();
   if (!monaco) {
     return <Loading />;
