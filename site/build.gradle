@@ -31,13 +31,11 @@ task javadoc(type: Javadoc,
 
     destinationDir = project.file("${project.buildDir}/site/apidocs")
 
-    def javadocProjects = projectsWithFlags('java', 'publish')
-    doFirst {
-        javadocProjects.each { source it.sourceSets.main.java.srcDirs }
-        classpath = javadocProjects.inject(project.files()) { result, project ->
-            result.from(project.sourceSets.main.compileClasspath)
-            result.from(project.sourceSets.main.runtimeClasspath)
-        }
+    def javadocProjects = projectsWithFlags('java', 'publish') - projectsWithFlags('no_aggregation')
+    javadocProjects.each { source it.sourceSets.main.java.srcDirs }
+    classpath = javadocProjects.inject(project.files()) { result, project ->
+        result.from(project.sourceSets.main.compileClasspath)
+        result.from(project.sourceSets.main.runtimeClasspath)
     }
 }
 
