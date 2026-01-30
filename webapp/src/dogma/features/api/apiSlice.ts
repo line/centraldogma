@@ -68,7 +68,7 @@ export type GetHistory = {
 export type GetNormalisedRevision = {
   projectName: string;
   repoName: string;
-  revision: string;
+  revision: string | number;
 };
 
 export type GetFilesByProjectAndRepoName = {
