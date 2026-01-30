@@ -15,7 +15,7 @@ import {
 } from '@chakra-ui/react';
 import Editor, { DiffEditor, OnMount } from '@monaco-editor/react';
 import { EditModeToggle } from 'dogma/common/components/editor/EditModeToggle';
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { FcCancel, FcEditImage } from 'react-icons/fc';
 import { JsonPath } from 'dogma/common/components/editor/JsonPath';
 import { JsonPathLegend } from 'dogma/common/components/editor/JsonPathLegend';
@@ -139,10 +139,12 @@ const FileEditor = ({
   }
 
   const [cachedRevision, setCachedRevision] = useState('');
-  if (cachedRevision != revision) {
-    setFileContent(displayContent);
-    setCachedRevision(revision + '');
-  }
+  useEffect(() => {
+    if (cachedRevision !== String(revision)) {
+      setFileContent(displayContent);
+      setCachedRevision(String(revision));
+    }
+  }, [cachedRevision, revision, displayContent]);
 
   console.log(`file content: ${fileContent}, ${originalContent}, revision: ${revision}`);
 

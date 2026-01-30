@@ -44,7 +44,7 @@ public final class Variable {
     @Nullable
     private UserAndTimestamp creation;
 
-    public Variable(String id, VariableType type, String value, String description) {
+    public Variable(String id, VariableType type, String value, @Nullable String description) {
         this.id = requireNonNull(id, "id");
         this.type = requireNonNull(type, "type");
         this.value = requireNonNull(value, "value");
@@ -57,7 +57,7 @@ public final class Variable {
                     @JsonProperty("name") @Nullable String name,
                     @JsonProperty("value") String value,
                     @JsonProperty("creation") UserAndTimestamp creation,
-                    @JsonProperty("description") String description) {
+                    @JsonProperty("description") @Nullable String description) {
         this.id = requireNonNull(id, "id");
         this.type = requireNonNull(type, "type");
         this.name = name;
@@ -119,7 +119,7 @@ public final class Variable {
                type == variable.type &&
                value.equals(variable.value) &&
                Objects.equals(description, variable.description) &&
-               creation.equals(variable.creation);
+               Objects.equals(creation, variable.creation);
     }
 
     @Override

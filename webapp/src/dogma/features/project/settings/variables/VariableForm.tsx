@@ -178,12 +178,13 @@ const VariableForm = ({
                 height="xs"
                 fontFamily="monospace"
                 name="value"
+                defaultValue={defaultValue.value}
                 placeholder={`{ 
     "json": "value" 
 }`}
                 {...register('value', {
                   required: true,
-                  validate: (value) => validateJsonValue(value),
+                  validate: validateJsonValue,
                 })}
               />
             )}
@@ -196,10 +197,10 @@ const VariableForm = ({
               <LabelledIcon icon={FiInfo} text="Description" />
             </FormLabel>
             <Textarea
-              id="value"
+              id="description"
               height="xxs"
               fontFamily="monospace"
-              name="value"
+              name="description"
               defaultValue={defaultValue.description}
               placeholder={'A description for the variable'}
               {...register('description')}
