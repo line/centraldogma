@@ -101,7 +101,6 @@ Dynamic configuration with templates and variables
 - Manage environment-specific configurations with variable files (``/vars/dev.json``, ``/vars/prod.json``)
 - Preview rendered templates in real-time through the Web UI
 
-
 Read more
 ---------
 .. toctree::
