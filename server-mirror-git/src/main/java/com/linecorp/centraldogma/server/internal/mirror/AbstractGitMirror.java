@@ -230,8 +230,11 @@ abstract class AbstractGitMirror extends AbstractMirror {
             return MirrorDecision.RUN;
         }
 
-        if (previousRemoteCommitId != null &&
-            !previousRemoteCommitId.name().equals(oldMirrorState.remoteRevision())) {
+        if (previousRemoteCommitId == null) {
+            return MirrorDecision.COMPARE_AND_RUN;
+        }
+
+        if (!previousRemoteCommitId.name().equals(oldMirrorState.remoteRevision())) {
             // Something changed in the mirrored remote repository since the last mirroring.
             final String remotePath = remotePath();
             if ("/".equals(remotePath)) {
