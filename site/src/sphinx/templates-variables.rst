@@ -180,7 +180,7 @@ Template Syntax
 ---------------
 
 Basic variable interpolation
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Use ``${vars.varName}`` to reference a variable:
 
@@ -190,7 +190,7 @@ Use ``${vars.varName}`` to reference a variable:
     Version: ${vars.version}
 
 Nested JSON object access
-^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^
 
 For JSON variables containing objects, use dot notation to access nested properties.
 
@@ -287,7 +287,7 @@ In addition to project and repository-level variables, you can create **variable
 These are regular files that contain variable definitions in JSON, JSON5, or YAML format.
 
 Supported formats and priority
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 When multiple variable files exist at the same path (e.g., both ``/.variables.json`` and ``/.variables.yaml``),
 the first file found in this order is used:
@@ -425,7 +425,7 @@ Use ``renderTemplate(String variableFile)`` to specify a custom variable file:
     System.out.println(prodConfig.content());
 
 Watching templates with Watcher
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Use ``Watcher`` to get notified when templates or their variables change:
 
@@ -492,7 +492,7 @@ The variables list page shows all defined variables:
    :alt: Variables list showing ID, type badges, modified by/at, and delete actions
 
 Creating and editing variables
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Click "New Variable" or click on a variable ID to open the variable form:
 
@@ -509,7 +509,7 @@ The form includes:
 - **Description**: Optional text area to document the variable's purpose
 
 Previewing templates with variables
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 When viewing a file in the File Editor, the second tab "Preview with Variables" shows the rendered output:
 
