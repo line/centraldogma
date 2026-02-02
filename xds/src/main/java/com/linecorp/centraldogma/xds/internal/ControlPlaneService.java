@@ -238,7 +238,7 @@ public final class ControlPlaneService extends XdsResourceWatchingService {
     }
 
     private void updateVersionMetrics(CentralDogmaSnapshot snapshot) {
-        final String clustersVersion = snapshot.clusters().version();
+        final String clustersVersion = snapshot.clustersVersion();
         if (clustersVersionGauge == null ||
             !clustersVersion.equals(clustersVersionGauge.getId().getTag("version"))) {
             if (clustersVersionGauge != null) {
@@ -250,7 +250,7 @@ public final class ControlPlaneService extends XdsResourceWatchingService {
                                         .register(meterRegistry);
         }
 
-        final String endpointsVersion = snapshot.endpoints().version();
+        final String endpointsVersion = snapshot.endpointsVersion();
         if (endpointsVersionGauge == null ||
             !endpointsVersion.equals(endpointsVersionGauge.getId().getTag("version"))) {
             if (endpointsVersionGauge != null) {
@@ -263,7 +263,7 @@ public final class ControlPlaneService extends XdsResourceWatchingService {
                                          .register(meterRegistry);
         }
 
-        final String listenersVersion = snapshot.listeners().version();
+        final String listenersVersion = snapshot.listenersVersion();
         if (listenersVersionGauge == null ||
             !listenersVersion.equals(listenersVersionGauge.getId().getTag("version"))) {
             if (listenersVersionGauge != null) {
@@ -276,7 +276,7 @@ public final class ControlPlaneService extends XdsResourceWatchingService {
                                          .register(meterRegistry);
         }
 
-        final String routesVersion = snapshot.routes().version();
+        final String routesVersion = snapshot.routesVersion();
         if (routesVersionGauge == null ||
             !routesVersion.equals(routesVersionGauge.getId().getTag("version"))) {
             if (routesVersionGauge != null) {
@@ -288,7 +288,7 @@ public final class ControlPlaneService extends XdsResourceWatchingService {
                                       .register(meterRegistry);
         }
 
-        final String secretsVersion = snapshot.secrets().version();
+        final String secretsVersion = snapshot.secretsVersion();
         if (secretsVersionGauge == null ||
             !secretsVersion.equals(secretsVersionGauge.getId().getTag("version"))) {
             if (secretsVersionGauge != null) {
