@@ -39,7 +39,7 @@ import com.linecorp.centraldogma.server.mirror.MirrorDirection;
  * <h3>Remote-to-local mirroring ({@link MirrorDirection#REMOTE_TO_LOCAL})
  * When a new commit is pushed to the local repository:
  * <ul>
- *   <li>{@code remoteRevision} - to the current remote HEAD (e.g, Git commit SHA)</li>
+ *   <li>{@code remoteRevision} - the current remote HEAD (e.g, Git commit SHA)</li>
  *   <li>{@code localRevision} - the previous local HEAD (e.g, Central Dogma revision)</li>
  * </ul>
  *
