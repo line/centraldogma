@@ -28,30 +28,42 @@ import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects;
 
+import com.linecorp.centraldogma.server.metadata.UserAndTimestamp;
+
 @JsonInclude(Include.NON_NULL)
 public final class Variable {
 
     private final String id;
     private final VariableType type;
+    private final String value;
+    @Nullable
+    private final String description;
+
     @Nullable
     private String name;
-    private final String value;
+    @Nullable
+    private UserAndTimestamp creation;
 
-    public Variable(String id, VariableType type, String value) {
+    public Variable(String id, VariableType type, String value, @Nullable String description) {
         this.id = requireNonNull(id, "id");
         this.type = requireNonNull(type, "type");
         this.value = requireNonNull(value, "value");
+        this.description = description;
     }
 
     @JsonCreator
     public Variable(@JsonProperty("id") String id,
                     @JsonProperty("type") VariableType type,
                     @JsonProperty("name") @Nullable String name,
-                    @JsonProperty("value") String value) {
+                    @JsonProperty("value") String value,
+                    @JsonProperty("creation") UserAndTimestamp creation,
+                    @JsonProperty("description") @Nullable String description) {
         this.id = requireNonNull(id, "id");
         this.type = requireNonNull(type, "type");
         this.name = name;
         this.value = requireNonNull(value, "value");
+        this.description = description;
+        this.creation = creation;
     }
 
     @JsonProperty("id")
@@ -79,6 +91,22 @@ public final class Variable {
         return value;
     }
 
+    @Nullable
+    @JsonProperty("description")
+    public String description() {
+        return description;
+    }
+
+    @Nullable
+    @JsonProperty("creation")
+    public UserAndTimestamp creation() {
+        return creation;
+    }
+
+    void setCreation(UserAndTimestamp creation) {
+        this.creation = creation;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (!(o instanceof Variable)) {
@@ -89,12 +117,14 @@ public final class Variable {
         return id.equals(variable.id) &&
                Objects.equals(name, variable.name) &&
                type == variable.type &&
-               value.equals(variable.value);
+               value.equals(variable.value) &&
+               Objects.equals(description, variable.description) &&
+               Objects.equals(creation, variable.creation);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(id, name, type, value);
+        return Objects.hash(id, name, type, value, description, creation);
     }
 
     @Override
@@ -105,6 +135,8 @@ public final class Variable {
                           .add("name", name)
                           .add("type", type)
                           .add("value", value)
+                          .add("description", description)
+                          .add("creation", creation)
                           .toString();
     }
 }

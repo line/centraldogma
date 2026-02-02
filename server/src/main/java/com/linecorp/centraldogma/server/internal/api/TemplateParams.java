@@ -32,30 +32,30 @@ public final class TemplateParams {
         return DISABLED;
     }
 
-    public static TemplateParams of(boolean applyTemplate, @Nullable String variableFile,
+    public static TemplateParams of(boolean renderTemplate, @Nullable String variableFile,
                                     @Nullable Revision templateRevision) {
-        if (!applyTemplate) {
+        if (!renderTemplate) {
             return disabled();
         } else {
             return new TemplateParams(true, variableFile, templateRevision);
         }
     }
 
-    private final boolean applyTemplate;
+    private final boolean renderTemplate;
     @Nullable
     private final String variableFile;
     @Nullable
     private final Revision templateRevision;
 
-    private TemplateParams(boolean applyTemplate, @Nullable String variableFile,
+    private TemplateParams(boolean renderTemplate, @Nullable String variableFile,
                            @Nullable Revision templateRevision) {
-        this.applyTemplate = applyTemplate;
+        this.renderTemplate = renderTemplate;
         this.variableFile = variableFile;
         this.templateRevision = templateRevision;
     }
 
-    public boolean applyTemplate() {
-        return applyTemplate;
+    public boolean renderTemplate() {
+        return renderTemplate;
     }
 
     @Nullable
@@ -72,7 +72,7 @@ public final class TemplateParams {
         if (Objects.equals(templateRevision, this.templateRevision)) {
             return this;
         }
-        return new TemplateParams(applyTemplate, variableFile, templateRevision);
+        return new TemplateParams(renderTemplate, variableFile, templateRevision);
     }
 
     @Override
@@ -81,21 +81,21 @@ public final class TemplateParams {
             return false;
         }
         final TemplateParams that = (TemplateParams) o;
-        return applyTemplate == that.applyTemplate &&
+        return renderTemplate == that.renderTemplate &&
                Objects.equals(variableFile, that.variableFile) &&
                Objects.equals(templateRevision, that.templateRevision);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(applyTemplate, variableFile, templateRevision);
+        return Objects.hash(renderTemplate, variableFile, templateRevision);
     }
 
     @Override
     public String toString() {
         return MoreObjects.toStringHelper(this)
                           .omitNullValues()
-                          .add("applyTemplate", applyTemplate)
+                          .add("renderTemplate", renderTemplate)
                           .add("variableFile", variableFile)
                           .add("templateRevision", templateRevision)
                           .toString();

@@ -122,7 +122,7 @@ public final class WatchService {
             @Nullable Function<Revision, EntryTransformer<T>> transformerFactory) {
         final ServiceRequestContext ctx = RequestContext.current();
         updateRequestTimeout(ctx, timeoutMillis);
-        if (!templateParams.applyTemplate()) {
+        if (!templateParams.renderTemplate()) {
             transformerFactory = null;
         }
         final CompletableFuture<Entry<T>> result = repo.watch(lastKnownRevision, query,

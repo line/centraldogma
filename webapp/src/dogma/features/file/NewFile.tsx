@@ -35,7 +35,7 @@ import { detectChangeType } from 'dogma/features/file/StructuredFileSupport';
 import { useLocalMonaco } from 'dogma/features/file/MonacoLoader';
 import { Loading } from 'dogma/common/components/Loading';
 
-const FILE_PATH_PATTERN = /^[0-9A-Za-z](?:[-+_0-9A-Za-z\.]*[0-9A-Za-z])?$/;
+const FILE_PATH_PATTERN = /^[-_.0-9a-zA-Z]*[-_0-9a-zA-Z]+$/;
 
 type FormData = {
   name: string;

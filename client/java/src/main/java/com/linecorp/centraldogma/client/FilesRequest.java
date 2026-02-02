@@ -80,6 +80,6 @@ public final class FilesRequest extends AbstractFileRequest<FilesRequest> {
         return centralDogmaRepo.centralDogma().getFiles(centralDogmaRepo.projectName(),
                                                         centralDogmaRepo.repositoryName(),
                                                         revision, pathPattern, viewRaw(),
-                                                        applyTemplate(), variableFile());
+                                                        renderTemplate(), variableFile());
     }
 }

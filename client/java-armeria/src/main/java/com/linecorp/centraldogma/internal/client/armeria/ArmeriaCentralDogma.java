@@ -471,7 +471,7 @@ public final class ArmeriaCentralDogma extends AbstractCentralDogma {
 
     @Override
     public <T> CompletableFuture<Entry<T>> getFile(String projectName, String repositoryName, Revision revision,
-                                                   Query<T> query, boolean viewRaw, boolean applyTemplate,
+                                                   Query<T> query, boolean viewRaw, boolean renderTemplate,
                                                    @Nullable String variableFile) {
         validateProjectAndRepositoryName(projectName, repositoryName);
         requireNonNull(revision, "revision");
@@ -487,8 +487,8 @@ public final class ArmeriaCentralDogma extends AbstractCentralDogma {
                 if (viewRaw) {
                     paramsBuilder.add("viewRaw", "true");
                 }
-                if (applyTemplate) {
-                    paramsBuilder.add("applyTemplate", "true");
+                if (renderTemplate) {
+                    paramsBuilder.add("renderTemplate", "true");
                     if (variableFile != null) {
                         paramsBuilder.add("variableFile", variableFile);
                     }
@@ -519,7 +519,7 @@ public final class ArmeriaCentralDogma extends AbstractCentralDogma {
     @Override
     public CompletableFuture<Map<String, Entry<?>>> getFiles(String projectName, String repositoryName,
                                                              Revision revision, PathPattern pathPattern,
-                                                             boolean viewRaw, boolean applyTemplate,
+                                                             boolean viewRaw, boolean renderTemplate,
                                                              @Nullable String variableFile) {
         validateProjectAndRepositoryName(projectName, repositoryName);
         requireNonNull(revision, "revision");
@@ -538,8 +538,8 @@ public final class ArmeriaCentralDogma extends AbstractCentralDogma {
                 if (viewRaw) {
                     paramsBuilder.add("viewRaw", "true");
                 }
-                if (applyTemplate) {
-                    paramsBuilder.add("applyTemplate", "true");
+                if (renderTemplate) {
+                    paramsBuilder.add("renderTemplate", "true");
                     if (variableFile != null) {
                         paramsBuilder.add("variableFile", variableFile);
                     }
@@ -910,7 +910,7 @@ public final class ArmeriaCentralDogma extends AbstractCentralDogma {
     public <T> CompletableFuture<Entry<T>> watchFile(String projectName, String repositoryName,
                                                      Revision lastKnownRevision, Query<T> query,
                                                      long timeoutMillis, boolean errorOnEntryNotFound,
-                                                     boolean viewRaw, boolean applyTemplate,
+                                                     boolean viewRaw, boolean renderTemplate,
                                                      @Nullable String variableFile,
                                                      @Nullable Revision templateRevision) {
         validateProjectAndRepositoryName(projectName, repositoryName);
@@ -936,8 +936,8 @@ public final class ArmeriaCentralDogma extends AbstractCentralDogma {
                 // The query type can't be JSON_PATH here as checked above.
                 paramsBuilder.add("viewRaw", "true");
             }
-            if (applyTemplate) {
-                paramsBuilder.add("applyTemplate", "true");
+            if (renderTemplate) {
+                paramsBuilder.add("renderTemplate", "true");
                 if (variableFile != null) {
                     paramsBuilder.add("variableFile", variableFile);
                 }

@@ -36,6 +36,7 @@ import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.ResponseEntity;
 import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
+import com.linecorp.centraldogma.server.metadata.UserAndTimestamp;
 import com.linecorp.centraldogma.server.storage.repository.HasRevision;
 import com.linecorp.centraldogma.testing.internal.auth.TestAuthProviderFactory;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
@@ -45,6 +46,7 @@ class VariableServiceV1Test {
 
     private static final String FOO_PROJ = "foo-proj";
     private static final String BAR_REPO = "bar-repo";
+    private static final UserAndTimestamp MOCK_CREATION = new UserAndTimestamp("tester");
     private static final TypeReference<HasRevision<Variable>> variableTypeRef = new TypeReference<>() {};
 
     @RegisterExtension
@@ -77,7 +79,8 @@ class VariableServiceV1Test {
         final String namePrefix = namePrefix(projectLevel);
 
         // Create a STRING variable
-        final Variable stringVar = new Variable("string-var", VariableType.STRING, "hello world");
+        final Variable stringVar = new Variable("string-var", VariableType.STRING, "hello world",
+                                                "A string variable");
         final ResponseEntity<HasRevision<Variable>> createStringResponse = client.prepare()
                                                                                  .post(basePath)
                                                                                  .contentJson(stringVar)
@@ -86,13 +89,17 @@ class VariableServiceV1Test {
         assertThat(createStringResponse.status()).isEqualTo(HttpStatus.CREATED);
         assertThat(createStringResponse.content().revision()).isNotNull();
         final Variable stringVarStored = new Variable("string-var", VariableType.STRING,
-                                                      namePrefix + "string-var", "hello world");
+                                                      namePrefix + "string-var", "hello world",
+                                                      MOCK_CREATION, "A string variable"
+        );
         assertThat(createStringResponse.content().object())
+                .usingRecursiveComparison()
+                .ignoringFields("creation")
                 .isEqualTo(stringVarStored);
 
         // Create a JSON variable
         final Variable jsonVar = new Variable("json-var", VariableType.JSON,
-                                              "{\"key\":\"value\",\"number\":42}");
+                                              "{\"key\":\"value\",\"number\":42}", "A JSON variable");
         final ResponseEntity<HasRevision<Variable>> createJsonResponse =
                 client.prepare()
                       .post(basePath)
@@ -102,8 +109,12 @@ class VariableServiceV1Test {
         assertThat(createJsonResponse.status()).isEqualTo(HttpStatus.CREATED);
         final Variable jsonVarStored =
                 new Variable("json-var", VariableType.JSON,
-                             namePrefix + "json-var", "{\"key\":\"value\",\"number\":42}");
-        assertThat(createJsonResponse.content().object()).isEqualTo(jsonVarStored);
+                             namePrefix + "json-var", "{\"key\":\"value\",\"number\":42}", MOCK_CREATION,
+                             "A JSON variable");
+        assertThat(createJsonResponse.content().object())
+                .usingRecursiveComparison()
+                .ignoringFields("creation")
+                .isEqualTo(jsonVarStored);
 
         // List variables
         final ResponseEntity<List<Variable>> listResponse =
@@ -113,7 +124,9 @@ class VariableServiceV1Test {
                       .execute();
         assertThat(listResponse.status()).isEqualTo(HttpStatus.OK);
         assertThat(listResponse.content()).hasSize(2);
-        assertThat(listResponse.content()).containsExactlyInAnyOrder(stringVarStored, jsonVarStored);
+        assertThat(listResponse.content())
+                .usingRecursiveFieldByFieldElementComparatorIgnoringFields("creation")
+                .containsExactlyInAnyOrder(stringVarStored, jsonVarStored);
 
         // Get specific STRING variable
         final ResponseEntity<Variable> getStringResponse =
@@ -122,7 +135,10 @@ class VariableServiceV1Test {
                       .asJson(Variable.class)
                       .execute();
         assertThat(getStringResponse.status()).isEqualTo(HttpStatus.OK);
-        assertThat(getStringResponse.content()).isEqualTo(stringVarStored);
+        assertThat(getStringResponse.content())
+                .usingRecursiveComparison()
+                .ignoringFields("creation")
+                .isEqualTo(stringVarStored);
 
         // Get specific JSON variable
         final ResponseEntity<Variable> getJsonResponse = client.prepare()
@@ -130,7 +146,10 @@ class VariableServiceV1Test {
                                                                .asJson(Variable.class)
                                                                .execute();
         assertThat(getJsonResponse.status()).isEqualTo(HttpStatus.OK);
-        assertThat(getJsonResponse.content()).isEqualTo(jsonVarStored);
+        assertThat(getJsonResponse.content())
+                .usingRecursiveComparison()
+                .ignoringFields("creation")
+                .isEqualTo(jsonVarStored);
     }
 
     @ValueSource(booleans = { true, false })
@@ -141,7 +160,8 @@ class VariableServiceV1Test {
         final String namePrefix = namePrefix(projectLevel);
 
         // Create a variable
-        final Variable createVar = new Variable("update-var", VariableType.STRING, "\"initial\"");
+        final Variable createVar = new Variable("update-var", VariableType.STRING, "\"initial\"",
+                                                "Variable to be updated");
         final ResponseEntity<HasRevision<Variable>> createResponse = client.prepare()
                                                                            .post(basePath)
                                                                            .contentJson(createVar)
@@ -150,7 +170,8 @@ class VariableServiceV1Test {
         assertThat(createResponse.status()).isEqualTo(HttpStatus.CREATED);
 
         // Update the variable
-        final Variable updateVar = new Variable("update-var", VariableType.STRING, "\"updated\"");
+        final Variable updateVar = new Variable("update-var", VariableType.STRING, "\"updated\"",
+                                                "Variable to be updated");
         final ResponseEntity<HasRevision<Variable>> updateResponse =
                 client.prepare()
                       .put(basePath + "/update-var")
@@ -158,8 +179,13 @@ class VariableServiceV1Test {
                       .asJson(variableTypeRef)
                       .execute();
         assertThat(updateResponse.status()).isEqualTo(HttpStatus.OK);
-        assertThat(updateResponse.content().object()).isEqualTo(
-                new Variable("update-var", VariableType.STRING, namePrefix + "update-var", "\"updated\""));
+        assertThat(updateResponse.content().object())
+                .usingRecursiveComparison()
+                .ignoringFields("creation")
+                .isEqualTo(
+                        new Variable("update-var", VariableType.STRING, namePrefix + "update-var",
+                                     "\"updated\"",
+                                     MOCK_CREATION, "Variable to be updated"));
 
         // Verify the update
         final ResponseEntity<Variable> getResponse = client.prepare()
@@ -177,14 +203,16 @@ class VariableServiceV1Test {
         final String basePath = apiPrefix(projectLevel);
 
         // Create a STRING variable
-        final Variable createVar = new Variable("type-change-var", VariableType.STRING, "123");
+        final Variable createVar = new Variable("type-change-var", VariableType.STRING, "123",
+                                                "Variable to change type");
         client.prepare()
               .post(basePath)
               .contentJson(createVar)
               .execute();
 
         // Update to JSON type
-        final Variable updateVar = new Variable("type-change-var", VariableType.JSON, "{ \"key\": 123 }");
+        final Variable updateVar = new Variable("type-change-var", VariableType.JSON, "{ \"key\": 123 }",
+                                                "Variable to change type");
         final ResponseEntity<HasRevision<Variable>> updateResponse = client.prepare()
                                                                            .put(basePath + "/type-change-var")
                                                                            .contentJson(updateVar)
@@ -209,7 +237,8 @@ class VariableServiceV1Test {
         final String basePath = apiPrefix(projectLevel);
 
         // Create a variable
-        final Variable createVar = new Variable("delete-var", VariableType.STRING, "\"to-delete\"");
+        final Variable createVar = new Variable("delete-var", VariableType.STRING, "to-delete",
+                                                "Variable to be deleted");
         final ResponseEntity<HasRevision<Variable>> createResponse = client.prepare()
                                                                            .post(basePath)
                                                                            .contentJson(createVar)
@@ -237,7 +266,8 @@ class VariableServiceV1Test {
         final String basePath = apiPrefix(projectLevel);
 
         // Try to create a JSON variable with invalid JSON value
-        final Variable invalidVar = new Variable("invalid-json", VariableType.JSON, "not valid json");
+        final Variable invalidVar = new Variable("invalid-json", VariableType.JSON, "not valid json",
+                                                 "Invalid");
         final AggregatedHttpResponse response = client.prepare()
                                                       .post(basePath)
                                                       .contentJson(invalidVar)
@@ -263,7 +293,8 @@ class VariableServiceV1Test {
         final BlockingWebClient client = dogma.blockingHttpClient();
         final String basePath = apiPrefix(projectLevel);
 
-        final Variable updateVar = new Variable("non-existent", VariableType.STRING, "\"value\"");
+        final Variable updateVar = new Variable("non-existent", VariableType.STRING, "value",
+                                                "Non-existent variable");
         final AggregatedHttpResponse response = client.prepare()
                                                       .put(basePath + "/non-existent")
                                                       .contentJson(updateVar)
@@ -278,7 +309,8 @@ class VariableServiceV1Test {
         final String basePath = apiPrefix(projectLevel);
 
         // Create a variable
-        final Variable createVar = new Variable("mismatch-var", VariableType.STRING, "\"value\"");
+        final Variable createVar = new Variable("mismatch-var", VariableType.STRING, "value",
+                                                "Variable for ID mismatch test");
         client.prepare()
               .post(basePath)
               .contentJson(createVar)
@@ -286,7 +318,8 @@ class VariableServiceV1Test {
               .execute();
 
         // Try to update with mismatched ID
-        final Variable updateVar = new Variable("different-id", VariableType.STRING, "\"new-value\"");
+        final Variable updateVar = new Variable("different-id", VariableType.STRING, "new-value",
+                                                "Variable for ID mismatch test");
         final AggregatedHttpResponse response = client.prepare()
                                                       .put(basePath + "/mismatch-var")
                                                       .contentJson(updateVar)
