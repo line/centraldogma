@@ -453,7 +453,7 @@ The watcher will be notified when:
 
 - The template file itself is modified
 - Any project or repository-level variable used in the template changes
-- The default variable files (``.variables.[json|json5|yaml|yml]``) changes
+- The default variable files (``.variables.[json|json5|yaml|yml]``) change
 
 Watch with custom variable file:
 
@@ -471,7 +471,7 @@ Web UI
 Permissions
 ^^^^^^^^^^^
 
-Variable UI require specific roles:
+The Variable UI requires specific roles:
 
 - **Project-level variables**: Requires ``MEMBER`` role or higher in the project
 - **Repository-level variables**: Requires ``WRITE`` role or higher in the repository
