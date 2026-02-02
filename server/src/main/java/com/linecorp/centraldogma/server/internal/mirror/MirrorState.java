@@ -28,6 +28,28 @@ import com.google.common.base.MoreObjects;
 
 import com.linecorp.centraldogma.server.mirror.MirrorDirection;
 
+/**
+ * Represents the revisions captured at the time a mirroring job updates a change.
+ *
+ * <p>This class stores both local and remote revisions along with the mirroring direction
+ * and configuration hash to track synchronization state between repositories.
+ *
+ * <p>The semantics of {@code remoteRevision} and {@code localRevision} depend on the {@link MirrorDirection}.
+ *
+ * <h3>Remote-to-local mirroring ({@link MirrorDirection#REMOTE_TO_LOCAL})
+ * When a new commit is pushed to the local repository:
+ * <ul>
+ *   <li>{@code remoteRevision} - to the current remote HEAD (e.g, Git commit SHA)</li>
+ *   <li>{@code localRevision} - the previous local HEAD (e.g, Central Dogma revision)</li>
+ * </ul>
+ *
+ * <h3>Local-to-remote mirroring ({@link MirrorDirection#LOCAL_TO_REMOTE})
+ * When a new commit is pushed to the remote repository:
+ * <ul>
+ *   <li>{@code remoteRevision} - the previous remote HEAD (e.g, Git commit SHA)</li>
+ *   <li>{@code localRevision} - the current local HEAD (e.g, Central Dogma revision)</li>
+ * </ul>
+ */
 public final class MirrorState {
 
     private final String sourceRevision;

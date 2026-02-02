@@ -174,7 +174,8 @@ abstract class AbstractGitMirror extends AbstractMirror {
         }
     }
 
-    private MirrorDecision shouldRunRemoteToLocal(@Nullable MirrorState oldMirrorState, Revision localHead,
+    private MirrorDecision shouldRunRemoteToLocal(@Nullable MirrorState oldMirrorState,
+                                                  Revision previousLocalHead,
                                                   ObjectId remoteCommitId) {
         if (oldMirrorState == null) {
             // There's no previous mirror state.
@@ -184,19 +185,17 @@ abstract class AbstractGitMirror extends AbstractMirror {
         if (!hashString().equals(oldMirrorState.configHash())) {
             return MirrorDecision.RUN;
         }
-        final String previousRemoteCommitId = oldMirrorState.remoteRevision();
-        final String previousLocalRevision = oldMirrorState.localRevision();
-        if (previousRemoteCommitId == null || previousLocalRevision == null) {
+        if (oldMirrorState.remoteRevision() == null || oldMirrorState.localRevision() == null) {
             // Run the mirror to update the legacy mirror state file.
             return MirrorDecision.RUN;
         }
 
-        if (!remoteCommitId.name().equals(previousRemoteCommitId)) {
+        if (!remoteCommitId.name().equals(oldMirrorState.remoteRevision())) {
             // The remote (source) repository has commits that are not present locally.
             return MirrorDecision.RUN;
         }
 
-        if (!localHead.backward(1).text().equals(previousLocalRevision)) {
+        if (!previousLocalHead.text().equals(oldMirrorState.localRevision())) {
             // Something changed in the mirrored local repository since the last mirroring.
             final String localPath = localPath();
             if ("/".equals(localPath)) {
@@ -211,7 +210,7 @@ abstract class AbstractGitMirror extends AbstractMirror {
     }
 
     private MirrorDecision shouldRunLocalToRemote(@Nullable MirrorState oldMirrorState, Revision localHead,
-                                                  @Nullable ObjectId remoteCommitId)
+                                                  @Nullable ObjectId previousRemoteCommitId)
             throws IOException {
         if (oldMirrorState == null) {
             // There's no previous mirror state.
@@ -221,19 +220,18 @@ abstract class AbstractGitMirror extends AbstractMirror {
         if (!hashString().equals(oldMirrorState.configHash())) {
             return MirrorDecision.RUN;
         }
-        final String previousRemoteCommitId = oldMirrorState.remoteRevision();
-        final String previousLocalRevision = oldMirrorState.localRevision();
-        if (previousRemoteCommitId == null || previousLocalRevision == null) {
+        if (oldMirrorState.remoteRevision() == null || oldMirrorState.localRevision() == null) {
             // Run the mirror to update the legacy mirror state file.
             return MirrorDecision.RUN;
         }
 
-        if (!localHead.text().equals(previousLocalRevision)) {
+        if (!localHead.text().equals(oldMirrorState.localRevision())) {
             // The local (source) repository has commits that are not present remotely.
             return MirrorDecision.RUN;
         }
 
-        if (remoteCommitId != null && !remoteCommitId.name().equals(previousRemoteCommitId)) {
+        if (previousRemoteCommitId != null &&
+            !previousRemoteCommitId.name().equals(oldMirrorState.remoteRevision())) {
             // Something changed in the mirrored remote repository since the last mirroring.
             final String remotePath = remotePath();
             if ("/".equals(remotePath)) {
@@ -359,7 +357,7 @@ abstract class AbstractGitMirror extends AbstractMirror {
             // Update the head commit ID again because there's a chance a commit is pushed between the
             // getHeadBranchRefName and fetchRemoteHeadAndGetCommitId calls.
             headCommitId = fetchRemoteHeadAndGetCommitId(git, headBranchRef.getName());
-            mirrorDecision = shouldRunRemoteToLocal(oldMirrorState, localRev, headCommitId);
+            mirrorDecision = shouldRunRemoteToLocal(oldMirrorState, localRev.backward(1), headCommitId);
             if (mirrorDecision == MirrorDecision.SKIP) {
                 return newMirrorResultForUpToDate(headBranchRef, triggeredTime);
             }
