@@ -41,7 +41,6 @@ import java.util.function.BiFunction;
 import java.util.function.Function;
 
 import org.jspecify.annotations.Nullable;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -959,7 +958,8 @@ public final class ArmeriaCentralDogma extends AbstractCentralDogma {
         }
     }
 
-    private static <T> @Nullable Entry<T> watchFile(AggregatedHttpResponse res, QueryType queryType, boolean viewRaw) {
+    private static <T> @Nullable Entry<T> watchFile(AggregatedHttpResponse res, QueryType queryType,
+                                                    boolean viewRaw) {
         switch (res.status().code()) {
             case 200: // OK
                 final JsonNode node = toJson(res, JsonNodeType.OBJECT);

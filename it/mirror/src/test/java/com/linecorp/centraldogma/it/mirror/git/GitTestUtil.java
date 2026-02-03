@@ -28,7 +28,8 @@ import org.jspecify.annotations.Nullable;
 
 public final class GitTestUtil {
 
-    public static byte @Nullable [] getFileContent(Git git, ObjectId commitId, String fileName) throws IOException {
+    public static byte @Nullable [] getFileContent(Git git, ObjectId commitId, String fileName)
+            throws IOException {
         try (ObjectReader reader = git.getRepository().newObjectReader();
              TreeWalk treeWalk = new TreeWalk(reader);
              RevWalk revWalk = new RevWalk(reader)) {
