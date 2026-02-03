@@ -22,7 +22,7 @@ import static com.linecorp.centraldogma.internal.Util.isValidYamlFilePath;
 
 import java.util.Objects;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;

@@ -40,11 +40,11 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
-import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 
+import org.jspecify.annotations.Nullable;
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.ReadOptions;
 import org.rocksdb.RocksDBException;
@@ -267,8 +267,7 @@ final class RepositoryEncryptionStorage {
         }
     }
 
-    @Nullable
-    byte[] getObject(byte[] key, byte[] metadataKey) {
+    byte @Nullable [] getObject(byte[] key, byte[] metadataKey) {
         requireNonNull(key, "key");
         requireNonNull(metadataKey, "metadataKey");
         try {
@@ -279,8 +278,7 @@ final class RepositoryEncryptionStorage {
         }
     }
 
-    @Nullable
-    byte[] getObjectId(byte[] key, byte[] metadataKey) {
+    byte @Nullable [] getObjectId(byte[] key, byte[] metadataKey) {
         requireNonNull(key, "key");
         requireNonNull(metadataKey, "metadataKey");
         try {
@@ -291,8 +289,7 @@ final class RepositoryEncryptionStorage {
         }
     }
 
-    @Nullable
-    byte[] getMetadata(byte[] metadataKey) {
+    byte @Nullable [] getMetadata(byte[] metadataKey) {
         requireNonNull(metadataKey, "metadataKey");
         try {
             return rocksDbStorage.get(ENCRYPTION_METADATA_COLUMN_FAMILY, metadataKey);
@@ -319,7 +316,7 @@ final class RepositoryEncryptionStorage {
     }
 
     void putObjectId(byte[] metadataKey, byte[] metadataValue, byte[] key, byte[] value,
-                     @Nullable byte[] previousKeyToRemove) {
+                     byte @Nullable [] previousKeyToRemove) {
         try (WriteBatch writeBatch = new WriteBatch();
              WriteOptions writeOptions = new WriteOptions()) {
             writeOptions.setSync(true);
@@ -916,7 +913,7 @@ final class RepositoryEncryptionStorage {
     }
 
     private boolean reencryptObjectIdEntry(String projectName, String repoName,
-                                           byte[] metadataKey, @Nullable byte[] metadataValue,
+                                           byte[] metadataKey, byte @Nullable [] metadataValue,
                                            byte[] idPart, int newKeyVersion, SecretKey newDek,
                                            HashMap<Integer, SecretKey> deks,
                                            ColumnFamilyHandle metadataColumnFamilyHandle,

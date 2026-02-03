@@ -26,7 +26,7 @@ import java.util.function.BooleanSupplier;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import com.nimbusds.jwt.SignedJWT;
 import com.spotify.futures.CompletableFutures;

@@ -143,7 +143,7 @@ public enum NoopEncryptionStorageManager implements EncryptionStorageManager {
 
     @Override
     public void putObjectId(byte[] metadataKey, byte[] metadataValue, byte[] key, byte[] value,
-                            @Nullable byte[] previousKeyToRemove) {
+                            byte @Nullable [] previousKeyToRemove) {
         // No-op
     }
 

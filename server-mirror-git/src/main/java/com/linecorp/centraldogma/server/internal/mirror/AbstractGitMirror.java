@@ -795,7 +795,7 @@ abstract class AbstractGitMirror extends AbstractMirror {
     }
 
     private static long applyPathEdit(DirCache dirCache, ObjectInserter inserter, String pathString,
-                                      Entry<?> entry, @Nullable byte[] oldContent)
+                                      Entry<?> entry, byte @Nullable [] oldContent)
             throws JsonProcessingException {
         switch (EntryType.guessFromPath(pathString)) {
             case JSON:

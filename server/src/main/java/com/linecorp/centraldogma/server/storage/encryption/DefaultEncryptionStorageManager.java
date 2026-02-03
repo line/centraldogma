@@ -164,7 +164,7 @@ final class DefaultEncryptionStorageManager implements EncryptionStorageManager 
 
     @Override
     public void putObjectId(byte[] metadataKey, byte[] metadataValue, byte[] key, byte[] value,
-                            @Nullable byte[] previousKeyToRemove) {
+                            byte @Nullable [] previousKeyToRemove) {
         repositoryEncryptionStorage.putObjectId(metadataKey, metadataValue, key, value, previousKeyToRemove);
     }
 

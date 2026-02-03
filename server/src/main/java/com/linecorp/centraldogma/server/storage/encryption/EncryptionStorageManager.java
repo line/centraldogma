@@ -182,7 +182,7 @@ public interface EncryptionStorageManager extends SafeCloseable {
      * Stores the specified key-value pair with metadata. The {@code previousKeyToRemove} will be removed.
      */
     void putObjectId(byte[] metadataKey, byte[] metadataValue, byte[] key, byte[] value,
-                     @Nullable byte[] previousKeyToRemove);
+                     byte @Nullable [] previousKeyToRemove);
 
     /**
      * Returns {@code true} if the specified key exists.

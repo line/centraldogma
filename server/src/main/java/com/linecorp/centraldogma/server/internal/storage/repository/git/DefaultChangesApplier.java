@@ -258,7 +258,7 @@ final class DefaultChangesApplier extends AbstractChangesApplier {
         return numEdits;
     }
 
-    private static JsonNode toJsonNode(String path, @Nullable byte[] content) throws JsonParseException {
+    private static JsonNode toJsonNode(String path, byte @Nullable [] content) throws JsonParseException {
         if (content == null) {
             return Jackson.nullNode;
         }

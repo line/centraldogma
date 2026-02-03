@@ -18,7 +18,7 @@ package com.linecorp.centraldogma.common;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import com.google.common.base.MoreObjects;
 
