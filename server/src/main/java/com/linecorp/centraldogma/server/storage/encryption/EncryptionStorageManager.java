@@ -158,20 +158,17 @@ public interface EncryptionStorageManager extends SafeCloseable {
     /**
      * Returns the object associated with the specified key.
      */
-    @Nullable
-    byte[] getObject(byte[] key, byte[] metadataKey);
+    byte @Nullable[] getObject(byte[] key, byte[] metadataKey);
 
     /**
      * Returns the object ID bytes associated with the specified key.
      */
-    @Nullable
-    byte[] getObjectId(byte[] key, byte[] metadataKey);
+    byte @Nullable [] getObjectId(byte[] key, byte[] metadataKey);
 
     /**
      * Returns the value of the specified metadata key.
      */
-    @Nullable
-    byte[] getMetadata(byte[] metadataKey);
+    byte @Nullable[] getMetadata(byte[] metadataKey);
 
     /**
      * Stores the specified key-value object with metadata.
