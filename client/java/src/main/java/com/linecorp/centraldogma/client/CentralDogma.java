@@ -18,12 +18,15 @@ package com.linecorp.centraldogma.client;
 import static com.linecorp.centraldogma.internal.PathPatternUtil.toPathPattern;
 import static java.util.Objects.requireNonNull;
 
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.function.Function;
+
+import javax.annotation.Nullable;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.collect.ImmutableList;
@@ -192,8 +195,28 @@ public interface CentralDogma extends AutoCloseable {
      *
      * @return the {@link Entry} that is matched by the given {@link Query}
      */
+    default <T> CompletableFuture<Entry<T>> getFile(String projectName, String repositoryName,
+                                                    Revision revision, Query<T> query) {
+        return getFile(projectName, repositoryName, revision, query, false, false, null);
+    }
+
+    /**
+     * Queries a file at the specified revision and path with the specified {@link Query}.
+     * This method is equivalent to calling:
+     * <pre>{@code
+     * CentralDogma dogma = ...
+     * boolean viewRaw = ...
+     * dogma.forRepo(projectName, repositoryName)
+     *      .file(query)
+     *      .viewRaw(viewRaw)
+     *      .get(revision);
+     * }</pre>
+     *
+     * @return the {@link Entry} that is matched by the given {@link Query}
+     */
     <T> CompletableFuture<Entry<T>> getFile(String projectName, String repositoryName,
-                                            Revision revision, Query<T> query);
+                                            Revision revision, Query<T> query, boolean viewRaw,
+                                            boolean renderTemplate, @Nullable String variableFile);
 
     /**
      * Retrieves the files matched by the path pattern.
@@ -220,8 +243,29 @@ public interface CentralDogma extends AutoCloseable {
      *
      * @return a {@link Map} of file path and {@link Entry} pairs
      */
+    default CompletableFuture<Map<String, Entry<?>>> getFiles(String projectName, String repositoryName,
+                                                              Revision revision, PathPattern pathPattern) {
+        return getFiles(projectName, repositoryName, revision, pathPattern, false, false, null);
+    }
+
+    /**
+     * Retrieves the files matched by the {@link PathPattern}.
+     * This method is equivalent to calling:
+     * <pre>{@code
+     * CentralDogma dogma = ...
+     * boolean viewRaw = ...
+     * dogma.forRepo(projectName, repositoryName)
+     *      .file(pathPattern)
+     *      .viewRaw(viewRaw)
+     *      .get(revision);
+     * }</pre>
+     *
+     * @return a {@link Map} of file path and {@link Entry} pairs
+     */
     CompletableFuture<Map<String, Entry<?>>> getFiles(String projectName, String repositoryName,
-                                                      Revision revision, PathPattern pathPattern);
+                                                      Revision revision, PathPattern pathPattern,
+                                                      boolean viewRaw, boolean renderTemplate,
+                                                      @Nullable String variableFile);
 
     /**
      * Retrieves the merged entry of the specified {@link MergeSource}s at the specified revision.
@@ -418,6 +462,34 @@ public interface CentralDogma extends AutoCloseable {
      */
     CompletableFuture<List<Change<?>>> getDiff(String projectName, String repositoryName,
                                                Revision from, Revision to, PathPattern pathPattern);
+
+    /**
+     * Imports the contents of the specified directory into a Central Dogma repository. The project and
+     * repository names are resolved based on the provided parameters:
+     *
+     * <ul>
+     * <li><strong>(null, null)</strong>: Both project and repository names are extracted from the directory
+     * path. The second-to-last path component becomes the project name, and the last component becomes
+     * the repository name. <br>Example: {@code /home/user/myproject/myrepo} → project: "myproject",
+     * repository: "myrepo"</li>
+     * <li><strong>(non-null, null)</strong>: The project name is provided, and the repository name is
+     * extracted from the directory path. The last path component becomes the repository name. <br>Example:
+     * {@code importDir("myproject", null, "/home/user/configs/myrepo")} → project: "myproject",
+     * repository: "myrepo"</li>
+     * <li><strong>(non-null, non-null)</strong>: Both project and repository names are provided and used
+     * as-is. <br>Example: {@code importDir("myproject", "myrepo", "/home/user/data")} → project:
+     * "myproject", repository: "myrepo"</li>
+     * </ul>
+     *
+     * @param projectName the project name, or {@code null} to extract from the directory path
+     * @param repositoryName the repository name, or {@code null} to extract from the directory path
+     * @param dir the directory to import
+     * @param createIfMissing whether to create the project and repository if they don't exist
+     * @return a {@link CompletableFuture} that completes with the {@link PushResult}.
+     *         If no files were imported, the future completes with {@code null}.
+     */
+    CompletableFuture<PushResult> importDir(@Nullable String projectName, @Nullable String repositoryName,
+                                            Path dir, boolean createIfMissing);
 
     /**
      * Retrieves the diffs of the files matched by the given path pattern between two {@link Revision}s.
@@ -718,9 +790,42 @@ public interface CentralDogma extends AutoCloseable {
      *         earlier due to issues such as server restart.
      *         {@link EntryNotFoundException} is raised if the target does not exist.
      */
+    default <T> CompletableFuture<Entry<T>> watchFile(String projectName, String repositoryName,
+                                                      Revision lastKnownRevision, Query<T> query,
+                                                      long timeoutMillis, boolean errorOnEntryNotFound) {
+        return watchFile(projectName, repositoryName, lastKnownRevision, query,
+                         timeoutMillis, errorOnEntryNotFound, false, false, null, null);
+    }
+
+    /**
+     * Waits for the file matched by the specified {@link Query} to be changed since the specified
+     * {@code lastKnownRevision}. If the file does not exist and {@code errorOnEntryNotFound} is {@code true},
+     * the returned {@link CompletableFuture} will be completed exceptionally with
+     * {@link EntryNotFoundException}. If no changes were made within the specified {@code timeoutMillis},
+     * the returned {@link CompletableFuture} will be completed with {@code null}.
+     * It is recommended to specify the largest {@code timeoutMillis} allowed by the server.
+     * This method is equivalent to calling:
+     * <pre>{@code
+     * CentralDogma dogma = ...
+     * dogma.forRepo(projectName, repositoryName)
+     *      .watch(query)
+     *      .timeoutMillis(timeoutMillis)
+     *      .errorOnEntryNotFound(errorOnEntryNotFound)
+     *      .start(lastKnownRevision);
+     * }</pre>
+     *
+     * @return the {@link Entry} which contains the latest known {@link Query} result.
+     *         {@code null} if the file was not changed for {@code timeoutMillis} milliseconds
+     *         since the invocation of this method. Even before the timeout, the watch may return null
+     *         earlier due to issues such as server restart.
+     *         {@link EntryNotFoundException} is raised if the target does not exist.
+     */
     <T> CompletableFuture<Entry<T>> watchFile(String projectName, String repositoryName,
                                               Revision lastKnownRevision, Query<T> query,
-                                              long timeoutMillis, boolean errorOnEntryNotFound);
+                                              long timeoutMillis, boolean errorOnEntryNotFound,
+                                              boolean viewRaw, boolean renderTemplate,
+                                              @Nullable String variableFile,
+                                              @Nullable Revision templateRevision);
 
     /**
      * Returns a {@link Watcher} which notifies its listeners when the result of the

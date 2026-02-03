@@ -15,11 +15,20 @@
  */
 package com.linecorp.centraldogma.client;
 
+import static com.linecorp.centraldogma.internal.Json5.isJsonCompatible;
 import static java.util.Objects.requireNonNull;
 
+import java.io.File;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.stream.Stream;
 
 import org.jspecify.annotations.Nullable;
 
@@ -31,6 +40,7 @@ import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.MergeQuery;
 import com.linecorp.centraldogma.common.MergeSource;
 import com.linecorp.centraldogma.common.PathPattern;
+import com.linecorp.centraldogma.common.PushResult;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.QueryType;
 import com.linecorp.centraldogma.common.Revision;
@@ -57,6 +67,37 @@ public final class CentralDogmaRepository {
         this.repositoryName = repositoryName;
         this.blockingTaskExecutor = blockingTaskExecutor;
         this.meterRegistry = meterRegistry;
+    }
+
+    private static Change<?> toChange(String repoPath, Path file) {
+        try {
+            final byte[] bytes = Files.readAllBytes(file);
+            final String lower = file.getFileName().toString();
+            final String content = new String(bytes, StandardCharsets.UTF_8);
+
+            if (isJsonCompatible(lower)) {
+                return Change.ofJsonUpsert(repoPath, content);
+            }
+            return Change.ofTextUpsert(repoPath, content);
+        } catch (Exception e) {
+            throw new IllegalStateException("Failed to create Change for " + file, e);
+        }
+    }
+
+    private static List<Change<?>> collectImportFiles(Path path) {
+        final List<Change<?>> changes = new ArrayList<>();
+        try (Stream<Path> s = Files.walk(path)) {
+            s.filter(Files::isRegularFile)
+             .filter(p -> !p.getFileName().toString().startsWith("."))
+             .forEach(p -> {
+                 final Path filePath = path.relativize(p);
+                 final String repoPath = '/' + filePath.toString().replace(File.separatorChar, '/');
+                 changes.add(toChange(repoPath, p));
+             });
+        } catch (IOException e) {
+            throw new IllegalStateException("Failed to walk directory: " + path, e);
+        }
+        return changes;
     }
 
     CentralDogma centralDogma() {
@@ -296,6 +337,22 @@ public final class CentralDogmaRepository {
     public WatcherRequest<Revision> watcher(PathPattern pathPattern) {
         requireNonNull(pathPattern, "pathPattern");
         return new WatcherRequest<>(this, pathPattern, blockingTaskExecutor, meterRegistry);
+    }
+
+    /**
+     * Returns a new {@code dir} that imports the files in the specified.
+     */
+    public CompletableFuture<PushResult> importDir(Path dir) {
+        requireNonNull(dir, "dir");
+        if (!Files.isDirectory(dir)) {
+            throw new IllegalArgumentException("Path must be a directory: " + dir);
+        }
+        final List<Change<?>> changes = collectImportFiles(dir);
+        if (changes.isEmpty()) {
+            return CompletableFuture.completedFuture(null);
+        }
+        return commit("Import " + dir.getFileName(), changes)
+                .push(Revision.HEAD);
     }
 
     @Override

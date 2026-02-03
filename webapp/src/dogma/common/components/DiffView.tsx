@@ -8,23 +8,28 @@ import { extensionToLanguageMap } from 'dogma/common/components/editor/FileEdito
 import Prism from 'prismjs';
 // Load the language needed
 import 'prismjs/components/prism-json';
+import 'prismjs/components/prism-json5';
 import 'prismjs/components/prism-javascript';
 import 'prismjs/components/prism-yaml';
 import 'prismjs/components/prism-toml';
+import 'prismjs/components/prism-markdown';
+import 'prismjs/components/prism-python';
+import 'prismjs/components/prism-sass';
+import 'prismjs/components/prism-xml-doc';
+import 'prismjs/components/prism-docker';
 import 'prismjs/themes/prism.css';
 
-function normalize(file: FileDto[]): [string, string][] {
+function toMap(file: FileDto[]): [string, string][] {
   return file
     .filter((file) => file.type != 'DIRECTORY')
     .map((file) => {
-      const content = file.type == 'JSON' ? JSON.stringify(file.content, null, 2) : file.content;
-      return [file.path, content];
+      return [file.path, file.rawContent];
     });
 }
 
 function diff(oldData: FileDto[], newData: FileDto[]): Map<string, [string, string]> {
-  const oldMap = new Map<string, string>(normalize(oldData));
-  const newMap = new Map<string, string>(normalize(newData));
+  const oldMap = new Map<string, string>(toMap(oldData));
+  const newMap = new Map<string, string>(toMap(newData));
   const difference = new Map<string, [string, string]>();
 
   newMap.forEach((newFile, path) => {
@@ -60,12 +65,16 @@ function highlightSyntax(path: string, str: string): React.JSX.Element {
     return <pre style={{ display: 'inline' }}>{str}</pre>;
   }
 
-  return (
-    <pre
-      style={{ display: 'inline' }}
-      dangerouslySetInnerHTML={{ __html: Prism.highlight(str, Prism.languages[language], language) }}
-    />
-  );
+  try {
+    return (
+      <pre
+        style={{ display: 'inline' }}
+        dangerouslySetInnerHTML={{ __html: Prism.highlight(str, Prism.languages[language], language) }}
+      />
+    );
+  } catch (e) {
+    return <pre style={{ display: 'inline' }}>{str}</pre>;
+  }
 }
 
 export type DiffMode = 'Split' | 'Unified';

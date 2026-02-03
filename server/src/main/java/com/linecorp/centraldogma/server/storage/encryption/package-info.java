@@ -14,7 +14,7 @@
  * under the License.
  */
 /**
- * Classes for Encryption At Rest.
+ * Classes for Encryption.
  */
 @NullMarked
 package com.linecorp.centraldogma.server.storage.encryption;

@@ -54,6 +54,7 @@ import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.metadata.Tokens;
 import com.linecorp.centraldogma.server.storage.encryption.EncryptionEntryExistsException;
+import com.linecorp.centraldogma.server.storage.encryption.EncryptionEntryNoExistException;
 import com.linecorp.centraldogma.server.storage.encryption.EncryptionStorageManager;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 import com.linecorp.centraldogma.server.storage.repository.RepositoryListener;
@@ -238,12 +239,19 @@ public final class InternalProjectInitializer {
         if (!encryptionStorageManager.encryptSessionCookie()) {
             return;
         }
-        final SessionKey sessionKey = encryptionStorageManager.getCurrentSessionKey().join();
-        if (sessionKey != null) {
-            return;
+        try {
+            final SessionKey sessionKey = encryptionStorageManager.getCurrentSessionKey().join();
+            if (sessionKey != null) {
+                return;
+            }
+        } catch (Exception e) {
+            final Throwable peeled = Exceptions.peel(e);
+            if (!(peeled instanceof EncryptionEntryNoExistException)) {
+                Exceptions.throwUnsafely(peeled);
+            }
         }
 
-        final SessionMasterKey sessionMasterKey = encryptionStorageManager.generateSessionMasterKey().join();
+        final SessionMasterKey sessionMasterKey = encryptionStorageManager.generateSessionMasterKey(1).join();
         try {
             executor.execute(Command.createSessionMasterKey(sessionMasterKey))
                     .get();

@@ -40,8 +40,8 @@ dependencies {
 tasks.jar.enabled = false
 
 task copyLicenses(group: 'Build',
-                  description: "Copies license information into ${project.ext.relativeDistDir}/licenses",
-                  type: Copy) {
+        description: "Copies license information into ${project.ext.relativeDistDir}/licenses",
+        type: Copy) {
 
     from "${rootProject.projectDir}"
     into "${project.ext.distDir}"
@@ -52,9 +52,9 @@ task copyLicenses(group: 'Build',
 }
 
 task copyLib(group: 'Build',
-             description: "Copies JARs into ${project.ext.relativeDistDir}/lib",
-             dependsOn: project(':server').tasks.jar,
-             type: Copy) {
+        description: "Copies JARs into ${project.ext.relativeDistDir}/lib",
+        dependsOn: project(':server').tasks.jar,
+        type: Copy) {
 
     from configurations.runtimeClasspath
     File libDir = new File("${project.ext.distDir}/lib")
@@ -136,7 +136,9 @@ task copyClientBinaries(group: 'Build',
                 from sourceFile
                 into nativeDir
                 rename { targetFileName }
-                fileMode 0755
+                filePermissions { permissions ->
+                    permissions.unix('rwxr-xr-x')
+                }
             }
         }
     }
@@ -159,8 +161,8 @@ task distDirWithoutClientBinaries(group: 'Build',
 }
 
 task distDir(group: 'Build',
-             description: "Builds a distribution directory (${project.ext.relativeDistDir})",
-             dependsOn: [tasks.copyLicenses, tasks.copyLib, tasks.copyClientBinaries])
+        description: "Builds a distribution directory (${project.ext.relativeDistDir})",
+        dependsOn: [tasks.copyLicenses, tasks.copyLib, tasks.copyClientBinaries])
 
 // Create the tasks that copy each directory under src/ into dist/
 ['bin', 'conf'].each { dirName ->
@@ -174,9 +176,9 @@ task distDir(group: 'Build',
 }
 
 task tarball(group: 'Build',
-             description: "Builds a tarball from the distribution directory (${project.ext.relativeDistDir})",
-             dependsOn: tasks.distDir,
-             type: Tar) {
+        description: "Builds a tarball from the distribution directory (${project.ext.relativeDistDir})",
+        dependsOn: tasks.distDir,
+        type: Tar) {
 
     archiveBaseName = rootProject.name
     destinationDirectory = project.file("${project.buildDir}")
@@ -196,30 +198,34 @@ tasks.assemble.dependsOn(tasks.tarball)
 
 // Tasks for building docker image
 task docker(group: 'Build',
-            description: "Builds multiplatform docker image from the distribution directory" +
-                    " (${project.ext.relativeDistDir})",
-            dependsOn: tasks.distDir,
-            type: Exec) {
+        description: "Builds multiplatform docker image from the distribution directory" +
+                " (${project.ext.relativeDistDir})",
+        dependsOn: tasks.distDir,
+        type: Exec) {
 
     workingDir = file('.')
     executable 'docker'
 
     def imageName = 'ghcr.io/line/centraldogma'
     def imageVersion = project.hasProperty('version') ? project.getProperty('version') : project.version
-    def platforms = ['linux/amd64', 'linux/arm64']
-
-    def buildArgs = [
-        'buildx', 'build',
-        '--platform', platforms.join(','),
-        '--push'
-    ]
-
-    buildArgs.add("--tag")
-    buildArgs.add("${imageName}:${imageVersion}")
-    if (!(project.version =~ /-SNAPSHOT$/)) {
-        buildArgs.add("--tag")
-        buildArgs.add("${imageName}:latest")
+    def buildArgs = ['buildx', 'build']
+    if (imageVersion == 'test') {
+        buildArgs.addAll([
+                '--platform', 'linux/amd64',
+                '--load',
+                "--tag", "${imageName}:${imageVersion}"
+        ])
+    } else {
+        buildArgs.addAll([
+                '--platform', 'linux/amd64,linux/arm64',
+                '--push',
+                "--tag", "${imageName}:${imageVersion}"
+        ])
+        if (!(project.version =~ /-SNAPSHOT$/)) {
+            buildArgs.addAll(["--tag", "${imageName}:latest"])
+        }
     }
+
     buildArgs.add('.')
 
     args = buildArgs
@@ -227,16 +233,16 @@ task docker(group: 'Build',
 
 // Tasks for running Central Dogma conveniently.
 task startup(group: 'Execution',
-             description: "Starts up Central Dogma at ${project.ext.relativeDistDir}",
-             dependsOn: tasks.distDir,
-             type: Exec) {
+        description: "Starts up Central Dogma at ${project.ext.relativeDistDir}",
+        dependsOn: tasks.distDir,
+        type: Exec) {
 
     commandLine "${project.ext.distDir}/bin/startup"
 }
 
 task shutdown(group: 'Execution',
-              description: "Shuts down Central Dogma at ${project.ext.relativeDistDir}",
-              type: Exec) {
+        description: "Shuts down Central Dogma at ${project.ext.relativeDistDir}",
+        type: Exec) {
 
     commandLine "${project.ext.distDir}/bin/shutdown"
 }
@@ -244,5 +250,5 @@ task shutdown(group: 'Execution',
 tasks.startup.mustRunAfter(tasks.shutdown)
 
 task restart(group: 'Execution',
-             description: "Restarts Central Dogma at ${project.ext.relativeDistDir}",
-             dependsOn: [tasks.shutdown, tasks.startup])
+        description: "Restarts Central Dogma at ${project.ext.relativeDistDir}",
+        dependsOn: [tasks.shutdown, tasks.startup])

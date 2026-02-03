@@ -16,10 +16,11 @@
 
 package com.linecorp.centraldogma.common;
 
+import static com.linecorp.centraldogma.internal.Json5.isJsonCompatible;
+import static com.linecorp.centraldogma.internal.Yaml.isYaml;
 import static java.util.Objects.requireNonNull;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.google.common.base.Ascii;
 
 /**
  * The type of an {@link Entry}.
@@ -29,6 +30,10 @@ public enum EntryType {
      * A UTF-8 encoded JSON file.
      */
     JSON(JsonNode.class),
+    /**
+     * A UTF-8 encoded YAML file.
+     */
+    YAML(JsonNode.class),
     /**
      * A UTF-8 encoded text file.
      */
@@ -50,9 +55,11 @@ public enum EntryType {
         if (path.charAt(path.length() - 1) == '/') {
             return DIRECTORY;
         }
-
-        if (Ascii.toLowerCase(path).endsWith(".json")) {
+        if (isJsonCompatible(path)) {
             return JSON;
+        }
+        if (isYaml(path)) {
+            return YAML;
         }
 
         return TEXT;

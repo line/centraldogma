@@ -34,9 +34,9 @@ import com.google.common.collect.Streams;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.server.internal.api.sysadmin.MirrorAccessControlRequest;
 import com.linecorp.centraldogma.server.internal.storage.repository.CrudRepository;
-import com.linecorp.centraldogma.server.internal.storage.repository.HasRevision;
 import com.linecorp.centraldogma.server.metadata.UserAndTimestamp;
 import com.linecorp.centraldogma.server.mirror.MirrorAccessController;
+import com.linecorp.centraldogma.server.storage.repository.HasRevision;
 
 public final class DefaultMirrorAccessController implements MirrorAccessController {
 

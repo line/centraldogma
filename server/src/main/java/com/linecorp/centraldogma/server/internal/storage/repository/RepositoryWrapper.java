@@ -22,6 +22,9 @@ import java.io.File;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Function;
+
+import javax.annotation.Nullable;
 
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
@@ -39,6 +42,7 @@ import com.linecorp.centraldogma.server.command.ContentTransformer;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.repository.CacheableCall;
 import com.linecorp.centraldogma.server.storage.repository.DiffResultType;
+import com.linecorp.centraldogma.server.storage.repository.EntryTransformer;
 import com.linecorp.centraldogma.server.storage.repository.FindOption;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 import com.linecorp.centraldogma.server.storage.repository.RepositoryListener;
@@ -212,9 +216,12 @@ public class RepositoryWrapper implements Repository {
     }
 
     @Override
-    public <T> CompletableFuture<Entry<T>> watch(Revision lastKnownRevision, Query<T> query,
-                                                 boolean errorOnEntryNotFound) {
-        return unwrap().watch(lastKnownRevision, query, errorOnEntryNotFound);
+    public <T> CompletableFuture<Entry<T>> watch(
+            Revision lastKnownRevision, Query<T> query, boolean errorOnEntryNotFound,
+            @Nullable String variableFile, @Nullable Revision templateRevision,
+            @Nullable Function<Revision, EntryTransformer<T>> transformerFactory) {
+        return unwrap().watch(lastKnownRevision, query, errorOnEntryNotFound,
+                              variableFile, templateRevision, transformerFactory);
     }
 
     @Override

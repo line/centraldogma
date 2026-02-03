@@ -25,10 +25,10 @@ import static java.util.Objects.requireNonNull;
 
 import java.net.URI;
 
-import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryUri;
 import com.linecorp.centraldogma.server.mirror.Mirror;
 import com.linecorp.centraldogma.server.mirror.MirrorContext;
 import com.linecorp.centraldogma.server.mirror.MirrorProvider;
+import com.linecorp.centraldogma.server.mirror.RepositoryUri;
 
 public final class GitMirrorProvider implements MirrorProvider {
 
@@ -48,7 +48,7 @@ public final class GitMirrorProvider implements MirrorProvider {
                 return new SshGitMirror(context.id(), context.enabled(), context.schedule(),
                                         context.direction(), context.credential(),
                                         context.localRepo(), context.localPath(),
-                                        repositoryUri.uri(), repositoryUri.path(), repositoryUri.branch(),
+                                        repositoryUri,
                                         context.gitignore(), context.zone());
             }
             case SCHEME_GIT_HTTP:
@@ -59,8 +59,7 @@ public final class GitMirrorProvider implements MirrorProvider {
                 return new DefaultGitMirror(context.id(), context.enabled(), context.schedule(),
                                             context.direction(), context.credential(),
                                             context.localRepo(), context.localPath(),
-                                            repositoryUri.uri(), repositoryUri.path(), repositoryUri.branch(),
-                                            context.gitignore(), context.zone());
+                                            repositoryUri, context.gitignore(), context.zone());
             }
         }
 

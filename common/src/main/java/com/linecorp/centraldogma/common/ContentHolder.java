@@ -23,6 +23,7 @@ import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
 
 import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.internal.Yaml;
 
 /**
  * A holder which has the content and its {@link EntryType}.
@@ -52,7 +53,11 @@ public interface ContentHolder<T> {
         final T content = content();
         if (content instanceof JsonNode) {
             try {
-                return Jackson.writeValueAsString(content);
+                if (type() == EntryType.YAML) {
+                    return Yaml.writeValueAsString(content);
+                } else {
+                    return Jackson.writeValueAsString(content);
+                }
             } catch (JsonProcessingException e) {
                 // Should never happen because it's a JSON tree already.
                 throw new Error(e);
@@ -72,7 +77,11 @@ public interface ContentHolder<T> {
         final T content = content();
         if (content instanceof TreeNode) {
             try {
-                return Jackson.writeValueAsPrettyString(content);
+                if (type() == EntryType.YAML) {
+                    return Yaml.writeValueAsString(content);
+                } else {
+                    return Jackson.writeValueAsPrettyString(content);
+                }
             } catch (JsonProcessingException e) {
                 // Should never happen because it's a JSON tree already.
                 throw new Error(e);
@@ -96,7 +105,11 @@ public interface ContentHolder<T> {
             return (JsonNode) content;
         }
 
-        return Jackson.readTree(contentAsText());
+        if (type() == EntryType.YAML) {
+            return Yaml.readTree(contentAsText());
+        } else {
+            return Jackson.readTree(contentAsText());
+        }
     }
 
     /**
@@ -109,11 +122,6 @@ public interface ContentHolder<T> {
      * @throws JsonMappingException if failed to convert the parsed JSON into {@code valueType}
      */
     default <U> U contentAsJson(Class<U> valueType) throws JsonParseException, JsonMappingException {
-        final T content = content();
-        if (content instanceof TreeNode) {
-            return Jackson.treeToValue((TreeNode) content, valueType);
-        }
-
-        return Jackson.readValue(contentAsText(), valueType);
+        return Jackson.treeToValue(contentAsJson(), valueType);
     }
 }

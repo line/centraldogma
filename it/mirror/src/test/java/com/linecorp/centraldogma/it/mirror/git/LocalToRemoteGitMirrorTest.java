@@ -20,12 +20,14 @@ import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.linecorp.centraldogma.internal.CredentialUtil.credentialFile;
 import static com.linecorp.centraldogma.internal.CredentialUtil.credentialName;
 import static com.linecorp.centraldogma.it.mirror.git.GitMirrorIntegrationTest.addToGitIndex;
+import static net.javacrumbs.jsonunit.fluent.JsonFluentAssert.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.eclipse.jgit.lib.Constants.R_HEADS;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Map;
@@ -162,11 +164,22 @@ class LocalToRemoteGitMirrorTest {
         mirrorState = Jackson.readValue(content, MirrorState.class);
         assertThat(mirrorState.sourceRevision()).isEqualTo("1");
 
+        //language=JSON5
+        final String json5 = "{\n" +
+                             "  // This is a single-line comment\n" +
+                             "  \"key\": \"value\"\n" +
+                             '}';
+        //language=yaml
+        final String yaml = "# This is a comment\n" +
+                            "YAML: true";
+
         // Create a new commit
         client.forRepo(projName, REPO_FOO)
               .commit("Add a commit",
                       Change.ofJsonUpsert(localPath + "/foo.json", "{\"a\":\"b\"}"),
                       Change.ofJsonUpsert(localPath + "/bar/foo.json", "{\"a\":\"c\"}"),
+                      Change.ofJsonUpsert(localPath + "/bar/foo.json5", json5),
+                      Change.ofYamlUpsert(localPath + "/bar/foo.yaml", yaml),
                       Change.ofTextUpsert(localPath + "/baz/foo.txt", "\"a\": \"b\"\n"))
               .push().join();
 
@@ -182,6 +195,11 @@ class LocalToRemoteGitMirrorTest {
                 getFileContent(commitId3, remotePath + "/bar/foo.json")))).isEqualTo("{\"a\":\"c\"}");
         assertThat(new String(getFileContent(commitId3, remotePath + "/baz/foo.txt")))
                 .isEqualTo("\"a\": \"b\"\n");
+        final String fooJson5 = new String(getFileContent(commitId3, remotePath + "/bar/foo.json5"));
+        // Make sure the JSON5 content is mirrored as-is.
+        assertThat(fooJson5).isEqualTo(json5 + '\n');
+        final String fooYaml = new String(getFileContent(commitId3, remotePath + "/bar/foo.yaml"));
+        assertThat(fooYaml).isEqualTo(yaml + '\n');
 
         // Mirror once again without adding a commit.
         mirroringService.mirror().join();
@@ -347,6 +365,87 @@ class LocalToRemoteGitMirrorTest {
                 .hasMessageContaining("byte");
     }
 
+    @Test
+    void localToRemote_multipleMirrorsOnDifferentPaths() throws Exception {
+        // Add files to different local paths
+        client.forRepo(projName, REPO_FOO)
+              .commit("Add files to multiple paths",
+                      Change.ofJsonUpsert("/source1/file1.json", "{\"key\":\"value1\"}"),
+                      Change.ofJsonUpsert("/source2/file2.json", "{\"key\":\"value2\"}"))
+              .push().join();
+
+        // Set up first mirror: local /source1 -> remote /target1
+        pushMirrorSettings("mirror1", "/source1", "/target1", null);
+        // Set up second mirror: local /source2 -> remote /target2
+        pushMirrorSettings("mirror2", "/source2", "/target2", null);
+
+        mirroringService.mirror().join();
+
+        final ObjectId commitId1 = git.getRepository().exactRef(R_HEADS + "master").getObjectId();
+
+        // Verify both mirrors work correctly
+        // Check /target1 has file1.json
+        byte[] content1 = getFileContent(commitId1, "/target1/file1.json");
+        assertThat(new String(content1)).isEqualTo("{\"key\":\"value1\"}\n");
+
+        // Check /target2 has file2.json
+        byte[] content2 = getFileContent(commitId1, "/target2/file2.json");
+        assertThat(new String(content2)).isEqualTo("{\"key\":\"value2\"}\n");
+
+        // Verify mirror state files exist for both paths
+        assertThat(getFileContent(commitId1, "/target1/" + LOCAL_TO_REMOTE_MIRROR_STATE_FILE_NAME)).isNotNull();
+        assertThat(getFileContent(commitId1, "/target2/" + LOCAL_TO_REMOTE_MIRROR_STATE_FILE_NAME)).isNotNull();
+
+        // Mirror again without any changes - should not create a new commit
+        mirroringService.mirror().join();
+        final ObjectId commitId2 = git.getRepository().exactRef(R_HEADS + "master").getObjectId();
+        assertThat(commitId2).isEqualTo(commitId1);
+
+        // Update file in source1
+        client.forRepo(projName, REPO_FOO)
+              .commit("Update file1.json",
+                      Change.ofJsonUpsert("/source1/file1.json", "{\"key\":\"updated-value1\"}"))
+              .push().join();
+
+        mirroringService.mirror().join();
+        final ObjectId commitId3 = git.getRepository().exactRef(R_HEADS + "master").getObjectId();
+        assertThat(commitId3).isNotEqualTo(commitId2);
+
+        // Verify only target1 is updated
+        content1 = getFileContent(commitId3, "/target1/file1.json");
+        assertThatJson(new String(content1)).isEqualTo("{\"key\":\"updated-value1\"}");
+        // target2 should remain unchanged
+        content2 = getFileContent(commitId3, "/target2/file2.json");
+        assertThatJson(new String(content2)).isEqualTo("{\"key\":\"value2\"}");
+
+        // Update file in source2
+        client.forRepo(projName, REPO_FOO)
+              .commit("Update file2.json",
+                      Change.ofJsonUpsert("/source2/file2.json", "{\"key\":\"updated-value2\"}"))
+              .push().join();
+
+        mirroringService.mirror().join();
+        final ObjectId commitId4 = git.getRepository().exactRef(R_HEADS + "master").getObjectId();
+        assertThat(commitId4).isNotEqualTo(commitId3);
+
+        // Verify target2 is now updated as well
+        content2 = getFileContent(commitId4, "/target2/file2.json");
+        assertThatJson(new String(content2)).isEqualTo("{\"key\":\"updated-value2\"}");
+
+        addToGitIndex(git, gitWorkTree, "target1/file1.json", "{\"key\":\"updated-value3\"}");
+        final ObjectId commitId5 = git.commit().setMessage("Change file1.json").call().toObjectId();
+        content1 = getFileContent(commitId5, "/target1/file1.json");
+        assertThatJson(new String(content1)).isEqualTo("{\"key\":\"updated-value3\"}");
+
+        mirroringService.mirror().join();
+        final ObjectId commitId6 = git.getRepository().exactRef(R_HEADS + "master").getObjectId();
+        assertThat(commitId6).isNotEqualTo(commitId5);
+        content2 = getFileContent(commitId6, "/target1/file1.json");
+        assertThatJson(new String(content2)).isEqualTo("{\"key\":\"updated-value1\"}");
+        content2 = getFileContent(commitId6, "/target2/file2.json");
+        assertThatJson(new String(content2)).isEqualTo("{\"key\":\"updated-value2\"}");
+    }
+
     @CsvSource({ "meta", "dogma" })
     @ParameterizedTest
     void cannotMirrorInternalRepositories(String localRepo) {
@@ -357,16 +456,28 @@ class LocalToRemoteGitMirrorTest {
 
     private void pushMirrorSettings(@Nullable String localPath, @Nullable String remotePath,
                                     @Nullable String gitignore) {
-        pushMirrorSettings(REPO_FOO, localPath, remotePath, gitignore, MirrorDirection.LOCAL_TO_REMOTE);
+        pushMirrorSettings("foo", REPO_FOO, localPath, remotePath, gitignore, MirrorDirection.LOCAL_TO_REMOTE);
+    }
+
+    private void pushMirrorSettings(String mirrorId, @Nullable String localPath, @Nullable String remotePath,
+                                    @Nullable String gitignore) {
+        pushMirrorSettings(mirrorId, REPO_FOO, localPath, remotePath, gitignore,
+                           MirrorDirection.LOCAL_TO_REMOTE);
     }
 
     private void pushMirrorSettings(String localRepo, @Nullable String localPath, @Nullable String remotePath,
                                     @Nullable String gitignore, MirrorDirection direction) {
+        pushMirrorSettings("foo", localRepo, localPath, remotePath, gitignore, direction);
+    }
+
+    private void pushMirrorSettings(String mirrorId, String localRepo, @Nullable String localPath,
+                                    @Nullable String remotePath, @Nullable String gitignore,
+                                    MirrorDirection direction) {
         final String localPath0 = localPath == null ? "/" : localPath;
         final String remoteUri = gitUri + firstNonNull(remotePath, "");
         try {
             final String credentialName = credentialName(projName, "none");
-            client.forRepo(projName, Project.REPO_META)
+            client.forRepo(projName, Project.REPO_DOGMA)
                   .commit("Add /credentials/none",
                           Change.ofJsonUpsert(credentialFile(credentialName),
                                               "{ " +
@@ -381,11 +492,11 @@ class LocalToRemoteGitMirrorTest {
                 throw e;
             }
         }
-        client.forRepo(projName, Project.REPO_META)
-              .commit("Add /repos/" + localRepo + "/mirrors/foo.json",
-                      Change.ofJsonUpsert("/repos/" + localRepo + "/mirrors/foo.json",
+        client.forRepo(projName, Project.REPO_DOGMA)
+              .commit("Add /repos/" + localRepo + "/mirrors/" + mirrorId + ".json",
+                      Change.ofJsonUpsert("/repos/" + localRepo + "/mirrors/" + mirrorId + ".json",
                                           '{' +
-                                          " \"id\": \"foo\"," +
+                                          " \"id\": \"" + mirrorId + "\"," +
                                           " \"enabled\": true," +
                                           "  \"type\": \"single\"," +
                                           "  \"direction\": \"" + direction + "\"," +
@@ -504,6 +615,147 @@ class LocalToRemoteGitMirrorTest {
                 Entry.ofJson(new Revision(3), "/foo.json", "{\"a\":\"foo\"}"));
 
         assertThat(entries.get("/mirror_state.json")).isNotNull();
+    }
+
+    @Test
+    void localToRemote_localPathChange_triggersMirror() throws Exception {
+        pushMirrorSettings("/source1", null, null);
+
+        final ObjectId commitId0 = git.getRepository().exactRef(R_HEADS + "master").getObjectId();
+        client.forRepo(projName, REPO_FOO)
+              .commit("Add files",
+                      Change.ofJsonUpsert("/source1/foo.json", "{\"a\":\"b\"}"),
+                      Change.ofJsonUpsert("/source2/bar.json", "{\"c\":\"d\"}"))
+              .push().join();
+
+        // Perform initial mirroring
+        mirroringService.mirror().join();
+        final ObjectId commitId1 = git.getRepository().exactRef(R_HEADS + "master").getObjectId();
+        byte[] content = getFileContent(commitId1, '/' + LOCAL_TO_REMOTE_MIRROR_STATE_FILE_NAME);
+        MirrorState mirrorState = Jackson.readValue(content, MirrorState.class);
+        assertThat(mirrorState.sourceRevision()).isEqualTo("2");
+        assertThat(mirrorState.remoteRevision()).isEqualTo(commitId0.name());
+        assertThat(mirrorState.localRevision()).isEqualTo("2");
+        assertThat(mirrorState.configHash()).isNotEmpty();
+
+        assertThat(new String(getFileContent(commitId1, "/foo.json"), StandardCharsets.UTF_8))
+                .isEqualTo("{\"a\":\"b\"}\n");
+        assertThat(getFileContent(commitId1, "/bar.json")).isNull();
+
+        // Mirror again without any changes - should not create a new commit
+        mirroringService.mirror().join();
+        final ObjectId commitId2 = git.getRepository().exactRef(R_HEADS + "master").getObjectId();
+        assertThat(commitId2).isEqualTo(commitId1);
+
+        // Now change the local path configuration to /source2
+        pushMirrorSettings("/source2", null, null);
+
+        // Mirror again - should run because local path changed
+        mirroringService.mirror().join();
+        final ObjectId commitId3 = git.getRepository().exactRef(R_HEADS + "master").getObjectId();
+        assertThat(commitId3).isNotEqualTo(commitId2);
+
+        content = getFileContent(commitId3, '/' + LOCAL_TO_REMOTE_MIRROR_STATE_FILE_NAME);
+        mirrorState = Jackson.readValue(content, MirrorState.class);
+        assertThat(mirrorState.sourceRevision()).isEqualTo("2");
+        assertThat(new String(getFileContent(commitId3, "/bar.json"), StandardCharsets.UTF_8))
+                .isEqualTo("{\"c\":\"d\"}\n");
+        assertThat(getFileContent(commitId3, "/foo.json")).isNull();
+
+        // Mirror again without any changes - should not create a new commit
+        mirroringService.mirror().join();
+        final ObjectId commitId4 = git.getRepository().exactRef(R_HEADS + "master").getObjectId();
+        assertThat(commitId4).isEqualTo(commitId3);
+    }
+
+    @Test
+    void localToRemote_remotePathChange_triggersMirror() throws Exception {
+        client.forRepo(projName, REPO_FOO)
+              .commit("Add a file",
+                      Change.ofJsonUpsert("/foo.json", "{\"a\":\"b\"}"))
+              .push().join();
+
+        pushMirrorSettings("", "/remote1", null);
+
+        // Perform initial mirroring
+        mirroringService.mirror().join();
+        final ObjectId commitId1 = git.getRepository().exactRef(R_HEADS + "master").getObjectId();
+        byte[] content = getFileContent(commitId1, "/remote1/" + LOCAL_TO_REMOTE_MIRROR_STATE_FILE_NAME);
+        MirrorState mirrorState = Jackson.readValue(content, MirrorState.class);
+        assertThat(mirrorState.sourceRevision()).isEqualTo("2");
+
+        // Verify the file is mirrored to /remote1
+        assertThat(getFileContent(commitId1, "/remote1/foo.json")).isNotNull();
+
+        // Mirror again without any changes - should not create a new commit
+        mirroringService.mirror().join();
+        final ObjectId commitId2 = git.getRepository().exactRef(R_HEADS + "master").getObjectId();
+        assertThat(commitId2).isEqualTo(commitId1);
+
+        // Now change the remote path configuration to /remote2
+        pushMirrorSettings("", "/remote2", null);
+
+        // Mirror again - should run because remote path changed
+        mirroringService.mirror().join();
+        final ObjectId commitId3 = git.getRepository().exactRef(R_HEADS + "master").getObjectId();
+        assertThat(commitId3).isNotEqualTo(commitId2);
+
+        // Verify the file is now mirrored to /remote2
+        content = getFileContent(commitId3, "/remote2/" + LOCAL_TO_REMOTE_MIRROR_STATE_FILE_NAME);
+        mirrorState = Jackson.readValue(content, MirrorState.class);
+        assertThat(mirrorState.sourceRevision()).isEqualTo("2");
+        assertThat(getFileContent(commitId3, "/remote2/foo.json")).isNotNull();
+    }
+
+    @Test
+    void localToRemote_remoteChangesOverwrittenByLocal() throws Exception {
+        final ObjectId commitId0 = git.getRepository().exactRef(R_HEADS + "master").getObjectId();
+        client.forRepo(projName, REPO_FOO)
+              .commit("Add a file",
+                      Change.ofJsonUpsert("/foo.json", "{\"a\":\"b\"}"))
+              .push().join();
+
+        pushMirrorSettings(null, null, null);
+
+        // Perform initial mirroring
+        mirroringService.mirror().join();
+        final ObjectId commitId1 = git.getRepository().exactRef(R_HEADS + "master").getObjectId();
+        byte[] content = getFileContent(commitId1, '/' + LOCAL_TO_REMOTE_MIRROR_STATE_FILE_NAME);
+        MirrorState mirrorState = Jackson.readValue(content, MirrorState.class);
+        assertThat(mirrorState.previousTargetRevision()).isEqualTo("2");
+        assertThat(mirrorState.localRevision()).isEqualTo("2");
+        assertThat(mirrorState.remoteRevision()).isEqualTo(commitId0.name());
+        assertThat(mirrorState.configHash()).isNotEmpty();
+
+        // Verify the file is mirrored
+        assertThat(new String(getFileContent(commitId1, "/foo.json")))
+                .isEqualTo("{\"a\":\"b\"}\n");
+        mirroringService.mirror().join();
+
+        // Modify the file directly in the remote Git repository (without mirroring)
+        addToGitIndex(git, gitWorkTree, "foo.json", "{\"a\":\"modified\"}");
+        addToGitIndex(git, gitWorkTree, ".mirror_state.json", new String(content));
+        git.commit().setMessage("Modify foo.json directly in remote").call();
+        final ObjectId commitId2 = git.getRepository().exactRef(R_HEADS + "master").getObjectId();
+        assertThat(commitId2).isNotEqualTo(commitId1);
+
+        assertThat(new String(getFileContent(commitId2, "/foo.json")))
+                .isEqualTo("{\"a\":\"modified\"}");
+
+        // Mirror again without any local changes - remote changes should be overwritten
+        mirroringService.mirror().join();
+        final ObjectId commitId3 = git.getRepository().exactRef(R_HEADS + "master").getObjectId();
+        assertThat(commitId3).isNotEqualTo(commitId2);
+
+        // Verify the remote modification is overwritten by the local content
+        content = getFileContent(commitId3, '/' + LOCAL_TO_REMOTE_MIRROR_STATE_FILE_NAME);
+        mirrorState = Jackson.readValue(content, MirrorState.class);
+        assertThat(mirrorState.previousTargetRevision()).isEqualTo("2");
+        assertThat(mirrorState.localRevision()).isEqualTo("2");
+        assertThat(mirrorState.remoteRevision()).isEqualTo(commitId2.name());
+        assertThat(mirrorState.configHash()).isNotEmpty();
+        assertThat(new String(getFileContent(commitId3, "/foo.json")))
+                .isEqualTo("{\"a\":\"b\"}\n");
     }
 
     byte[] getFileContent(ObjectId commitId, String fileName) throws IOException {

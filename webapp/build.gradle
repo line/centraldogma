@@ -14,9 +14,21 @@ dependencies {
     // Dependencies to run test servers for testing the web application
     testImplementation(project(":server"))
     testImplementation(project(":server-mirror-git"))
+    testImplementation(project(":server-auth:saml"))
     testImplementation(project(":server-auth:shiro"))
     testImplementation(project(":xds"))
     testImplementation libs.shiro.core
+}
+
+sourceSets {
+    test {
+        java {
+            srcDir 'javaTest/java'
+        }
+        resources {
+            srcDir 'javaTest/resources'
+        }
+    }
 }
 
 task installPlayWright(type: NpmTask) {
@@ -48,14 +60,14 @@ task runTestServer(type: JavaExec) {
     group = "Execution"
     description = "Run the simple Central Dogma server"
     classpath = sourceSets.test.runtimeClasspath
-    main = "com.linecorp.centraldogma.webapp.SimpleCentralDogmaTestServer"
+    mainClass = "com.linecorp.centraldogma.webapp.SimpleCentralDogmaTestServer"
 }
 
 task runTestShiroServer(type: JavaExec) {
     group = "Execution"
     description = "Run the Central Dogma server with Apache Shiro"
     classpath = sourceSets.test.runtimeClasspath
-    main = "com.linecorp.centraldogma.webapp.ShiroCentralDogmaTestServer"
+    mainClass = "com.linecorp.centraldogma.webapp.ShiroCentralDogmaTestServer"
 }
 
 if (!rootProject.hasProperty('noLint')) {
@@ -100,3 +112,7 @@ task testWeb(type: NpmTask) {
     outputs.upToDateWhen { true }
 }
 tasks.test.dependsOn(tasks.testWeb)
+
+tasks.withType(Test).configureEach {
+    failOnNoDiscoveredTests = false
+}

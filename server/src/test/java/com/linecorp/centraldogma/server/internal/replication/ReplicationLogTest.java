@@ -27,8 +27,6 @@ import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.server.command.Command;
-import com.linecorp.centraldogma.server.command.CommitResult;
-import com.linecorp.centraldogma.server.command.NormalizingPushCommand;
 import com.linecorp.centraldogma.server.command.PushAsIsCommand;
 
 class ReplicationLogTest {
@@ -54,12 +52,10 @@ class ReplicationLogTest {
 
         final ImmutableList<Change<?>> changes = ImmutableList.of(
                 Change.ofTextUpsert("/result.txt", "too soon to tell"));
-        final Command<CommitResult> push = Command.push(
+        final Command<Revision> push = Command.push(
                 1234L, new Author("Sedol Lee", "sedol@lee.com"), "foo", "bar", new Revision(42),
                 "4:1", "L-L-L-W-L", Markup.PLAINTEXT, changes);
-        assert push instanceof NormalizingPushCommand;
-        final PushAsIsCommand pushAsIs = ((NormalizingPushCommand) push).asIs(
-                CommitResult.of(new Revision(43), changes));
+        final PushAsIsCommand pushAsIs = (PushAsIsCommand) push;
 
         assertJsonConversion(new ReplicationLog<>(2, pushAsIs, new Revision(43)),
                              '{' +

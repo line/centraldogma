@@ -157,10 +157,12 @@ class RepositoryServiceV1Test {
                 new Roles(DEFAULT_PROJECT_ROLES,
                           ImmutableMap.of(TestAuthMessageUtil.USERNAME2 + USER_EMAIL_SUFFIX,
                                           RepositoryRole.ADMIN),
+                          null,
                           ImmutableMap.of()));
         assertThat(projectMetadata.repo("myRepo2").roles()).isEqualTo(
                 new Roles(DEFAULT_PROJECT_ROLES,
                           ImmutableMap.of(),
+                          null,
                           ImmutableMap.of("appId2", RepositoryRole.ADMIN)));
     }
 
@@ -238,8 +240,8 @@ class RepositoryServiceV1Test {
     }
 
     @Test
-    void removeMetaRepository() {
-        final AggregatedHttpResponse aRes = systemAdminClient.delete(REPOS_PREFIX + '/' + Project.REPO_META)
+    void removeDogmaRepository() {
+        final AggregatedHttpResponse aRes = systemAdminClient.delete(REPOS_PREFIX + '/' + Project.REPO_DOGMA)
                                                              .aggregate().join();
         assertThat(ResponseHeaders.of(aRes.headers()).status()).isEqualTo(HttpStatus.FORBIDDEN);
     }
@@ -296,7 +298,7 @@ class RepositoryServiceV1Test {
     @Test
     void updateInternalRepositoryStatus() {
         ResponseEntity<RepositoryDto> statusResponseEntity =
-                updateStatus(RepositoryStatus.READ_ONLY, Project.REPO_META);
+                updateStatus(RepositoryStatus.READ_ONLY, Project.REPO_DOGMA);
         assertThat(statusResponseEntity.status()).isSameAs(HttpStatus.OK);
         assertThat(statusResponseEntity.content().status()).isSameAs(RepositoryStatus.READ_ONLY);
 
@@ -304,7 +306,7 @@ class RepositoryServiceV1Test {
                                                     // Read only exception produces 503
                                                     .hasMessageContaining("status: 503 Service Unavailable");
 
-        statusResponseEntity = updateStatus(RepositoryStatus.ACTIVE, Project.REPO_META);
+        statusResponseEntity = updateStatus(RepositoryStatus.ACTIVE, Project.REPO_DOGMA);
         assertThat(statusResponseEntity.status()).isSameAs(HttpStatus.OK);
         assertThat(statusResponseEntity.content().status()).isSameAs(RepositoryStatus.ACTIVE);
 
@@ -373,17 +375,6 @@ class RepositoryServiceV1Test {
                     "       \"status\": \"ACTIVE\"" +
                     "   }," +
                     "   {" +
-                    "       \"name\": \"meta\"," +
-                    "       \"creator\": {" +
-                    "           \"name\": \"system\"," +
-                    "           \"email\": \"system@localhost.localdomain\"" +
-                    "       }," +
-                    "       \"headRevision\": \"${json-unit.ignore}\"," +
-                    "       \"url\": \"/api/v1/projects/myPro/repos/meta\"," +
-                    "       \"createdAt\": \"${json-unit.ignore}\"," +
-                    "       \"status\": \"ACTIVE\"" +
-                    "   }," +
-                    "   {" +
                     "       \"name\": \"myRepo\"," +
                     "       \"creator\": {" +
                     "           \"name\": \"admin\"," +
@@ -425,8 +416,8 @@ class RepositoryServiceV1Test {
             final String remains = remainedRes.contentUtf8();
             final JsonNode jsonNode = Jackson.readTree(remains);
 
-            // dogma, meta and trustin repositories are left
-            assertThat(jsonNode).hasSize(3);
+            // dogma and trustin repositories are left
+            assertThat(jsonNode).hasSize(2);
         }
 
         @Test

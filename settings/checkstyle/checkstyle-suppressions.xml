@@ -5,14 +5,14 @@
 
 <suppressions>
   <!-- Suppress Javadoc-related checks in non-public code. -->
-  <suppress checks="MissingJavadocPackage|MissingJavadocType|MissingJavadocMethod" files="[\\/](examples|internal|it|jmh|test)[\\/]" />
-  <suppress checks="JavadocPackage" files="[\\/](examples|it|jmh|test)[\\/]" />
+  <suppress checks="MissingJavadocPackage|MissingJavadocType|MissingJavadocMethod" files="[\\/](examples|internal|it|jmh|test|javaTest)[\\/]" />
+  <suppress checks="JavadocPackage" files="[\\/](examples|it|jmh|test|javaTest)[\\/]" />
   <!-- Suppress all checks in generated sources. -->
   <suppress checks=".*" files="[\\/]gen-src[\\/]" />
   <!-- Suppress UncommentedMain for the server entry point -->
   <suppress checks="UncommentedMain" files="[\\/]Main\.java$" />
   <!-- Suppress all checks in generated sources -->
-  <suppress checks=".*" files="[\\/]gen-src[\\/]" />
+  <suppress checks=".*" files="[\\/](gen-src|generated)[\\/]" />
   <!-- Enable 'NullMarkedAnnotation' for package-info.java only. -->
   <suppress id="NullMarkedAnnotation" files="(?&lt;![\\/]package-info\.java)$" />
   <!-- Enable 'NoCopyrightHeader' for examples only. -->

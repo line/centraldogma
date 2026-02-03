@@ -74,19 +74,30 @@ public interface Mirror {
     String localPath();
 
     /**
+     * Returns the remote URI of the Git repository which will be mirrored from.
+     */
+    RepositoryUri remoteUri();
+
+    /**
      * Returns the URI of the Git repository which will be mirrored from.
      */
-    URI remoteRepoUri();
+    default URI remoteRepoUri() {
+        return remoteUri().uri();
+    }
 
     /**
      * Returns the path of the Git repository where is supposed to be mirrored.
      */
-    String remotePath();
+    default String remotePath() {
+        return remoteUri().path();
+    }
 
     /**
      * Returns the name of the branch in the Git repository where is supposed to be mirrored.
      */
-    String remoteBranch();
+    default String remoteBranch() {
+        return remoteUri().branch();
+    }
 
     /**
      * Returns a <a href="https://git-scm.com/docs/gitignore">gitignore</a> pattern for the files

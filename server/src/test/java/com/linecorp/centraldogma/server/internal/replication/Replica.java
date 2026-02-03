@@ -36,6 +36,7 @@ import com.linecorp.centraldogma.server.ZooKeeperReplicationConfig;
 import com.linecorp.centraldogma.server.ZooKeeperServerConfig;
 import com.linecorp.centraldogma.server.command.AbstractCommandExecutor;
 import com.linecorp.centraldogma.server.command.Command;
+import com.linecorp.centraldogma.server.command.ExecutionContext;
 
 import io.micrometer.core.instrument.MeterRegistry;
 
@@ -76,7 +77,7 @@ final class Replica {
 
             @Override
             @SuppressWarnings("unchecked")
-            protected <T> CompletableFuture<T> doExecute(Command<T> command) {
+            protected <T> CompletableFuture<T> doExecute(ExecutionContext ctx, Command<T> command) {
                 return (CompletableFuture<T>) delegate.apply(command);
             }
         }, meterRegistry, null, null, null, null, null);

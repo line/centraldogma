@@ -20,6 +20,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.linecorp.centraldogma.server.internal.mirror.DefaultMirroringServicePlugin.mirrorConfig;
 import static com.linecorp.centraldogma.server.internal.storage.repository.DefaultMetaRepository.mirrorFile;
+import static com.linecorp.centraldogma.server.mirror.MirrorUtil.validateMirrorId;
 
 import java.net.URI;
 import java.util.List;
@@ -57,7 +58,6 @@ import com.linecorp.centraldogma.server.CentralDogmaConfig;
 import com.linecorp.centraldogma.server.ZoneConfig;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
-import com.linecorp.centraldogma.server.command.CommitResult;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresProjectRole;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresRepositoryRole;
 import com.linecorp.centraldogma.server.internal.mirror.MirrorRunner;
@@ -169,6 +169,7 @@ public class MirroringServiceV1 extends AbstractService {
                                                          Repository repository,
                                                          MirrorRequest newMirror,
                                                          Author author, User user) {
+        validateMirrorId(newMirror.id());
         return createOrUpdate(projectName, repository.name(), newMirror, author, user, false);
     }
 
@@ -202,7 +203,7 @@ public class MirroringServiceV1 extends AbstractService {
         final String repoName = repository.name();
         return metaRepository.mirror(repoName, id).thenCompose(mirror -> {
             // mirror exists.
-            final Command<CommitResult> command =
+            final Command<Revision> command =
                     Command.push(author, projectName, metaRepository.name(),
                                  Revision.HEAD, "Delete mirror: " + id + " in " + repoName, "",
                                  Markup.PLAINTEXT, Change.ofRemoval(mirrorFile(repoName, id)));
@@ -214,10 +215,11 @@ public class MirroringServiceV1 extends AbstractService {
             String projectName, String repoName, MirrorRequest newMirror,
             Author author, User user, boolean update) {
         final MetaRepository metaRepo = metaRepo(projectName);
+
         return metaRepo.createMirrorPushCommand(repoName, newMirror, author, zoneConfig, update).thenCompose(
                 command -> {
-                    return executor().execute(command).thenApply(result -> {
-                        metaRepo.mirror(repoName, newMirror.id(), result.revision())
+                    return executor().execute(command).thenApply(revision -> {
+                        metaRepo.mirror(repoName, newMirror.id(), revision)
                                 .handle((mirror, cause) -> {
                                     if (cause != null) {
                                         // This should not happen in normal cases.
@@ -226,7 +228,7 @@ public class MirroringServiceV1 extends AbstractService {
                                     }
                                     return notifyMirrorEvent(mirror, user, update);
                                 });
-                        return new PushResultDto(result.revision(), command.timestamp());
+                        return new PushResultDto(revision, command.timestamp());
                     });
                 });
     }

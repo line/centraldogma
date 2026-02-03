@@ -22,28 +22,16 @@ import static java.util.Objects.requireNonNull;
 import org.jspecify.annotations.Nullable;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Objects;
 
-import com.linecorp.centraldogma.common.ProjectRole;
 import com.linecorp.centraldogma.internal.Util;
 
 /**
  * Specifies details of an application token.
  */
-@JsonIgnoreProperties(ignoreUnknown = true)
-@JsonInclude(Include.NON_NULL)
-public final class Token implements Identifiable {
-
-    /**
-     * An application identifier.
-     */
-    private final String appId;
+public final class Token extends AbstractAppIdentity {
 
     /**
      * A secret which is used to access an HTTP API.
@@ -51,30 +39,10 @@ public final class Token implements Identifiable {
     @Nullable
     private final String secret;
 
-    /**
-     * Specifies whether this token is for system administrators.
-     */
-    private final boolean isSystemAdmin;
-
-    private final boolean allowGuestAccess;
-
-    /**
-     * Specifies when this token is created by whom.
-     */
-    private final UserAndTimestamp creation;
-
-    /**
-     * Specifies when this repository is removed by whom.
-     */
-    @Nullable
-    private final UserAndTimestamp deactivation;
-
-    @Nullable
-    private final UserAndTimestamp deletion;
-
     Token(String appId, String secret, boolean isSystemAdmin, boolean allowGuestAccess,
           UserAndTimestamp creation) {
-        this(appId, secret, null, isSystemAdmin, allowGuestAccess, creation, null, null);
+        super(appId, AppIdentityType.TOKEN, isSystemAdmin, allowGuestAccess, creation, null, null);
+        this.secret = Util.validateFileName(secret, "secret");
     }
 
     /**
@@ -83,46 +51,34 @@ public final class Token implements Identifiable {
     @JsonCreator
     public Token(@JsonProperty("appId") String appId,
                  @JsonProperty("secret") String secret,
-                 // TODO(minwoox): Remove admin field after all tokens are migrated.
-                 @JsonProperty("admin") @Nullable Boolean isAdmin,
-                 @JsonProperty("systemAdmin") @Nullable Boolean isSystemAdmin,
+                 @JsonProperty("systemAdmin") boolean isSystemAdmin,
                  @JsonProperty("allowGuestAccess") @Nullable Boolean allowGuestAccess,
                  @JsonProperty("creation") UserAndTimestamp creation,
                  @JsonProperty("deactivation") @Nullable UserAndTimestamp deactivation,
                  @JsonProperty("deletion") @Nullable UserAndTimestamp deletion) {
-        assert isAdmin != null || isSystemAdmin != null;
-        this.appId = Util.validateFileName(appId, "appId");
+        super(appId, AppIdentityType.TOKEN, isSystemAdmin,
+              // Allow guest access by default for backward compatibility.
+              firstNonNull(allowGuestAccess, true),
+              requireNonNull(creation, "creation"),
+              deactivation,
+              deletion);
         this.secret = Util.validateFileName(secret, "secret");
-        this.isSystemAdmin = isSystemAdmin != null ? isSystemAdmin : isAdmin;
-        // Allow guest access by default for backward compatibility.
-        this.allowGuestAccess = firstNonNull(allowGuestAccess, true);
-        this.creation = requireNonNull(creation, "creation");
-        this.deactivation = deactivation;
-        this.deletion = deletion;
     }
 
     private Token(String appId, boolean isSystemAdmin, boolean allowGuestAccess, UserAndTimestamp creation,
                   @Nullable UserAndTimestamp deactivation, @Nullable UserAndTimestamp deletion) {
-        this.appId = Util.validateFileName(appId, "appId");
-        this.isSystemAdmin = isSystemAdmin;
-        this.allowGuestAccess = allowGuestAccess;
-        this.creation = requireNonNull(creation, "creation");
-        this.deactivation = deactivation;
-        this.deletion = deletion;
+        super(appId, AppIdentityType.TOKEN, isSystemAdmin, allowGuestAccess,
+              requireNonNull(creation, "creation"), deactivation, deletion);
         secret = null;
-    }
-
-    @Override
-    public String id() {
-        return appId;
     }
 
     /**
      * Returns the ID of the application.
      */
-    @JsonProperty
+    @Override
+    @JsonProperty("appId")
     public String appId() {
-        return appId;
+        return id();
     }
 
     /**
@@ -135,119 +91,44 @@ public final class Token implements Identifiable {
     }
 
     /**
-     * Returns whether this token has system administrative privileges.
-     */
-    @JsonProperty
-    public boolean isSystemAdmin() {
-        return isSystemAdmin;
-    }
-
-    /**
-     * Returns whether this token allows {@link ProjectRole#GUEST} access.
-     */
-    @JsonProperty
-    public boolean allowGuestAccess() {
-        return allowGuestAccess;
-    }
-
-    /**
-     * Returns who created this token when.
-     */
-    @JsonProperty
-    public UserAndTimestamp creation() {
-        return creation;
-    }
-
-    /**
-     * Returns who deactivated this token when.
-     */
-    @Nullable
-    @JsonProperty
-    public UserAndTimestamp deactivation() {
-        return deactivation;
-    }
-
-    /**
-     * Returns who deleted this token when.
-     */
-    @Nullable
-    @JsonProperty
-    public UserAndTimestamp deletion() {
-        return deletion;
-    }
-
-    /**
-     * Returns whether this token is activated.
-     */
-    @JsonIgnore
-    public boolean isActive() {
-        return deactivation == null && deletion == null;
-    }
-
-    /**
-     * Returns whether this token is deleted.
-     */
-    @JsonIgnore
-    public boolean isDeleted() {
-        return deletion != null;
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hashCode(appId, secret, isSystemAdmin, allowGuestAccess, creation, deactivation,
-                                deletion);
-    }
-
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) {
-            return true;
-        }
-        if (!(o instanceof Token)) {
-            return false;
-        }
-
-        final Token that = (Token) o;
-        return appId.equals(that.appId) &&
-               Objects.equal(secret, that.secret) &&
-               isSystemAdmin == that.isSystemAdmin &&
-               allowGuestAccess == that.allowGuestAccess &&
-               creation.equals(that.creation) &&
-               Objects.equal(deactivation, that.deactivation) &&
-               Objects.equal(deletion, that.deletion);
-    }
-
-    @Override
-    public String toString() {
-        // Do not add "secret" to prevent it from logging.
-        return MoreObjects.toStringHelper(this).omitNullValues()
-                          .add("appId", appId())
-                          .add("isSystemAdmin", isSystemAdmin())
-                          .add("allowGuestAccess", allowGuestAccess())
-                          .add("creation", creation())
-                          .add("deactivation", deactivation())
-                          .add("deletion", deletion())
-                          .toString();
-    }
-
-    /**
      * Returns a new {@link Token} instance without its secret.
      */
     public Token withoutSecret() {
-        return new Token(appId(), isSystemAdmin(), allowGuestAccess(), creation(), deactivation(), deletion());
+        return new Token(id(), isSystemAdmin(), allowGuestAccess(), creation(), deactivation(), deletion());
     }
 
     /**
-     * Returns a new {@link Token} instance without its secret.
+     * Returns a new {@link Token} instance with the specified system admin flag.
      * This method must be called by the token whose secret is not null.
      */
+    @Override
     public Token withSystemAdmin(boolean isSystemAdmin) {
         if (isSystemAdmin == isSystemAdmin()) {
             return this;
         }
         final String secret = secret();
         assert secret != null;
-        return new Token(appId(), secret, null, isSystemAdmin, allowGuestAccess(), creation(),
+        return new Token(id(), secret, isSystemAdmin, allowGuestAccess(), creation(),
                          deactivation(), deletion());
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hashCode(super.hashCode(), secret);
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (!super.equals(o)) {
+            return false;
+        }
+
+        final Token that = (Token) o;
+        return Objects.equal(secret, that.secret);
+    }
+
+    @Override
+    void addProperties(MoreObjects.ToStringHelper helper) {
+        // Do not add "secret" to prevent it from logging.
     }
 }

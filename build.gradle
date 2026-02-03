@@ -31,6 +31,8 @@ ext {
         ':client:java-spring-boot2-starter': "${rootProject.name}-client-spring-boot2-starter",
         ':client:java-spring-boot3-autoconfigure': "${rootProject.name}-client-spring-boot3-autoconfigure",
         ':client:java-spring-boot3-starter': "${rootProject.name}-client-spring-boot3-starter",
+        ':client:java-spring-boot4-autoconfigure': "${rootProject.name}-client-spring-boot4-autoconfigure",
+        ':client:java-spring-boot4-starter': "${rootProject.name}-client-spring-boot4-starter",
         // Set the correct artifactId of 'testing-common'.
         ':testing:testing-common': "${rootProject.name}-testing-common"
     ]
@@ -106,15 +108,6 @@ configure(projectsWithFlags('java')) {
         testRuntimeOnly libs.junit5.jupiter.engine
         testRuntimeOnly libs.junit5.platform.launcher
         testRuntimeOnly libs.junit5.vintage.engine
-    }
-
-    // Target Java 8 except for spring-boot3
-    if (!project.name.startsWith("java-spring-boot3")) {
-        tasks.withType(JavaCompile) {
-            if (JavaVersion.current() >= JavaVersion.VERSION_1_9) {
-                options.release = 8
-            }
-        }
     }
 
     // Add common JVM options such as max memory and leak detection.
@@ -222,9 +215,9 @@ allprojects {
     }
 }
 
-// Require to use JDK 21 when releasing.
+// Require to use JDK 25 when releasing.
 tasks.release.doFirst {
-    if (JavaVersion.current() != JavaVersion.VERSION_21) {
-        throw new IllegalStateException("You must release using JDK 21. Current: ${JavaVersion.current()}")
+    if (JavaVersion.current() != JavaVersion.VERSION_25) {
+        throw new IllegalStateException("You must release using JDK 25. Current: ${JavaVersion.current()}")
     }
 }

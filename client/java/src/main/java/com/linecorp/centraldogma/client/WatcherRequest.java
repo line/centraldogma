@@ -16,6 +16,8 @@
 package com.linecorp.centraldogma.client;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkState;
+import static com.linecorp.centraldogma.internal.Util.validateStructuredFilePath;
 import static java.util.Objects.requireNonNull;
 
 import java.time.Duration;
@@ -60,6 +62,9 @@ public final class WatcherRequest<T> extends WatchOptions {
     private long maxDelayMillis = DEFAULT_MAX_DELAY_MILLIS;
     private double multiplier = DEFAULT_MULTIPLIER;
     private double jitterRate = DEFAULT_JITTER_RATE;
+    private boolean renderTemplate;
+    @Nullable
+    private String variableFile;
 
     WatcherRequest(CentralDogmaRepository centralDogmaRepo, Query<T> query,
                    ScheduledExecutorService blockingTaskExecutor, @Nullable MeterRegistry meterRegistry) {
@@ -150,6 +155,35 @@ public final class WatcherRequest<T> extends WatchOptions {
         return this;
     }
 
+    /**
+     * Sets whether to apply template processing to the file using the variables defined in
+     * the same repository and its parent project.
+     * By default, template processing is not applied.
+     *
+     * <p>This option is only valid when watching a single file via
+     * {@link CentralDogmaRepository#watcher(Query)}.
+     */
+    public WatcherRequest<T> renderTemplate(boolean renderTemplate) {
+        this.renderTemplate = renderTemplate;
+        variableFile = null;
+        return this;
+    }
+
+    /**
+     * Applies template processing to the file using the specified variable file in the same repository.
+     * The variable file must be a JSON, JSON5 or YAML file and have an object at the top level (arrays or
+     * string are not allowed).
+     *
+     * <p>This option is only valid when watching a single file via
+     * {@link CentralDogmaRepository#watcher(Query)}.
+     */
+    public WatcherRequest<T> renderTemplate(String variableFile) {
+        validateStructuredFilePath(variableFile, "variableFile");
+        renderTemplate = true;
+        this.variableFile = variableFile;
+        return this;
+    }
+
     @Override
     public WatcherRequest<T> timeout(Duration timeout) {
         //noinspection unchecked
@@ -180,8 +214,10 @@ public final class WatcherRequest<T> extends WatchOptions {
             watcher = new FileWatcher<>(
                     centralDogmaRepo.centralDogma(), blockingTaskExecutor, proName, repoName, query,
                     timeoutMillis(), errorOnEntryNotFound(), mapper, executor, delayOnSuccessMillis,
-                    initialDelayMillis, maxDelayMillis, multiplier, jitterRate, meterRegistry);
+                    initialDelayMillis, maxDelayMillis, multiplier, jitterRate, meterRegistry,
+                    renderTemplate, variableFile);
         } else {
+            checkState(!renderTemplate, "renderTemplate can't be set when watching multiple files.");
             assert pathPattern != null;
             watcher = new FilesWatcher<>(
                     centralDogmaRepo.centralDogma(), blockingTaskExecutor, proName, repoName, pathPattern,

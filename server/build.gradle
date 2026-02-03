@@ -30,8 +30,12 @@ dependencies {
     // DiffUtils
     implementation libs.diffutils
 
+    implementation libs.freemarker
+
     // jCommander. optionalImplementation must be also added to the :dist dependencies.
     optionalImplementation libs.jcommander
+
+    api libs.nimbus.jose.jwt
 
     implementation libs.jgit6
 
@@ -39,13 +43,21 @@ dependencies {
     implementation libs.micrometer.core
     implementation libs.micrometer.prometheus
 
-    implementation libs.rocksdbjni
+    if (OperatingSystem.current().isWindows()) {
+        implementation(variantOf(libs.rocksdbjni) { classifier('win64') })
+    } else if (OperatingSystem.current().isMacOsX()) {
+        implementation(variantOf(libs.rocksdbjni) { classifier('osx') })
+    } else {
+        implementation(variantOf(libs.rocksdbjni) { classifier('linux64') })
+    }
 
     // Quartz
     implementation libs.quartz
 
     // Snappy
     implementation libs.snappy
+
+    implementation libs.zstd
 
     // Logging
     optionalImplementation libs.logback15

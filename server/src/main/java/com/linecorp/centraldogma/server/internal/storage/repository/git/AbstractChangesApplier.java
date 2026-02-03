@@ -89,7 +89,8 @@ abstract class AbstractChangesApplier {
         @Override
         public void apply(DirCacheEntry ent) {
             try {
-                ent.setObjectId(inserter.insert(Constants.OBJ_BLOB, Jackson.writeValueAsBytes(jsonNode)));
+                final byte[] jsonBytes = Jackson.writeValueAsPrettyString(jsonNode).getBytes(UTF_8);
+                ent.setObjectId(inserter.insert(Constants.OBJ_BLOB, jsonBytes));
                 ent.setFileMode(FileMode.REGULAR_FILE);
             } catch (IOException e) {
                 throw new StorageException("failed to create a new JSON blob", e);

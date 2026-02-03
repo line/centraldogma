@@ -129,7 +129,7 @@ public abstract class AbstractCommandExecutor implements CommandExecutor {
     }
 
     @Override
-    public final <T> CompletableFuture<T> execute(Command<T> command) {
+    public final <T> CompletableFuture<T> execute(ExecutionContext ctx, Command<T> command) {
         requireNonNull(command, "command");
         if (!isStarted()) {
             throw new ReadOnlyException("running in read-only mode. command: " + command);
@@ -142,7 +142,7 @@ public abstract class AbstractCommandExecutor implements CommandExecutor {
         }
 
         try {
-            return doExecute(command);
+            return doExecute(ctx, command);
         } catch (Throwable t) {
             final CompletableFuture<T> f = new CompletableFuture<>();
             f.completeExceptionally(t);
@@ -153,7 +153,8 @@ public abstract class AbstractCommandExecutor implements CommandExecutor {
     /**
      * Executes the specified {@link Command}.
      */
-    protected abstract <T> CompletableFuture<T> doExecute(Command<T> command) throws Exception;
+    protected abstract <T> CompletableFuture<T> doExecute(ExecutionContext ctx, Command<T> command)
+            throws Exception;
 
     @Override
     public CommandExecutorStatusManager statusManager() {

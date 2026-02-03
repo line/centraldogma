@@ -49,13 +49,17 @@ public final class Util {
     public static final String USER_EMAIL_SUFFIX = "@localhost.localdomain";
 
     private static final Pattern FILE_NAME_PATTERN = Pattern.compile(
-            "^(?:[-_0-9a-zA-Z](?:[-_.0-9a-zA-Z]*[-_0-9a-zA-Z])?)+$");
+            "^(?:[-_.0-9a-zA-Z]*[-_0-9a-zA-Z])+$");
     private static final Pattern FILE_PATH_PATTERN = Pattern.compile(
-            "^(?:/[-_0-9a-zA-Z](?:[-_.0-9a-zA-Z]*[-_0-9a-zA-Z])?)+$");
+            "^(?:/[-_.0-9a-zA-Z]*[-_0-9a-zA-Z])+$");
     private static final Pattern JSON_FILE_PATH_PATTERN = Pattern.compile(
-            "^(?:/[-_0-9a-zA-Z](?:[-_.0-9a-zA-Z]*[-_0-9a-zA-Z])?)+\\.(?i)json$");
+            "^(?:/[-_.0-9a-zA-Z]*[-_0-9a-zA-Z])+\\.(?i)(?:json|json5)$");
+    private static final Pattern YAML_FILE_PATH_PATTERN = Pattern.compile(
+            "^(?:/[-_.0-9a-zA-Z]*[-_0-9a-zA-Z])+\\.(?i)(?:yaml|yml)$");
+    private static final Pattern STRUCTURED_FILE_PATH_PATTERN = Pattern.compile(
+            "^(?:/[-_.0-9a-zA-Z]*[-_0-9a-zA-Z])+\\.(?i)(?:json|json5|yaml|yml)$");
     private static final Pattern DIR_PATH_PATTERN = Pattern.compile(
-            "^(?:/[-_0-9a-zA-Z](?:[-_.0-9a-zA-Z]*[-_0-9a-zA-Z])?)*/?$");
+            "^(?:/(?:[-_.0-9a-zA-Z]*[-_0-9a-zA-Z]))*/?$");
     private static final Pattern PATH_PATTERN_PATTERN = Pattern.compile("^[- /*_.,0-9a-zA-Z]+$");
     private static final Pattern EMAIL_PATTERN = Pattern.compile(
             "^[_A-Za-z0-9-+]+(?:\\.[_A-Za-z0-9-]+)*@[A-Za-z0-9-]+(?:\\.[A-Za-z0-9]+)*(?:\\.[A-Za-z]{2,})$");
@@ -117,6 +121,32 @@ public final class Util {
         requireNonNull(path, "path");
         return !path.isEmpty() && path.charAt(0) == '/' &&
                JSON_FILE_PATH_PATTERN.matcher(path).matches();
+    }
+
+    public static String validateYamlFilePath(String path, String paramName) {
+        requireNonNull(path, paramName);
+        checkArgument(isValidYamlFilePath(path),
+                      "%s: %s (expected: %s)", paramName, path, YAML_FILE_PATH_PATTERN);
+        return path;
+    }
+
+    public static boolean isValidStructuredFilePath(String path) {
+        requireNonNull(path, "path");
+        return !path.isEmpty() && path.charAt(0) == '/' &&
+               STRUCTURED_FILE_PATH_PATTERN.matcher(path).matches();
+    }
+
+    public static String validateStructuredFilePath(String path, String paramName) {
+        requireNonNull(path, paramName);
+        checkArgument(isValidStructuredFilePath(path),
+                      "%s: %s (expected: %s)", paramName, path, STRUCTURED_FILE_PATH_PATTERN);
+        return path;
+    }
+
+    public static boolean isValidYamlFilePath(String path) {
+        requireNonNull(path, "path");
+        return !path.isEmpty() && path.charAt(0) == '/' &&
+               YAML_FILE_PATH_PATTERN.matcher(path).matches();
     }
 
     public static String validateJsonPath(String jsonPath, String paramName) {

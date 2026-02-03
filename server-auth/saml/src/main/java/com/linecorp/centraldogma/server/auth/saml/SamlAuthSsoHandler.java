@@ -17,7 +17,8 @@ package com.linecorp.centraldogma.server.auth.saml;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.linecorp.centraldogma.server.auth.saml.HtmlUtil.getHtmlWithCsrfAndRedirect;
-import static com.linecorp.centraldogma.server.internal.admin.auth.SessionUtil.createSessionIdCookie;
+import static com.linecorp.centraldogma.server.internal.admin.auth.SessionUtil.createSessionCookie;
+import static com.linecorp.centraldogma.server.internal.admin.auth.SessionUtil.sessionCookieName;
 import static java.util.Objects.requireNonNull;
 
 import java.time.Duration;
@@ -25,6 +26,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import java.util.function.BooleanSupplier;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -50,13 +52,16 @@ import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.MediaType;
 import com.linecorp.armeria.common.ResponseHeaders;
 import com.linecorp.armeria.common.ServerCacheControl;
+import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.saml.InvalidSamlRequestException;
 import com.linecorp.armeria.server.saml.SamlBindingProtocol;
 import com.linecorp.armeria.server.saml.SamlIdentityProviderConfig;
 import com.linecorp.armeria.server.saml.SamlSingleSignOnHandler;
+import com.linecorp.centraldogma.common.ReadOnlyException;
 import com.linecorp.centraldogma.server.auth.Session;
-import com.linecorp.centraldogma.server.auth.SessionKey;
+import com.linecorp.centraldogma.server.internal.admin.auth.AuthSessionService;
+import com.linecorp.centraldogma.server.internal.admin.auth.AuthSessionService.LoginResult;
 import com.linecorp.centraldogma.server.internal.api.HttpApiUtil;
 import com.linecorp.centraldogma.server.storage.encryption.EncryptionStorageManager;
 
@@ -68,8 +73,6 @@ import io.netty.handler.codec.http.QueryStringDecoder;
 final class SamlAuthSsoHandler implements SamlSingleSignOnHandler {
 
     private final Supplier<String> sessionIdGenerator;
-    private final Function<Session, CompletableFuture<Void>> loginSessionPropagator;
-    private final Duration sessionValidDuration;
     private final long cookieMaxAgeSecond;
     private final Function<String, String> loginNameNormalizer;
     @Nullable
@@ -77,20 +80,17 @@ final class SamlAuthSsoHandler implements SamlSingleSignOnHandler {
     @Nullable
     private final String attributeLoginName;
     private final boolean tlsEnabled;
-
-    // TODO(minwoox): Use the sessionKey to encrypt the session cookie.
-    @Nullable
-    private final SessionKey sessionKey;
+    private final String sessionCookieName;
+    private final AuthSessionService authSessionService;
 
     SamlAuthSsoHandler(
             Supplier<String> sessionIdGenerator,
             Function<Session, CompletableFuture<Void>> loginSessionPropagator,
+            BooleanSupplier sessionPropagatorWritableChecker,
             Duration sessionValidDuration, Function<String, String> loginNameNormalizer,
             @Nullable String subjectLoginNameIdFormat, @Nullable String attributeLoginName,
             boolean tlsEnabled, EncryptionStorageManager encryptionStorageManager) {
         this.sessionIdGenerator = requireNonNull(sessionIdGenerator, "sessionIdGenerator");
-        this.loginSessionPropagator = requireNonNull(loginSessionPropagator, "loginSessionPropagator");
-        this.sessionValidDuration = requireNonNull(sessionValidDuration, "sessionValidDuration");
         // Make the cookie expire a bit earlier than the session itself.
         cookieMaxAgeSecond = sessionValidDuration.minusMinutes(1).getSeconds();
         this.loginNameNormalizer = requireNonNull(loginNameNormalizer, "loginNameNormalizer");
@@ -101,12 +101,11 @@ final class SamlAuthSsoHandler implements SamlSingleSignOnHandler {
         this.subjectLoginNameIdFormat = subjectLoginNameIdFormat;
         this.attributeLoginName = attributeLoginName;
         this.tlsEnabled = tlsEnabled;
-        requireNonNull(encryptionStorageManager, "encryptionStorageManager");
-        if (encryptionStorageManager.encryptSessionCookie()) {
-            sessionKey = encryptionStorageManager.getCurrentSessionKey().join();
-        } else {
-            sessionKey = null;
-        }
+        sessionCookieName = sessionCookieName(tlsEnabled, encryptionStorageManager.encryptSessionCookie());
+        authSessionService = new AuthSessionService(loginSessionPropagator,
+                                                    sessionPropagatorWritableChecker,
+                                                    sessionValidDuration,
+                                                    encryptionStorageManager);
     }
 
     @Override
@@ -143,12 +142,6 @@ final class SamlAuthSsoHandler implements SamlSingleSignOnHandler {
                                new IllegalStateException("Cannot get a username from the response"));
         }
 
-        final String sessionId = sessionIdGenerator.get();
-        // Call once more to generate a CSRF token.
-        final String csrfToken = sessionIdGenerator.get();
-        final Session session =
-                new Session(sessionId, csrfToken, loginNameNormalizer.apply(username), sessionValidDuration);
-
         final String redirectionScript;
         if (!Strings.isNullOrEmpty(relayState)) {
             final String trimmed = relayState.trim();
@@ -160,20 +153,38 @@ final class SamlAuthSsoHandler implements SamlSingleSignOnHandler {
         } else {
             redirectionScript = "window.location.href='/'";
         }
-        return HttpResponse.of(loginSessionPropagator.apply(session).thenApply(
-                unused -> {
-                    final Cookie cookie = createSessionIdCookie(sessionId, tlsEnabled, cookieMaxAgeSecond);
-                    final ResponseHeaders responseHeaders =
-                            ResponseHeaders.builder(HttpStatus.OK)
-                                           .contentType(MediaType.HTML_UTF_8)
-                                           .set(HttpHeaderNames.CACHE_CONTROL,
-                                                ServerCacheControl.DISABLED.asHeaderValue())
-                                           .cookie(cookie)
-                                           .build();
-                    return HttpResponse.of(responseHeaders,
-                                           HttpData.ofUtf8(
-                                                   getHtmlWithCsrfAndRedirect(csrfToken, redirectionScript)));
-                }));
+
+        final String normalizedUsername = loginNameNormalizer.apply(username);
+        // Delegate session creation to the session manager.
+        // For SAML, the same generator is used for session ID and CSRF token.
+        final CompletableFuture<LoginResult> loginFuture =
+                authSessionService.create(normalizedUsername, sessionIdGenerator, sessionIdGenerator);
+
+        return HttpResponse.of(loginFuture.handle((loginResult, cause) -> {
+            if (cause != null) {
+                final Throwable peeled = Exceptions.peel(cause);
+                if (peeled instanceof ReadOnlyException) {
+                    return HttpResponse.of(HttpStatus.SERVICE_UNAVAILABLE,
+                                           MediaType.PLAIN_TEXT_UTF_8, peeled.getMessage());
+                }
+                return loginFailed(ctx, req, message, peeled);
+            }
+            return httpResponse(loginResult, redirectionScript);
+        }));
+    }
+
+    private HttpResponse httpResponse(LoginResult loginResult, String redirectionScript) {
+        final Cookie cookie = createSessionCookie(sessionCookieName, loginResult.sessionCookieValue(),
+                                                  tlsEnabled, cookieMaxAgeSecond);
+        final ResponseHeaders responseHeaders =
+                ResponseHeaders.builder(HttpStatus.OK)
+                               .contentType(MediaType.HTML_UTF_8)
+                               .set(HttpHeaderNames.CACHE_CONTROL,
+                                    ServerCacheControl.DISABLED.asHeaderValue())
+                               .cookie(cookie)
+                               .build();
+        return HttpResponse.of(responseHeaders, HttpData.ofUtf8(getHtmlWithCsrfAndRedirect(
+                loginResult.csrfToken(), redirectionScript)));
     }
 
     @Nullable

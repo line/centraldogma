@@ -16,8 +16,8 @@ import {
   Spacer,
   Stack,
   Textarea,
-  VStack,
   useColorMode,
+  VStack,
 } from '@chakra-ui/react';
 import { usePushFileChangesMutation } from 'dogma/features/api/apiSlice';
 import { newNotification } from 'dogma/features/notification/notificationSlice';
@@ -29,8 +29,13 @@ import { FetchBaseQueryError } from '@reduxjs/toolkit/query';
 import ErrorMessageParser from 'dogma/features/services/ErrorMessageParser';
 import Editor, { OnMount } from '@monaco-editor/react';
 import { ChangeEvent, KeyboardEvent, useRef, useState } from 'react';
+import { extensionToLanguageMap } from 'dogma/common/components/editor/FileEditor';
+import { registerJson5Language } from 'dogma/features/file/Json5Language';
+import { detectChangeType } from 'dogma/features/file/StructuredFileSupport';
+import { useLocalMonaco } from 'dogma/features/file/MonacoLoader';
+import { Loading } from 'dogma/common/components/Loading';
 
-const FILE_PATH_PATTERN = /^[0-9A-Za-z](?:[-+_0-9A-Za-z\.]*[0-9A-Za-z])?$/;
+const FILE_PATH_PATTERN = /^[-_.0-9a-zA-Z]*[-_0-9a-zA-Z]+$/;
 
 type FormData = {
   name: string;
@@ -59,14 +64,13 @@ export const NewFile = ({
   const [prefixes] = useState(initialPrefixes);
   const onSubmit = async (formData: FormData) => {
     const path = `${prefixes.join('/')}/${formData.name}`;
-    let content = editorRef.current.getValue();
-    if (formData.name.endsWith('.json')) {
-      try {
-        content = JSON.parse(content);
-      } catch (error) {
-        dispatch(newNotification(`Failed to format json content.`, ErrorMessageParser.parse(error), 'error'));
-        return;
-      }
+    const content = editorRef.current.getValue();
+    let changeType;
+    try {
+      changeType = detectChangeType(fileName, content);
+    } catch (error) {
+      dispatch(newNotification(`Invalid file content.`, ErrorMessageParser.parse(error), 'error'));
+      return;
     }
 
     const data = {
@@ -78,8 +82,8 @@ export const NewFile = ({
       changes: [
         {
           path: path.startsWith('/') ? path : `/${path}`,
-          type: formData.name.endsWith('.json') ? 'UPSERT_JSON' : 'UPSERT_TEXT',
-          content: content,
+          type: changeType,
+          rawContent: content,
         },
       ],
     };
@@ -116,6 +120,19 @@ export const NewFile = ({
       setFileName(prefixes.pop());
     }
   };
+  let language;
+  if (!fileName) {
+    language = 'json';
+  } else {
+    const fileExtension = fileName.substring(fileName.lastIndexOf('.') + 1);
+    language = extensionToLanguageMap[fileExtension] || fileExtension;
+  }
+
+  const monaco = useLocalMonaco();
+  if (!monaco) {
+    return <Loading />;
+  }
+
   return (
     <form onSubmit={handleSubmit(onSubmit)}>
       <Flex minWidth="max-content" alignItems="center" mb={4}>
@@ -142,7 +159,7 @@ export const NewFile = ({
             <FormLabel>Content</FormLabel>
             <Editor
               height="40vh"
-              defaultLanguage="json"
+              language={language}
               theme={colorMode === 'light' ? 'light' : 'vs-dark'}
               options={{
                 autoIndent: 'full',
@@ -152,6 +169,7 @@ export const NewFile = ({
                 scrollBeyondLastLine: false,
               }}
               onMount={handleEditorMount}
+              beforeMount={registerJson5Language}
             />
           </FormControl>
         </VStack>

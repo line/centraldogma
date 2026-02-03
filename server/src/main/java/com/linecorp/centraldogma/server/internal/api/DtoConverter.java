@@ -48,13 +48,13 @@ import com.linecorp.centraldogma.server.storage.repository.Repository;
  */
 final class DtoConverter {
 
-    public static ProjectDto convert(Project project, ProjectRole userRole) {
+    public static ProjectDto newProjectDto(Project project, ProjectRole userRole) {
         requireNonNull(project, "project");
         return new ProjectDto(project.name(), project.author(), userRole, project.creationTimeMillis());
     }
 
-    public static RepositoryDto convert(Repository repository,
-                                        Map<String, RepositoryMetadata> metadataMap) {
+    public static RepositoryDto newRepositoryDto(Repository repository,
+                                                 Map<String, RepositoryMetadata> metadataMap) {
         requireNonNull(repository, "repository");
         final RepositoryStatus status;
         if (metadataMap == null) {
@@ -67,64 +67,86 @@ final class DtoConverter {
                 status = metadata.status();
             }
         }
-        return convert(repository, status);
+        return newRepositoryDto(repository, status);
     }
 
-    public static RepositoryDto convert(Repository repository, RepositoryStatus status) {
+    public static RepositoryDto newRepositoryDto(Repository repository, RepositoryStatus status) {
         final Revision headRevision = repository.normalizeNow(Revision.HEAD);
         final String projectName = repository.parent().name();
         return new RepositoryDto(projectName, repository.name(), repository.author(), headRevision,
                                  repository.creationTimeMillis(), status);
     }
 
-    public static <T> EntryDto<T> convert(Repository repository, Revision revision,
-                                          Entry<T> entry, boolean withContent) {
+    public static <T> EntryDto<?> newEntryDto(Repository repository, Revision revision,
+                                              Entry<T> entry, boolean withContent, boolean viewRaw) {
         requireNonNull(entry, "entry");
         if (withContent && entry.hasContent()) {
-            return convert(repository, revision, entry.path(), entry.type(), entry.content());
+            if (viewRaw) {
+                // Raw content is not null if content is present.
+                return newEntryDto(repository, revision, entry.path(), entry.type(), null, entry.rawContent(),
+                                   entry.templateRevision());
+            }
+            if (entry.type() == EntryType.YAML) {
+                if (entry.rawContent() == null) {
+                    // JSON_PATH is used to read the part of YAML files, which is a new feature.
+                    return newEntryDto(repository, revision, entry.path(), entry.type(), entry.content(), null,
+                                       entry.templateRevision());
+                } else {
+                    // Use EntryType.TEXT for backward compatibility. Old clients may not recognize
+                    // EntryType.YAML.
+                    // TODO(ikhoon): Use entry.content() instead of entry.rawContent() once we drop the support
+                    //               for old clients.
+                    return newEntryDto(repository, revision, entry.path(), EntryType.TEXT, entry.rawContent(),
+                                       null, entry.templateRevision());
+                }
+            }
+            return newEntryDto(repository, revision, entry.path(), entry.type(), entry.content(), null,
+                               entry.templateRevision());
         }
-        return convert(repository, revision, entry.path(), entry.type());
+        return newEntryDto(repository, revision, entry.path(), entry.type());
     }
 
-    private static <T> EntryDto<T> convert(Repository repository, Revision revision,
-                                           String path, EntryType type) {
-        return convert(repository, revision, path, type, null);
+    private static <T> EntryDto<T> newEntryDto(Repository repository, Revision revision,
+                                               String path, EntryType type) {
+        return newEntryDto(repository, revision, path, type, null, null, null);
     }
 
-    private static <T> EntryDto<T> convert(Repository repository, Revision revision, String path,
-                                           EntryType type, @Nullable T content) {
+    private static <T> EntryDto<T> newEntryDto(Repository repository, Revision revision, String path,
+                                               EntryType type, @Nullable T content,
+                                               @Nullable String rawContent,
+                                               @Nullable Revision templateRevision) {
         requireNonNull(repository, "repository");
         return new EntryDto<>(requireNonNull(revision, "revision"),
                               requireNonNull(path, "path"),
                               requireNonNull(type, "type"),
                               repository.parent().name(),
                               repository.name(),
-                              content);
+                              content, rawContent, templateRevision);
     }
 
-    public static PushResultDto convert(Revision revision, long commitTimeMillis) {
+    public static PushResultDto newPushResultDto(Revision revision, long commitTimeMillis) {
         return new PushResultDto(revision, commitTimeMillis);
     }
 
-    public static CommitDto convert(Commit commit) {
+    public static CommitDto newCommitDto(Commit commit) {
         requireNonNull(commit, "commit");
 
-        return convert(commit.revision(), commit.author(),
-                       new CommitMessageDto(commit.summary(), commit.detail(), commit.markup()),
-                       commit.when());
+        return newCommitDto(commit.revision(), commit.author(),
+                            new CommitMessageDto(commit.summary(), commit.detail(), commit.markup()),
+                            commit.when());
     }
 
-    public static CommitDto convert(Revision revision, Author author, CommitMessageDto commitMessage,
-                                    long commitTimeMillis) {
+    public static CommitDto newCommitDto(Revision revision, Author author, CommitMessageDto commitMessage,
+                                         long commitTimeMillis) {
         return new CommitDto(revision, author, commitMessage, commitTimeMillis);
     }
 
-    public static <T> ChangeDto<T> convert(Change<T> change) {
+    public static <T> ChangeDto<T> newChangeDto(Change<T> change) {
         requireNonNull(change, "change");
         return new ChangeDto<>(change.path(), change.type(), change.content());
     }
 
-    public static <T> MergedEntryDto<T> convert(MergedEntry<T> mergedEntry) {
+    public static <T> MergedEntryDto<T> newMergedEntryDto(MergedEntry<T> mergedEntry) {
         requireNonNull(mergedEntry, "mergedEntry");
         return new MergedEntryDto<>(mergedEntry.revision(), mergedEntry.type(),
                                     mergedEntry.content(), mergedEntry.paths());

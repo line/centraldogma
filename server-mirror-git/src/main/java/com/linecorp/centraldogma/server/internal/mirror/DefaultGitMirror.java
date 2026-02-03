@@ -20,7 +20,6 @@ import static com.linecorp.centraldogma.server.mirror.MirrorSchemes.SCHEME_GIT_H
 import static com.linecorp.centraldogma.server.mirror.MirrorSchemes.SCHEME_GIT_HTTPS;
 
 import java.io.File;
-import java.net.URI;
 import java.time.Instant;
 import java.util.function.Consumer;
 
@@ -37,6 +36,7 @@ import com.linecorp.centraldogma.server.internal.credential.AccessTokenCredentia
 import com.linecorp.centraldogma.server.internal.credential.PasswordCredential;
 import com.linecorp.centraldogma.server.mirror.MirrorDirection;
 import com.linecorp.centraldogma.server.mirror.MirrorResult;
+import com.linecorp.centraldogma.server.mirror.RepositoryUri;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
 final class DefaultGitMirror extends AbstractGitMirror {
@@ -44,11 +44,9 @@ final class DefaultGitMirror extends AbstractGitMirror {
     private static final Consumer<TransportCommand<?, ?>> NOOP_CONFIGURATOR = command -> {};
 
     DefaultGitMirror(String id, boolean enabled, @Nullable Cron schedule, MirrorDirection direction,
-                     Credential credential, Repository localRepo, String localPath,
-                     URI remoteRepoUri, String remotePath, String remoteBranch,
+                     Credential credential, Repository localRepo, String localPath, RepositoryUri remoteUri,
                      @Nullable String gitignore, @Nullable String zone) {
-        super(id, enabled, schedule, direction, credential, localRepo, localPath, remoteRepoUri, remotePath,
-              remoteBranch, gitignore, zone);
+        super(id, enabled, schedule, direction, credential, localRepo, localPath, remoteUri, gitignore, zone);
     }
 
     @Override

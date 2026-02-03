@@ -30,7 +30,6 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.google.common.collect.ImmutableList;
 
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
@@ -70,44 +69,44 @@ class StandaloneCommandExecutorTest {
     }
 
     @Test
-    void jsonUpsertPushCommandConvertedIntoJsonPatchWhenApplicable() {
+    void storeJsonUpsertPushCommandAsIs() throws JsonParseException {
         final StandaloneCommandExecutor executor = (StandaloneCommandExecutor) extension.executor();
 
         // Initial commit.
         Change<JsonNode> change = Change.ofJsonUpsert("/foo.json", "{\"a\": \"b\"}");
-        CommitResult commitResult =
+        final Revision previousRevision =
                 executor.execute(Command.push(
                                 Author.SYSTEM, TEST_PRJ, TEST_REPO2, Revision.HEAD, "", "",
                                 Markup.PLAINTEXT, change))
                         .join();
         // The same json upsert.
-        final Revision previousRevision = commitResult.revision();
-        assertThat(commitResult).isEqualTo(CommitResult.of(previousRevision, ImmutableList.of(change)));
 
         // Json upsert is converted into json patch.
         change = Change.ofJsonUpsert("/foo.json", "{\"a\": \"c\"}");
-        commitResult =
+        final Revision nextRevision =
                 executor.execute(Command.push(
                                 Author.SYSTEM, TEST_PRJ, TEST_REPO2, Revision.HEAD, "", "",
                                 Markup.PLAINTEXT, change))
                         .join();
 
-        assertThat(commitResult.revision()).isEqualTo(previousRevision.forward(1));
-        final List<Change<?>> changes = commitResult.changes();
-        assertThat(changes).hasSize(1);
-        assertThatJson(changes.get(0).content()).isEqualTo(
-                "[{\"op\":\"safeReplace\"," +
-                "\"path\":\"/a\"," +
-                "\"oldValue\":\"b\"," +
-                "\"value\":\"c\"}" +
-                ']');
+        assertThat(nextRevision).isEqualTo(previousRevision.forward(1));
+        JsonNode jsonNode = extension.projectManager().get(TEST_PRJ)
+                                     .repos().get(TEST_REPO2)
+                                     .get(Revision.HEAD, "/foo.json")
+                                     .join().contentAsJson();
+        assertThatJson(jsonNode).isEqualTo("{\"a\": \"c\"}");
 
         change = Change.ofJsonUpsert("/foo.json", "{\"a\": \"d\"}");
         // PushAsIs just uses the json upsert.
         final Revision revision = executor.execute(
-                new PushAsIsCommand(0L, Author.SYSTEM, TEST_PRJ, TEST_REPO2, Revision.HEAD,
-                                    "", "", Markup.PLAINTEXT, ImmutableList.of(change))).join();
+                Command.push(Author.SYSTEM, TEST_PRJ, TEST_REPO2, Revision.HEAD,
+                             "", "", Markup.PLAINTEXT, change)).join();
         assertThat(revision).isEqualTo(previousRevision.forward(2));
+        jsonNode = extension.projectManager().get(TEST_PRJ)
+                            .repos().get(TEST_REPO2)
+                            .get(Revision.HEAD, "/foo.json")
+                            .join().contentAsJson();
+        assertThatJson(jsonNode).isEqualTo("{\"a\": \"d\"}");
     }
 
     @Test
@@ -117,14 +116,14 @@ class StandaloneCommandExecutorTest {
         assertThat(executor.isWritable()).isFalse();
 
         final Change<JsonNode> change = Change.ofJsonUpsert("/foo.json", "{\"a\": \"b\"}");
-        final Command<CommitResult> push = Command.push(
+        final Command<Revision> push = Command.push(
                 Author.SYSTEM, TEST_PRJ, TEST_REPO3, Revision.HEAD, "", "", Markup.PLAINTEXT, change);
         assertThatThrownBy(() -> executor.execute(push))
                 .isInstanceOf(ReadOnlyException.class)
                 .hasMessageContaining("running in read-only mode.");
         // The same json upsert.
-        final CommitResult commitResult = executor.execute(Command.forcePush(push)).join();
-        assertThat(commitResult).isEqualTo(CommitResult.of(new Revision(2), ImmutableList.of(change)));
+        final Revision revision = executor.execute(Command.forcePush(push)).join();
+        assertThat(revision).isEqualTo(new Revision(2));
         final ObjectNode json = (ObjectNode) extension.projectManager()
                                                       .get(TEST_PRJ)
                                                       .repos().get(TEST_REPO3)
@@ -149,12 +148,12 @@ class StandaloneCommandExecutorTest {
                 .join();
         final Change<JsonNode> change = Change.ofJsonUpsert("/foo.json", "{\"a\": \"b\"}");
         // Can push to an internal project.
-        final CommitResult commitResult =
+        final Revision revision =
                 executor.execute(Command.push(
                                 Author.SYSTEM, internalProjectName, TEST_REPO, Revision.HEAD, "", "",
                                 Markup.PLAINTEXT, change))
                         .join();
-        assertThat(commitResult).isEqualTo(CommitResult.of(new Revision(2), ImmutableList.of(change)));
+        assertThat(revision).isEqualTo(new Revision(2));
     }
 
     @Test
@@ -163,14 +162,12 @@ class StandaloneCommandExecutorTest {
 
         // Initial commit.
         final Change<JsonNode> change = Change.ofJsonUpsert("/bar.json", "{\"a\": \"b\"}");
-        CommitResult commitResult =
+        final Revision previousRevision =
                 executor.execute(Command.push(
                                 Author.SYSTEM, TEST_PRJ, TEST_REPO2, Revision.HEAD, "", "",
                                 Markup.PLAINTEXT, change))
                         .join();
         // The same json upsert.
-        final Revision previousRevision = commitResult.revision();
-        assertThat(commitResult).isEqualTo(CommitResult.of(previousRevision, ImmutableList.of(change)));
 
         final BiFunction<Revision, JsonNode, JsonNode> transformer = (revision, jsonNode) -> {
             if (jsonNode.has("a")) {
@@ -181,7 +178,7 @@ class StandaloneCommandExecutorTest {
         final ContentTransformer<JsonNode> contentTransformer =
                 new ContentTransformer<>("/bar.json", EntryType.JSON, transformer);
 
-        commitResult =
+        final CommitResult commitResult =
                 executor.execute(Command.transform(
                         null, Author.SYSTEM, TEST_PRJ, TEST_REPO2, Revision.HEAD, "", "",
                         Markup.PLAINTEXT, contentTransformer)).join();

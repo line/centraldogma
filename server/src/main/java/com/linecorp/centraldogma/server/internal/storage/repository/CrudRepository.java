@@ -23,6 +23,7 @@ import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.EntryNotFoundException;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.server.internal.admin.auth.AuthUtil;
+import com.linecorp.centraldogma.server.storage.repository.HasRevision;
 
 /**
  * A repository that provides CRUD operations.

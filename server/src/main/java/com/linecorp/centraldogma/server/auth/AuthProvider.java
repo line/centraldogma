@@ -17,6 +17,7 @@ package com.linecorp.centraldogma.server.auth;
 
 import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.API_V0_PATH_PREFIX;
 import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.API_V1_PATH_PREFIX;
+import static com.linecorp.centraldogma.server.auth.AuthProviderUtil.loginOrLogoutService;
 
 import java.util.Set;
 
@@ -25,8 +26,6 @@ import org.jspecify.annotations.Nullable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 
-import com.linecorp.armeria.common.HttpResponse;
-import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.server.HttpService;
 import com.linecorp.armeria.server.HttpServiceWithRoutes;
 import com.linecorp.armeria.server.Route;
@@ -84,17 +83,8 @@ public interface AuthProvider {
      * Returns a {@link Service} which handles a login request from a web browser. By default,
      * the browser would bring a user to the built-in web login page served on {@value BUILTIN_WEB_LOGIN_PATH}.
      */
-    default HttpService webLoginService() {
-        // Redirect to the default page: /link/auth/login -> /web/auth/login
-        return (ctx, req) -> {
-            String returnTo = ctx.queryParam("return_to");
-            if (returnTo != null) {
-                returnTo += BUILTIN_WEB_LOGIN_PATH;
-            } else {
-                returnTo = BUILTIN_WEB_LOGIN_PATH;
-            }
-            return HttpResponse.ofRedirect(HttpStatus.MOVED_PERMANENTLY, returnTo);
-        };
+    default HttpService webLoginService(AllowedUrisConfig allowedUrisConfig) {
+        return loginOrLogoutService(allowedUrisConfig, BUILTIN_WEB_LOGIN_PATH);
     }
 
     /**
@@ -102,17 +92,8 @@ public interface AuthProvider {
      * the browser would bring a user to the built-in web logout page served on
      * {@value BUILTIN_WEB_LOGOUT_PATH}.
      */
-    default HttpService webLogoutService() {
-        // Redirect to the default page: /link/auth/logout -> /web/auth/logout
-        return (ctx, req) -> {
-            String returnTo = ctx.queryParam("return_to");
-            if (returnTo != null) {
-                returnTo += BUILTIN_WEB_LOGOUT_PATH;
-            } else {
-                returnTo = BUILTIN_WEB_LOGOUT_PATH;
-            }
-            return HttpResponse.ofRedirect(HttpStatus.MOVED_PERMANENTLY, returnTo);
-        };
+    default HttpService webLogoutService(AllowedUrisConfig allowedUrisConfig) {
+        return loginOrLogoutService(allowedUrisConfig, BUILTIN_WEB_LOGOUT_PATH);
     }
 
     /**

@@ -28,6 +28,7 @@ import com.linecorp.centraldogma.server.internal.mirror.CentralDogmaMirror;
 import com.linecorp.centraldogma.server.mirror.Mirror;
 import com.linecorp.centraldogma.server.mirror.MirrorContext;
 import com.linecorp.centraldogma.server.mirror.MirrorProvider;
+import com.linecorp.centraldogma.server.mirror.RepositoryUri;
 
 public final class CentralDogmaMirrorProvider implements MirrorProvider {
 
@@ -58,10 +59,9 @@ public final class CentralDogmaMirrorProvider implements MirrorProvider {
 
         final String remoteProject = pathMatcher.group(1);
         final String remoteRepo = pathMatcher.group(2);
-        final String remotePath = repositoryUri.path();
         return new CentralDogmaMirror(context.id(), context.enabled(), context.schedule(), context.direction(),
                                       context.credential(), context.localRepo(), context.localPath(),
-                                      repositoryUri.uri(), remoteProject, remoteRepo, remotePath,
+                                      repositoryUri, remoteProject, remoteRepo,
                                       context.gitignore(), context.zone());
     }
 }

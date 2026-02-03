@@ -24,8 +24,6 @@ import java.util.List;
 
 import org.jspecify.annotations.Nullable;
 
-import com.google.common.collect.ImmutableList;
-
 import com.linecorp.armeria.common.AggregatedHttpRequest;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.annotation.RequestConverterFunction;
@@ -50,8 +48,8 @@ public final class QueryRequestConverter implements RequestConverterFunction {
             @Nullable ParameterizedType expectedParameterizedResultType) throws Exception {
 
         final String path = getPath(ctx);
-        final Iterable<String> jsonPaths = getJsonPaths(ctx);
-        if (jsonPaths != null) {
+        final List<String> jsonPaths = ctx.queryParams("jsonpath");
+        if (!jsonPaths.isEmpty()) {
             return Query.ofJsonPath(path, jsonPaths);
         }
 
@@ -79,18 +77,5 @@ public final class QueryRequestConverter implements RequestConverterFunction {
         }
         // return empty string if there's no path
         return "";
-    }
-
-    @Nullable
-    private static Iterable<String> getJsonPaths(ServiceRequestContext ctx) {
-        final String query = ctx.query();
-        if (query != null) {
-            final List<String> jsonPaths = new QueryStringDecoder(query, false).parameters().get(
-                    "jsonpath");
-            if (jsonPaths != null) {
-                return ImmutableList.copyOf(jsonPaths);
-            }
-        }
-        return null;
     }
 }

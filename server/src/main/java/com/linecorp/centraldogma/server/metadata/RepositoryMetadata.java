@@ -103,7 +103,7 @@ public final class RepositoryMetadata implements Identifiable, HasWeight {
      */
     private RepositoryMetadata(String name, UserAndTimestamp creation, ProjectRoles projectRoles) {
         this(name, new Roles(requireNonNull(projectRoles, "projectRoles"),
-                             ImmutableMap.of(), ImmutableMap.of()),
+                             ImmutableMap.of(), null, ImmutableMap.of()),
              creation, /* removal */ null, RepositoryStatus.ACTIVE);
     }
 

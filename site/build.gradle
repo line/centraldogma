@@ -31,7 +31,7 @@ task javadoc(type: Javadoc,
 
     destinationDir = project.file("${project.buildDir}/site/apidocs")
 
-    def javadocProjects = projectsWithFlags('java', 'publish')
+    def javadocProjects = projectsWithFlags('java', 'publish') - projectsWithFlags('no_aggregation')
     javadocProjects.each { source it.sourceSets.main.java.srcDirs }
     classpath = javadocProjects.inject(project.files()) { result, project ->
         result.from(project.sourceSets.main.compileClasspath)
@@ -69,16 +69,18 @@ task xref(group: 'Documentation',
     }
 }
 
-task test(group: 'Verification',
-          description: 'Ensures the public API does not expose the shaded classes.',
-          dependsOn: tasks.javadoc) {
+tasks.register('test') {
+    dependsOn tasks.javadoc
+    def javadoc = tasks.named('javadoc', Javadoc)
+    inputs.files(javadoc.map { it.outputs.files })
+            .withPropertyName("javadocOutput")
 
-    def javadocDir = file("${tasks.javadoc.destinationDir}/com/linecorp/centraldogma")
     def reportFile = file("${project.buildDir}/test-results/referenced-classes.txt")
-    inputs.dir javadocDir
     outputs.file reportFile
 
     doLast {
+        def javadocDir = file("${tasks.javadoc.destinationDir}/com/linecorp/centraldogma")
+
         def inheritancePrefixes = [
                 'methods.inherited.from.class.',
                 'fields.inherited.from.class.',
@@ -87,7 +89,7 @@ task test(group: 'Verification',
         def whitelistedPrefixes = ['java.', 'javax.']
         def blacklistedPrefixes = ['com.linecorp.centraldogma.internal.',
                                    'com.linecorp.centraldogma.server.internal.'] +
-                                  rootProject.ext.relocations.collect { it[1] + '.' }
+                rootProject.ext.relocations.collect { it[1] + '.' }
         def errors = []
 
         reportFile.parentFile.mkdirs()
@@ -126,7 +128,7 @@ task test(group: 'Verification',
 
         if (!errors.empty) {
             throw new Exception("Blacklisted class(es) in the public API:${System.lineSeparator()}- " +
-                                errors.join("${System.lineSeparator()}- "))
+                    errors.join("${System.lineSeparator()}- "))
         }
     }
 }

@@ -135,7 +135,7 @@ class ContentServiceV1Test {
     }
 
     @Test
-    void pushFileToMetaRepositoryShouldFail() {
+    void pushFileToDogmaRepositoryShouldFail() {
         final WebClient client = dogma.httpClient();
 
         final String body =
@@ -150,7 +150,7 @@ class ContentServiceV1Test {
                 "   }" +
                 '}';
         final RequestHeaders headers =
-                RequestHeaders.of(HttpMethod.POST, "/api/v1/projects/myPro/repos/meta/contents",
+                RequestHeaders.of(HttpMethod.POST, "/api/v1/projects/myPro/repos/dogma/contents",
                                   HttpHeaderNames.CONTENT_TYPE, MediaType.JSON);
         final AggregatedHttpResponse res = client.execute(headers, body).aggregate().join();
         assertThat(res.status()).isEqualTo(HttpStatus.BAD_REQUEST);
@@ -475,9 +475,9 @@ class ContentServiceV1Test {
                     '[' +
                     "   {" +
                     "       \"revision\": 3," +
-                    "       \"path\": \"/a\"," +
+                    "       \"path\": \"/a/\"," +
                     "       \"type\": \"DIRECTORY\"," +
-                    "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/contents/a\"" +
+                    "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/contents/a/\"" +
                     "   }," +
                     "   {" +
                     "       \"revision\": 3," +
@@ -501,9 +501,9 @@ class ContentServiceV1Test {
                     '[' +
                     "   {" +
                     "       \"revision\": 3," +
-                    "       \"path\": \"/a\"," +
+                    "       \"path\": \"/a/\"," +
                     "       \"type\": \"DIRECTORY\"," +
-                    "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/contents/a\"" +
+                    "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/contents/a/\"" +
                     "   }," +
                     "   {" +
                     "       \"revision\": 3," +
@@ -555,9 +555,9 @@ class ContentServiceV1Test {
                     '[' +
                     "   {" +
                     "       \"revision\": 3," +
-                    "       \"path\": \"/a\"," +
+                    "       \"path\": \"/a/\"," +
                     "       \"type\": \"DIRECTORY\"," +
-                    "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/contents/a\"" +
+                    "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/contents/a/\"" +
                     "   }," +
                     "   {" +
                     "       \"revision\": 3," +
@@ -788,7 +788,7 @@ class ContentServiceV1Test {
         }
 
         @Test
-        void listADirectoryWithoutSlash() {
+        void listADirectoryWithSlash() {
             final WebClient client = dogma.httpClient();
             final String body =
                     '{' +
@@ -806,9 +806,9 @@ class ContentServiceV1Test {
                     '[' +
                     "   {" +
                     "       \"revision\": 2," +
-                    "       \"path\": \"/a.json/b.json\"," +
+                    "       \"path\": \"/a.json/b.json/\"," +
                     "       \"type\": \"DIRECTORY\"," +
-                    "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/contents/a.json/b.json\"" +
+                    "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/contents/a.json/b.json/\"" +
                     "   }" +
                     ']';
             // List directory without slash.

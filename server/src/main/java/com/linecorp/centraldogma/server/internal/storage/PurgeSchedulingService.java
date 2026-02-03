@@ -42,8 +42,8 @@ import com.google.common.util.concurrent.MoreExecutors;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
+import com.linecorp.centraldogma.server.metadata.AppIdentity;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
-import com.linecorp.centraldogma.server.metadata.Token;
 import com.linecorp.centraldogma.server.metadata.Tokens;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 
@@ -152,8 +152,8 @@ public class PurgeSchedulingService {
         final Tokens tokens = metadataService.getTokens();
         final List<String> purging = tokens.appIds().values()
                                            .stream()
-                                           .filter(Token::isDeleted)
-                                           .map(Token::appId)
+                                           .filter(AppIdentity::isDeleted)
+                                           .map(AppIdentity::appId)
                                            .collect(toImmutableList());
 
         if (!purging.isEmpty()) {

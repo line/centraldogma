@@ -16,10 +16,7 @@
 
 package com.linecorp.centraldogma.server.internal.admin.auth;
 
-import static com.google.common.base.Strings.isNullOrEmpty;
-import static com.linecorp.centraldogma.server.internal.admin.auth.SessionUtil.X_CSRF_TOKEN;
-import static com.linecorp.centraldogma.server.internal.admin.auth.SessionUtil.getSessionIdFromCookie;
-import static com.linecorp.centraldogma.server.internal.admin.auth.SessionUtil.sessionCookieName;
+import static com.linecorp.centraldogma.server.internal.admin.auth.SessionUtil.validateCsrfToken;
 import static com.linecorp.centraldogma.server.metadata.User.LEVEL_SYSTEM_ADMIN;
 import static com.linecorp.centraldogma.server.metadata.User.LEVEL_USER;
 import static java.util.Objects.requireNonNull;
@@ -27,6 +24,9 @@ import static java.util.Objects.requireNonNull;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletionStage;
+import java.util.function.BooleanSupplier;
+
+import javax.annotation.Nullable;
 
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
@@ -40,7 +40,6 @@ import com.linecorp.armeria.common.util.UnmodifiableFuture;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.auth.AuthorizationStatus;
 import com.linecorp.armeria.server.auth.Authorizer;
-import com.linecorp.centraldogma.server.auth.SessionKey;
 import com.linecorp.centraldogma.server.auth.SessionManager;
 import com.linecorp.centraldogma.server.internal.api.HttpApiUtil;
 import com.linecorp.centraldogma.server.metadata.User;
@@ -55,24 +54,18 @@ public class SessionCookieAuthorizer implements Authorizer<HttpRequest> {
     private static final Logger logger = LoggerFactory.getLogger(SessionCookieAuthorizer.class);
 
     private final SessionManager sessionManager;
-    private final String sessionCookieName;
     private final Set<String> systemAdministrators;
+    private final SessionCookieHandler sessionCookieHandler;
 
-    // TODO(minwoox): Use the sessionKey to validate the session cookie signature.
-    @Nullable
-    private final SessionKey sessionKey;
-
-    public SessionCookieAuthorizer(SessionManager sessionManager, boolean tlsEnabled,
+    public SessionCookieAuthorizer(SessionManager sessionManager,
+                                   BooleanSupplier sessionPropagatorWritableChecker,
+                                   boolean tlsEnabled,
                                    EncryptionStorageManager encryptionStorageManager,
                                    Set<String> systemAdministrators) {
         this.sessionManager = requireNonNull(sessionManager, "sessionManager");
-        sessionCookieName = sessionCookieName(tlsEnabled);
         requireNonNull(encryptionStorageManager, "encryptionStorageManager");
-        if (encryptionStorageManager.encryptSessionCookie()) {
-            sessionKey = encryptionStorageManager.getCurrentSessionKey().join();
-        } else {
-            sessionKey = null;
-        }
+        sessionCookieHandler = new SessionCookieHandler(
+                sessionPropagatorWritableChecker, tlsEnabled, encryptionStorageManager);
         this.systemAdministrators = requireNonNull(systemAdministrators, "systemAdministrators");
     }
 
@@ -89,48 +82,51 @@ public class SessionCookieAuthorizer implements Authorizer<HttpRequest> {
             return UnmodifiableFuture.completedFuture(AuthorizationStatus.of(false));
         }
 
-        final String sessionId = getSessionIdFromCookie(ctx, sessionCookieName);
-        if (sessionId == null) {
-            return UnmodifiableFuture.completedFuture(AuthorizationStatus.of(false));
-        }
-        return sessionManager.get(sessionId).thenApply(session -> {
-            if (session == null) {
-                logger.trace("Session not found (or expired), ctx={}", ctx);
-                return AuthorizationStatus.of(false);
+        return sessionCookieHandler.getSessionInfo(ctx).thenCompose(sessionInfo -> {
+            if (sessionInfo == null) {
+                return UnmodifiableFuture.completedFuture(AuthorizationStatus.of(false));
             }
-            // Check the token when the method is not safe:
-            // https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html#javascript-automatically-including-csrf-tokens-as-an-ajax-request-header
-            if (!isSafeMethod(req)) {
-                final String csrfToken = req.headers().get(X_CSRF_TOKEN, "");
-                if (isNullOrEmpty(csrfToken) || !csrfToken.equals(session.csrfToken())) {
-                    logger.trace("CSRF token mismatch. ctx={}", ctx);
-                    return AuthorizationStatus.ofFailure((delegate, ctx1, req1, cause) -> {
-                        return HttpResponse.of(HttpStatus.FORBIDDEN, MediaType.PLAIN_TEXT_UTF_8,
-                                               "Invalid CSRF token");
-                    });
+            final String sessionId = sessionInfo.sessionId();
+            if (sessionId == null)  {
+                final String username = sessionInfo.username();
+                final String csrfTokenFromSignedJwt = sessionInfo.csrfTokenFromSignedJwt();
+                assert username != null;
+                assert csrfTokenFromSignedJwt != null;
+                if (!validateCsrfToken(ctx, req, csrfTokenFromSignedJwt)) {
+                    return UnmodifiableFuture.completedFuture(invalidCsrfToken());
                 }
+                setCurrentUser(ctx, username);
+                return UnmodifiableFuture.completedFuture(AuthorizationStatus.of(true));
             }
+            return sessionManager.get(sessionId).thenApply(session -> {
+                if (session == null) {
+                    logger.trace("Session not found (or expired), ctx={}", ctx);
+                    return AuthorizationStatus.of(false);
+                }
 
-            final String username = session.username();
-            final List<String> roles =
-                    systemAdministrators.contains(username) ? LEVEL_SYSTEM_ADMIN
-                                                            : LEVEL_USER;
-            final User user = new User(username, roles);
-            ctx.logBuilder().authenticatedUser("user/" + username);
-            AuthUtil.setCurrentUser(ctx, user);
-            HttpApiUtil.setVerboseResponses(ctx, user);
-            return AuthorizationStatus.of(true);
+                if (!validateCsrfToken(ctx, req, session.csrfToken())) {
+                    return invalidCsrfToken();
+                }
+                setCurrentUser(ctx, session.username());
+                return AuthorizationStatus.of(true);
+            });
         });
     }
 
-    private static boolean isSafeMethod(HttpRequest req) {
-        switch (req.method()) {
-            case GET:
-            case HEAD:
-            case OPTIONS:
-                return true;
-            default:
-                return false;
-        }
+    private static AuthorizationStatus invalidCsrfToken() {
+        return AuthorizationStatus.ofFailure(
+                (delegate, ctx1, req1, cause) -> HttpResponse.of(HttpStatus.FORBIDDEN,
+                                                                 MediaType.PLAIN_TEXT_UTF_8,
+                                                                 "Invalid CSRF token"));
+    }
+
+    private void setCurrentUser(ServiceRequestContext ctx, String username) {
+        final List<String> roles =
+                systemAdministrators.contains(username) ? LEVEL_SYSTEM_ADMIN
+                                                       : LEVEL_USER;
+        final User user = new User(username, roles);
+        ctx.logBuilder().authenticatedUser("user/" + username);
+        AuthUtil.setCurrentUser(ctx, user);
+        HttpApiUtil.setVerboseResponses(ctx, user);
     }
 }

@@ -18,6 +18,7 @@ package com.linecorp.centraldogma.server.internal.api;
 
 import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static com.linecorp.centraldogma.server.internal.api.DtoConverter.newRepositoryDto;
 import static com.linecorp.centraldogma.server.internal.api.HttpApiUtil.checkUnremoveArgument;
 import static com.linecorp.centraldogma.server.internal.api.HttpApiUtil.returnOrThrow;
 import static java.util.Objects.requireNonNull;
@@ -69,6 +70,7 @@ import com.linecorp.centraldogma.server.metadata.ProjectMetadata;
 import com.linecorp.centraldogma.server.metadata.RepositoryMetadata;
 import com.linecorp.centraldogma.server.metadata.User;
 import com.linecorp.centraldogma.server.storage.encryption.EncryptionStorageManager;
+import com.linecorp.centraldogma.server.storage.encryption.WrappedDekDetails;
 import com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
@@ -112,7 +114,7 @@ public class RepositoryServiceV1 extends AbstractService {
                 }
                 return CompletableFuture.completedFuture(
                         project.repos().list().values().stream()
-                               .map(repository -> DtoConverter.convert(repository, RepositoryStatus.ACTIVE))
+                               .map(repository -> newRepositoryDto(repository, RepositoryStatus.ACTIVE))
                                .collect(toImmutableList()));
             }
             return HttpApiUtil.throwResponse(
@@ -125,7 +127,7 @@ public class RepositoryServiceV1 extends AbstractService {
             return CompletableFuture.completedFuture(
                     project.repos().list().values().stream()
                            .filter(r -> user.isSystemAdmin() || !Project.isInternalRepo(r.name()))
-                           .map(repository -> DtoConverter.convert(repository, repos))
+                           .map(repository -> newRepositoryDto(repository, repos))
                            .collect(toImmutableList()));
         }
 
@@ -202,7 +204,7 @@ public class RepositoryServiceV1 extends AbstractService {
                                                        request.encrypt(), encryptionStorageManager);
         return future.handle(returnOrThrow(() -> {
             final Repository repository = project.repos().get(repoName);
-            return DtoConverter.convert(repository, repositoryStatus(repository));
+            return newRepositoryDto(repository, repositoryStatus(repository));
         }));
     }
 
@@ -259,7 +261,7 @@ public class RepositoryServiceV1 extends AbstractService {
                 .thenCompose(unused -> mds.restoreRepo(author, project.name(), repoName))
                 .handle(returnOrThrow(() -> {
                     final Repository repository = project.repos().get(repoName);
-                    return DtoConverter.convert(repository, repositoryStatus(repository));
+                    return newRepositoryDto(repository, repositoryStatus(repository));
                 }));
     }
 
@@ -287,7 +289,7 @@ public class RepositoryServiceV1 extends AbstractService {
     @RequiresRepositoryRole(RepositoryRole.ADMIN)
     public RepositoryDto status(Project project, Repository repository) {
         rejectIfDogmaProject(project);
-        return DtoConverter.convert(repository, repositoryStatus(repository));
+        return newRepositoryDto(repository, repositoryStatus(repository));
     }
 
     /**
@@ -307,12 +309,12 @@ public class RepositoryServiceV1 extends AbstractService {
         final RepositoryStatus newStatus = statusRequest.status();
         if (oldStatus == newStatus) {
             // No need to update the status, just return the current status.
-            return CompletableFuture.completedFuture(DtoConverter.convert(repository, oldStatus));
+            return CompletableFuture.completedFuture(newRepositoryDto(repository, oldStatus));
         }
 
         return mds.updateRepositoryStatus(author, project.name(),
                                           normalizeRepositoryName(repository), newStatus)
-                  .thenApply(unused -> DtoConverter.convert(repository, newStatus));
+                  .thenApply(unused -> newRepositoryDto(repository, newStatus));
     }
 
     /**
@@ -333,7 +335,12 @@ public class RepositoryServiceV1 extends AbstractService {
                 .generateWdek()
                 .thenCompose(wdek -> setRepositoryStatus(author, project, repository,
                                                          RepositoryStatus.READ_ONLY)
-                        .thenCompose(unused -> migrate(author, project, repository, wdek)));
+                        .thenCompose(unused -> {
+                            final WrappedDekDetails wdekDetails = new WrappedDekDetails(
+                                    wdek, 1, encryptionStorageManager.kekId(),
+                                    project.name(), repository.name());
+                            return migrate(author, project, repository, wdekDetails);
+                        }));
     }
 
     private void validateMigrationPrerequisites(ServiceRequestContext ctx, Project project,
@@ -396,14 +403,14 @@ public class RepositoryServiceV1 extends AbstractService {
     }
 
     private CompletionStage<RepositoryDto> migrate(Author author, Project project,
-                                                   Repository repository, byte[] wdek) {
+                                                   Repository repository, WrappedDekDetails wdekDetails) {
         final String projectName = project.name();
         final String repoName = repository.name();
         logger.info("Starting repository encryption migration: project={}, repository={}",
                     projectName, repoName);
 
         final Command<Void> command = Command.migrateToEncryptedRepository(
-                null, author, projectName, repoName, wdek);
+                null, author, projectName, repoName, wdekDetails);
 
         return executor().execute(command)
                          .handle((unused, cause) -> {
@@ -420,8 +427,8 @@ public class RepositoryServiceV1 extends AbstractService {
                                      .thenApply(unused1 -> {
                                          final Repository updatedRepository =
                                                  project.repos().get(repository.name());
-                                         return DtoConverter.convert(updatedRepository,
-                                                                     RepositoryStatus.ACTIVE);
+                                         return newRepositoryDto(updatedRepository,
+                                                                 RepositoryStatus.ACTIVE);
                                      });
                          }).thenCompose(Function.identity());
     }

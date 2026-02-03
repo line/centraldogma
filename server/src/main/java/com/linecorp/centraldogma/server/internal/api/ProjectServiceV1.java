@@ -17,9 +17,11 @@
 package com.linecorp.centraldogma.server.internal.api;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static com.linecorp.centraldogma.server.internal.api.DtoConverter.newProjectDto;
 import static com.linecorp.centraldogma.server.internal.api.HttpApiUtil.checkStatusArgument;
 import static com.linecorp.centraldogma.server.internal.api.HttpApiUtil.checkUnremoveArgument;
 import static com.linecorp.centraldogma.server.internal.api.HttpApiUtil.returnOrThrow;
+import static com.linecorp.centraldogma.server.metadata.ProjectMetadata.DOGMA_PROJECT_METADATA;
 import static java.util.Objects.requireNonNull;
 
 import java.util.List;
@@ -30,6 +32,7 @@ import javax.annotation.Nullable;
 import com.fasterxml.jackson.databind.JsonNode;
 
 import com.linecorp.armeria.common.ContextAwareBlockingTaskExecutor;
+import com.linecorp.armeria.common.util.UnmodifiableFuture;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.annotation.Consumes;
 import com.linecorp.armeria.server.annotation.Delete;
@@ -54,6 +57,7 @@ import com.linecorp.centraldogma.server.metadata.ProjectMetadata;
 import com.linecorp.centraldogma.server.metadata.TokenRegistration;
 import com.linecorp.centraldogma.server.metadata.User;
 import com.linecorp.centraldogma.server.metadata.UserWithToken;
+import com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer;
 import com.linecorp.centraldogma.server.storage.project.Project;
 
 /**
@@ -88,7 +92,7 @@ public class ProjectServiceV1 extends AbstractService {
 
         return CompletableFuture.supplyAsync(() -> {
             return projectApiManager.listProjects(user).values().stream()
-                                    .map(project -> DtoConverter.convert(project, getUserRole(project, user)))
+                                    .map(project -> newProjectDto(project, getUserRole(project, user)))
                                     .collect(toImmutableList());
         }, executor);
     }
@@ -107,7 +111,7 @@ public class ProjectServiceV1 extends AbstractService {
         ProjectRole role = null;
         if (user instanceof UserWithToken) {
             final String appId = ((UserWithToken) user).token().appId();
-            final TokenRegistration tokenRegistration = metadata.tokens().get(appId);
+            final TokenRegistration tokenRegistration = metadata.appIds().get(appId);
             if (tokenRegistration != null) {
                 role = tokenRegistration.role();
             }
@@ -136,7 +140,7 @@ public class ProjectServiceV1 extends AbstractService {
     public CompletableFuture<ProjectDto> createProject(CreateProjectRequest request, Author author, User user) {
         return projectApiManager.createProject(request.name(), author).handle(returnOrThrow(() -> {
             final Project project = projectApiManager.getProject(request.name(), user);
-            return DtoConverter.convert(project, ProjectRole.OWNER);
+            return newProjectDto(project, ProjectRole.OWNER);
         }));
     }
 
@@ -148,6 +152,9 @@ public class ProjectServiceV1 extends AbstractService {
     @Get("/projects/{projectName}")
     @RequiresProjectRole(ProjectRole.MEMBER)
     public CompletableFuture<ProjectMetadata> getProjectMetadata(@Param String projectName) {
+        if (InternalProjectInitializer.INTERNAL_PROJECT_DOGMA.equals(projectName)) {
+            return UnmodifiableFuture.completedFuture(DOGMA_PROJECT_METADATA);
+        }
         // Remove the Dogma repository from the metadata to avoid exposing it to the user.
         return projectApiManager.getProjectMetadata(projectName)
                                 .thenApply(ProjectMetadata::withoutDogmaRepo);
@@ -189,7 +196,7 @@ public class ProjectServiceV1 extends AbstractService {
                                                       User user) {
         checkUnremoveArgument(node);
         return projectApiManager.unremoveProject(projectName, author)
-                                .handle(returnOrThrow(() -> DtoConverter.convert(
+                                .handle(returnOrThrow(() -> newProjectDto(
                                         projectApiManager.getProject(projectName, user), ProjectRole.OWNER)));
     }
 }

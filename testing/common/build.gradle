@@ -5,3 +5,7 @@ dependencies {
         exclude group: 'com.linecorp.armeria', module: 'armeria-thrift0.9'
     }
 }
+
+tasks.withType(Test).configureEach {
+    failOnNoDiscoveredTests = false
+}

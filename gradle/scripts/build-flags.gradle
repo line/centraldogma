@@ -1,12 +1,7 @@
 def libDir = new File(buildscript.sourceFile.parentFile, 'lib')
 
 apply from: "${libDir}/prerequisite.gradle"
-if (rootProject.ext.hasDependenciesToml) {
-    apply from: "${libDir}/common-dependencies.gradle"
-} else {
-    // 'dependencies.yml' is deprecated in favor of 'dependencies.toml'
-    apply from: "${libDir}/common-dependencies-legacy.gradle"
-}
+apply from: "${libDir}/common-dependencies.gradle"
 apply from: "${libDir}/common-git.gradle"
 apply from: "${libDir}/common-info.gradle"
 apply from: "${libDir}/common-publish.gradle"
@@ -34,10 +29,10 @@ if (!projectsWithFlags('java').isEmpty()) {
     }
 
     if (!projectsWithFlags('java', 'relocate').isEmpty()) {
-        ['gradle.plugin.com.github.johnrengelman:shadow', 'com.guardsquare:proguard-gradle'].each {
+        ['com.gradleup.shadow:com.gradleup.shadow.gradle.plugin', 'com.guardsquare:proguard-gradle'].each {
             if (!managedVersions.containsKey(it)) {
                 throw new IllegalStateException(
-                        "${it} must be specified in dependencies.(toml|yml) to use the 'relocate' flag.")
+                        "${it} must be specified in dependencies.toml to use the 'relocate' flag.")
             }
         }
         apply from: "${libDir}/java-shade.gradle"

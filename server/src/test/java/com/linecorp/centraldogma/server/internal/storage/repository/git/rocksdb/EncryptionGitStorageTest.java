@@ -23,7 +23,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -80,8 +79,10 @@ class EncryptionGitStorageTest {
     @BeforeEach
     void setUp() {
         // Mock getDek to return our fixed key
-        when(encryptionStorageManager.getCurrentDek(TEST_PROJECT, TEST_REPO))
-                .thenReturn(new SecretKeyWithVersion(DEK, 1));
+        lenient().when(encryptionStorageManager.getCurrentDek(TEST_PROJECT, TEST_REPO))
+                 .thenReturn(new SecretKeyWithVersion(DEK, 1));
+        lenient().when(encryptionStorageManager.getDek(TEST_PROJECT, TEST_REPO, 1))
+                 .thenReturn(DEK);
         storage = new EncryptionGitStorage(TEST_PROJECT, TEST_REPO, encryptionStorageManager);
 
         // Leniently stubs.
@@ -308,7 +309,6 @@ class EncryptionGitStorageTest {
                 metaKeyCaptor.capture(), metadataCaptor.capture(),
                 refNameKeyCaptor.capture(), refValueCaptor.capture(), previousKeyCaptor.capture()
         );
-        reset(encryptionStorageManager);
 
         final byte[] expectedMetadataKey = refMetadataKey(HEAD_MASTER_REF);
         assertThat(metaKeyCaptor.getValue()).isEqualTo(expectedMetadataKey);
@@ -329,7 +329,8 @@ class EncryptionGitStorageTest {
         final Result actualResult2 = storage.updateRef(HEAD_MASTER_REF, OBJECT_ID, desiredResult);
         assertThat(actualResult2).isEqualTo(desiredResult);
 
-        verify(encryptionStorageManager, times(1)).putObjectId(
+        // Verify the second put.
+        verify(encryptionStorageManager, times(2)).putObjectId(
                 metaKeyCaptor.capture(), metadataCaptor.capture(),
                 refNameKeyCaptor.capture(), refValueCaptor.capture(), previousKeyCaptor.capture()
         );

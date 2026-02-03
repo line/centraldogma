@@ -16,13 +16,13 @@
 
 package com.linecorp.centraldogma.server.internal.api.converter;
 
-import static com.google.common.base.Preconditions.checkArgument;
-
 import java.lang.reflect.ParameterizedType;
 import java.util.List;
 
 import org.jspecify.annotations.Nullable;
 
+import com.fasterxml.jackson.core.JsonParseException;
+import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.JsonNodeType;
@@ -33,7 +33,7 @@ import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.annotation.JacksonRequestConverterFunction;
 import com.linecorp.armeria.server.annotation.RequestConverterFunction;
 import com.linecorp.centraldogma.common.Change;
-import com.linecorp.centraldogma.common.ChangeType;
+import com.linecorp.centraldogma.internal.Jackson;
 
 /**
  * A request converter that converts to {@code Iterable<Change<?>>}.
@@ -77,34 +77,10 @@ public final class ChangesRequestConverter implements RequestConverterFunction {
     }
 
     private static Change<?> readChange(JsonNode node) {
-        checkArgument(node.get("path") != null && node.get("type") != null,
-                      "a change should have a path and a type");
-        final ChangeType changeType = ChangeType.parse(node.get("type").textValue());
-        if (changeType != ChangeType.REMOVE) {
-            checkArgument(node.get("content") != null, "a change should have a content.");
+        try {
+            return Jackson.treeToValue(node, Change.class);
+        } catch (JsonParseException | JsonMappingException e) {
+            throw new IllegalArgumentException("Failed to parse a change", e);
         }
-
-        final String path = node.get("path").textValue();
-        if (changeType == ChangeType.UPSERT_TEXT) {
-            return Change.ofTextUpsert(path, node.get("content").textValue());
-        }
-        if (changeType == ChangeType.UPSERT_JSON) {
-            return Change.ofJsonUpsert(path, node.get("content"));
-        }
-        if (changeType == ChangeType.REMOVE) {
-            return Change.ofRemoval(path);
-        }
-        if (changeType == ChangeType.RENAME) {
-            return Change.ofRename(path, node.get("content").textValue());
-        }
-        if (changeType == ChangeType.APPLY_TEXT_PATCH) {
-            return Change.ofTextPatch(path, node.get("content").textValue());
-        }
-        if (changeType == ChangeType.APPLY_JSON_PATCH) {
-            return Change.ofJsonPatch(path, node.get("content"));
-        }
-
-        // Should never reach here.
-        throw new Error();
     }
 }

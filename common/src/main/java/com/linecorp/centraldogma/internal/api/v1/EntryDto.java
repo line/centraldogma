@@ -35,21 +35,36 @@ import com.linecorp.centraldogma.common.Revision;
 public class EntryDto<T> {
 
     private final Revision revision;
+    @Nullable
+    private final Revision templateRevision;
 
     private final String path;
 
+    /**
+     * The type of the entry.
+     *
+     * @deprecated Clients should use {@link EntryType#guessFromPath(String)} instead. {@link EntryType} makes
+     *             it difficult to support new types.
+     */
+    @Deprecated
     private final EntryType type;
 
+    @Nullable
     private final T content;
+    @Nullable
+    private final String rawContent;
 
     private final String url;
 
     public EntryDto(Revision revision, String path, EntryType type,
-                    String projectName, String repoName, @Nullable T content) {
+                    String projectName, String repoName, @Nullable T content, @Nullable String rawContent,
+                    @Nullable Revision templateRevision) {
         this.revision = requireNonNull(revision, "revision");
         this.path = requireNonNull(path, "path");
         this.type = requireNonNull(type, "type");
         this.content = content;
+        this.rawContent = rawContent;
+        this.templateRevision = templateRevision;
         url = PROJECTS_PREFIX + '/' + projectName + REPOS + '/' + repoName + CONTENTS + path;
     }
 
@@ -58,11 +73,18 @@ public class EntryDto<T> {
         return revision;
     }
 
+    @Nullable
+    @JsonProperty
+    public Revision templateRevision() {
+        return templateRevision;
+    }
+
     @JsonProperty
     public String path() {
         return path;
     }
 
+    @Deprecated
     @JsonProperty
     public EntryType type() {
         return type;
@@ -76,6 +98,12 @@ public class EntryDto<T> {
 
     @JsonProperty
     @Nullable
+    public String rawContent() {
+        return rawContent;
+    }
+
+    @JsonProperty
+    @Nullable
     public String url() {
         return url;
     }
@@ -84,6 +112,7 @@ public class EntryDto<T> {
     public String toString() {
         return MoreObjects.toStringHelper(this).omitNullValues()
                           .add("revision", revision)
+                          .add("templateRevision", templateRevision)
                           .add("path", path)
                           .add("type", type)
                           .add("content", content).toString();

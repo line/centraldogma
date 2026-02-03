@@ -3,12 +3,14 @@ def libDir = buildscript.sourceFile.parentFile
 configure(projectsWithFlags('java')) {
     def thriftJsonEnabled = true
     def fullCamel = false
+    def annotationsAsMetadata = false
 
     ext {
         thriftVersion = null
         thriftPath = null
         enableThriftFullCamel = { fullCamel = true }
         disableThriftJson = { thriftJsonEnabled = false }
+        enableAnnotationsAsMetadata = {annotationsAsMetadata = true}
     }
 
     // TODO(anuraaga): Consider replacing with https://github.com/yodle/griddle
@@ -57,6 +59,7 @@ configure(projectsWithFlags('java')) {
                 it.includeDirs.addAll(includeDirs)
                 it.thriftJsonEnabled = thriftJsonEnabled
                 it.fullCamel = fullCamel
+                it.annotationsAsMetadata = annotationsAsMetadata
                 it.thriftBinary = project.ext.thriftPath != null ? project.file(project.ext.thriftPath) : null
                 it.thriftVersion = project.ext.thriftVersion
 
@@ -80,7 +83,11 @@ configure(projectsWithFlags('java')) {
 }
 
 @CacheableTask
-class CompileThriftTask extends DefaultTask {
+abstract class CompileThriftTask extends DefaultTask {
+
+    @javax.inject.Inject
+    protected abstract ExecOperations getExecOperations()
+
     @Override
     String getGroup() {
         return 'build'
@@ -118,6 +125,9 @@ class CompileThriftTask extends DefaultTask {
     @Input
     Boolean fullCamel
 
+    @Input
+    Boolean annotationsAsMetadata
+
     @OutputDirectory
     File javaOutputDir
 
@@ -144,9 +154,12 @@ class CompileThriftTask extends DefaultTask {
                 project.mkdir(javaOutputDir)
                 def javaGenerator = 'java'
                 if (fullCamel) {
-                    javaGenerator = 'java:fullcamel'
+                    javaGenerator += ':fullcamel'
                 }
-                project.exec {
+                if (annotationsAsMetadata) {
+                    javaGenerator += ':annotations_as_metadata'
+                }
+                execOperations.exec {
                     commandLine actualThriftPath
                     args '-gen', javaGenerator, '-out', javaOutputDir
                     includeDirs.each {
@@ -158,7 +171,7 @@ class CompileThriftTask extends DefaultTask {
                     logger.info("Using ${actualThriftPath} to generate JSON from ${sourceFile}")
                     def outDir = "${jsonOutputDir}/META-INF/armeria/thrift"
                     project.mkdir(outDir)
-                    project.exec {
+                    execOperations.exec {
                         commandLine actualThriftPath
                         args '-gen', 'json', '-out', outDir
                         includeDirs.each {

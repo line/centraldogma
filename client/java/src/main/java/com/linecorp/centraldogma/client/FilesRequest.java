@@ -30,7 +30,7 @@ import com.linecorp.centraldogma.common.Revision;
  * {@link CentralDogma#listFiles(String, String, Revision, PathPattern)} request to the
  * Central Dogma repository.
  */
-public final class FilesRequest {
+public final class FilesRequest extends AbstractFileRequest<FilesRequest> {
 
     private final CentralDogmaRepository centralDogmaRepo;
     private final PathPattern pathPattern;
@@ -79,6 +79,7 @@ public final class FilesRequest {
         requireNonNull(revision, "revision");
         return centralDogmaRepo.centralDogma().getFiles(centralDogmaRepo.projectName(),
                                                         centralDogmaRepo.repositoryName(),
-                                                        revision, pathPattern);
+                                                        revision, pathPattern, viewRaw(),
+                                                        renderTemplate(), variableFile());
     }
 }

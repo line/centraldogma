@@ -28,6 +28,7 @@ import org.opensaml.xmlsec.signature.support.SignatureConstants;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableMap.Builder;
 
@@ -83,7 +84,8 @@ import com.linecorp.centraldogma.internal.Jackson;
  * }
  * }</pre>
  */
-final class SamlAuthProperties {
+public final class SamlAuthProperties {
+
     /**
      * A default key name for signing.
      */
@@ -129,9 +131,13 @@ final class SamlAuthProperties {
      * An identity provider configuration. A single identity provider is supported.
      */
     private final Idp idp;
+    private final boolean signatureRequired;
 
+    /**
+     * Creates a new instance.
+     */
     @JsonCreator
-    SamlAuthProperties(
+    public SamlAuthProperties(
             @JsonProperty("entityId") String entityId,
             @JsonProperty("hostname") String hostname,
             @JsonProperty("signingKey") @Nullable String signingKey,
@@ -139,6 +145,21 @@ final class SamlAuthProperties {
             @JsonProperty("keyStore") KeyStore keyStore,
             @JsonProperty("acs") @Nullable Acs acs,
             @JsonProperty("idp") Idp idp) {
+        this(entityId, hostname, signingKey, encryptionKey, keyStore, acs, idp, true);
+    }
+
+    /**
+     * Creates a new instance.
+     */
+    @VisibleForTesting
+    public SamlAuthProperties(String entityId,
+                              String hostname,
+                              @Nullable String signingKey,
+                              @Nullable String encryptionKey,
+                              KeyStore keyStore,
+                              @Nullable Acs acs,
+                              Idp idp,
+                              boolean signatureRequired) {
         this.entityId = requireNonNull(entityId, "entityId");
         this.hostname = requireNonNull(hostname, "hostname");
         this.signingKey = firstNonNull(signingKey, DEFAULT_SIGNING_KEY);
@@ -146,6 +167,7 @@ final class SamlAuthProperties {
         this.keyStore = requireNonNull(keyStore, "keyStore");
         this.acs = acs;
         this.idp = requireNonNull(idp, "idp");
+        this.signatureRequired = signatureRequired;
     }
 
     @JsonProperty
@@ -184,6 +206,13 @@ final class SamlAuthProperties {
         return idp;
     }
 
+    /**
+     * Returns {@code true} if the signature is required for the SAML messages. This is only used for testing.
+     */
+    public boolean signatureRequired() {
+        return signatureRequired;
+    }
+
     @Override
     public String toString() {
         try {
@@ -193,7 +222,10 @@ final class SamlAuthProperties {
         }
     }
 
-    static class KeyStore {
+    /**
+     * A configuration for the keystore.
+     */
+    public static class KeyStore {
         /**
          * A default signature algorithm.
          */
@@ -230,12 +262,15 @@ final class SamlAuthProperties {
          */
         private final String signatureAlgorithm;
 
+        /**
+         * Creates a new instance.
+         */
         @JsonCreator
-        KeyStore(@JsonProperty("type") @Nullable String type,
-                 @JsonProperty("path") String path,
-                 @JsonProperty("password") @Nullable String password,
-                 @JsonProperty("keyPasswords") @Nullable Map<String, String> keyPasswords,
-                 @JsonProperty("signatureAlgorithm") @Nullable String signatureAlgorithm) {
+        public KeyStore(@JsonProperty("type") @Nullable String type,
+                        @JsonProperty("path") String path,
+                        @JsonProperty("password") @Nullable String password,
+                        @JsonProperty("keyPasswords") @Nullable Map<String, String> keyPasswords,
+                        @JsonProperty("signatureAlgorithm") @Nullable String signatureAlgorithm) {
             this.type = firstNonNull(type, java.security.KeyStore.getDefaultType());
             this.path = requireNonNull(path, "path");
             this.password = password;
@@ -280,12 +315,18 @@ final class SamlAuthProperties {
         }
     }
 
-    static class Acs {
+    /**
+     * Assertion Consumer Service (ACS) configuration.
+     */
+    public static class Acs {
 
         private final List<SamlEndpoint> endpoints;
 
+        /**
+         * Creates a new instance.
+         */
         @JsonCreator
-        Acs(@JsonProperty("endpoints") List<SamlEndpoint> endpoints) {
+        public Acs(@JsonProperty("endpoints") List<SamlEndpoint> endpoints) {
             this.endpoints = requireNonNull(endpoints, "endpoints");
         }
 
@@ -295,7 +336,10 @@ final class SamlAuthProperties {
         }
     }
 
-    static class Idp {
+    /**
+     * An identity provider (IdP) configuration.
+     */
+    public static class Idp {
         /**
          * An ID of the identity provider.
          */
@@ -336,14 +380,17 @@ final class SamlAuthProperties {
         @Nullable
         private final String attributeLoginName;
 
+        /**
+         * Creates a new instance.
+         */
         @JsonCreator
-        Idp(@JsonProperty("entityId") String entityId,
-            @JsonProperty("uri") String uri,
-            @JsonProperty("binding") @Nullable String binding,
-            @JsonProperty("signingKey") @Nullable String signingKey,
-            @JsonProperty("encryptionKey") @Nullable String encryptionKey,
-            @JsonProperty("subjectLoginNameIdFormat") @Nullable String subjectLoginNameIdFormat,
-            @JsonProperty("attributeLoginName") @Nullable String attributeLoginName) {
+        public Idp(@JsonProperty("entityId") String entityId,
+                   @JsonProperty("uri") String uri,
+                   @JsonProperty("binding") @Nullable String binding,
+                   @JsonProperty("signingKey") @Nullable String signingKey,
+                   @JsonProperty("encryptionKey") @Nullable String encryptionKey,
+                   @JsonProperty("subjectLoginNameIdFormat") @Nullable String subjectLoginNameIdFormat,
+                   @JsonProperty("attributeLoginName") @Nullable String attributeLoginName) {
             this.entityId = requireNonNull(entityId, "entityId");
             this.uri = requireNonNull(uri, "uri");
             this.binding = binding != null ? SamlBindingProtocol.valueOf(binding)

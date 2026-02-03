@@ -42,7 +42,6 @@ import com.google.common.collect.ImmutableSet.Builder;
 import com.linecorp.armeria.common.Flags;
 import com.linecorp.armeria.common.SessionProtocol;
 import com.linecorp.armeria.server.ServerPort;
-import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.auth.AuthConfig;
 import com.linecorp.centraldogma.server.auth.AuthProvider;
 import com.linecorp.centraldogma.server.auth.AuthProviderFactory;
@@ -84,7 +83,7 @@ public final class CentralDogmaBuilder {
     @Nullable
     private TlsConfig tls;
     @Nullable
-    private EncryptionAtRestConfig encryptionAtRest;
+    private EncryptionConfig encryption;
     private final List<String> trustedProxyAddresses = new ArrayList<>();
     private final List<String> clientAddressSources = new ArrayList<>();
     @Nullable
@@ -185,10 +184,10 @@ public final class CentralDogmaBuilder {
     }
 
     /**
-     * Sets whether encryption at rest is enabled or not.
+     * Sets the encryption configuration.
      */
-    public CentralDogmaBuilder encryptionAtRest(EncryptionAtRestConfig encryptionAtRest) {
-        this.encryptionAtRest = requireNonNull(encryptionAtRest, "encryptionAtRest");
+    public CentralDogmaBuilder encryption(EncryptionConfig encryption) {
+        this.encryption = requireNonNull(encryption, "encryption");
         return this;
     }
 
@@ -603,7 +602,7 @@ public final class CentralDogmaBuilder {
             authCfg = new AuthConfig(
                     authProviderFactory, systemAdminSet, caseSensitiveLoginNames,
                     sessionCacheSpec, sessionTimeoutMillis, sessionValidationSchedule,
-                    authProviderProperties != null ? Jackson.valueToTree(authProviderProperties) : null);
+                    authProviderProperties);
         } else {
             authCfg = null;
             logger.info("{} is not specified, so {} will not be configured.",
@@ -611,7 +610,7 @@ public final class CentralDogmaBuilder {
                         AuthConfig.class.getSimpleName());
         }
 
-        return new CentralDogmaConfig(dataDir, ports, tls, encryptionAtRest, trustedProxyAddresses,
+        return new CentralDogmaConfig(dataDir, ports, tls, encryption, trustedProxyAddresses,
                                       clientAddressSources, numWorkers, maxNumConnections,
                                       requestTimeoutMillis, idleTimeoutMillis, maxFrameLength,
                                       numRepositoryWorkers, repositoryCacheSpec,

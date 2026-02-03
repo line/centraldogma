@@ -15,14 +15,18 @@
  */
 package com.linecorp.centraldogma.client;
 
+import static com.linecorp.centraldogma.internal.Util.validateStructuredFilePath;
 import static java.util.Objects.requireNonNull;
 
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 
+import javax.annotation.Nullable;
+
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.EntryNotFoundException;
 import com.linecorp.centraldogma.common.Query;
+import com.linecorp.centraldogma.common.QueryType;
 import com.linecorp.centraldogma.common.Revision;
 
 /**
@@ -33,6 +37,10 @@ public final class WatchRequest<T> extends WatchOptions {
 
     private final CentralDogmaRepository centralDogmaRepo;
     private final Query<T> query;
+    private boolean viewRaw;
+    private boolean renderTemplate;
+    @Nullable
+    private String variableFile;
 
     WatchRequest(CentralDogmaRepository centralDogmaRepo, Query<T> query) {
         this.centralDogmaRepo = centralDogmaRepo;
@@ -55,6 +63,51 @@ public final class WatchRequest<T> extends WatchOptions {
     public WatchRequest<T> errorOnEntryNotFound(boolean errorOnEntryNotFound) {
         //noinspection unchecked
         return (WatchRequest<T>) super.errorOnEntryNotFound(errorOnEntryNotFound);
+    }
+
+    /**
+     * Sets whether to view the raw content of the watched files.
+     * The default is {@code false}.
+     *
+     * <p>Note that {@link QueryType#JSON_PATH} query cannot be used with raw view.
+     * @throws IllegalArgumentException if {@link QueryType#JSON_PATH} query is used with raw view
+     */
+    public WatchRequest<T> viewRaw(boolean viewRaw) {
+        if (viewRaw && query.type() == QueryType.JSON_PATH) {
+            throw new IllegalArgumentException("JSON_PATH query cannot be used with raw view");
+        }
+        this.viewRaw = viewRaw;
+        return this;
+    }
+
+    /**
+     * Sets whether to apply template processing to the file using the variables defined in
+     * the same repository and its parent project.
+     *
+     * <p>If {@link #viewRaw(boolean)} is set to true, the template processing will be applied to the raw
+     * content. If {@link #viewRaw(boolean)} is set to false, the template processing will be applied to the
+     * normalized content.
+     */
+    public WatchRequest<T> renderTemplate(boolean renderTemplate) {
+        this.renderTemplate = renderTemplate;
+        variableFile = null;
+        return this;
+    }
+
+    /**
+     * Applies template processing to the file using the specified variable file in the same repository.
+     * The variable file must be a JSON, JSON5 or YAML file and have an object at the top level (arrays or
+     * string are not allowed).
+     *
+     * <p>If {@link #viewRaw(boolean)} is set to true, the template processing will be applied to the raw
+     * content. If {@link #viewRaw(boolean)} is set to false, the template processing will be applied to the
+     * normalized content.
+     */
+    public WatchRequest<T> renderTemplate(String variableFile) {
+        validateStructuredFilePath(variableFile, "variableFile");
+        renderTemplate = true;
+        this.variableFile = variableFile;
+        return this;
     }
 
     /**
@@ -86,6 +139,7 @@ public final class WatchRequest<T> extends WatchOptions {
         return centralDogmaRepo.centralDogma().watchFile(centralDogmaRepo.projectName(),
                                                          centralDogmaRepo.repositoryName(),
                                                          lastKnownRevision, query,
-                                                         timeoutMillis(), errorOnEntryNotFound());
+                                                         timeoutMillis(), errorOnEntryNotFound(), viewRaw,
+                                                         renderTemplate, variableFile, null);
     }
 }

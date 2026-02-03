@@ -30,6 +30,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
 import org.jspecify.annotations.Nullable;
+import org.junit.jupiter.api.Assumptions;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
@@ -54,6 +56,15 @@ class MirrorAccessControlTest {
 
     static final String TEST_PROJ = "test_mirror_access_control";
     static final String TEST_REPO = "bar";
+
+    // The SSH test key file is stored as GitHub Secrets and automatically created during CI builds.
+
+    @BeforeAll
+    static void checkSshKeyFileExists() {
+        Assumptions.assumeTrue(
+                MirrorRunnerTest.class.getResource(PRIVATE_KEY_FILE) != null,
+                "Skipping test because SSH key file '" + PRIVATE_KEY_FILE + "' does not exist. ");
+    }
 
     @RegisterExtension
     final CentralDogmaExtension dogma = new CentralDogmaExtension() {

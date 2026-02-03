@@ -35,13 +35,23 @@ public final class Latest<U> {
 
     private final Revision revision;
     @Nullable
+    private final Revision templateRevision;
+    @Nullable
     private final U value;
 
     /**
      * Creates a new instance with the specified {@link Revision} and value.
      */
     public Latest(Revision revision, @Nullable U value) {
+        this(revision, null, value);
+    }
+
+    /**
+     * Creates a new instance with the specified {@link Revision}s and value.
+     */
+    public Latest(Revision revision, @Nullable Revision templateRevision, @Nullable U value) {
         this.revision = requireNonNull(revision, "revision");
+        this.templateRevision = templateRevision;
         this.value = value;
     }
 
@@ -50,6 +60,18 @@ public final class Latest<U> {
      */
     public Revision revision() {
         return revision;
+    }
+
+    /**
+     * Returns the revision of the template variables that were used to render the template and generate this
+     * {@code value}.
+     *
+     * <p>{@code null} if this {@code value} was not generated from a template using project or repository level
+     * variables.
+     */
+    @Nullable
+    public Revision templateRevision() {
+        return templateRevision;
     }
 
     /**
@@ -69,18 +91,21 @@ public final class Latest<U> {
             return false;
         }
         final Latest<?> that = (Latest<?>) o;
-        return revision.equals(that.revision) && Objects.equals(value, that.value);
+        return revision.equals(that.revision) &&
+               Objects.equals(templateRevision, that.templateRevision) &&
+               Objects.equals(value, that.value);
     }
 
     @Override
     public int hashCode() {
-        return revision.hashCode() * 31 + Objects.hashCode(value);
+        return Objects.hash(revision, templateRevision, value);
     }
 
     @Override
     public String toString() {
-        return MoreObjects.toStringHelper(this)
+        return MoreObjects.toStringHelper(this).omitNullValues()
                           .add("revision", revision)
+                          .add("templateRevision", templateRevision)
                           .add("value", value)
                           .toString();
     }

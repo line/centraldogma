@@ -16,11 +16,7 @@
 
 package com.linecorp.centraldogma.server.internal.admin.service;
 
-import static com.linecorp.centraldogma.server.internal.admin.auth.SessionUtil.getSessionIdFromCookie;
-import static com.linecorp.centraldogma.server.internal.admin.auth.SessionUtil.sessionCookieName;
-
 import org.jspecify.annotations.Nullable;
-import org.slf4j.Logger;
 
 import com.linecorp.armeria.common.HttpData;
 import com.linecorp.armeria.common.HttpHeaderNames;
@@ -28,18 +24,22 @@ import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.MediaType;
 import com.linecorp.armeria.common.ResponseHeaders;
+import com.linecorp.armeria.common.ResponseHeadersBuilder;
 import com.linecorp.armeria.common.ServerCacheControl;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.annotation.Get;
 import com.linecorp.armeria.server.annotation.ResponseConverter;
 import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.server.auth.AuthProvider;
 import com.linecorp.centraldogma.server.auth.SessionManager;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.internal.admin.auth.AuthUtil;
+import com.linecorp.centraldogma.server.internal.admin.auth.SessionCookieHandler;
 import com.linecorp.centraldogma.server.internal.admin.auth.SessionUtil;
 import com.linecorp.centraldogma.server.internal.admin.util.RestfulJsonResponseConverter;
 import com.linecorp.centraldogma.server.internal.api.AbstractService;
 import com.linecorp.centraldogma.server.metadata.User;
+import com.linecorp.centraldogma.server.storage.encryption.EncryptionStorageManager;
 
 /**
  * Annotated service object for managing users.
@@ -47,16 +47,23 @@ import com.linecorp.centraldogma.server.metadata.User;
 @ResponseConverter(RestfulJsonResponseConverter.class)
 public class UserService extends AbstractService {
 
-    private static Logger logger = org.slf4j.LoggerFactory.getLogger(UserService.class);
-
     @Nullable
     private final SessionManager sessionManager;
-    private final String sessionCookieName;
+    @Nullable
+    private final SessionCookieHandler sessionCookieHandler;
 
-    public UserService(@Nullable SessionManager sessionManager, boolean tlsEnabled, CommandExecutor executor) {
+    public UserService(@Nullable SessionManager sessionManager, boolean tlsEnabled, CommandExecutor executor,
+                       @Nullable AuthProvider authProvider, EncryptionStorageManager encryptionStorageManager) {
         super(executor);
-        sessionCookieName = sessionCookieName(tlsEnabled);
         this.sessionManager = sessionManager;
+        if (authProvider != null)  {
+            assert sessionManager != null;
+            sessionCookieHandler = new SessionCookieHandler(
+                    authProvider.parameters().sessionPropagatorWritableChecker(),
+                    tlsEnabled, encryptionStorageManager);
+        } else {
+            sessionCookieHandler = null;
+        }
     }
 
     /**
@@ -70,24 +77,41 @@ public class UserService extends AbstractService {
         final User user = AuthUtil.currentUser();
         final HttpData body = HttpData.wrap(Jackson.writeValueAsBytes(user));
         if (sessionManager != null) {
-            final String sessionId = getSessionIdFromCookie(ctx, sessionCookieName);
-            if (sessionId != null) {
+            assert sessionCookieHandler != null;
+            return HttpResponse.of(sessionCookieHandler.getSessionInfo(ctx).thenApply(sessionInfo -> {
+                if (sessionInfo == null) {
+                    return HttpResponse.of(HttpStatus.OK, MediaType.JSON_UTF_8, body);
+                }
+                final String sessionId = sessionInfo.sessionId();
+                if (sessionId == null)  {
+                    final String username = sessionInfo.username();
+                    final String csrfTokenFromSignedJwt = sessionInfo.csrfTokenFromSignedJwt();
+                    assert username != null;
+                    assert csrfTokenFromSignedJwt != null;
+                    return httpResponse(csrfTokenFromSignedJwt, body);
+                }
+
                 return HttpResponse.of(sessionManager.get(sessionId).thenApply(session -> {
                     if (session == null) {
                         return HttpResponse.of(HttpStatus.OK, MediaType.JSON_UTF_8, body);
                     }
-                    final ResponseHeaders headers =
-                            ResponseHeaders.builder(HttpStatus.OK)
-                                           .contentType(MediaType.JSON_UTF_8)
-                                           .set(SessionUtil.X_CSRF_TOKEN, session.csrfToken())
-                                           .set(HttpHeaderNames.CACHE_CONTROL,
-                                                ServerCacheControl.DISABLED.asHeaderValue())
-                                           .build();
-                    return HttpResponse.of(headers, body);
+                    final String csrfToken = session.csrfToken();
+                    return httpResponse(csrfToken, body);
                 }));
-            }
+            }));
         }
 
         return HttpResponse.of(HttpStatus.OK, MediaType.JSON_UTF_8, body);
+    }
+
+    private static HttpResponse httpResponse(@Nullable String csrfToken, HttpData body) {
+        final ResponseHeadersBuilder builder =
+                ResponseHeaders.builder(HttpStatus.OK)
+                               .contentType(MediaType.JSON_UTF_8)
+                               .set(HttpHeaderNames.CACHE_CONTROL, ServerCacheControl.DISABLED.asHeaderValue());
+        if (csrfToken != null) {
+            builder.set(SessionUtil.X_CSRF_TOKEN, csrfToken);
+        }
+        return HttpResponse.of(builder.build(), body);
     }
 }

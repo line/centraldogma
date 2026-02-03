@@ -64,6 +64,7 @@ import com.linecorp.centraldogma.internal.thrift.WatchFileResult;
 import com.linecorp.centraldogma.internal.thrift.WatchRepositoryResult;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
+import com.linecorp.centraldogma.server.internal.api.TemplateParams;
 import com.linecorp.centraldogma.server.internal.api.WatchService;
 import com.linecorp.centraldogma.server.internal.storage.RequestAlreadyTimedOutException;
 import com.linecorp.centraldogma.server.internal.storage.project.ProjectApiManager;
@@ -323,8 +324,7 @@ public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
         handle(executor.execute(Command.push(convert(author), projectName, repositoryName,
                                              convert(baseRevision), summary, detail.getContent(),
                                              convert(detail.getMarkup()), convertedChanges))
-                       .thenCompose(commitResult -> {
-                           final com.linecorp.centraldogma.common.Revision newRev = commitResult.revision();
+                       .thenCompose(newRev -> {
                            return projectApiManager.getProject(projectName, null).repos().get(repositoryName)
                                                    .history(newRev, newRev, "/**");
                        })
@@ -421,8 +421,8 @@ public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
 
         final Repository repo = projectApiManager.getProject(projectName, null).repos().get(repositoryName);
         final CompletableFuture<com.linecorp.centraldogma.common.Entry<Object>> future =
-                watchService.watchFile(repo, convert(lastKnownRevision), convert(query), timeoutMillis,
-                                       false);
+                watchService.watchFile(repo, convert(lastKnownRevision), convert(query),
+                                       timeoutMillis, false, TemplateParams.disabled(), null);
 
         handleWatchFileResult(future, resultHandler);
     }

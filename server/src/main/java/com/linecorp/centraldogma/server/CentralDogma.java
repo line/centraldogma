@@ -55,6 +55,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiFunction;
+import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -120,6 +121,7 @@ import com.linecorp.centraldogma.common.ShuttingDownException;
 import com.linecorp.centraldogma.internal.CsrfToken;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.thrift.CentralDogmaService;
+import com.linecorp.centraldogma.server.auth.AllowedUrisConfig;
 import com.linecorp.centraldogma.server.auth.AuthConfig;
 import com.linecorp.centraldogma.server.auth.AuthProvider;
 import com.linecorp.centraldogma.server.auth.AuthProviderParameters;
@@ -150,9 +152,11 @@ import com.linecorp.centraldogma.server.internal.api.auth.ApplicationTokenAuthor
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresProjectRoleDecorator.RequiresProjectRoleDecoratorFactory;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresRepositoryRoleDecorator.RequiresRepositoryRoleDecoratorFactory;
 import com.linecorp.centraldogma.server.internal.api.converter.HttpApiRequestConverter;
+import com.linecorp.centraldogma.server.internal.api.sysadmin.KeyManagementService;
 import com.linecorp.centraldogma.server.internal.api.sysadmin.MirrorAccessControlService;
 import com.linecorp.centraldogma.server.internal.api.sysadmin.ServerStatusService;
 import com.linecorp.centraldogma.server.internal.api.sysadmin.TokenService;
+import com.linecorp.centraldogma.server.internal.api.variable.VariableServiceV1;
 import com.linecorp.centraldogma.server.internal.mirror.DefaultMirrorAccessController;
 import com.linecorp.centraldogma.server.internal.mirror.DefaultMirroringServicePlugin;
 import com.linecorp.centraldogma.server.internal.mirror.MirrorAccessControl;
@@ -355,6 +359,17 @@ public class CentralDogma implements AutoCloseable {
     }
 
     /**
+     * Returns the {@link EncryptionStorageManager} of the server.
+     */
+    public EncryptionStorageManager encryptionStorageManager() {
+        final EncryptionStorageManager manager = encryptionStorageManager;
+        if (manager == null) {
+            throw new IllegalStateException("CentralDogma is not started yet.");
+        }
+        return manager;
+    }
+
+    /**
      * Returns the {@link MirroringService} of the server.
      *
      * @return the {@link MirroringService} if the server is started and mirroring is enabled.
@@ -537,9 +552,9 @@ public class CentralDogma implements AutoCloseable {
                                     return null;
                                 });
                 try {
-                    future.get(10, TimeUnit.SECONDS);
+                    future.get(60, TimeUnit.SECONDS);
                 } catch (Exception e) {
-                    logger.warn("Failed to stop plugins on the leader replica in 10 seconds.", e);
+                    logger.warn("Failed to stop plugins on the leader replica in 60 seconds.", e);
                 }
             }
         };
@@ -769,7 +784,7 @@ public class CentralDogma implements AutoCloseable {
                                   .build());
         final Function<? super HttpService, AuthService> authService =
                 authService(authProvider, sessionManager);
-        configureHttpApi(sb, projectApiManager, executor, watchService, mds, authProvider, authService,
+        configureHttpApi(sb, projectApiManager, executor, watchService, mds, pm, authProvider, authService,
                          meterRegistry, encryptionStorageManager, sessionManager, needsTls);
 
         configureMetrics(sb, meterRegistry);
@@ -838,17 +853,20 @@ public class CentralDogma implements AutoCloseable {
         }
 
         checkState(sessionManager != null, "SessionManager is null");
+        final BooleanSupplier sessionPropagatorWritableChecker = commandExecutor::isWritable;
         final AuthProviderParameters parameters = new AuthProviderParameters(
                 // Find application first, then find the session token.
                 new ApplicationTokenAuthorizer(mds::findTokenBySecret)
                         .orElse(new SessionCookieAuthorizer(
-                                sessionManager, tlsEnabled, encryptionStorageManager,
+                                sessionManager, sessionPropagatorWritableChecker,
+                                tlsEnabled, encryptionStorageManager,
                                 authCfg.systemAdministrators())),
                 cfg,
                 sessionManager::generateSessionId,
                 // Propagate login and logout events to the other replicas.
                 session -> commandExecutor.execute(Command.createSession(session)),
                 sessionId -> commandExecutor.execute(Command.removeSession(sessionId)),
+                sessionPropagatorWritableChecker,
                 sessionManager, tlsEnabled,
                 encryptionStorageManager);
         return authCfg.factory().create(parameters);
@@ -907,7 +925,7 @@ public class CentralDogma implements AutoCloseable {
     private void configureHttpApi(ServerBuilder sb,
                                   ProjectApiManager projectApiManager, CommandExecutor executor,
                                   WatchService watchService, MetadataService mds,
-                                  @Nullable AuthProvider authProvider,
+                                  ProjectManager pm, @Nullable AuthProvider authProvider,
                                   Function<? super HttpService, AuthService> authService,
                                   MeterRegistry meterRegistry,
                                   EncryptionStorageManager encryptionStorageManager,
@@ -946,7 +964,8 @@ public class CentralDogma implements AutoCloseable {
                 .annotatedService(new ServerStatusService(executor, statusManager))
                 .annotatedService(new ProjectServiceV1(projectApiManager, executor))
                 .annotatedService(new RepositoryServiceV1(executor, mds, encryptionStorageManager))
-                .annotatedService(new CredentialServiceV1(projectApiManager, executor));
+                .annotatedService(new CredentialServiceV1(projectApiManager, executor))
+                .annotatedService(new VariableServiceV1(pm, executor));
         if (LOGBACK_ENABLED) {
             apiV1ServiceBuilder.annotatedService(new LoggerService());
         }
@@ -975,7 +994,7 @@ public class CentralDogma implements AutoCloseable {
                                    return serviceName;
                                }
                            })
-                           .build(new ContentServiceV1(executor, watchService, meterRegistry));
+                           .build(new ContentServiceV1(executor, pm, watchService, meterRegistry));
 
         if (authProvider != null) {
             sb.service("/security_enabled", new AbstractHttpService() {
@@ -1001,7 +1020,8 @@ public class CentralDogma implements AutoCloseable {
                     Optional.ofNullable(authProvider.logoutApiService())
                             .orElseGet(() -> new DefaultLogoutService(
                                     authProvider.parameters().logoutSessionPropagator(),
-                                    sessionManager, needsTls));
+                                    authProvider.parameters().sessionPropagatorWritableChecker(),
+                                    sessionManager, needsTls, encryptionStorageManager));
             for (Route route : LOGOUT_API_ROUTES) {
                 sb.service(route, logout);
             }
@@ -1009,21 +1029,26 @@ public class CentralDogma implements AutoCloseable {
             authProvider.moreServices().forEach(sb::service);
         }
 
+        if (encryptionStorageManager.enabled()) {
+            apiV1ServiceBuilder.annotatedService(new KeyManagementService(executor, encryptionStorageManager));
+        }
+
         sb.annotatedService()
           .decorator(decorator)
           .decorator(DecodingService.newDecorator())
           .build(new GitHttpService(projectApiManager));
+        sb.annotatedService(API_V0_PATH_PREFIX, new UserService(sessionManager, needsTls, executor,
+                                                                authProvider, encryptionStorageManager));
 
         if (cfg.isWebAppEnabled()) {
-            sb.contextPath(API_V0_PATH_PREFIX)
-              .annotatedService(new UserService(sessionManager, needsTls, executor))
-              .annotatedService(new RepositoryService(projectApiManager, executor));
+            sb.annotatedService(API_V0_PATH_PREFIX, new RepositoryService(projectApiManager, executor));
 
             if (authProvider != null) {
                 // Will redirect to /web/auth/login by default.
-                sb.service(LOGIN_PATH, authProvider.webLoginService());
+                final AllowedUrisConfig allowedUrisConfig = AllowedUrisConfig.of(config().corsConfig());
+                sb.service(LOGIN_PATH, authProvider.webLoginService(allowedUrisConfig));
                 // Will redirect to /web/auth/logout by default.
-                sb.service(LOGOUT_PATH, authProvider.webLogoutService());
+                sb.service(LOGOUT_PATH, authProvider.webLogoutService(allowedUrisConfig));
             }
 
             // If the index.html is just returned, Next.js will handle the all remaining process such as
@@ -1236,9 +1261,16 @@ public class CentralDogma implements AutoCloseable {
         try {
             if (executor != null) {
                 logger.info("Stopping the command executor ..");
-                executor.stop();
+                executor.stop().get(60, TimeUnit.SECONDS);
                 logger.info("Stopped the command executor.");
             }
+        } catch (TimeoutException unused) {
+            success = false;
+            logger.warn("Failed to stop the command executor in 60 seconds.");
+        } catch (InterruptedException unused) {
+            success = false;
+            Thread.currentThread().interrupt();
+            logger.warn("Interrupted while stopping the command executor.");
         } catch (Throwable t) {
             success = false;
             logger.warn("Failed to stop the command executor:", t);

@@ -16,7 +16,7 @@
 
 package com.linecorp.centraldogma.server.auth;
 
-import static com.linecorp.centraldogma.server.internal.admin.auth.SessionUtil.createSessionIdCookie;
+import static com.linecorp.centraldogma.server.internal.admin.auth.SessionUtil.createSessionCookie;
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.PASSWORD;
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.USERNAME;
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.WRONG_PASSWORD;
@@ -193,7 +193,7 @@ class ReplicatedLoginAndLogoutTest {
     @Test
     void incorrectLogout() throws Exception {
         final int baselineReplicationLogCount = replicationLogCount();
-        final Cookie sessionCookie = createSessionIdCookie(WRONG_SESSION_ID, false, 60);
+        final Cookie sessionCookie = createSessionCookie("session-id", WRONG_SESSION_ID, false, 60);
         assertThat(logout(client1, sessionCookie, "csrfToken").status()).isEqualTo(HttpStatus.NO_CONTENT);
 
         // Ensure that a failed logout attempt does not produce any replication logs.

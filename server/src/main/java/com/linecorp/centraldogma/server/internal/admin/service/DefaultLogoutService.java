@@ -15,17 +15,13 @@
  */
 package com.linecorp.centraldogma.server.internal.admin.service;
 
-import static com.google.common.base.Strings.isNullOrEmpty;
-import static com.linecorp.centraldogma.server.internal.admin.auth.SessionUtil.X_CSRF_TOKEN;
-import static com.linecorp.centraldogma.server.internal.admin.auth.SessionUtil.getSessionIdFromCookie;
 import static com.linecorp.centraldogma.server.internal.admin.auth.SessionUtil.sessionCookieName;
+import static com.linecorp.centraldogma.server.internal.admin.auth.SessionUtil.validateCsrfToken;
 import static java.util.Objects.requireNonNull;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.function.BooleanSupplier;
 import java.util.function.Function;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import com.linecorp.armeria.common.Cookie;
 import com.linecorp.armeria.common.CookieBuilder;
@@ -38,22 +34,30 @@ import com.linecorp.armeria.common.util.UnmodifiableFuture;
 import com.linecorp.armeria.server.AbstractHttpService;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.centraldogma.server.auth.SessionManager;
+import com.linecorp.centraldogma.server.internal.admin.auth.SessionCookieHandler;
+import com.linecorp.centraldogma.server.storage.encryption.EncryptionStorageManager;
 
 public class DefaultLogoutService extends AbstractHttpService {
 
-    private static final Logger logger = LoggerFactory.getLogger(DefaultLogoutService.class);
-
     private final Function<String, CompletableFuture<Void>> logoutSessionPropagator;
     private final SessionManager sessionManager;
-    private final String sessionCookieName;
+    private final SessionCookieHandler sessionCookieHandler;
+
     private final Cookie invalidatingCookie;
 
     public DefaultLogoutService(Function<String, CompletableFuture<Void>> logoutSessionPropagator,
-                                SessionManager sessionManager, boolean tlsEnabled) {
+                                BooleanSupplier sessionPropagatorWritableChecker,
+                                SessionManager sessionManager, boolean tlsEnabled,
+                                EncryptionStorageManager encryptionStorageManager) {
         this.logoutSessionPropagator = requireNonNull(logoutSessionPropagator, "logoutSessionPropagator");
-        this.sessionManager = sessionManager;
-        sessionCookieName = sessionCookieName(tlsEnabled);
+        this.sessionManager = requireNonNull(sessionManager, "sessionManager");
+        sessionCookieHandler = new SessionCookieHandler(
+                sessionPropagatorWritableChecker, tlsEnabled, encryptionStorageManager);
+        requireNonNull(encryptionStorageManager, "encryptionStorageManager");
+
         // Create a cookie template for invalidation.
+        final String sessionCookieName = sessionCookieName(tlsEnabled,
+                                                           encryptionStorageManager.encryptSessionCookie());
         final CookieBuilder cookieBuilder = Cookie.secureBuilder(sessionCookieName, "")
                                                   .maxAge(0).path("/");
         if (!tlsEnabled) {
@@ -64,36 +68,54 @@ public class DefaultLogoutService extends AbstractHttpService {
 
     @Override
     protected HttpResponse doPost(ServiceRequestContext ctx, HttpRequest req) throws Exception {
-        final String sessionIdFromCookie = getSessionIdFromCookie(ctx, sessionCookieName);
-        if (sessionIdFromCookie == null) {
-            // Return 204 https://stackoverflow.com/questions/36220029/http-status-to-return-after-trying-to-logout-without-being-logged-in
-            return HttpResponse.of(HttpStatus.NO_CONTENT);
-        }
-
-        return HttpResponse.of(sessionManager.get(sessionIdFromCookie).thenCompose(session -> {
-            if (session == null) {
+        return HttpResponse.of(sessionCookieHandler.getSessionInfo(ctx).thenCompose(sessionInfo -> {
+            if (sessionInfo == null) {
+                // Return 204 https://stackoverflow.com/questions/36220029/http-status-to-return-after-trying-to-logout-without-being-logged-in
                 return UnmodifiableFuture.completedFuture(HttpResponse.of(HttpStatus.NO_CONTENT));
             }
 
-            final String csrfToken = req.headers().get(X_CSRF_TOKEN);
-            if (isNullOrEmpty(csrfToken) || !csrfToken.equals(session.csrfToken())) {
-                logger.trace("CSRF token mismatch: tokenPresent={}, ctx={}", !isNullOrEmpty(csrfToken), ctx);
+            final String sessionId = sessionInfo.sessionId();
+            if (sessionId == null) {
+                final String username = sessionInfo.username();
+                final String csrfTokenFromSignedJwt = sessionInfo.csrfTokenFromSignedJwt();
+                if (username == null || csrfTokenFromSignedJwt == null) {
+                    return UnmodifiableFuture.completedFuture(
+                            HttpResponse.of(HttpStatus.UNAUTHORIZED, MediaType.PLAIN_TEXT_UTF_8,
+                                            "Invalid session"));
+                }
+                if (!validateCsrfToken(ctx, req, csrfTokenFromSignedJwt)) {
+                    return UnmodifiableFuture.completedFuture(invalidCsrfTokenResponse());
+                }
                 return UnmodifiableFuture.completedFuture(
-                        HttpResponse.of(HttpStatus.FORBIDDEN, MediaType.PLAIN_TEXT_UTF_8,
-                                        "Invalid CSRF token"));
+                        HttpResponse.of(ResponseHeaders.builder(HttpStatus.OK)
+                                                       .cookie(invalidatingCookie)
+                                                       .build()));
             }
 
-            return invalidateSession(ctx, sessionIdFromCookie).thenCompose(
-                    unused -> logoutSessionPropagator.apply(sessionIdFromCookie).thenApply(unused2 -> {
-                        final ResponseHeaders headers = ResponseHeaders.builder(HttpStatus.OK)
-                                                                       .cookie(invalidatingCookie)
-                                                                       .build();
-                        return HttpResponse.of(headers);
-                    }));
+            return sessionManager.get(sessionId).thenCompose(session -> {
+                if (session == null) {
+                    return UnmodifiableFuture.completedFuture(HttpResponse.of(HttpStatus.NO_CONTENT));
+                }
+
+                if (!validateCsrfToken(ctx, req, session.csrfToken())) {
+                    return UnmodifiableFuture.completedFuture(invalidCsrfTokenResponse());
+                }
+
+                return invalidateSession(ctx, sessionId).thenCompose(
+                        unused -> logoutSessionPropagator.apply(sessionId).thenApply(unused2 -> {
+                            return HttpResponse.of(ResponseHeaders.builder(HttpStatus.OK)
+                                                                  .cookie(invalidatingCookie)
+                                                                  .build());
+                        }));
+            });
         }));
     }
 
-    protected CompletableFuture<Void> invalidateSession(ServiceRequestContext ctx, String sessionIdFromCookie) {
+    private static HttpResponse invalidCsrfTokenResponse() {
+        return HttpResponse.of(HttpStatus.FORBIDDEN, MediaType.PLAIN_TEXT_UTF_8, "Invalid CSRF token");
+    }
+
+    protected CompletableFuture<Void> invalidateSession(ServiceRequestContext ctx, String sessionId) {
         return UnmodifiableFuture.completedFuture(null);
     }
 }
