@@ -103,8 +103,6 @@ final class CentralDogmaSnapshot extends Snapshot {
         return resources.version();
     }
 
-
-
     @Override
     public Map<String, VersionedResource<?>> versionedResources(ResourceType resourceType) {
         // Have to override this method because of the type inference.
