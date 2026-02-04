@@ -1,0 +1,106 @@
+import java.util.stream.Collectors
+
+def aggregatedProjects = projectsWithFlags('java', 'publish') - projectsWithFlags('no_aggregation')
+
+configurations {
+    javadocClasspath {
+        // This configuration is meant to be resolved, not consumed by other projects.
+        canBeResolved = true
+        canBeConsumed = false
+        extendsFrom(configurations.runtimeClasspath)
+    }
+}
+
+dependencies {
+    aggregatedProjects.each { subproject ->
+        javadocClasspath(subproject)
+        // Add a dependency that explicitly requests the 'optional' capability.
+        // This tells Gradle to include the dependencies associated with the 'optional' feature
+        // from the subproject.
+        javadocClasspath(project(subproject.path)) {
+            capabilities {
+                requireCapability("${subproject.group}:${subproject.name}-optional")
+            }
+        }
+    }
+}
+
+tasks.javadoc.configure {
+    aggregatedProjects.each {
+        source it.sourceSets.main.allJava
+        source it.sourceSets.optional.allJava
+        dependsOn it.tasks.compileJava
+    }
+    classpath = configurations.javadocClasspath
+    destinationDir = project.file("${project(":site").buildDir}/site/apidocs")
+}
+tasks.build.dependsOn tasks.javadoc
+
+task checkJavadoc(
+        group: 'Verification',
+        description: 'Ensures the public API does not expose the shaded classes.',
+        dependsOn: tasks.javadoc) {
+
+    def javadocDir = file("${tasks.javadoc.destinationDir}/com/linecorp/centraldogma")
+    def reportFile = file("${project.buildDir}/test-results/referenced-classes.txt")
+    inputs.dir javadocDir
+    outputs.file reportFile
+
+    doLast {
+        def inheritancePrefixes = [
+                'methods.inherited.from.class.',
+                'fields.inherited.from.class.',
+                'nested.classes.inherited.from.class.'
+        ]
+        def allowedListPrefixes = ['java.', 'javax.']
+        def disallowedListPrefixes = ['com.linecorp.centraldogma.internal.',
+                                      'com.linecorp.centraldogma.server.internal.']
+        disallowedListPrefixes.addAll(rootProject.ext.relocations.collect {
+            def packageName = it["from"]
+            assert packageName != null
+            packageName + '.'
+        })
+
+        def errors = []
+
+        reportFile.parentFile.mkdirs()
+        reportFile.withPrintWriter('UTF-8') { reportOut ->
+            fileTree(javadocDir).sort().each { File f ->
+                if (!f.name.endsWith('.html') || f.name == 'package-tree.html') {
+                    return
+                }
+
+                // Look for all the class names in the Javadoc.
+                def matcher = f.text =~ /([a-z]+\.(?:[a-z]+\.)+[A-Z][._A-Za-z0-9$]*[_A-Za-z0-9])/
+                def classNames = matcher.findAll().stream().flatMap({ it.stream() }).map({ name ->
+                    for (prefix in inheritancePrefixes) {
+                        if (name.startsWith(prefix)) {
+                            return name.substring(prefix.length())
+                        }
+                    }
+                    return name
+                }).filter({ name ->
+                    allowedListPrefixes.find { name.startsWith(it) } == null
+                }).collect(Collectors.toSet())
+
+                // .. and make sure none of them are disallowed.
+                classNames.sort().each { className ->
+                    def reportLine = "${f.name.replaceFirst(/\.html$/, '')} -> ${className}"
+                    reportOut.println reportLine
+
+                    disallowedListPrefixes.each { prefix ->
+                        if (className.startsWith(prefix)) {
+                            errors += reportLine
+                        }
+                    }
+                }
+            }
+        }
+
+        if (!errors.empty) {
+            throw new Exception("Disallowed class(es) in the public API:${System.lineSeparator()}- " +
+                    errors.join("${System.lineSeparator()}- "))
+        }
+    }
+}
+tasks.test.dependsOn tasks.checkJavadoc
