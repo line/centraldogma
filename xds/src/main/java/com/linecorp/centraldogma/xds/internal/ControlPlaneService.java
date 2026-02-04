@@ -57,9 +57,7 @@ import io.envoyproxy.envoy.service.discovery.v3.DiscoveryResponse;
 import io.grpc.MethodDescriptor;
 import io.grpc.MethodDescriptor.Marshaller;
 import io.grpc.MethodDescriptor.PrototypeMarshaller;
-import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
-import io.micrometer.core.instrument.Tags;
 import io.micrometer.core.instrument.binder.jvm.ExecutorServiceMetrics;
 import io.netty.util.concurrent.DefaultThreadFactory;
 
@@ -79,42 +77,33 @@ public final class ControlPlaneService extends XdsResourceWatchingService {
 
     private static final String DEFAULT_GROUP = "default_group";
 
-    private static final String VERSION_METRIC_NAME = "xds.control.plane.snapshot.version";
-
     // TODO(minwoox): Implement better cache implementation that updates only changed resources
     //                instead of this snapshot based implementation.
     private final SimpleCache<String> cache = new SimpleCache<>(node -> DEFAULT_GROUP);
 
     private final ScheduledExecutorService controlPlaneExecutor;
-    private final MeterRegistry meterRegistry;
+    private final ControlPlaneMetrics metrics;
     // Accessed only from controlPlaneExecutor.
     private final CentralDogmaXdsResources centralDogmaXdsResources = new CentralDogmaXdsResources();
     @Nullable
     private volatile XdsEndpointService xdsEndpointService;
     private volatile boolean stop;
 
-    private Gauge clustersVersionGauge;
-    private Gauge endpointsVersionGauge;
-    private Gauge listenersVersionGauge;
-    private Gauge routesVersionGauge;
-    private Gauge secretsVersionGauge;
-
     ControlPlaneService(Project xdsProject, MeterRegistry meterRegistry) {
         super(xdsProject, "xds.control.plane.service.", meterRegistry);
-        this.meterRegistry = meterRegistry;
         controlPlaneExecutor = ExecutorServiceMetrics.monitor(
                 meterRegistry,
                 Executors.newSingleThreadScheduledExecutor(
                         new DefaultThreadFactory("control-plane-executor", true)),
                 "controlPlaneExecutor");
-        initializeVersionMetrics();
+        metrics = new ControlPlaneMetrics(meterRegistry);
     }
 
     void start(PluginInitContext pluginInitContext) {
         init();
         final CentralDogmaSnapshot snapshot = centralDogmaXdsResources.snapshot();
         cache.setSnapshot(DEFAULT_GROUP, snapshot);
-        updateVersionMetrics(snapshot);
+        metrics.onSnapshotUpdate(snapshot);
         final CommandExecutor commandExecutor = pluginInitContext.commandExecutor();
         final V3DiscoveryServer server = new V3DiscoveryServer(new LoggingDiscoveryServerCallbacks(), cache);
         final GrpcService grpcService = GrpcService.builder()
@@ -231,74 +220,7 @@ public final class ControlPlaneService extends XdsResourceWatchingService {
     protected void onDiffHandled() {
         final CentralDogmaSnapshot snapshot = centralDogmaXdsResources.snapshot();
         cache.setSnapshot(DEFAULT_GROUP, snapshot);
-        updateVersionMetrics(snapshot);
-    }
-
-    private void initializeVersionMetrics() {
-        clustersVersionGauge = Gauge.builder(VERSION_METRIC_NAME, () -> 0)
-                                    .tags(Tags.of("resource", "cluster", "version", "init"))
-                                    .register(meterRegistry);
-        endpointsVersionGauge = Gauge.builder(VERSION_METRIC_NAME, () -> 0)
-                                     .tags(Tags.of("resource", "endpoint", "version", "init"))
-                                     .register(meterRegistry);
-        listenersVersionGauge = Gauge.builder(VERSION_METRIC_NAME, () -> 0)
-                                     .tags(Tags.of("resource", "listener", "version", "init"))
-                                     .register(meterRegistry);
-        routesVersionGauge = Gauge.builder(VERSION_METRIC_NAME, () -> 0)
-                                  .tags(Tags.of("resource", "route", "version", "init"))
-                                  .register(meterRegistry);
-        secretsVersionGauge = Gauge.builder(VERSION_METRIC_NAME, () -> 0)
-                                   .tags(Tags.of("resource", "secret", "version", "init"))
-                                   .register(meterRegistry);
-    }
-
-    private void updateVersionMetrics(CentralDogmaSnapshot snapshot) {
-        final String clustersVersion = snapshot.clustersVersion();
-        if (!clustersVersion.equals(clustersVersionGauge.getId().getTag("version"))) {
-            clustersVersionGauge.close();
-            meterRegistry.remove(clustersVersionGauge);
-            clustersVersionGauge = Gauge.builder(VERSION_METRIC_NAME, () -> 1)
-                                        .tags(Tags.of("resource", "cluster", "version", clustersVersion))
-                                        .register(meterRegistry);
-        }
-
-        final String endpointsVersion = snapshot.endpointsVersion();
-        if (!endpointsVersion.equals(endpointsVersionGauge.getId().getTag("version"))) {
-            endpointsVersionGauge.close();
-            meterRegistry.remove(endpointsVersionGauge);
-            endpointsVersionGauge = Gauge.builder(VERSION_METRIC_NAME, () -> 1)
-                                         .tags(Tags.of("resource", "endpoint",
-                                                       "version", endpointsVersion))
-                                         .register(meterRegistry);
-        }
-
-        final String listenersVersion = snapshot.listenersVersion();
-        if (!listenersVersion.equals(listenersVersionGauge.getId().getTag("version"))) {
-            listenersVersionGauge.close();
-            meterRegistry.remove(listenersVersionGauge);
-            listenersVersionGauge = Gauge.builder(VERSION_METRIC_NAME, () -> 1)
-                                         .tags(Tags.of("resource", "listener",
-                                                       "version", listenersVersion))
-                                         .register(meterRegistry);
-        }
-
-        final String routesVersion = snapshot.routesVersion();
-        if (!routesVersion.equals(routesVersionGauge.getId().getTag("version"))) {
-            routesVersionGauge.close();
-            meterRegistry.remove(routesVersionGauge);
-            routesVersionGauge = Gauge.builder(VERSION_METRIC_NAME, () -> 1)
-                                      .tags(Tags.of("resource", "route", "version", routesVersion))
-                                      .register(meterRegistry);
-        }
-
-        final String secretsVersion = snapshot.secretsVersion();
-        if (!secretsVersion.equals(secretsVersionGauge.getId().getTag("version"))) {
-            secretsVersionGauge.close();
-            meterRegistry.remove(secretsVersionGauge);
-            secretsVersionGauge = Gauge.builder(VERSION_METRIC_NAME, () -> 1)
-                                       .tags(Tags.of("resource", "secret", "version", secretsVersion))
-                                       .register(meterRegistry);
-        }
+        metrics.onSnapshotUpdate(snapshot);
     }
 
     @Override
@@ -308,6 +230,7 @@ public final class ControlPlaneService extends XdsResourceWatchingService {
 
     void stop() {
         stop = true;
+        metrics.onStopped();
         final XdsEndpointService xdsEndpointService = this.xdsEndpointService;
         if (xdsEndpointService != null) {
             if (xdsEndpointService.batchUpdateTaskSize() > 0) {

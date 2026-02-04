@@ -23,7 +23,6 @@ import static com.linecorp.centraldogma.xds.internal.XdsTestUtil.updateCluster;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
-import java.util.Collection;
 import java.util.concurrent.TimeUnit;
 
 import org.junit.jupiter.api.Test;
@@ -34,6 +33,7 @@ import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
 import io.envoyproxy.envoy.config.cluster.v3.Cluster;
+import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
@@ -54,27 +54,30 @@ class XdsSnapshotVersionMetricsTest {
     void snapshotVersionMetrics() throws Exception {
         final WebClient webClient = dogma.httpClient();
 
-        // Initial empty version metrics should be registered with "empty_resources" version
-        await().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> {
-            assertVersionGaugeExists(meterRegistry, "cluster");
-            assertVersionGaugeExists(meterRegistry, "endpoint");
-            assertVersionGaugeExists(meterRegistry, "listener");
-            assertVersionGaugeExists(meterRegistry, "route");
-            assertVersionGaugeExists(meterRegistry, "secret");
-        });
+        final int initialClusterVersion = getRevisionFromCounter(meterRegistry, "cluster");
+        final int initialEndpointVersion = getRevisionFromCounter(meterRegistry, "endpoint");
+        final int initialListenerVersion = getRevisionFromCounter(meterRegistry, "listener");
+        final int initialRouteVersion = getRevisionFromCounter(meterRegistry, "route");
+        final int initialSecretVersion = getRevisionFromCounter(meterRegistry, "secret");
 
-        final String initialClusterVersion = getVersionFromGauge(meterRegistry, "cluster");
-        final String initialEndpointVersion = getVersionFromGauge(meterRegistry, "endpoint");
-        final String initialListenerVersion = getVersionFromGauge(meterRegistry, "listener");
-        final String initialRouteVersion = getVersionFromGauge(meterRegistry, "route");
-        final String initialSecretVersion = getVersionFromGauge(meterRegistry, "secret");
+        final int isClusterInitialized = isResourceInitialized(meterRegistry, "cluster");
+        final int isEndpointInitialized = isResourceInitialized(meterRegistry, "endpoint");
+        final int isListenerInitialized = isResourceInitialized(meterRegistry, "listener");
+        final int isRouteInitialized = isResourceInitialized(meterRegistry, "route");
+        final int isSecretInitialized = isResourceInitialized(meterRegistry, "secret");
 
-        // All initial versions should be "empty_resources"
-        assertThat(initialClusterVersion).isEqualTo("empty_resources");
-        assertThat(initialEndpointVersion).isEqualTo("empty_resources");
-        assertThat(initialListenerVersion).isEqualTo("empty_resources");
-        assertThat(initialRouteVersion).isEqualTo("empty_resources");
-        assertThat(initialSecretVersion).isEqualTo("empty_resources");
+        assertThat(initialClusterVersion).isEqualTo(1);
+        assertThat(initialEndpointVersion).isEqualTo(1);
+        assertThat(initialListenerVersion).isEqualTo(1);
+        assertThat(initialRouteVersion).isEqualTo(1);
+        assertThat(initialSecretVersion).isEqualTo(1);
+
+        // Resources are not initialized until non-"empty_resources" are created
+        assertThat(isClusterInitialized).isEqualTo(0);
+        assertThat(isEndpointInitialized).isEqualTo(0);
+        assertThat(isListenerInitialized).isEqualTo(0);
+        assertThat(isRouteInitialized).isEqualTo(0);
+        assertThat(isSecretInitialized).isEqualTo(0);
 
         // Create a group and cluster
         createGroup("metrics-test", webClient);
@@ -84,13 +87,10 @@ class XdsSnapshotVersionMetricsTest {
 
         // Version should change after adding a cluster
         await().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> {
-            final String newVersion = getVersionFromGauge(meterRegistry, "cluster");
-            assertThat(newVersion).isNotEqualTo(initialClusterVersion);
-            // Version should be a SHA-256 hash (64 characters)
-            assertThat(newVersion.length()).isEqualTo(64);
+            final int newRevision = getRevisionFromCounter(meterRegistry, "cluster");
+            assertThat(newRevision).isEqualTo(2);
+            assertThat(isResourceInitialized(meterRegistry, "cluster")).isEqualTo(1);
         });
-
-        final String versionAfterCreate = getVersionFromGauge(meterRegistry, "cluster");
 
         // Update the cluster
         final Cluster cluster2 = cluster(clusterName, 2);
@@ -98,29 +98,23 @@ class XdsSnapshotVersionMetricsTest {
 
         // Version should change after updating the cluster
         await().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> {
-            final String newVersion = getVersionFromGauge(meterRegistry, "cluster");
-            assertThat(newVersion).isNotEqualTo(versionAfterCreate);
+            final int newVersion = getRevisionFromCounter(meterRegistry, "cluster");
+            assertThat(newVersion).isEqualTo(3);
+            assertThat(isResourceInitialized(meterRegistry, "cluster")).isEqualTo(1);
         });
-
-        // Verify gauge value is always 1 (info gauge pattern)
-        final Gauge clusterGauge = meterRegistry.find("xds.control.plane.snapshot.version")
-                                                 .tag("resource", "cluster")
-                                                 .gauge();
-        assertThat(clusterGauge.value()).isEqualTo(1.0);
     }
 
-    private static void assertVersionGaugeExists(MeterRegistry meterRegistry, String resourceType) {
-        final Collection<Gauge> gauges = meterRegistry.find("xds.control.plane.snapshot.version")
-                                                      .tag("resource", resourceType)
-                                                      .gauges();
-        assertThat(gauges).hasSize(1);
+    private static int getRevisionFromCounter(MeterRegistry meterRegistry, String resourceType) {
+        final Counter counter = meterRegistry.find("xds.control.plane.snapshot.revision")
+                                             .tag("resource", resourceType)
+                                             .counter();
+        return (int) counter.count();
     }
 
-    private static String getVersionFromGauge(MeterRegistry meterRegistry, String resourceType) {
-        final Collection<Gauge> gauges = meterRegistry.find("xds.control.plane.snapshot.version")
-                                                      .tag("resource", resourceType)
-                                                      .gauges();
-        assertThat(gauges).hasSize(1);
-        return gauges.iterator().next().getId().getTag("version");
+    private static int isResourceInitialized(MeterRegistry meterRegistry, String resourceType) {
+        final Gauge counter = meterRegistry.find("xds.control.plane.snapshot.initialized")
+                                           .tag("resource", resourceType)
+                                           .gauge();
+        return (int) counter.value();
     }
 }
