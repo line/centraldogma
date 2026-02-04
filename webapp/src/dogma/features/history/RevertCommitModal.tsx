@@ -14,10 +14,11 @@ import {
 } from '@chakra-ui/react';
 import { SerializedError } from '@reduxjs/toolkit';
 import { FetchBaseQueryError } from '@reduxjs/toolkit/query';
-import { usePushFileChangesMutation } from 'dogma/features/api/apiSlice';
+import { useRevertRepositoryMutation } from 'dogma/features/api/apiSlice';
 import { newNotification } from 'dogma/features/notification/notificationSlice';
 import ErrorMessageParser from 'dogma/features/services/ErrorMessageParser';
 import { useAppDispatch } from 'dogma/hooks';
+import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 
 type FormData = {
@@ -25,65 +26,78 @@ type FormData = {
   detail: string;
 };
 
-type DeleteFileModalProps = {
+type RevertCommitModalProps = {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: () => void;
-  path: string;
   projectName: string;
   repoName: string;
+  headRevision: number;
+  targetRevision: number;
 };
 
-export const DeleteFileModal = ({
+export const RevertCommitModal = ({
   isOpen,
   onClose,
-  onSuccess,
-  path,
   projectName,
   repoName,
-}: DeleteFileModalProps) => {
+  headRevision,
+  targetRevision,
+}: RevertCommitModalProps) => {
   const {
     register,
     handleSubmit,
     reset,
     formState: { errors },
   } = useForm<FormData>();
-  const [deleteFile, { isLoading }] = usePushFileChangesMutation();
+  const [revertRepository, { isLoading }] = useRevertRepositoryMutation();
   const dispatch = useAppDispatch();
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+    reset({
+      summary: `Revert to r${targetRevision}`,
+      detail: `Rollback repository from r${headRevision} to r${targetRevision}.`,
+    });
+  }, [isOpen, targetRevision, headRevision, reset]);
+
   const onSubmit = async (formData: FormData) => {
     const data = {
+      targetRevision,
       commitMessage: {
         summary: formData.summary,
         detail: formData.detail,
       },
-      changes: [
-        {
-          path: path,
-          type: 'REMOVE',
-        },
-      ],
     };
     try {
-      const response = await deleteFile({ projectName, repoName, data }).unwrap();
+      const response = await revertRepository({ projectName, repoName, data }).unwrap();
       if ((response as { error: FetchBaseQueryError | SerializedError }).error) {
         throw (response as { error: FetchBaseQueryError | SerializedError }).error;
       }
-      dispatch(newNotification('File deleted', `Successfully deleted ${path}`, 'success'));
+      if (response === null) {
+        dispatch(
+          newNotification('No changes to revert', `Repository is already at r${targetRevision}`, 'info'),
+        );
+      } else {
+        dispatch(newNotification('Repository reverted', `Reverted to r${targetRevision}`, 'success'));
+      }
       reset();
-      onSuccess();
+      onClose();
     } catch (error) {
-      dispatch(newNotification(`Failed to delete ${path}`, ErrorMessageParser.parse(error), 'error'));
+      dispatch(newNotification(`Failed to revert`, ErrorMessageParser.parse(error), 'error'));
     }
   };
+
   return (
     <Modal isOpen={isOpen} onClose={onClose} isCentered motionPreset="slideInBottom">
       <ModalOverlay />
       <form onSubmit={handleSubmit(onSubmit)}>
         <ModalContent>
-          <ModalHeader>Delete {path}?</ModalHeader>
+          <ModalHeader>Revert to r{targetRevision}?</ModalHeader>
           <ModalCloseButton />
           <ModalBody>
-            <FormControl isRequired>
+            <FormControl isRequired isInvalid={!!errors.summary}>
               <Input
                 id="summary"
                 name="summary"
@@ -102,8 +116,8 @@ export const DeleteFileModal = ({
             />
           </ModalBody>
           <ModalFooter>
-            <Button type="submit" colorScheme="red" mr={3} isLoading={isLoading} loadingText="Deleting">
-              Delete
+            <Button type="submit" colorScheme="red" mr={3} isLoading={isLoading} loadingText="Reverting">
+              Revert
             </Button>
             <Button variant="ghost" onClick={onClose}>
               Cancel

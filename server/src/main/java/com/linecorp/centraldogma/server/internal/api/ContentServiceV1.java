@@ -29,6 +29,7 @@ import static com.linecorp.centraldogma.server.metadata.MetadataService.METADATA
 import static java.util.Objects.requireNonNull;
 
 import java.util.Collection;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -64,6 +65,7 @@ import com.linecorp.centraldogma.common.InvalidPushException;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.MergeQuery;
 import com.linecorp.centraldogma.common.Query;
+import com.linecorp.centraldogma.common.RedundantChangeException;
 import com.linecorp.centraldogma.common.RepositoryRole;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.RevisionRange;
@@ -73,6 +75,7 @@ import com.linecorp.centraldogma.internal.api.v1.CommitMessageDto;
 import com.linecorp.centraldogma.internal.api.v1.EntryDto;
 import com.linecorp.centraldogma.internal.api.v1.MergedEntryDto;
 import com.linecorp.centraldogma.internal.api.v1.PushResultDto;
+import com.linecorp.centraldogma.internal.api.v1.RevertRequest;
 import com.linecorp.centraldogma.internal.api.v1.WatchResultDto;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
@@ -251,6 +254,86 @@ public class ContentServiceV1 extends AbstractService {
         return changesFuture.thenApply(previewDiffs -> previewDiffs.values().stream()
                                                                    .map(DtoConverter::newChangeDto)
                                                                    .collect(toImmutableList()));
+    }
+
+    /**
+     * POST /projects/{projectName}/repos/{repoName}/revert
+     *
+     * <p>Reverts the repository to the target revision by upserting the target snapshot and removing
+     * the entries not present at the target revision.
+     */
+    @Post("/projects/{projectName}/repos/{repoName}/revert")
+    @ConsumesJson
+    @RequiresRepositoryRole(RepositoryRole.WRITE)
+    public CompletableFuture<PushResultDto> revert(
+            Repository repository, Author author, RevertRequest request) {
+        requireNonNull(request, "request");
+        final Revision headRevision = repository.normalizeNow(Revision.HEAD);
+        final Revision targetRevision =
+                repository.normalizeNow(new Revision(Integer.toString(request.targetRevision())));
+
+        final CompletableFuture<Map<String, Entry<?>>> targetEntriesFuture =
+                repository.find(targetRevision, "/**", FindOptions.FIND_ALL_WITH_CONTENT);
+        final CompletableFuture<Map<String, Entry<?>>> headEntriesFuture =
+                repository.find(headRevision, "/**", FindOptions.FIND_ALL_WITH_CONTENT);
+
+        return targetEntriesFuture.thenCombine(headEntriesFuture, (targetEntries, headEntries) -> {
+            final Map<String, Change<?>> changeMap = new LinkedHashMap<>();
+
+            for (Entry<?> targetEntry : targetEntries.values()) {
+                if (targetEntry.type() == DIRECTORY) {
+                    continue;
+                }
+                final Entry<?> headEntry = headEntries.get(targetEntry.path());
+                if (headEntry != null && isSameContent(targetEntry, headEntry)) {
+                    continue;
+                }
+                changeMap.put(targetEntry.path(), toUpsertChange(targetEntry));
+            }
+
+            for (Entry<?> headEntry : headEntries.values()) {
+                if (headEntry.type() == DIRECTORY) {
+                    continue;
+                }
+                if (!targetEntries.containsKey(headEntry.path())) {
+                    changeMap.put(headEntry.path(), Change.ofRemoval(headEntry.path()));
+                }
+            }
+
+            return changeMap.values();
+        }).thenCompose(changes -> {
+            if (changes.isEmpty()) {
+                throw new RedundantChangeException(headRevision,
+                                                   "No changes to revert. Target revision(" +
+                                                   targetRevision.major() + ") is the same as HEAD(" +
+                                                   headRevision.major() + ").");
+            }
+            final long commitTimeMillis = System.currentTimeMillis();
+            return push(commitTimeMillis, author, repository, headRevision, request.commitMessage(), changes)
+                    .thenApply(rrev -> DtoConverter.newPushResultDto(rrev, commitTimeMillis));
+        });
+    }
+
+    private static boolean isSameContent(Entry<?> first, Entry<?> second) {
+        if (first.type() != second.type()) {
+            return false;
+        }
+        assert first.rawContent() != null && second.rawContent() != null;
+        return first.rawContent().equals(second.rawContent());
+    }
+
+    private static Change<?> toUpsertChange(Entry<?> entry) {
+        assert entry.rawContent() != null;
+        switch (entry.type()) {
+            case JSON:
+                return Change.ofJsonUpsert(entry.path(), entry.rawContent());
+            case YAML:
+                return Change.ofYamlUpsert(entry.path(), entry.rawContent());
+            case TEXT:
+                return Change.ofTextUpsert(entry.path(), entry.rawContent());
+            default:
+                throw new Error("unexpected entry type: " + entry.type());
+        }
     }
 
     /**
