@@ -27,7 +27,34 @@ import com.linecorp.centraldogma.internal.Jackson;
 class RepositoryMetadataDeserializerTest {
 
     @Test
-    void deserialize() throws Exception {
+    void deserializeWithTokens() throws Exception {
+        // Test backward compatibility - tokens field should be mapped to appIds
+        final String format = '{' +
+                              "  \"name\": \"minu-test\"," +
+                              "  \"roles\": {" +
+                              "    \"projects\": {" +
+                              "       \"member\": \"READ\"," +
+                              "       \"guest\": null" +
+                              "    }," +
+                              "    \"users\": {" +
+                              "      \"foo@dogma.com\": \"READ\"," +
+                              "      \"bar@dogma.com\": \"WRITE\"" +
+                              "    }," +
+                              "    \"appIds\": {" +
+                              "      \"goodman\": \"READ\"" +
+                              "    }" +
+                              "  }," +
+                              "  \"creation\": {" +
+                              "    \"user\": \"minu.song@dogma.com\"," +
+                              "    \"timestamp\": \"2024-08-19T02:47:23.370762417Z\"" +
+                              "  }" +
+                              '}';
+        validate(Jackson.readValue(format, RepositoryMetadata.class));
+    }
+
+    @Test
+    void deserializeWithAppIds() throws Exception {
+        // Test new format with appIds field
         final String format = '{' +
                               "  \"name\": \"minu-test\"," +
                               "  \"roles\": {" +

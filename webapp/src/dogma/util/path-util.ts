@@ -44,3 +44,15 @@ export function makeTraversalFileLinks(
   }
   return links;
 }
+
+export function isJson(fileName: string): boolean {
+  return fileName.endsWith('.json');
+}
+
+export function isJson5(fileName: string): boolean {
+  return fileName.endsWith('.json5');
+}
+
+export function isYaml(fileName: string): boolean {
+  return fileName.endsWith('.yaml') || fileName.endsWith('.yml');
+}

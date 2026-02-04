@@ -15,7 +15,7 @@ import {
 } from '@chakra-ui/react';
 import Editor, { DiffEditor, OnMount } from '@monaco-editor/react';
 import { EditModeToggle } from 'dogma/common/components/editor/EditModeToggle';
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { FcCancel, FcEditImage } from 'react-icons/fc';
 import { JsonPath } from 'dogma/common/components/editor/JsonPath';
 import { JsonPathLegend } from 'dogma/common/components/editor/JsonPathLegend';
@@ -26,6 +26,12 @@ import { CommitForm } from 'dogma/common/components/CommitForm';
 import Router from 'next/router';
 import Link from 'next/link';
 import { FaHistory } from 'react-icons/fa';
+import { registerJson5Language } from 'dogma/features/file/Json5Language';
+import { isStructuredFile } from 'dogma/features/file/StructuredFileSupport';
+import { useLocalMonaco } from 'dogma/features/file/MonacoLoader';
+import { Loading } from 'dogma/common/components/Loading';
+import { useGetFileContentQuery } from 'dogma/features/api/apiSlice';
+import ErrorMessageParser from 'dogma/features/services/ErrorMessageParser';
 
 export type FileEditorProps = {
   projectName: string;
@@ -44,6 +50,7 @@ export const extensionToLanguageMap: { [key: string]: string } = {
   html: 'html',
   css: 'css',
   json: 'json',
+  json5: 'json5',
   xml: 'xml',
   md: 'markdown',
   py: 'python',
@@ -82,6 +89,7 @@ const FileEditor = ({
     editorRef.current = editor;
     setFileContent(displayContent);
   };
+
   const { isOpen: isCancelModalOpen, onOpen: onCancelModalOpen, onClose: onCancelModalClose } = useDisclosure();
   const { isOpen: isDeleteModalOpen, onOpen: onDeleteModalOpen, onClose: onDeleteModalClose } = useDisclosure();
   const [readOnly, setReadOnly] = useState(true);
@@ -102,6 +110,47 @@ const FileEditor = ({
   const { colorMode } = useColorMode();
   const [diffSideBySide, setDiffSideBySide] = useState(false);
   const [editorExpanded, setEditorExpanded] = useState(false);
+
+  const {
+    data: dataWithVariables,
+    error,
+    isLoading,
+  } = useGetFileContentQuery(
+    { projectName, repoName, filePath: path, revision, renderTemplate: true },
+    {
+      refetchOnMountOrArgChange: true,
+      skip: !(readOnly && tabIndex === 1),
+    },
+  );
+
+  let modifiedContent: string;
+  if (readOnly) {
+    if (isLoading) {
+      modifiedContent = 'Loading preview with variables...';
+    } else {
+      if (error) {
+        modifiedContent = `Error loading preview with variables:\n ${ErrorMessageParser.parse(error)}`;
+      } else {
+        modifiedContent = dataWithVariables?.rawContent;
+      }
+    }
+  } else {
+    modifiedContent = editorRef?.current?.getValue();
+  }
+
+  const [cachedRevision, setCachedRevision] = useState('');
+  useEffect(() => {
+    if (cachedRevision !== String(revision)) {
+      setFileContent(displayContent);
+      setCachedRevision(String(revision));
+    }
+  }, [cachedRevision, revision, displayContent]);
+
+  const monaco = useLocalMonaco();
+  if (!monaco) {
+    return <Loading />;
+  }
+
   return (
     <Box>
       <Flex gap={4}>
@@ -150,8 +199,8 @@ const FileEditor = ({
           <Tab>
             <Heading size="sm">{readOnly ? 'View file' : 'Edit file'}</Heading>
           </Tab>
-          <Tab display={readOnly ? 'none' : 'visible'}>
-            <Heading size="sm">Preview Changes</Heading>
+          <Tab>
+            <Heading size="sm">Preview {readOnly ? 'with Variables' : 'Changes'}</Heading>
           </Tab>
         </TabList>
         <TabPanels>
@@ -167,10 +216,14 @@ const FileEditor = ({
                   />
                 </Flex>
                 <Spacer />
-                {readOnly && language === 'json' ? <JsonPathLegend /> : ''}
+                {readOnly && isStructuredFile(language) ? <JsonPathLegend /> : ''}
               </Flex>
-              {readOnly && language === 'json' ? (
-                <JsonPath setFileContent={setFileContent} jsonContent={JSON.parse(originalContent)} />
+              {readOnly && isStructuredFile(language) ? (
+                <JsonPath
+                  language={language}
+                  setFileContent={setFileContent}
+                  originalContent={originalContent}
+                />
               ) : (
                 ''
               )}
@@ -190,10 +243,11 @@ const FileEditor = ({
                   scrollBeyondLastLine: false,
                 }}
                 onMount={handleEditorMount}
+                beforeMount={registerJson5Language}
               />
             </Box>
           </TabPanel>
-          <TabPanel display={readOnly ? 'none' : 'visible'}>
+          <TabPanel>
             <Flex mb="2">
               <Spacer />
               <EditModeToggle
@@ -206,8 +260,8 @@ const FileEditor = ({
               height="50vh"
               language={language}
               theme={colorMode === 'light' ? 'light' : 'vs-dark'}
-              original={typeof fileContent === 'string' ? fileContent : JSON.stringify(fileContent)}
-              modified={editorRef?.current?.getValue()}
+              original={fileContent}
+              modified={modifiedContent}
               options={{
                 autoIndent: 'full',
                 formatOnPaste: true,

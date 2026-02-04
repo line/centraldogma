@@ -6,6 +6,7 @@ import { newNotification } from 'dogma/features/notification/notificationSlice';
 import ErrorMessageParser from 'dogma/features/services/ErrorMessageParser';
 import { useAppDispatch } from 'dogma/hooks';
 import { useForm } from 'react-hook-form';
+import { detectChangeType } from 'dogma/features/file/StructuredFileSupport';
 
 type FormData = {
   summary: string;
@@ -40,13 +41,12 @@ export const CommitForm = ({
   const dispatch = useAppDispatch();
   const onSubmit = async (formData: FormData) => {
     const newContent = content();
-    if (name.endsWith('.json')) {
-      try {
-        JSON.parse(newContent);
-      } catch (error) {
-        dispatch(newNotification(`Invalid JSON file.`, ErrorMessageParser.parse(error), 'error'));
-        return;
-      }
+    let changeType;
+    try {
+      changeType = detectChangeType(name, newContent);
+    } catch (error) {
+      dispatch(newNotification(`Invalid file content.`, ErrorMessageParser.parse(error), 'error'));
+      return;
     }
 
     const data = {
@@ -57,7 +57,7 @@ export const CommitForm = ({
       changes: [
         {
           path: path,
-          type: name.endsWith('.json') ? 'UPSERT_JSON' : 'UPSERT_TEXT',
+          type: changeType,
           rawContent: newContent,
         },
       ],

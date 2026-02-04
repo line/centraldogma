@@ -16,11 +16,18 @@
 
 package com.linecorp.centraldogma.client;
 
+import static com.linecorp.centraldogma.internal.Util.validateStructuredFilePath;
+
+import javax.annotation.Nullable;
+
 import com.linecorp.centraldogma.common.QueryType;
 
 class AbstractFileRequest<SELF extends AbstractFileRequest<SELF>> {
 
     private boolean viewRaw;
+    private boolean renderTemplate;
+    @Nullable
+    private String variableFile;
 
     /**
      * Sets whether to view the raw content of the file.
@@ -38,6 +45,44 @@ class AbstractFileRequest<SELF extends AbstractFileRequest<SELF>> {
      */
     boolean viewRaw() {
         return viewRaw;
+    }
+
+    /**
+     * Sets whether to apply template processing to the file using the variables defined in
+     * the same repository and its parent project.
+     *
+     * <p>If {@link #viewRaw(boolean)} is set to true, the template processing will be applied to the raw
+     * content. If {@link #viewRaw(boolean)} is set to false, the template processing will be applied to the
+     * normalized content.
+     */
+    public SELF renderTemplate(boolean renderTemplate) {
+        this.renderTemplate = renderTemplate;
+        return self();
+    }
+
+    /**
+     * Applies template processing to the file using the specified variable file in the same repository.
+     * The variable file must be a JSON, JSON5 or YAML file and have an object at the top level (arrays or
+     * string are not allowed).
+     *
+     * <p>If {@link #viewRaw(boolean)} is set to true, the template processing will be applied to the raw
+     * content. If {@link #viewRaw(boolean)} is set to false, the template processing will be applied to the
+     * normalized content.
+     */
+    public SELF renderTemplate(String variableFile) {
+        validateStructuredFilePath(variableFile, "variableFile");
+        renderTemplate = true;
+        this.variableFile = variableFile;
+        return self();
+    }
+
+    boolean renderTemplate() {
+        return renderTemplate;
+    }
+
+    @Nullable
+    String variableFile() {
+        return variableFile;
     }
 
     @SuppressWarnings("unchecked")

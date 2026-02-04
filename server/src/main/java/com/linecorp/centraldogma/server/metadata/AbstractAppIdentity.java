@@ -136,4 +136,3 @@ abstract class AbstractAppIdentity implements AppIdentity {
 
     abstract void addProperties(ToStringHelper helper);
 }
-

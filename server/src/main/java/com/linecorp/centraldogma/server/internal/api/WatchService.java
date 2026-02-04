@@ -26,6 +26,9 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
+
+import javax.annotation.Nullable;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,6 +42,7 @@ import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.api.v1.WatchTimeout;
 import com.linecorp.centraldogma.server.internal.storage.RequestAlreadyTimedOutException;
+import com.linecorp.centraldogma.server.storage.repository.EntryTransformer;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
 import io.micrometer.core.instrument.Counter;
@@ -111,12 +115,21 @@ public final class WatchService {
      * {@code timeoutMillis} passes. If there's no change during the time, the returned future will be
      * exceptionally completed with the {@link CancellationException}.
      */
-    public <T> CompletableFuture<Entry<T>> watchFile(Repository repo, Revision lastKnownRevision,
-                                                     Query<T> query, long timeoutMillis,
-                                                     boolean errorOnEntryNotFound) {
+    public <T> CompletableFuture<Entry<T>> watchFile(
+            Repository repo, Revision lastKnownRevision, Query<T> query,
+            long timeoutMillis, boolean errorOnEntryNotFound,
+            TemplateParams templateParams,
+            @Nullable Function<Revision, EntryTransformer<T>> transformerFactory) {
         final ServiceRequestContext ctx = RequestContext.current();
         updateRequestTimeout(ctx, timeoutMillis);
-        final CompletableFuture<Entry<T>> result = repo.watch(lastKnownRevision, query, errorOnEntryNotFound);
+        if (!templateParams.renderTemplate()) {
+            transformerFactory = null;
+        }
+        final CompletableFuture<Entry<T>> result = repo.watch(lastKnownRevision, query,
+                                                              errorOnEntryNotFound,
+                                                              templateParams.variableFile(),
+                                                              templateParams.templateRevision(),
+                                                              transformerFactory);
         if (result.isDone()) {
             return result;
         }

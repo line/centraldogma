@@ -16,7 +16,7 @@
 
 package com.linecorp.centraldogma.server.internal.api.sysadmin;
 
-import static com.linecorp.centraldogma.server.internal.storage.repository.git.GitCrudRepository.validateId;
+import static com.linecorp.centraldogma.server.internal.storage.repository.git.DefaultCrudOperation.validateId;
 import static java.util.Objects.requireNonNull;
 
 import java.util.Objects;

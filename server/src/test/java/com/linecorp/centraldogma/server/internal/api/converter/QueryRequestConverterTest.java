@@ -17,12 +17,15 @@
 package com.linecorp.centraldogma.server.internal.api.converter;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import javax.annotation.Nullable;
 
 import org.junit.jupiter.api.Test;
+
+import com.google.common.collect.ImmutableList;
 
 import com.linecorp.armeria.common.AggregatedHttpRequest;
 import com.linecorp.armeria.server.ServiceRequestContext;
@@ -61,8 +64,7 @@ class QueryRequestConverterTest {
         final String jsonFilePath = "/a.json";
         when(ctx.pathParam("path")).thenReturn(jsonFilePath);
 
-        final String httpQuery = "?jsonpath=%22%24.a%22";  // "$.a"
-        when(ctx.query()).thenReturn(httpQuery);
+        when(ctx.queryParams(eq("jsonpath"))).thenReturn(ImmutableList.of("\"$.a\""));
 
         final Query<?> query = convert(ctx);
         assertThat(query).isNotNull();
@@ -80,7 +82,7 @@ class QueryRequestConverterTest {
         final String jsonFilePath = "/a.json";
         when(ctx.pathParam("path")).thenReturn(jsonFilePath);
 
-        when(ctx.query()).thenReturn("");
+        when(ctx.queryParams(eq("jsonpath"))).thenReturn(ImmutableList.of());
 
         final Query<?> query = convert(ctx);
         assertThat(query).isNotNull();

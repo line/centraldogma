@@ -61,7 +61,7 @@ final class TransformingChangesApplier extends AbstractChangesApplier {
             final JsonNode newJsonNode = transformer.transformer().apply(headRevision, oldJsonNode.deepCopy());
             requireNonNull(newJsonNode, "transformer.transformer().apply() returned null");
             if (!Objects.equals(newJsonNode, oldJsonNode)) {
-                applyPathEdit(dirCache, new InsertJson(changePath, inserter, newJsonNode, null));
+                applyPathEdit(dirCache, new InsertJson(changePath, inserter, newJsonNode));
                 return 1;
             }
         } catch (CentralDogmaException e) {

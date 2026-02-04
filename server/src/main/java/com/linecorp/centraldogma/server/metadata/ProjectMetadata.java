@@ -48,6 +48,7 @@ public class ProjectMetadata implements Identifiable, HasWeight {
             new ProjectMetadata("dogma",
                                 ImmutableMap.of(),
                                 ImmutableMap.of(),
+                                null,
                                 ImmutableMap.of(),
                                 new UserAndTimestamp(User.SYSTEM.id()),
                                 null);
@@ -90,13 +91,23 @@ public class ProjectMetadata implements Identifiable, HasWeight {
     public ProjectMetadata(@JsonProperty("name") String name,
                            @JsonProperty("repos") Map<String, RepositoryMetadata> repos,
                            @JsonProperty("members") Map<String, Member> members,
-                           @JsonProperty("appIds") Map<String, AppIdentityRegistration> appIds,
+                           @JsonProperty("tokens") @Nullable Map<String, AppIdentityRegistration> tokens,
+                           @JsonProperty("appIds") @Nullable Map<String, AppIdentityRegistration> appIds,
                            @JsonProperty("creation") UserAndTimestamp creation,
                            @JsonProperty("removal") @Nullable UserAndTimestamp removal) {
         this.name = requireNonNull(name, "name");
         this.repos = ImmutableMap.copyOf(requireNonNull(repos, "repos"));
         this.members = ImmutableMap.copyOf(requireNonNull(members, "members"));
-        this.appIds = ImmutableMap.copyOf(requireNonNull(appIds, "appIds"));
+        if (tokens == null && appIds == null) {
+            throw new IllegalArgumentException("tokens or appIds are required");
+        }
+
+        if (appIds != null) {
+            this.appIds = ImmutableMap.copyOf(appIds);
+        } else {
+            this.appIds = ImmutableMap.copyOf(tokens);
+        }
+
         this.creation = requireNonNull(creation, "creation");
         this.removal = removal;
     }
@@ -267,6 +278,7 @@ public class ProjectMetadata implements Identifiable, HasWeight {
         return new ProjectMetadata(name(),
                                    filtered,
                                    members(),
+                                   null,
                                    appIds(),
                                    creation(),
                                    removal());

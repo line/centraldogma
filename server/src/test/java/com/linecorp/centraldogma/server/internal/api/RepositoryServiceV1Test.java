@@ -157,10 +157,12 @@ class RepositoryServiceV1Test {
                 new Roles(DEFAULT_PROJECT_ROLES,
                           ImmutableMap.of(TestAuthMessageUtil.USERNAME2 + USER_EMAIL_SUFFIX,
                                           RepositoryRole.ADMIN),
+                          null,
                           ImmutableMap.of()));
         assertThat(projectMetadata.repo("myRepo2").roles()).isEqualTo(
                 new Roles(DEFAULT_PROJECT_ROLES,
                           ImmutableMap.of(),
+                          null,
                           ImmutableMap.of("appId2", RepositoryRole.ADMIN)));
     }
 

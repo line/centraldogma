@@ -73,10 +73,14 @@ public final class AppIdentityRegistry implements HasWeight {
     @JsonCreator
     public AppIdentityRegistry(@JsonProperty("appIds") Map<String, AppIdentity> appIds,
                                @JsonProperty("secrets") Map<String, String> secrets,
-                               @JsonProperty("certificateIds") Map<String, String> certificateIds) {
+                               @JsonProperty("certificateIds") @Nullable Map<String, String> certificateIds) {
         this.appIds = requireNonNull(appIds, "appIds");
         this.secrets = requireNonNull(secrets, "secrets");
-        this.certificateIds = requireNonNull(certificateIds, "certificateIds");
+        if (certificateIds == null) {
+            this.certificateIds = ImmutableMap.of();
+        } else {
+            this.certificateIds = ImmutableMap.copyOf(certificateIds);
+        }
     }
 
     /**
@@ -175,8 +179,8 @@ public final class AppIdentityRegistry implements HasWeight {
      * {@code defaultValue} is returned if there's no such certificate ID.
      */
     @Nullable
-    public CertificateAppIdentity findByCertificateIdOrDefault(String certificateId, @Nullable
-    CertificateAppIdentity defaultValue) {
+    public CertificateAppIdentity findByCertificateIdOrDefault(
+            String certificateId, @Nullable CertificateAppIdentity defaultValue) {
         requireNonNull(certificateId, "certificateId");
         final String appId = certificateIds.get(certificateId);
         if (appId != null) {

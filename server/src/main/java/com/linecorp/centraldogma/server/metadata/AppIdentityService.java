@@ -35,9 +35,11 @@ import java.util.concurrent.CompletableFuture;
 
 import com.fasterxml.jackson.core.JsonPointer;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.google.common.collect.ImmutableMap;
 
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
+import com.linecorp.centraldogma.common.ChangeConflictException;
 import com.linecorp.centraldogma.common.RedundantChangeException;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.jsonpatch.JsonPatchOperation;
@@ -88,19 +90,33 @@ final class AppIdentityService {
 
         final Token newToken = new Token(appId, secret, isSystemAdmin, isSystemAdmin,
                                          UserAndTimestamp.of(author));
-        final JsonPointer appIdPath = JsonPointer.compile("/appIds" + encodeSegment(newToken.id()));
-        final String newTokenSecret = newToken.secret();
-        assert newTokenSecret != null;
-        final JsonPointer secretPath = JsonPointer.compile("/secrets" + encodeSegment(newTokenSecret));
-        final Change<JsonNode> change =
-                Change.ofJsonPatch(TOKEN_JSON,
-                                   asJsonArray(JsonPatchOperation.testAbsence(appIdPath),
-                                               JsonPatchOperation.testAbsence(secretPath),
-                                               JsonPatchOperation.add(appIdPath, Jackson.valueToTree(newToken)),
-                                               JsonPatchOperation.add(secretPath,
-                                                                      Jackson.valueToTree(newToken.id()))));
+        final AppIdentityRegistryTransformer transformer = new AppIdentityRegistryTransformer(
+                (headRevision, tokens) -> {
+                    if (tokens.appIds().containsKey(newToken.id())) {
+                        throw new ChangeConflictException("Token already exists: " + newToken.id());
+                    }
+                    final String newTokenSecret = newToken.secret();
+                    assert newTokenSecret != null;
+                    if (tokens.secrets().containsKey(newTokenSecret)) {
+                        throw new ChangeConflictException("Secret already exists");
+                    }
+
+                    final ImmutableMap<String, AppIdentity> newAppIds =
+                            ImmutableMap.<String, AppIdentity>builderWithExpectedSize(
+                                                tokens.appIds().size() + 1)
+                                        .putAll(tokens.appIds())
+                                        .put(newToken.id(), newToken)
+                                        .build();
+                    final ImmutableMap<String, String> newSecrets =
+                            ImmutableMap.<String, String>builderWithExpectedSize(tokens.secrets().size() + 1)
+                                        .putAll(tokens.secrets())
+                                        .put(newTokenSecret, newToken.id())
+                                        .build();
+                    return new AppIdentityRegistry(newAppIds, newSecrets, tokens.certificateIds());
+                });
+
         return appIdentityRegistryRepo.push(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, author,
-                                            "Add a token: " + newToken.id(), change);
+                                            "Add a token: " + newToken.id(), transformer);
     }
 
     CompletableFuture<Revision> destroyToken(Author author, String appId) {

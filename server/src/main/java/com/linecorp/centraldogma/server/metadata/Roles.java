@@ -20,6 +20,8 @@ import static java.util.Objects.requireNonNull;
 import java.util.Map;
 import java.util.Map.Entry;
 
+import javax.annotation.Nullable;
+
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects;
@@ -35,7 +37,7 @@ import com.linecorp.centraldogma.server.storage.repository.HasWeight;
 public final class Roles implements HasWeight {
 
     static final Roles EMPTY = new Roles(ProjectRoles.of(null, null),
-                                         ImmutableMap.of(), ImmutableMap.of());
+                                         ImmutableMap.of(), null, ImmutableMap.of());
 
     private final ProjectRoles projectRoles;
 
@@ -49,10 +51,19 @@ public final class Roles implements HasWeight {
     @JsonCreator
     public Roles(@JsonProperty("projects") ProjectRoles projectRoles,
                  @JsonProperty("users") Map<String, RepositoryRole> users,
-                 @JsonProperty("appIds") Map<String, RepositoryRole> appIds) {
+                 @JsonProperty("tokens") @Nullable Map<String, RepositoryRole> tokens,
+                 @JsonProperty("appIds") @Nullable Map<String, RepositoryRole> appIds) {
         this.projectRoles = requireNonNull(projectRoles, "projectRoles");
         this.users = requireNonNull(users, "users");
-        this.appIds = requireNonNull(appIds, "appIds");
+        if (tokens == null && appIds == null) {
+            throw new IllegalArgumentException("Both tokens and appIds are null");
+        }
+
+        if (appIds != null) {
+            this.appIds = ImmutableMap.copyOf(appIds);
+        } else {
+            this.appIds = ImmutableMap.copyOf(tokens);
+        }
     }
 
     /**

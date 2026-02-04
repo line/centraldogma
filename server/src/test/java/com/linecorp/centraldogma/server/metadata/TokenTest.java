@@ -97,10 +97,9 @@ class TokenTest {
     }
 
     private static String tokenJson() {
-        return "{ \"appId\": \"" + APP_ID + "\"," +
+        return "{\"appId\": \"" + APP_ID + "\"," +
                "  \"secret\": \"" + APP_SECRET + "\"," +
-               "  \"type\": \"TOKEN\"," +
-               "  \"systemAdmin\": true," +
+               " \"systemAdmin\": true," +
                "  \"creation\": {" +
                "    \"user\": \"foo@foo.com\"," +
                "    \"timestamp\": \"2018-04-10T09:58:20.032Z\"" +

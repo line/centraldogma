@@ -147,7 +147,8 @@ class ReplicationLagTolerantCentralDogmaTest {
     void normalizeRevisionAndExecuteWithRetries() throws Exception {
         final Revision latestRevision = new Revision(3);
         when(delegate.normalizeRevision(any(), any(), any())).thenReturn(completedFuture(latestRevision));
-        when(delegate.getFile(any(), any(), any(), any(Query.class), anyBoolean())).thenReturn(
+        when(delegate.getFile(any(), any(), any(), any(Query.class), anyBoolean(), anyBoolean(),
+                              any())).thenReturn(
                 exceptionallyCompletedFuture(new RevisionNotFoundException()),
                 exceptionallyCompletedFuture(new RevisionNotFoundException()),
                 completedFuture(Entry.ofJson(latestRevision, "/foo.json", "{ \"a\": \"b\" }")));
@@ -156,7 +157,8 @@ class ReplicationLagTolerantCentralDogmaTest {
                 .isEqualTo(Entry.ofJson(latestRevision, "/foo.json", "{ \"a\": \"b\" }"));
 
         verify(delegate, times(1)).normalizeRevision("foo", "bar", Revision.HEAD);
-        verify(delegate, times(3)).getFile("foo", "bar", latestRevision, Query.ofJson("/foo.json"), false);
+        verify(delegate, times(3)).getFile("foo", "bar", latestRevision, Query.ofJson("/foo.json"), false,
+                                           false, null);
         verifyNoMoreInteractions(delegate);
     }
 
@@ -343,15 +345,17 @@ class ReplicationLagTolerantCentralDogmaTest {
         // Make sure `getFile()` at HEAD revision does not fetch an outdated entry.
         when(delegate.normalizeRevision(any(), any(), any()))
                 .thenReturn(completedFuture(latestRevision));
-        when(delegate.getFile(any(), any(), any(), any(Query.class), anyBoolean()))
+        when(delegate.getFile(any(), any(), any(), any(Query.class), anyBoolean(), anyBoolean(), any()))
                 .thenReturn(exceptionallyCompletedFuture(new RevisionNotFoundException()),
                             completedFuture(Entry.ofText(latestRevision, "/a.txt", "a")));
 
-        assertThat(dogma.getFile("foo", "bar", Revision.HEAD, Query.ofText("/a.txt"), false).join())
+        assertThat(
+                dogma.getFile("foo", "bar", Revision.HEAD, Query.ofText("/a.txt"), false, false, null).join())
                 .isEqualTo(Entry.ofText(latestRevision, "/a.txt", "a"));
 
         verify(delegate, times(1)).normalizeRevision("foo", "bar", Revision.HEAD);
-        verify(delegate, times(2)).getFile("foo", "bar", latestRevision, Query.ofText("/a.txt"), false);
+        verify(delegate, times(2)).getFile("foo", "bar", latestRevision, Query.ofText("/a.txt"), false, false,
+                                           null);
         verifyNoMoreInteractions(delegate);
     }
 
@@ -363,10 +367,11 @@ class ReplicationLagTolerantCentralDogmaTest {
         when(delegate.normalizeRevision(any(), any(), any()))
                 .thenReturn(completedFuture(Revision.INIT));
         when(delegate.watchFile(any(), any(), any(), (Query<String>) any(), anyLong(), anyBoolean(),
-                                anyBoolean()))
+                                anyBoolean(), anyBoolean(), any(), any()))
                 .thenReturn(completedFuture(latestEntry));
 
-        assertThat(dogma.watchFile("foo", "bar", Revision.INIT, Query.ofText("/a.txt"), 10000L, false, false)
+        assertThat(dogma.watchFile("foo", "bar", Revision.INIT, Query.ofText("/a.txt"), 10000L, false, false,
+                                   false, null, null)
                         .join())
                 .isEqualTo(latestEntry);
 
@@ -374,7 +379,7 @@ class ReplicationLagTolerantCentralDogmaTest {
 
         verify(delegate, times(1)).normalizeRevision("foo", "bar", Revision.INIT);
         verify(delegate, times(1)).watchFile("foo", "bar", Revision.INIT, Query.ofText("/a.txt"), 10000L,
-                                             false, false);
+                                             false, false, false, null, null);
         verifyNoMoreInteractions(delegate);
     }
 
@@ -384,7 +389,7 @@ class ReplicationLagTolerantCentralDogmaTest {
         final Entry<String> latestEntry = Entry.ofText(latestRevision, "/a.txt", "a");
         when(delegate.normalizeRevision(any(), any(), any()))
                 .thenReturn(completedFuture(latestRevision));
-        when(delegate.getFile(any(), any(), any(), any(Query.class), anyBoolean()))
+        when(delegate.getFile(any(), any(), any(), any(Query.class), anyBoolean(), anyBoolean(), any()))
                 .thenAnswer(invocation -> CompletableFuture.supplyAsync(() -> {
                     throw new RevisionNotFoundException();
                 }))
@@ -394,7 +399,7 @@ class ReplicationLagTolerantCentralDogmaTest {
 
         verify(delegate).normalizeRevision("foo", "bar", Revision.HEAD);
         verify(delegate, times(2)).getFile("foo", "bar",
-                                           latestRevision, Query.ofText("/a.txt"), false);
+                                           latestRevision, Query.ofText("/a.txt"), false, false, null);
         verifyNoMoreInteractions(delegate);
     }
 }

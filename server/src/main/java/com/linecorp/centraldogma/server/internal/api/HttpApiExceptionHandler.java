@@ -59,6 +59,7 @@ import com.linecorp.centraldogma.common.RepositoryExistsException;
 import com.linecorp.centraldogma.common.RepositoryNotFoundException;
 import com.linecorp.centraldogma.common.RevisionNotFoundException;
 import com.linecorp.centraldogma.common.ShuttingDownException;
+import com.linecorp.centraldogma.common.TemplateProcessingException;
 import com.linecorp.centraldogma.common.TextPatchConflictException;
 import com.linecorp.centraldogma.common.jsonpatch.JsonPatchConflictException;
 import com.linecorp.centraldogma.server.internal.storage.RequestAlreadyTimedOutException;
@@ -134,7 +135,9 @@ public final class HttpApiExceptionHandler implements ServerErrorHandler {
                .put(PermissionException.class,
                     (ctx, cause) -> newResponse(ctx, HttpStatus.FORBIDDEN, cause))
                .put(LockAcquireTimeoutException.class,
-                    (ctx, cause) -> newResponse(ctx, HttpStatus.SERVICE_UNAVAILABLE, cause));
+                    (ctx, cause) -> newResponse(ctx, HttpStatus.SERVICE_UNAVAILABLE, cause))
+               .put(TemplateProcessingException.class,
+                    (ctx, cause) -> newResponse(ctx, HttpStatus.INTERNAL_SERVER_ERROR, cause));
 
         exceptionHandlers = builder.build();
     }

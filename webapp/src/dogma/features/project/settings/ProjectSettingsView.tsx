@@ -41,6 +41,7 @@ type TabName =
   | 'App Identities'
   | 'mirrors'
   | 'credentials'
+  | 'variables'
   | 'Danger Zone';
 
 export interface TapInfo {
@@ -58,6 +59,7 @@ const TABS: TapInfo[] = [
   { name: 'App Identities', path: 'app-identities', accessRole: 'OWNER', allowAnonymous: false },
   { name: 'mirrors', path: 'mirrors', accessRole: 'OWNER', allowAnonymous: true },
   { name: 'credentials', path: 'credentials', accessRole: 'OWNER', allowAnonymous: true },
+  { name: 'variables', path: 'variables', accessRole: 'MEMBER', allowAnonymous: true },
   { name: 'Danger Zone', path: 'danger-zone', accessRole: 'OWNER', allowAnonymous: true },
 ];
 

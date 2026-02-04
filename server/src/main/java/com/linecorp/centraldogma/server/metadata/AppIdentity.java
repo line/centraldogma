@@ -21,18 +21,12 @@ import javax.annotation.Nullable;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonSubTypes;
-import com.fasterxml.jackson.annotation.JsonSubTypes.Type;
-import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 
 /**
  * An application identity that can access Central Dogma resources.
  */
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.EXISTING_PROPERTY, property = "type")
-@JsonSubTypes({
-        @Type(value = Token.class, name = "TOKEN"),
-        @Type(value = CertificateAppIdentity.class, name = "CERTIFICATE")
-})
+@JsonDeserialize(using = AppIdentityDeserializer.class)
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @JsonIgnoreProperties(ignoreUnknown = true)
 public interface AppIdentity extends Identifiable {
@@ -46,7 +40,7 @@ public interface AppIdentity extends Identifiable {
     /**
      * Returns the application identity type.
      */
-    @JsonProperty("type")
+    @JsonProperty("type") // TODO(minwoox): remove this annotation after applying JsonTypeInfo.
     AppIdentityType type();
 
     /**
@@ -100,4 +94,3 @@ public interface AppIdentity extends Identifiable {
      */
     AppIdentity withSystemAdmin(boolean isSystemAdmin);
 }
-

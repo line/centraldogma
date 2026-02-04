@@ -165,6 +165,7 @@ import com.linecorp.centraldogma.server.internal.api.sysadmin.AppIdentityRegistr
 import com.linecorp.centraldogma.server.internal.api.sysadmin.KeyManagementService;
 import com.linecorp.centraldogma.server.internal.api.sysadmin.MirrorAccessControlService;
 import com.linecorp.centraldogma.server.internal.api.sysadmin.ServerStatusService;
+import com.linecorp.centraldogma.server.internal.api.variable.VariableServiceV1;
 import com.linecorp.centraldogma.server.internal.mirror.DefaultMirrorAccessController;
 import com.linecorp.centraldogma.server.internal.mirror.DefaultMirroringServicePlugin;
 import com.linecorp.centraldogma.server.internal.mirror.MirrorAccessControl;
@@ -824,7 +825,7 @@ public class CentralDogma implements AutoCloseable {
                                   .build());
         final Function<? super HttpService, AuthService> authService =
                 authService(authProvider, sessionManager);
-        configureHttpApi(sb, projectApiManager, executor, watchService, mds, authProvider, authService,
+        configureHttpApi(sb, projectApiManager, executor, watchService, mds, pm, authProvider, authService,
                          meterRegistry, encryptionStorageManager, sessionManager, needsTls, mtlsEnabled);
 
         configureMetrics(sb, meterRegistry);
@@ -971,7 +972,7 @@ public class CentralDogma implements AutoCloseable {
     private void configureHttpApi(ServerBuilder sb,
                                   ProjectApiManager projectApiManager, CommandExecutor executor,
                                   WatchService watchService, MetadataService mds,
-                                  @Nullable AuthProvider authProvider,
+                                  ProjectManager pm, @Nullable AuthProvider authProvider,
                                   Function<? super HttpService, AuthService> authService,
                                   MeterRegistry meterRegistry,
                                   EncryptionStorageManager encryptionStorageManager,
@@ -1011,7 +1012,8 @@ public class CentralDogma implements AutoCloseable {
                 .annotatedService(new ServerStatusService(executor, statusManager))
                 .annotatedService(new ProjectServiceV1(projectApiManager, executor))
                 .annotatedService(new RepositoryServiceV1(executor, mds, encryptionStorageManager))
-                .annotatedService(new CredentialServiceV1(projectApiManager, executor));
+                .annotatedService(new CredentialServiceV1(projectApiManager, executor))
+                .annotatedService(new VariableServiceV1(pm, executor));
         if (LOGBACK_ENABLED) {
             apiV1ServiceBuilder.annotatedService(new LoggerService());
         }
@@ -1040,7 +1042,7 @@ public class CentralDogma implements AutoCloseable {
                                    return serviceName;
                                }
                            })
-                           .build(new ContentServiceV1(executor, watchService, meterRegistry));
+                           .build(new ContentServiceV1(executor, pm, watchService, meterRegistry));
 
         if (authProvider != null) {
             sb.service("/security_enabled", new AbstractHttpService() {

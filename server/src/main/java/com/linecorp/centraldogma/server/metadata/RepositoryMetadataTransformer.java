@@ -51,6 +51,7 @@ final class RepositoryMetadataTransformer extends ProjectMetadataTransformer {
         return new ProjectMetadata(projectMetadata.name(),
                                    newRepos,
                                    projectMetadata.members(),
+                                   null,
                                    projectMetadata.appIds(),
                                    projectMetadata.creation(),
                                    projectMetadata.removal());
