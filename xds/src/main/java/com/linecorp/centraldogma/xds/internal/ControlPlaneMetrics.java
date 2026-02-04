@@ -27,11 +27,11 @@ final class ControlPlaneMetrics {
     private static final String VERSION_METRIC_NAME = "xds.control.plane.snapshot";
 
     // 0 = not initialized, 1 = initialized, -1 = stopped
-    private int clustersInit;
-    private int endpointsInit;
-    private int listenersInit;
-    private int routesInit;
-    private int secretsInit;
+    private volatile int clustersInit;
+    private volatile int endpointsInit;
+    private volatile int listenersInit;
+    private volatile int routesInit;
+    private volatile int secretsInit;
 
     @Nullable
     private String clustersVersion;
