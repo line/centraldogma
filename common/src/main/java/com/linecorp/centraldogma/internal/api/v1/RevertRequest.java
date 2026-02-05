@@ -20,6 +20,7 @@ import static java.util.Objects.requireNonNull;
 
 import java.util.Objects;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects;
 
@@ -28,6 +29,7 @@ public final class RevertRequest {
     private final int targetRevision;
     private final CommitMessageDto commitMessage;
 
+    @JsonCreator
     public RevertRequest(@JsonProperty("targetRevision") int targetRevision,
                          @JsonProperty("commitMessage") CommitMessageDto commitMessage) {
         this.targetRevision = targetRevision;
