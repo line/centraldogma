@@ -12,9 +12,15 @@ export const ServerConfigLoader = ({ children }: { children: React.ReactNode }) 
     }
 
     fetch('/configs')
-      .then((response) => response.json())
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`Failed to load config: ${response.status}`);
+        }
+        return response.json();
+      })
       .then((data) => {
-        dispatch(setServerConfig({ mtlsEnabled: data.mtlsEnabled }));
+        const mtlsEnabled = Boolean(data?.mtlsEnabled);
+        dispatch(setServerConfig({mtlsEnabled}));
       })
       .catch((error) => {
         console.error('Failed to load server config:', error);

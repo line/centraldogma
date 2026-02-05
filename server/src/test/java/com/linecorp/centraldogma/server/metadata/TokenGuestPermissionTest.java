@@ -103,7 +103,7 @@ class TokenGuestPermissionTest {
         final ResponseEntity<Token> response =
                 client.prepare()
                       .post("/api/v1/appIdentities")
-                      .content(MediaType.FORM_DATA, QueryParams.of("appId", appId, "type", "token")
+                      .content(MediaType.FORM_DATA, QueryParams.of("appId", appId, "type", "TOKEN")
                                                                .toQueryString())
                       .asJson(Token.class, new ObjectMapper())
                       .execute();
