@@ -311,6 +311,7 @@ jobs:
           docker compose -f dist/docker-compose-test.yml up --pull never --wait -d
           docker compose -f dist/docker-compose-test.yml down
         shell: bash
+
   site:
     if: github.repository == 'line/centraldogma'
     runs-on: ubuntu-latest
