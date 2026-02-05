@@ -22,6 +22,8 @@ import java.io.IOException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 
+import javax.annotation.Nullable;
+
 import org.curioswitch.common.protobuf.json.MessageMarshaller;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
@@ -81,6 +83,7 @@ public final class ControlPlaneService extends XdsResourceWatchingService {
     private final SimpleCache<String> cache = new SimpleCache<>(node -> DEFAULT_GROUP);
 
     private final ScheduledExecutorService controlPlaneExecutor;
+    private final ControlPlaneMetrics metrics;
     // Accessed only from controlPlaneExecutor.
     private final CentralDogmaXdsResources centralDogmaXdsResources = new CentralDogmaXdsResources();
     @Nullable
@@ -94,11 +97,14 @@ public final class ControlPlaneService extends XdsResourceWatchingService {
                 Executors.newSingleThreadScheduledExecutor(
                         new DefaultThreadFactory("control-plane-executor", true)),
                 "controlPlaneExecutor");
+        metrics = new ControlPlaneMetrics(meterRegistry);
     }
 
     void start(PluginInitContext pluginInitContext) {
         init();
-        cache.setSnapshot(DEFAULT_GROUP, centralDogmaXdsResources.snapshot());
+        final CentralDogmaSnapshot snapshot = centralDogmaXdsResources.snapshot();
+        cache.setSnapshot(DEFAULT_GROUP, snapshot);
+        metrics.onSnapshotUpdate(snapshot);
         final CommandExecutor commandExecutor = pluginInitContext.commandExecutor();
         final V3DiscoveryServer server = new V3DiscoveryServer(new LoggingDiscoveryServerCallbacks(), cache);
         final GrpcService grpcService = GrpcService.builder()
@@ -213,7 +219,9 @@ public final class ControlPlaneService extends XdsResourceWatchingService {
 
     @Override
     protected void onDiffHandled() {
-        cache.setSnapshot(DEFAULT_GROUP, centralDogmaXdsResources.snapshot());
+        final CentralDogmaSnapshot snapshot = centralDogmaXdsResources.snapshot();
+        cache.setSnapshot(DEFAULT_GROUP, snapshot);
+        metrics.onSnapshotUpdate(snapshot);
     }
 
     @Override
@@ -223,6 +231,7 @@ public final class ControlPlaneService extends XdsResourceWatchingService {
 
     void stop() {
         stop = true;
+        metrics.onStopped();
         final XdsEndpointService xdsEndpointService = this.xdsEndpointService;
         if (xdsEndpointService != null) {
             if (xdsEndpointService.batchUpdateTaskSize() > 0) {

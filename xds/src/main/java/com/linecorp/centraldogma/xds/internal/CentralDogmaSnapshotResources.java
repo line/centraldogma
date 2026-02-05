@@ -104,7 +104,7 @@ final class CentralDogmaSnapshotResources<T extends Message> extends SnapshotRes
         throw new IllegalArgumentException("Requesting all resource isn't allowed for " + resourceType);
     }
 
-    private String allResourceVersion() {
+    String allResourceVersion() {
         if (allResourceVersion != null) {
             return allResourceVersion;
         }

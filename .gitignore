@@ -140,3 +140,6 @@ typings/
 
 # macOS folder meta-data
 .DS_Store
+
+# Codex
+AGENTS.md
