@@ -61,11 +61,15 @@ final class CdsStreamingMultipleClientsTest {
         try (XdsBootstrap xdsBootstrap = XdsBootstrap.of(bootstrap)) {
             final ClusterRoot fooClusterRoot = xdsBootstrap.clusterRoot(fooClusterName);
             final AtomicReference<ClusterSnapshot> fooSnapshotCaptor = new AtomicReference<>();
-            fooClusterRoot.addSnapshotWatcher(fooSnapshotCaptor::set);
+            fooClusterRoot.addSnapshotWatcher((snapshot, cause) -> {
+                fooSnapshotCaptor.set(snapshot);
+            });
 
             final ClusterRoot barClusterRoot = xdsBootstrap.clusterRoot(barClusterName);
             final AtomicReference<ClusterSnapshot> barSnapshotCaptor = new AtomicReference<>();
-            barClusterRoot.addSnapshotWatcher(barSnapshotCaptor::set);
+            barClusterRoot.addSnapshotWatcher((snapshot, cause) -> {
+                barSnapshotCaptor.set(snapshot);
+            });
 
             // not updated until commit
             await().pollDelay(200, TimeUnit.MILLISECONDS).until(() -> {
