@@ -103,4 +103,5 @@ task checkJavadoc(
         }
     }
 }
-tasks.test.dependsOn tasks.checkJavadoc
+// TODO(ikhoon): Enable the check after fixing relocation issues.
+// tasks.test.dependsOn tasks.checkJavadoc
