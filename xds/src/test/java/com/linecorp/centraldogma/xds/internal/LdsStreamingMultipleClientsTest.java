@@ -78,11 +78,11 @@ final class LdsStreamingMultipleClientsTest {
         try (XdsBootstrap xdsBootstrap = XdsBootstrap.of(bootstrap)) {
             final ListenerRoot fooListenerRoot = xdsBootstrap.listenerRoot(fooListenerName);
             final AtomicReference<ListenerSnapshot> fooSnapshotCaptor = new AtomicReference<>();
-            fooListenerRoot.addSnapshotWatcher(fooSnapshotCaptor::set);
+            fooListenerRoot.addSnapshotWatcher((snapshot, cause) -> fooSnapshotCaptor.set(snapshot));
 
             final ListenerRoot barListenerRoot = xdsBootstrap.listenerRoot(barListenerName);
             final AtomicReference<ListenerSnapshot> barSnapshotCaptor = new AtomicReference<>();
-            barListenerRoot.addSnapshotWatcher(barSnapshotCaptor::set);
+            barListenerRoot.addSnapshotWatcher((snapshot, cause) -> barSnapshotCaptor.set(snapshot));
 
             // not updated until commit
             await().pollDelay(200, TimeUnit.MILLISECONDS).until(() -> {

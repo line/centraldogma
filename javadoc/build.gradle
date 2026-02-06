@@ -103,5 +103,7 @@ task checkJavadoc(
         }
     }
 }
+
+tasks.javadocJar.dependsOn(':site:sphinx')
 // TODO(ikhoon): Enable the check after fixing relocation issues.
 // tasks.test.dependsOn tasks.checkJavadoc
