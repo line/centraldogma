@@ -16,7 +16,11 @@
 
 package com.linecorp.centraldogma.xds.internal;
 
+<<<<<<< introduce-jspecify
 import org.jspecify.annotations.Nullable;
+=======
+import javax.annotation.Nullable;
+>>>>>>> main
 
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.Gauge;
