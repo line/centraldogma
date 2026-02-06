@@ -50,6 +50,11 @@
     <property name="maximum" value="1"/>
     <property name="message" value="A package must be annotated with @NullMarked."/>
   </module>
+  <!-- JSpecify's Nullable annotation -->
+  <module name="RegexpSingleline">
+    <property name="format" value="^import\s*((?!org\.jspecify\.annotations\.).)*Nullable"/>
+    <property name="message" value="Use org.jspecify.annotations.Nullable instead."/>
+  </module>
   <!-- Unmaintainable Javadoc tags -->
   <module name="RegexpSingleline">
     <property name="format" value="(?:@version|\(non-Javadoc\))"/>
