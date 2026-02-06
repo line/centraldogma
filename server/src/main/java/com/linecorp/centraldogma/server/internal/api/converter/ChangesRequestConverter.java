@@ -19,7 +19,7 @@ package com.linecorp.centraldogma.server.internal.api.converter;
 import java.lang.reflect.ParameterizedType;
 import java.util.List;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonMappingException;

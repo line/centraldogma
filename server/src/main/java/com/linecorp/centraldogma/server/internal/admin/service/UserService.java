@@ -16,7 +16,7 @@
 
 package com.linecorp.centraldogma.server.internal.admin.service;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import com.linecorp.armeria.common.HttpData;
 import com.linecorp.armeria.common.HttpHeaderNames;

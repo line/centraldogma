@@ -18,7 +18,7 @@ package com.linecorp.centraldogma.common;
 
 import static java.util.Objects.requireNonNull;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A {@link CentralDogmaException} that is raised when attempted to push a commit without effective changes.

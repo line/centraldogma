@@ -16,7 +16,7 @@
 /**
  * Internal Thrift converters.
  */
-@NonNullByDefault
+@NullMarked
 package com.linecorp.centraldogma.internal.thrift;
 
-import com.linecorp.centraldogma.common.util.NonNullByDefault;
+import org.jspecify.annotations.NullMarked;

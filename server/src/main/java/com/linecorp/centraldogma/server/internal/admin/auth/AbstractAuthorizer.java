@@ -18,7 +18,7 @@ package com.linecorp.centraldogma.server.internal.admin.auth;
 
 import java.util.concurrent.CompletionStage;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpRequest;

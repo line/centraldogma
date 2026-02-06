@@ -16,7 +16,7 @@
 /**
  * An abstraction layer for Central Dogma authentication.
  */
-@NonNullByDefault
+@NullMarked
 package com.linecorp.centraldogma.server.auth;
 
-import com.linecorp.centraldogma.common.util.NonNullByDefault;
+import org.jspecify.annotations.NullMarked;

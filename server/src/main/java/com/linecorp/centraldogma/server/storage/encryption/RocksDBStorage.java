@@ -21,8 +21,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import javax.annotation.Nullable;
-
+import org.jspecify.annotations.Nullable;
 import org.rocksdb.BlockBasedTableConfig;
 import org.rocksdb.BloomFilter;
 import org.rocksdb.ColumnFamilyDescriptor;
@@ -127,8 +126,7 @@ final class RocksDBStorage {
                 new BlockBasedTableConfig().setFilterPolicy(bloomFilter));
     }
 
-    @Nullable
-    byte[] get(String cfName, byte[] key) throws RocksDBException {
+    byte @Nullable [] get(String cfName, byte[] key) throws RocksDBException {
         return rocksDb.get(getColumnFamilyHandle(cfName), key);
     }
 

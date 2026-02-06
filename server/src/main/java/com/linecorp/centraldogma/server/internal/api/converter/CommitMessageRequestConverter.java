@@ -21,7 +21,7 @@ import static com.google.common.base.Strings.isNullOrEmpty;
 
 import java.lang.reflect.ParameterizedType;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import com.fasterxml.jackson.databind.JsonNode;
 

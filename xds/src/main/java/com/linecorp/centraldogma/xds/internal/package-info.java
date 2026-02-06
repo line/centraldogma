@@ -17,7 +17,7 @@
 /**
  * xDS implementation for Central Dogma.
  */
-@NonNullByDefault
+@NullMarked
 package com.linecorp.centraldogma.xds.internal;
 
-import com.linecorp.centraldogma.common.util.NonNullByDefault;
+import org.jspecify.annotations.NullMarked;

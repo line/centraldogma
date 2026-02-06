@@ -20,7 +20,7 @@ import static java.util.Objects.requireNonNull;
 import java.lang.reflect.Method;
 import java.util.List;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import com.google.common.collect.ImmutableList;
 

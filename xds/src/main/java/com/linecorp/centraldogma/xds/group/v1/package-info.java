@@ -16,7 +16,7 @@
 /**
  * xDS group service.
  */
-@NonNullByDefault
+@NullMarked
 package com.linecorp.centraldogma.xds.group.v1;
 
-import com.linecorp.centraldogma.common.util.NonNullByDefault;
+import org.jspecify.annotations.NullMarked;

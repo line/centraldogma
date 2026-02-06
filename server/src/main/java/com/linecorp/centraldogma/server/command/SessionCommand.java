@@ -15,7 +15,7 @@
  */
 package com.linecorp.centraldogma.server.command;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import com.linecorp.centraldogma.common.Author;
 
