@@ -32,10 +32,10 @@ import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.centraldogma.server.internal.admin.auth.AbstractAuthorizer;
 import com.linecorp.centraldogma.server.internal.admin.auth.AuthUtil;
 import com.linecorp.centraldogma.server.internal.api.HttpApiUtil;
+import com.linecorp.centraldogma.server.metadata.AppIdentityNotFoundException;
+import com.linecorp.centraldogma.server.metadata.AppIdentityRegistry;
 import com.linecorp.centraldogma.server.metadata.Token;
-import com.linecorp.centraldogma.server.metadata.TokenNotFoundException;
-import com.linecorp.centraldogma.server.metadata.Tokens;
-import com.linecorp.centraldogma.server.metadata.UserWithToken;
+import com.linecorp.centraldogma.server.metadata.UserWithAppIdentity;
 
 /**
  * A decorator which finds an application token from a request and validates it.
@@ -54,7 +54,7 @@ public class ApplicationTokenAuthorizer extends AbstractAuthorizer {
     @Override
     protected CompletionStage<Boolean> authorize(ServiceRequestContext ctx, HttpRequest req,
                                                  String accessToken) {
-        if (!Tokens.isValidSecret(accessToken)) {
+        if (!AppIdentityRegistry.isValidSecret(accessToken)) {
             return completedFuture(false);
         }
 
@@ -62,8 +62,8 @@ public class ApplicationTokenAuthorizer extends AbstractAuthorizer {
             final Token appToken = tokenLookupFunc.apply(accessToken);
             if (appToken != null && appToken.isActive()) {
                 final String appId = appToken.appId();
-                ctx.logBuilder().authenticatedUser("app/" + appId);
-                final UserWithToken user = new UserWithToken(appToken);
+                ctx.logBuilder().authenticatedUser("app/" + appId + "/token");
+                final UserWithAppIdentity user = new UserWithAppIdentity(appToken);
                 AuthUtil.setCurrentUser(ctx, user);
                 HttpApiUtil.setVerboseResponses(ctx, user);
                 return UnmodifiableFuture.completedFuture(true);
@@ -72,7 +72,7 @@ public class ApplicationTokenAuthorizer extends AbstractAuthorizer {
         } catch (Throwable cause) {
             cause = Exceptions.peel(cause);
             if (cause instanceof IllegalArgumentException ||
-                cause instanceof TokenNotFoundException) {
+                cause instanceof AppIdentityNotFoundException) {
                 // Do not log the cause.
                 logger.debug("Failed to authorize an application token: token={}, addr={}",
                              maskToken(accessToken), ctx.clientAddress());

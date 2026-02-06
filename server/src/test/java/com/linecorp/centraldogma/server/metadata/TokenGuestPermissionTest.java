@@ -102,8 +102,9 @@ class TokenGuestPermissionTest {
         final String appId = "test";
         final ResponseEntity<Token> response =
                 client.prepare()
-                      .post("/api/v1/tokens")
-                      .content(MediaType.FORM_DATA, QueryParams.of("appId", appId).toQueryString())
+                      .post("/api/v1/appIdentities")
+                      .content(MediaType.FORM_DATA, QueryParams.of("appId", appId, "type", "TOKEN")
+                                                               .toQueryString())
                       .asJson(Token.class, new ObjectMapper())
                       .execute();
         assertThat(response.status()).isEqualTo(HttpStatus.CREATED);
@@ -126,7 +127,7 @@ class TokenGuestPermissionTest {
         // Register the token with the member role.
         final ResponseEntity<Revision> res =
                 client.prepare()
-                      .post("/api/v1/metadata/{proj}/tokens")
+                      .post("/api/v1/metadata/{proj}/appIdentities")
                       .pathParam("proj", FOO_PROJ)
                       .contentJson(
                               new IdAndProjectRole(appId, ProjectRole.MEMBER))
@@ -148,9 +149,9 @@ class TokenGuestPermissionTest {
         final String appId = "admin-test";
         final ResponseEntity<Token> response =
                 client.prepare()
-                      .post("/api/v1/tokens")
+                      .post("/api/v1/appIdentities")
                       .content(MediaType.FORM_DATA,
-                               QueryParams.of("appId", appId, "isSystemAdmin", true)
+                               QueryParams.of("appId", appId, "isSystemAdmin", true, "type", "TOKEN")
                                           .toQueryString())
                       .asJson(Token.class, new ObjectMapper())
                       .execute();

@@ -39,7 +39,7 @@ class ProjectMetadataTest {
         assertThat(metadata.appIds()).hasSize(1);
         assertThat(metadata.appIds()).containsKey("app-token-1");
 
-        final TokenRegistration token = metadata.appIds().get("app-token-1");
+        final AppIdentityRegistration token = metadata.appIds().get("app-token-1");
         assertThat(token.id()).isEqualTo("app-token-1");
         assertThat(token.role()).isEqualTo(ProjectRole.MEMBER);
     }
@@ -55,7 +55,7 @@ class ProjectMetadataTest {
         assertThat(metadata.appIds()).hasSize(1);
         assertThat(metadata.appIds()).containsKey("app-id-1");
 
-        final TokenRegistration token = metadata.appIds().get("app-id-1");
+        final AppIdentityRegistration token = metadata.appIds().get("app-id-1");
         assertThat(token.id()).isEqualTo("app-id-1");
         assertThat(token.role()).isEqualTo(ProjectRole.OWNER);
     }
@@ -76,7 +76,7 @@ class ProjectMetadataTest {
                 ),
                 null,
                 ImmutableMap.of("app-id-1",
-                                new TokenRegistration("app-id-1", ProjectRole.MEMBER, creation)
+                                new AppIdentityRegistration("app-id-1", ProjectRole.MEMBER, creation)
                 ),
                 new UserAndTimestamp(User.SYSTEM.id()),
                 null);

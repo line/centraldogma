@@ -109,10 +109,11 @@ public final class TestAuthMessageUtil {
         final QueryParams params = QueryParams.builder()
                                               .add("appId", appId)
                                               .add("isSystemAdmin", String.valueOf(isSystemAdmin))
+                                              .add("type", "TOKEN")
                                               .build();
         final Token token =
                 client.blocking().prepare()
-                      .post("/api/v1/tokens")
+                      .post("/api/v1/appIdentities")
                       .cookie(sessionCookie)
                       .header(SessionUtil.X_CSRF_TOKEN, csrfToken)
                       .content(MediaType.FORM_DATA, params.toQueryString())

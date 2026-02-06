@@ -37,6 +37,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetSocketAddress;
+import java.security.cert.X509Certificate;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -85,6 +86,9 @@ import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.MediaType;
 import com.linecorp.armeria.common.ServerCacheControl;
 import com.linecorp.armeria.common.SessionProtocol;
+import com.linecorp.armeria.common.TlsKeyPair;
+import com.linecorp.armeria.common.TlsProvider;
+import com.linecorp.armeria.common.TlsProviderBuilder;
 import com.linecorp.armeria.common.metric.MeterIdPrefixFunction;
 import com.linecorp.armeria.common.prometheus.PrometheusMeterRegistries;
 import com.linecorp.armeria.common.util.EventLoopGroups;
@@ -101,10 +105,13 @@ import com.linecorp.armeria.server.Route;
 import com.linecorp.armeria.server.Server;
 import com.linecorp.armeria.server.ServerBuilder;
 import com.linecorp.armeria.server.ServerPort;
+import com.linecorp.armeria.server.ServerTlsConfig;
+import com.linecorp.armeria.server.ServerTlsConfigBuilder;
 import com.linecorp.armeria.server.ServiceNaming;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.annotation.JacksonRequestConverterFunction;
 import com.linecorp.armeria.server.auth.AuthService;
+import com.linecorp.armeria.server.auth.Authorizer;
 import com.linecorp.armeria.server.cors.CorsService;
 import com.linecorp.armeria.server.cors.CorsServiceBuilder;
 import com.linecorp.armeria.server.docs.DocService;
@@ -149,14 +156,15 @@ import com.linecorp.centraldogma.server.internal.api.MirroringServiceV1;
 import com.linecorp.centraldogma.server.internal.api.ProjectServiceV1;
 import com.linecorp.centraldogma.server.internal.api.RepositoryServiceV1;
 import com.linecorp.centraldogma.server.internal.api.WatchService;
+import com.linecorp.centraldogma.server.internal.api.auth.ApplicationCertificateAuthorizer;
 import com.linecorp.centraldogma.server.internal.api.auth.ApplicationTokenAuthorizer;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresProjectRoleDecorator.RequiresProjectRoleDecoratorFactory;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresRepositoryRoleDecorator.RequiresRepositoryRoleDecoratorFactory;
 import com.linecorp.centraldogma.server.internal.api.converter.HttpApiRequestConverter;
+import com.linecorp.centraldogma.server.internal.api.sysadmin.AppIdentityRegistryService;
 import com.linecorp.centraldogma.server.internal.api.sysadmin.KeyManagementService;
 import com.linecorp.centraldogma.server.internal.api.sysadmin.MirrorAccessControlService;
 import com.linecorp.centraldogma.server.internal.api.sysadmin.ServerStatusService;
-import com.linecorp.centraldogma.server.internal.api.sysadmin.TokenService;
 import com.linecorp.centraldogma.server.internal.api.variable.VariableServiceV1;
 import com.linecorp.centraldogma.server.internal.mirror.DefaultMirrorAccessController;
 import com.linecorp.centraldogma.server.internal.mirror.DefaultMirroringServicePlugin;
@@ -192,6 +200,7 @@ import io.micrometer.core.instrument.binder.system.ProcessorMetrics;
 import io.micrometer.core.instrument.binder.system.UptimeMetrics;
 import io.micrometer.core.instrument.composite.CompositeMeterRegistry;
 import io.micrometer.prometheusmetrics.PrometheusMeterRegistry;
+import io.netty.handler.ssl.ClientAuth;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import io.netty.util.concurrent.GlobalEventExecutor;
 
@@ -710,16 +719,41 @@ public class CentralDogma implements AutoCloseable {
         final boolean needsTls =
                 cfg.ports().stream().anyMatch(ServerPort::hasTls) ||
                 (cfg.managementConfig() != null && cfg.managementConfig().protocol().isTls());
+        boolean mtlsEnabled;
+        final AuthConfig authConfig = cfg.authConfig();
+        if (authConfig != null && authConfig.mtlsConfig().enabled()) {
+            mtlsEnabled = true;
+        } else {
+            mtlsEnabled = false;
+        }
 
         if (needsTls) {
             try {
                 final TlsConfig tlsConfig = cfg.tls();
                 if (tlsConfig != null) {
+                    final TlsKeyPair tlsKeyPair;
                     try (InputStream keyCertChainInputStream = tlsConfig.keyCertChainInputStream();
                          InputStream keyInputStream = tlsConfig.keyInputStream()) {
-                        sb.tls(keyCertChainInputStream, keyInputStream, tlsConfig.keyPassword());
+                        tlsKeyPair = TlsKeyPair.of(keyInputStream, keyCertChainInputStream);
+                    }
+                    if (!mtlsEnabled) {
+                        sb.tls(tlsKeyPair);
+                    } else {
+                        final ServerTlsConfigBuilder serverTlsConfigBuilder =
+                                ServerTlsConfig.builder().clientAuth(ClientAuth.OPTIONAL);
+                        final TlsProviderBuilder tlsProviderBuilder = TlsProvider.builder().keyPair(tlsKeyPair);
+                        if (!authConfig.mtlsConfig().caCertificateFiles().isEmpty()) {
+                            final List<X509Certificate> caCertificates =
+                                    authConfig.mtlsConfig().caCertificates();
+                            if (!caCertificates.isEmpty()) {
+                                tlsProviderBuilder.trustedCertificates(caCertificates);
+                            }
+                        }
+
+                        sb.tlsProvider(tlsProviderBuilder.build(), serverTlsConfigBuilder.build());
                     }
                 } else {
+                    mtlsEnabled = false;
                     logger.warn(
                             "Missing TLS configuration. Generating a self-signed certificate for TLS support.");
                     sb.tlsSelfSigned();
@@ -727,6 +761,9 @@ public class CentralDogma implements AutoCloseable {
             } catch (Exception e) {
                 Exceptions.throwUnsafely(e);
             }
+        } else if (mtlsEnabled) {
+            mtlsEnabled = false;
+            logger.warn("mTLS is enabled but no TLS is configured. Ignoring mTLS configuration.");
         }
 
         sb.clientAddressSources(cfg.clientAddressSourceList());
@@ -756,8 +793,8 @@ public class CentralDogma implements AutoCloseable {
 
         final MetadataService mds = new MetadataService(pm, executor, projectInitializer);
         final WatchService watchService = new WatchService(meterRegistry);
-        final AuthProvider authProvider =
-                createAuthProvider(executor, sessionManager, mds, needsTls, encryptionStorageManager);
+        final AuthProvider authProvider = createAuthProvider(executor, sessionManager, mds, needsTls,
+                                                             mtlsEnabled, encryptionStorageManager);
         final ProjectApiManager projectApiManager =
                 new ProjectApiManager(pm, executor, mds, encryptionStorageManager);
 
@@ -771,6 +808,9 @@ public class CentralDogma implements AutoCloseable {
         }
 
         sb.service("/title", webAppTitleFile(cfg.webAppTitle(), SystemInfo.hostname()).asService());
+        final String configContent = "{\"mtlsEnabled\": " + mtlsEnabled + '}';
+        sb.service("/configs", (ctx, req) ->
+                HttpResponse.of(HttpStatus.OK, MediaType.JSON, configContent));
 
         sb.service(HEALTH_CHECK_PATH, HealthCheckService.builder()
                                                         .checkers(serverHealth)
@@ -786,7 +826,7 @@ public class CentralDogma implements AutoCloseable {
         final Function<? super HttpService, AuthService> authService =
                 authService(authProvider, sessionManager);
         configureHttpApi(sb, projectApiManager, executor, watchService, mds, pm, authProvider, authService,
-                         meterRegistry, encryptionStorageManager, sessionManager, needsTls);
+                         meterRegistry, encryptionStorageManager, sessionManager, needsTls, mtlsEnabled);
 
         configureMetrics(sb, meterRegistry);
         // Add the CORS service as the last decorator(executed first) so that the CORS service is applied
@@ -847,7 +887,7 @@ public class CentralDogma implements AutoCloseable {
     @Nullable
     private AuthProvider createAuthProvider(
             CommandExecutor commandExecutor, @Nullable SessionManager sessionManager, MetadataService mds,
-            boolean tlsEnabled, EncryptionStorageManager encryptionStorageManager) {
+            boolean tlsEnabled, boolean mtlsEnabled, EncryptionStorageManager encryptionStorageManager) {
         final AuthConfig authCfg = cfg.authConfig();
         if (authCfg == null) {
             return null;
@@ -855,13 +895,19 @@ public class CentralDogma implements AutoCloseable {
 
         checkState(sessionManager != null, "SessionManager is null");
         final BooleanSupplier sessionPropagatorWritableChecker = commandExecutor::isWritable;
+        Authorizer<HttpRequest> authorizer = new ApplicationTokenAuthorizer(mds::findTokenBySecret)
+                .orElse(new SessionCookieAuthorizer(
+                        sessionManager, sessionPropagatorWritableChecker,
+                        tlsEnabled, encryptionStorageManager,
+                        authCfg.systemAdministrators()));
+        if (mtlsEnabled) {
+            // Find the certificate lastly because it raises an exception if no certificate
+            // is found in the connection.
+            authorizer = authorizer.orElse(new ApplicationCertificateAuthorizer(mds::findCertificateById));
+        }
+
         final AuthProviderParameters parameters = new AuthProviderParameters(
-                // Find application first, then find the session token.
-                new ApplicationTokenAuthorizer(mds::findTokenBySecret)
-                        .orElse(new SessionCookieAuthorizer(
-                                sessionManager, sessionPropagatorWritableChecker,
-                                tlsEnabled, encryptionStorageManager,
-                                authCfg.systemAdministrators())),
+                authorizer,
                 cfg,
                 sessionManager::generateSessionId,
                 // Propagate login and logout events to the other replicas.
@@ -930,7 +976,8 @@ public class CentralDogma implements AutoCloseable {
                                   Function<? super HttpService, AuthService> authService,
                                   MeterRegistry meterRegistry,
                                   EncryptionStorageManager encryptionStorageManager,
-                                  @Nullable SessionManager sessionManager, boolean needsTls) {
+                                  @Nullable SessionManager sessionManager, boolean needsTls,
+                                  boolean mtlsEnabled) {
         final DependencyInjector dependencyInjector = DependencyInjector.ofSingletons(
                 // Use the default ObjectMapper without any configuration.
                 // See JacksonRequestConverterFunctionTest
@@ -1010,7 +1057,7 @@ public class CentralDogma implements AutoCloseable {
             assert sessionManager != null : "sessionManager";
             apiV1ServiceBuilder
                     .annotatedService(new MetadataApiService(executor, mds, authCfg.loginNameNormalizer()))
-                    .annotatedService(new TokenService(executor, mds));
+                    .annotatedService(new AppIdentityRegistryService(executor, mds, mtlsEnabled));
 
             // authentication services:
             Optional.ofNullable(authProvider.loginApiService())

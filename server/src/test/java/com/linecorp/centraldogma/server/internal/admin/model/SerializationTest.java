@@ -31,11 +31,11 @@ import com.google.common.collect.ImmutableMap;
 import com.linecorp.centraldogma.common.ProjectRole;
 import com.linecorp.centraldogma.common.RepositoryStatus;
 import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.server.metadata.AppIdentityRegistration;
 import com.linecorp.centraldogma.server.metadata.Member;
 import com.linecorp.centraldogma.server.metadata.ProjectMetadata;
 import com.linecorp.centraldogma.server.metadata.RepositoryMetadata;
 import com.linecorp.centraldogma.server.metadata.Token;
-import com.linecorp.centraldogma.server.metadata.TokenRegistration;
 import com.linecorp.centraldogma.server.metadata.UserAndTimestamp;
 import com.linecorp.centraldogma.server.storage.project.Project;
 
@@ -78,9 +78,9 @@ class SerializationTest {
                                     ImmutableMap.of(member.id(), member),
                                     null,
                                     ImmutableMap.of(token.id(),
-                                                    new TokenRegistration(token.id(),
-                                                                          ProjectRole.MEMBER,
-                                                                          newCreationTag())),
+                                                    new AppIdentityRegistration(token.id(),
+                                                                                ProjectRole.MEMBER,
+                                                                                newCreationTag())),
                                     newCreationTag(),
                                     null);
         assertThatJson(metadata)
@@ -215,9 +215,9 @@ class SerializationTest {
                                     ImmutableMap.of(member.id(), member),
                                     null,
                                     ImmutableMap.of(token.id(),
-                                                    new TokenRegistration(token.id(),
-                                                                          ProjectRole.MEMBER,
-                                                                          newCreationTag())),
+                                                    new AppIdentityRegistration(token.id(),
+                                                                                ProjectRole.MEMBER,
+                                                                                newCreationTag())),
                                     newCreationTag(),
                                     newRemovalTag());
 

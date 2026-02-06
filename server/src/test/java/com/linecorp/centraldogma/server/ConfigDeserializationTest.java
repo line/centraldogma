@@ -25,6 +25,7 @@ import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.cert.X509Certificate;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
@@ -34,7 +35,9 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableList;
 
+import com.linecorp.armeria.internal.common.util.SelfSignedCertificate;
 import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.server.auth.MtlsConfig;
 
 class ConfigDeserializationTest {
 
@@ -83,6 +86,49 @@ class ConfigDeserializationTest {
         checkContent(jsonConfig);
     }
 
+    @Test
+    void mtlsConfigMultipleCaCerts() throws Exception {
+        final Path caCertFile1 = createTempFile(tempDir, "", "");
+        Files.write(caCertFile1, "ca-cert-1".getBytes(StandardCharsets.UTF_8));
+        final Path caCertFile2 = createTempFile(tempDir, "", "");
+        Files.write(caCertFile2, "ca-cert-2".getBytes(StandardCharsets.UTF_8));
+
+        final String caCert1 = Jackson.escapeText("file:" + caCertFile1.toAbsolutePath());
+        final String caCert2 = Jackson.escapeText("file:" + caCertFile2.toAbsolutePath());
+        final String jsonConfig = String.format("{\"mtls\": {" +
+                                                "\"enabled\": true, " +
+                                                "\"caCertificateFiles\": [\"%s\", \"%s\"]" +
+                                                "}}", caCert1, caCert2);
+
+        final ParentMtlsConfig parentMtlsConfig = Jackson.readValue(jsonConfig, ParentMtlsConfig.class);
+        assertThat(parentMtlsConfig.mtlsConfig.enabled()).isTrue();
+        assertThat(parentMtlsConfig.mtlsConfig.caCertificateFiles()).hasSize(2);
+    }
+
+    @Test
+    void mtlsConfigCaCertificates() throws Exception {
+        // Generate a self-signed certificate for testing
+        final SelfSignedCertificate ssc = new SelfSignedCertificate();
+        final Path caCertFile = ssc.certificate().toPath();
+
+        final String caCert = Jackson.escapeText("file:" + caCertFile.toAbsolutePath());
+        final String jsonConfig = String.format("{\"mtls\": {" +
+                                                "\"enabled\": true, " +
+                                                "\"caCertificateFiles\": [\"%s\"]" +
+                                                "}}", caCert);
+
+        final ParentMtlsConfig parentMtlsConfig = Jackson.readValue(jsonConfig, ParentMtlsConfig.class);
+
+        assertThat(parentMtlsConfig.mtlsConfig.enabled()).isTrue();
+        assertThat(parentMtlsConfig.mtlsConfig.caCertificateFiles()).hasSize(1);
+
+        final List<X509Certificate> certificates = parentMtlsConfig.mtlsConfig.caCertificates();
+        assertThat(certificates).isNotEmpty();
+        assertThat(certificates.get(0)).isInstanceOf(X509Certificate.class);
+        assertThat(certificates.get(0)).isEqualTo(ssc.cert());
+        ssc.delete();
+    }
+
     private static void checkContent(String jsonConfig) throws IOException {
         final TlsConfig tlsConfig = Jackson.readValue(jsonConfig, ParentConfig.class).tlsConfig;
 
@@ -126,6 +172,15 @@ class ConfigDeserializationTest {
         @JsonCreator
         ParentConfig(@JsonProperty("tls") TlsConfig tlsConfig) {
             this.tlsConfig = tlsConfig;
+        }
+    }
+
+    static class ParentMtlsConfig {
+        private final MtlsConfig mtlsConfig;
+
+        @JsonCreator
+        ParentMtlsConfig(@JsonProperty("mtls") MtlsConfig mtlsConfig) {
+            this.mtlsConfig = mtlsConfig;
         }
     }
 }

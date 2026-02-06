@@ -14,8 +14,8 @@ export interface RepositoryMetadataDto {
 
 export interface RolesDto {
   projects: ProjectRolesDto;
-  users: UserOrTokenRepositoryRoleDto;
-  tokens: UserOrTokenRepositoryRoleDto;
+  users: UserOrAppIdentityRepositoryRoleDto;
+  appIds: UserOrAppIdentityRepositoryRoleDto;
 }
 
 export interface ProjectRolesDto {
@@ -23,6 +23,6 @@ export interface ProjectRolesDto {
   guest: 'READ' | null;
 }
 
-export interface UserOrTokenRepositoryRoleDto {
+export interface UserOrAppIdentityRepositoryRoleDto {
   [key: string]: RepositoryRole;
 }

@@ -18,8 +18,8 @@ import { useRouter } from 'next/router';
 import { Flex, Spacer } from '@chakra-ui/react';
 import RepositorySettingsView from 'dogma/features/repo/settings/RepositorySettingsView';
 import { NewUserRepositoryRole } from 'dogma/features/repo/settings/users/NewUserRepositoryRole';
-import { UserOrTokenRepositoryRoleDto } from 'dogma/features/repo/RepositoriesMetadataDto';
-import { UserOrTokenRepositoryRoleList } from 'dogma/features/repo/settings/UserOrTokenRepositoryRoleList';
+import { UserOrAppIdentityRepositoryRoleDto } from 'dogma/features/repo/RepositoriesMetadataDto';
+import { UserOrAppIdentityRepositoryRoleList } from 'dogma/features/repo/settings/UserOrAppIdentityRepositoryRoleList';
 import {
   useAddUserRepositoryRoleMutation,
   useDeleteUserRepositoryRoleMutation,
@@ -44,18 +44,18 @@ const RepositoryUserPage = () => {
               addUserRepositoryRole={addUserRepositoryRole}
               isLoading={isAddUserLoading}
               userRepositoryRole={
-                metadata?.repos[repoName]?.roles?.users ?? ({} as UserOrTokenRepositoryRoleDto)
+                metadata?.repos[repoName]?.roles?.users ?? ({} as UserOrAppIdentityRepositoryRoleDto)
               }
             />
           </Flex>
-          <UserOrTokenRepositoryRoleList
+          <UserOrAppIdentityRepositoryRoleList
             projectName={projectName}
             repoName={repoName}
             entityType="user"
-            userOrTokenRepositoryRole={
-              metadata?.repos[repoName]?.roles?.users ?? ({} as UserOrTokenRepositoryRoleDto)
+            userOrAppIdentityRepositoryRole={
+              metadata?.repos[repoName]?.roles?.users ?? ({} as UserOrAppIdentityRepositoryRoleDto)
             }
-            deleteUserOrToken={deleteUserRepositoryRole}
+            deleteUserOrAppIdentity={deleteUserRepositoryRole}
             isLoading={isDeleteUserLoading}
           />
         </>

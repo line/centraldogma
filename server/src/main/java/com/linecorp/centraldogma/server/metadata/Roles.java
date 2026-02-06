@@ -77,15 +77,15 @@ public final class Roles implements HasWeight {
     /**
      * Returns the {@link RepositoryRole}s of users.
      */
-    @JsonProperty("users")
+    @JsonProperty
     public Map<String, RepositoryRole> users() {
         return users;
     }
 
     /**
-     * Returns the {@link RepositoryRole}s of app IDs.
+     * Returns the {@link RepositoryRole}s of app identities.
      */
-    @JsonProperty("appIds")
+    @JsonProperty
     public Map<String, RepositoryRole> appIds() {
         return appIds;
     }

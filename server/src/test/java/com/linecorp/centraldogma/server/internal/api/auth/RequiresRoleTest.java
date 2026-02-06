@@ -110,16 +110,16 @@ class RequiresRoleTest {
                .toCompletableFuture().join();
 
             // app-1 is an owner and it has read/write permission.
-            mds.addToken(AUTHOR, "project1", APP_ID_1, ProjectRole.OWNER)
+            mds.addAppIdentity(AUTHOR, "project1", APP_ID_1, ProjectRole.OWNER)
                .toCompletableFuture().join();
-            await().until(() -> mds.findTokenByAppId(APP_ID_1) != null);
-            mds.addTokenRepositoryRole(AUTHOR, "project1", "repo1", APP_ID_1, RepositoryRole.WRITE)
+            await().until(() -> mds.findAppIdentity(APP_ID_1) != null);
+            mds.addAppIdentityRepositoryRole(AUTHOR, "project1", "repo1", APP_ID_1, RepositoryRole.WRITE)
                .toCompletableFuture().join();
 
             // app-2 is a member and it has read-only permission.
-            mds.addToken(AUTHOR, "project1", APP_ID_2, ProjectRole.MEMBER)
+            mds.addAppIdentity(AUTHOR, "project1", APP_ID_2, ProjectRole.MEMBER)
                .toCompletableFuture().join();
-            await().until(() -> mds.findTokenByAppId(APP_ID_2) != null);
+            await().until(() -> mds.findAppIdentity(APP_ID_2) != null);
             sb.dependencyInjector(
                     DependencyInjector.ofSingletons(new RequiresRepositoryRoleDecoratorFactory(mds),
                                                     new RequiresProjectRoleDecoratorFactory(mds)),
@@ -200,19 +200,19 @@ class RequiresRoleTest {
     private static Stream<Arguments> arguments() {
         return Stream.of(
                 Arguments.of(
-                        "app/" + APP_ID_1, SECRET_1,
+                        "app/" + APP_ID_1 + "/token", SECRET_1,
                         "project1", ProjectRole.OWNER, "repo1", RepositoryRole.WRITE,
                         HttpStatus.FORBIDDEN),
                 Arguments.of(
-                        "app/" + APP_ID_2, SECRET_2,
+                        "app/" + APP_ID_2 + "/token", SECRET_2,
                         "project1", ProjectRole.MEMBER, "repo1", RepositoryRole.READ,
                         HttpStatus.FORBIDDEN),
                 Arguments.of(
-                        "app/" + APP_ID_3, SECRET_3,
+                        "app/" + APP_ID_3 + "/token", SECRET_3,
                         "project1", ProjectRole.GUEST, "repo1", null,
                         HttpStatus.FORBIDDEN),
                 Arguments.of(
-                        "app/" + APP_ID_1, SECRET_1,
+                        "app/" + APP_ID_1 + "/token", SECRET_1,
                         "project2", ProjectRole.GUEST, "repo1", null,
                         HttpStatus.NOT_FOUND),
                 Arguments.of(
