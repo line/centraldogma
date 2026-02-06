@@ -186,7 +186,7 @@ public final class SessionUtil {
     }
 
     public static boolean validateCsrfToken(ServiceRequestContext ctx, HttpRequest req,
-                                            @javax.annotation.Nullable String expectedCsrfToken) {
+                                            @Nullable String expectedCsrfToken) {
         // Check the token when the method is not safe:
         // https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html#javascript-automatically-including-csrf-tokens-as-an-ajax-request-header
         if (isSafeMethod(req)) {

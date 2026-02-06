@@ -22,8 +22,6 @@ import java.io.IOException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 
-import javax.annotation.Nullable;
-
 import org.curioswitch.common.protobuf.json.MessageMarshaller;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
