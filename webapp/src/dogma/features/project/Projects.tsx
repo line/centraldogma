@@ -27,6 +27,7 @@ import {
   MenuOptionGroup,
   Spacer,
   Tooltip,
+  useDisclosure,
 } from '@chakra-ui/react';
 import { FcServices } from 'react-icons/fc';
 import { ChakraLink } from 'dogma/common/components/ChakraLink';
@@ -34,7 +35,7 @@ import { ProjectDto } from 'dogma/features/project/ProjectDto';
 import { DataTableClientPagination } from 'dogma/common/components/table/DataTableClientPagination';
 import { createColumnHelper } from '@tanstack/react-table';
 import { DateWithTooltip } from 'dogma/common/components/DateWithTooltip';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { RestoreProject } from 'dogma/features/project/RestoreProject';
 import { Deferred } from 'dogma/common/components/Deferred';
 import { useAppDispatch, useAppSelector } from 'dogma/hooks';
@@ -46,6 +47,7 @@ import { FiBox } from 'react-icons/fi';
 import { FaFilter, FaTrashAlt } from 'react-icons/fa';
 import { ChevronDownIcon } from '@chakra-ui/icons';
 import { ProjectFilterType, setProjectFilter } from 'dogma/features/filter/filterSlice';
+import { ProjectOwnersModal } from 'dogma/features/project/ProjectOwnersModal';
 import { UserDto } from '../auth/UserDto';
 import { UserRole } from '../../common/components/UserRole';
 
@@ -63,6 +65,8 @@ function filterProjects(projects: ProjectDto[], projectFilterType: ProjectFilter
 export const Projects = () => {
   const columnHelper = createColumnHelper<ProjectDto>();
   const dispatch = useAppDispatch();
+  const { isOpen, onOpen, onClose } = useDisclosure();
+  const [ownersProjectName, setOwnersProjectName] = useState<string | null>(null);
 
   const { user, isInAnonymousMode } = useAppSelector((state) => state.auth);
   const { projectFilter, isInitialProjectFilter } = useAppSelector(({ filter }) => filter);
@@ -73,7 +77,6 @@ export const Projects = () => {
   } = useGetProjectsQuery({
     systemAdmin: user?.systemAdmin || false,
   });
-
   let filteredProjects = projects;
   if (!isInAnonymousMode && !isLoading && !error) {
     filteredProjects = filterProjects(projects, projectFilter, user);
@@ -139,6 +142,27 @@ export const Projects = () => {
       }),
       columnHelper.accessor((row: ProjectDto) => row.name, {
         cell: (info) => {
+          if (!info.row.original.createdAt) {
+            return null;
+          }
+          return (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                setOwnersProjectName(info.getValue());
+                onOpen();
+              }}
+            >
+              View members
+            </Button>
+          );
+        },
+        header: 'Members',
+        enableSorting: false,
+      }),
+      columnHelper.accessor((row: ProjectDto) => row.name, {
+        cell: (info) => {
           if (isInternalProject(info.row.original.name)) {
             return null;
           }
@@ -175,7 +199,7 @@ export const Projects = () => {
         enableSorting: false,
       }),
     ],
-    [columnHelper, user],
+    [columnHelper, onOpen, user],
   );
   return (
     <Deferred isLoading={isLoading} error={error}>
@@ -207,6 +231,14 @@ export const Projects = () => {
             </Flex>
           )}
           <DataTableClientPagination columns={columns} data={filteredProjects} />
+          <ProjectOwnersModal
+            projectName={ownersProjectName}
+            isOpen={isOpen}
+            onClose={() => {
+              setOwnersProjectName(null);
+              onClose();
+            }}
+          />
         </Box>
       )}
     </Deferred>
