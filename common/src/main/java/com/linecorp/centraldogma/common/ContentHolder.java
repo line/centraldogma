@@ -114,7 +114,7 @@ public interface ContentHolder<T> {
         } catch (JsonParseException e) {
             throw e;
         } catch (JsonProcessingException e) {
-            throw new JsonParseException(null, "Failed to parse the content as JSON", e);
+            throw new JsonParseException(null, "Failed to parse the content", e);
         }
     }
 
