@@ -1201,7 +1201,7 @@ public final class ArmeriaCentralDogma extends AbstractCentralDogma {
                     return unsafeCast(Entry.ofJson(revision, entryPath, rawContent.asText()));
                 } catch (JsonParseException e) {
                     // Should never reach here as the raw JSON text was already validated by the server.
-                    throw new IllegalStateException(e);
+                    throw new IllegalStateException("Failed to parse JSON content in " + entryPath, e);
                 }
             }
             logger.warn("The server does not support raw content. Using Entry#content() instead. path: {}",
