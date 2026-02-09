@@ -26,6 +26,7 @@ import java.util.function.Consumer;
 import javax.annotation.Nullable;
 
 import com.fasterxml.jackson.core.JsonParseException;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.base.MoreObjects;
 
@@ -76,10 +77,16 @@ public final class Entry<T> implements ContentHolder<T> {
     public static Entry<JsonNode> ofJson(Revision revision, String path, String content)
             throws JsonParseException {
         final JsonNode jsonNode;
-        if (isJson5(path)) {
-            jsonNode = Json5.readTree(content);
-        } else {
-            jsonNode = Jackson.readTree(content);
+        try {
+            if (isJson5(path)) {
+                jsonNode = Json5.readTree(content);
+            } else {
+                jsonNode = Jackson.readTree(content);
+            }
+        } catch (JsonParseException e) {
+            throw e;
+        } catch (JsonProcessingException e) {
+            throw new JsonParseException(null, "failed to parse the content of the JSON file: " + path, e);
         }
         return new Entry<>(revision, path, EntryType.JSON, jsonNode, content, null);
     }
@@ -102,10 +109,10 @@ public final class Entry<T> implements ContentHolder<T> {
      * @param path the path of the YAML file
      * @param content the content of the YAML file
      *
-     * @throws JsonParseException if the {@code content} is not a valid YAML
+     * @throws JsonProcessingException if the {@code content} is not a valid YAML
      */
     public static Entry<JsonNode> ofYaml(Revision revision, String path, String content)
-            throws JsonParseException {
+            throws JsonProcessingException {
         final JsonNode jsonNode = Yaml.readTree(content);
         return new Entry<>(revision, path, EntryType.YAML, jsonNode, content, null);
     }
@@ -298,7 +305,13 @@ public final class Entry<T> implements ContentHolder<T> {
         }
 
         if (rawContent != null) {
-            return Jackson.readTree(path, rawContent);
+            try {
+                return Jackson.readTree(path, rawContent);
+            } catch (JsonParseException e) {
+                throw e;
+            } catch (Exception e) {
+                throw new IllegalStateException("failed to parse the raw content as JSON", e);
+            }
         }
 
         return ContentHolder.super.contentAsJson();

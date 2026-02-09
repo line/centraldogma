@@ -22,8 +22,8 @@ import java.io.IOException;
 
 import javax.annotation.Nullable;
 
-import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.ObjectCodec;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -122,7 +122,7 @@ final class ChangeDeserializer extends StdDeserializer<Change<?>> {
                 if (rawContent != null) {
                     try {
                         result = Change.ofJsonPatch(path, Jackson.readTree(rawContent));
-                    } catch (JsonParseException e) {
+                    } catch (JsonProcessingException e) {
                         throw new IllegalArgumentException("failed to parse JSON patch", e);
                     }
                 } else {
