@@ -1220,7 +1220,7 @@ public final class ArmeriaCentralDogma extends AbstractCentralDogma {
                     return unsafeCast(Entry.ofYaml(revision, entryPath, rawContent.asText()));
                 } catch (JsonParseException e) {
                     // Should never reach here as the raw JSON text was already validated by the server.
-                    throw new IllegalStateException(e);
+                    throw new IllegalStateException("Failed to parse YAML content in " + entryPath, e);
                 }
             }
             logger.warn("The server does not support raw content. Using Entry#content() instead. path: {}",
@@ -1233,7 +1233,7 @@ public final class ArmeriaCentralDogma extends AbstractCentralDogma {
                 final JsonNode jsonNode = Yaml.readTree(content.asText());
                 return unsafeCast(Entry.ofYaml(revision, entryPath, jsonNode));
             } catch (JsonParseException e) {
-                throw new IllegalStateException(e);
+                throw new IllegalStateException("Failed to parse YAML content in " + entryPath, e);
             }
         }
         return unsafeCast(Entry.ofYaml(revision, entryPath, content));
