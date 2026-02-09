@@ -105,10 +105,16 @@ public interface ContentHolder<T> {
             return (JsonNode) content;
         }
 
-        if (type() == EntryType.YAML) {
-            return Yaml.readTree(contentAsText());
-        } else {
-            return Jackson.readTree(contentAsText());
+        try {
+            if (type() == EntryType.YAML) {
+                return Yaml.readTree(contentAsText());
+            } else {
+                return Jackson.readTree(contentAsText());
+            }
+        } catch (JsonParseException e) {
+            throw e;
+        } catch (JsonProcessingException e) {
+            throw new JsonParseException(null, "Failed to parse the content as JSON", e);
         }
     }
 

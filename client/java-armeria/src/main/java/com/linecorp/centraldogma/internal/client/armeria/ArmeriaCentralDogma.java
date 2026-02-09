@@ -1089,7 +1089,7 @@ public final class ArmeriaCentralDogma extends AbstractCentralDogma {
         final JsonNode node;
         try {
             node = Jackson.readTree(content);
-        } catch (JsonParseException e) {
+        } catch (JsonProcessingException e) {
             throw new CentralDogmaException("failed to parse the response JSON", e);
         }
 
@@ -1218,7 +1218,7 @@ public final class ArmeriaCentralDogma extends AbstractCentralDogma {
             if (rawContent != null) {
                 try {
                     return unsafeCast(Entry.ofYaml(revision, entryPath, rawContent.asText()));
-                } catch (JsonParseException e) {
+                } catch (JsonProcessingException e) {
                     // Should never reach here as the raw JSON text was already validated by the server.
                     throw new IllegalStateException("Failed to parse YAML content in " + entryPath, e);
                 }
@@ -1232,7 +1232,7 @@ public final class ArmeriaCentralDogma extends AbstractCentralDogma {
             try {
                 final JsonNode jsonNode = Yaml.readTree(content.asText());
                 return unsafeCast(Entry.ofYaml(revision, entryPath, jsonNode));
-            } catch (JsonParseException e) {
+            } catch (JsonProcessingException e) {
                 throw new IllegalStateException("Failed to parse YAML content in " + entryPath, e);
             }
         }

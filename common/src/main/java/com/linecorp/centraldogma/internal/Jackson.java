@@ -182,7 +182,7 @@ public final class Jackson {
         return compactMapper.readValue(jp, typeReference);
     }
 
-    public static JsonNode readTree(String path, String data) throws JsonParseException, JsonMappingException {
+    public static JsonNode readTree(String path, String data) throws JsonProcessingException {
         if (isJson(path)) {
             return readTree(data);
         } else if (isJson5(path)) {
@@ -195,7 +195,7 @@ public final class Jackson {
         }
     }
 
-    public static JsonNode readTree(String path, byte[] data) throws JsonParseException, JsonMappingException {
+    public static JsonNode readTree(String path, byte[] data) throws JsonProcessingException {
         if (isJson(path)) {
             return readTree(data);
         } else if (isJson5(path)) {
@@ -208,20 +208,20 @@ public final class Jackson {
         }
     }
 
-    public static JsonNode readTree(String data) throws JsonParseException, JsonMappingException {
+    public static JsonNode readTree(String data) throws JsonProcessingException {
         try {
             return compactMapper.readTree(data);
-        } catch (JsonParseException | JsonMappingException e) {
+        } catch (JsonProcessingException e) {
             throw e;
         } catch (IOException e) {
             throw new IOError(e);
         }
     }
 
-    public static JsonNode readTree(byte[] data) throws JsonParseException {
+    public static JsonNode readTree(byte[] data) throws JsonProcessingException {
         try {
             return compactMapper.readTree(data);
-        } catch (JsonParseException e) {
+        } catch (JsonProcessingException e) {
             throw e;
         } catch (IOException e) {
             throw new IOError(e);

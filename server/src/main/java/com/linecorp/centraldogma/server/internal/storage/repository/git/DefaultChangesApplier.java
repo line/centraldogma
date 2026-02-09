@@ -37,7 +37,7 @@ import org.eclipse.jgit.lib.Constants;
 import org.eclipse.jgit.lib.ObjectInserter;
 import org.eclipse.jgit.lib.ObjectReader;
 
-import com.fasterxml.jackson.core.JsonParseException;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.google.common.base.MoreObjects;
@@ -259,7 +259,7 @@ final class DefaultChangesApplier extends AbstractChangesApplier {
         return numEdits;
     }
 
-    private static JsonNode toJsonNode(String path, @Nullable byte[] content) throws JsonParseException {
+    private static JsonNode toJsonNode(String path, @Nullable byte[] content) throws JsonProcessingException {
         if (content == null) {
             return Jackson.nullNode;
         }

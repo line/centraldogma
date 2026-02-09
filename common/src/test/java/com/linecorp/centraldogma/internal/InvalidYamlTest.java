@@ -23,6 +23,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
 import com.fasterxml.jackson.core.JsonParseException;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 
 import com.linecorp.armeria.client.BlockingWebClient;
@@ -46,7 +47,7 @@ class InvalidYamlTest {
     };
 
     @Test
-    void shouldReturnInvalidYamlAsText() throws JsonParseException {
+    void shouldReturnInvalidYamlAsText() throws JsonProcessingException {
         final CentralDogmaRepository repo = dogma.client().forRepo("invalid-yaml-test", "repo");
 
         // Try to add an invalid YAML file

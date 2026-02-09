@@ -33,7 +33,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
-import com.fasterxml.jackson.core.JsonParseException;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.nimbusds.jose.JWEDecrypter;
 import com.nimbusds.jose.crypto.DirectDecrypter;
 import com.nimbusds.jwt.SignedJWT;
@@ -178,7 +178,7 @@ final class AuthServerTest {
     }
 
     private static void validateCsrfToken(AggregatedHttpResponse httpResponse, String expectedCsrfToken)
-            throws JsonParseException {
+            throws JsonProcessingException {
         assertThat(Jackson.readTree(httpResponse.contentUtf8()).get("csrf_token").asText())
                 .isEqualTo(expectedCsrfToken);
     }
