@@ -417,6 +417,8 @@ class GitRepository implements Repository {
                                 try {
                                     maybeYaml = Entry.ofYaml(normRevision, path, string);
                                 } catch (JsonProcessingException e) {
+                                    logger.debug("Failed to parse YAML content at {}/{}{} (rev: {})",
+                                                 parent.name(), name, path, normRevision, e);
                                     // Fall back to text entry if the content is not valid YAML.
                                     maybeYaml = Entry.ofText(normRevision, path, string);
                                 }
