@@ -1,8 +1,6 @@
 import net.davidecavestro.gradle.jxr.JxrLog
 import org.apache.maven.jxr.JXR
 
-import java.util.stream.Collectors
-
 plugins {
     id 'base'
     alias libs.plugins.sphinx apply false
@@ -25,22 +23,8 @@ sphinx {
     skip = skipSphinx
 }
 
-task javadoc(type: Javadoc,
-             group: 'Documentation',
-             description: 'Generates Javadoc API documentation for the main source code.') {
-
-    destinationDir = project.file("${project.buildDir}/site/apidocs")
-
-    def javadocProjects = projectsWithFlags('java', 'publish') - projectsWithFlags('no_aggregation')
-    javadocProjects.each { source it.sourceSets.main.java.srcDirs }
-    classpath = javadocProjects.inject(project.files()) { result, project ->
-        result.from(project.sourceSets.main.compileClasspath)
-        result.from(project.sourceSets.main.runtimeClasspath)
-    }
-}
-
 task xref(group: 'Documentation',
-          description: 'Generates the source cross-reference.') {
+        description: 'Generates the source cross-reference.') {
 
     def outputDir = "${project.buildDir}/site/xref"
     def sourceDirs = projectsWithFlags('java', 'publish').inject([]) { srcDirs, project ->
@@ -69,87 +53,21 @@ task xref(group: 'Documentation',
     }
 }
 
-tasks.register('test') {
-    dependsOn tasks.javadoc
-    def javadoc = tasks.named('javadoc', Javadoc)
-    inputs.files(javadoc.map { it.outputs.files })
-            .withPropertyName("javadocOutput")
-
-    def reportFile = file("${project.buildDir}/test-results/referenced-classes.txt")
-    outputs.file reportFile
-
-    doLast {
-        def javadocDir = file("${tasks.javadoc.destinationDir}/com/linecorp/centraldogma")
-
-        def inheritancePrefixes = [
-                'methods.inherited.from.class.',
-                'fields.inherited.from.class.',
-                'nested.classes.inherited.from.class.'
-        ]
-        def whitelistedPrefixes = ['java.', 'javax.']
-        def blacklistedPrefixes = ['com.linecorp.centraldogma.internal.',
-                                   'com.linecorp.centraldogma.server.internal.'] +
-                rootProject.ext.relocations.collect { it[1] + '.' }
-        def errors = []
-
-        reportFile.parentFile.mkdirs()
-        reportFile.withPrintWriter('UTF-8') { reportOut ->
-            fileTree(javadocDir).sort().each { File f ->
-                if (!f.name.endsWith('.html') || f.name == 'package-tree.html') {
-                    return
-                }
-
-                // Look for all the class names in the Javadoc.
-                def matcher = f.text =~ /([a-z]+\.(?:[a-z]+\.)+[A-Z][._A-Za-z0-9$]*[_A-Za-z0-9])/
-                def classNames = matcher.findAll().stream().flatMap({ it.stream() }).map({ name ->
-                    for (prefix in inheritancePrefixes) {
-                        if (name.startsWith(prefix)) {
-                            return name.substring(prefix.length())
-                        }
-                    }
-                    return name
-                }).filter({ name ->
-                    whitelistedPrefixes.find { name.startsWith(it) } == null
-                }).collect(Collectors.toSet())
-
-                // .. and make sure none of them are blacklisted.
-                classNames.sort().each { className ->
-                    def reportLine = "${f.name.replaceFirst(/\.html$/, '')} -> ${className}"
-                    reportOut.println reportLine
-
-                    blacklistedPrefixes.each { prefix ->
-                        if (className.startsWith(prefix)) {
-                            errors += reportLine
-                        }
-                    }
-                }
-            }
-        }
-
-        if (!errors.empty) {
-            throw new Exception("Blacklisted class(es) in the public API:${System.lineSeparator()}- " +
-                    errors.join("${System.lineSeparator()}- "))
-        }
-    }
-}
-
 tasks.site {
     group = 'Documentation'
     description = 'Generates the project web site.'
     dependsOn xref
-    dependsOn javadoc
+    dependsOn ':javadoc:javadoc'
 }
 
 tasks.assemble {
     dependsOn tasks.site
 }
 
-tasks.check {
-    dependsOn tasks.test
+tasks.check.dependsOn tasks.sphinx
+tasks.sphinx {
+    dependsOn ':javadoc:javadoc'
 }
-
-tasks.test.dependsOn tasks.sphinx
-tasks.sphinx.dependsOn tasks.javadoc
 
 tasks.build.dependsOn tasks.assemble
 tasks.build.dependsOn tasks.check

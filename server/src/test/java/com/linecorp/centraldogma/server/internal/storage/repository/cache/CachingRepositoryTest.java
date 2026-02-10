@@ -43,6 +43,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 
 import com.fasterxml.jackson.core.JsonParseException;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -127,7 +128,7 @@ class CachingRepositoryTest {
     }
 
     @Test
-    void mergeQuery() throws JsonParseException {
+    void mergeQuery() throws JsonProcessingException {
         final CachingRepository repo = setMockNames(newCachingRepo());
         final MergeQuery<JsonNode> query = MergeQuery.ofJson(MergeSource.ofRequired("/foo.json"),
                                                              MergeSource.ofRequired("/bar.json"));

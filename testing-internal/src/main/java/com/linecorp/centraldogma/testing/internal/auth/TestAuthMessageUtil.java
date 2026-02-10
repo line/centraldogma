@@ -22,7 +22,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.Base64.Encoder;
 
-import com.fasterxml.jackson.core.JsonParseException;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import com.linecorp.armeria.client.WebClient;
@@ -102,7 +102,7 @@ public final class TestAuthMessageUtil {
         final String csrfToken;
         try {
             csrfToken = Jackson.readTree(response.contentUtf8()).get("csrf_token").asText();
-        } catch (JsonParseException e) {
+        } catch (JsonProcessingException e) {
             throw new RuntimeException(e);
         }
 

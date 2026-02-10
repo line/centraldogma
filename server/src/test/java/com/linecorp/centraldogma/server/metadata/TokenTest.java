@@ -28,6 +28,7 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonPointer;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -65,7 +66,7 @@ class TokenTest {
     private static MetadataService metadataService;
 
     @BeforeAll
-    static void setUp() throws JsonParseException {
+    static void setUp() throws JsonProcessingException {
         metadataService = new MetadataService(manager.projectManager(), manager.executor(),
                                               manager.internalProjectInitializer());
         tokenService = new TokenService(manager.executor(), metadataService);

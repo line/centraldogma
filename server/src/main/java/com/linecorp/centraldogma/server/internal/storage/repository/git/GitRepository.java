@@ -67,6 +67,7 @@ import org.eclipse.jgit.util.SystemReader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
@@ -385,62 +386,77 @@ class GitRepository implements Repository {
                 final boolean matches = filter.matches(treeWalk);
                 final String path = '/' + treeWalk.getPathString();
 
-                // Recurse into a directory if necessary.
-                if (treeWalk.isSubtree()) {
-                    if (matches) {
-                        // Add the directory itself to the result set if its path matches the pattern.
-                        result.put(path, Entry.ofDirectory(normRevision, path));
+                try {
+                    // Recurse into a directory if necessary.
+                    if (treeWalk.isSubtree()) {
+                        if (matches) {
+                            // Add the directory itself to the result set if its path matches the pattern.
+                            result.put(path, Entry.ofDirectory(normRevision, path));
+                        }
+
+                        treeWalk.enterSubtree();
+                        continue;
                     }
 
-                    treeWalk.enterSubtree();
-                    continue;
-                }
-
-                if (!matches) {
-                    continue;
-                }
-
-                // Build an entry as requested.
-                final Entry<?> entry;
-                final EntryType entryType = EntryType.guessFromPath(path);
-                if (fetchContent) {
-                    final byte[] content = reader.open(treeWalk.getObjectId(0)).getBytes();
-                    final String string = new String(content, UTF_8);
-                    switch (entryType) {
-                        case JSON:
-                            entry = Entry.ofJson(normRevision, path, string);
-                            break;
-                        case YAML:
-                            entry = Entry.ofYaml(normRevision, path, string);
-                            break;
-                        case TEXT:
-                            final String strVal = sanitizeText(string);
-                            entry = Entry.ofText(normRevision, path, strVal);
-                            break;
-                        default:
-                            throw new Error("unexpected entry type: " + entryType);
+                    if (!matches) {
+                        continue;
                     }
-                } else {
-                    switch (entryType) {
-                        case JSON:
-                            entry = Entry.ofJson(normRevision, path, "");
-                            break;
-                        case YAML:
-                            entry = Entry.ofYaml(normRevision, path, "");
-                            break;
-                        case TEXT:
-                            entry = Entry.ofText(normRevision, path, "");
-                            break;
-                        default:
-                            throw new Error("unexpected entry type: " + entryType);
-                    }
-                }
 
-                result.put(path, entry);
+                    // Build an entry as requested.
+                    final Entry<?> entry;
+                    final EntryType entryType = EntryType.guessFromPath(path);
+                    if (fetchContent) {
+                        final byte[] content = reader.open(treeWalk.getObjectId(0)).getBytes();
+                        final String string = new String(content, UTF_8);
+                        switch (entryType) {
+                            case JSON:
+                                entry = Entry.ofJson(normRevision, path, string);
+                                break;
+                            case YAML:
+                                Entry<?> maybeYaml;
+                                try {
+                                    maybeYaml = Entry.ofYaml(normRevision, path, string);
+                                } catch (JsonProcessingException e) {
+                                    logger.debug("Failed to parse YAML content at {}/{}{} (rev: {})",
+                                                 parent.name(), name, path, normRevision, e);
+                                    // Fall back to text entry if the content is not valid YAML.
+                                    maybeYaml = Entry.ofText(normRevision, path, string);
+                                }
+                                entry = maybeYaml;
+                                break;
+                            case TEXT:
+                                final String strVal = sanitizeText(string);
+                                entry = Entry.ofText(normRevision, path, strVal);
+                                break;
+                            default:
+                                throw new Error("unexpected entry type: " + entryType);
+                        }
+                    } else {
+                        switch (entryType) {
+                            case JSON:
+                                entry = Entry.ofJson(normRevision, path, "");
+                                break;
+                            case YAML:
+                                entry = Entry.ofYaml(normRevision, path, "");
+                                break;
+                            case TEXT:
+                                entry = Entry.ofText(normRevision, path, "");
+                                break;
+                            default:
+                                throw new Error("unexpected entry type: " + entryType);
+                        }
+                    }
+
+                    result.put(path, entry);
+                } catch (Exception e) {
+                    throw new StorageException(
+                            "failed to get data from '" + parent.name() + '/' + name + "' at " + path +
+                            " for " + revision, e);
+                }
             }
 
             return Util.unsafeCast(result);
-        } catch (CentralDogmaException | IllegalArgumentException e) {
+        } catch (CentralDogmaException | IllegalArgumentException | StorageException e) {
             throw e;
         } catch (Exception e) {
             throw new StorageException(
