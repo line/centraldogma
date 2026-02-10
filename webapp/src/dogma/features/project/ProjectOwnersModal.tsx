@@ -12,7 +12,7 @@ import {
 import { useGetMetadataByProjectNameQuery } from 'dogma/features/api/apiSlice';
 import { FaCrown } from 'react-icons/fa';
 import { FaUserGroup } from 'react-icons/fa6';
-import ErrorMessageParser from "../services/ErrorMessageParser";
+import ErrorMessageParser from 'dogma/features/services/ErrorMessageParser';
 
 interface ProjectOwnersModalProps {
   projectName: string | null;
@@ -21,12 +21,7 @@ interface ProjectOwnersModalProps {
 }
 
 export const ProjectOwnersModal = ({ projectName, isOpen, onClose }: ProjectOwnersModalProps) => {
-  const {
-    data,
-    isLoading,
-    isError,
-    error,
-  } = useGetMetadataByProjectNameQuery(projectName ?? '', {
+  const { data, isLoading, isError, error } = useGetMetadataByProjectNameQuery(projectName ?? '', {
     refetchOnFocus: true,
     skip: !projectName,
   });
@@ -50,7 +45,7 @@ export const ProjectOwnersModal = ({ projectName, isOpen, onClose }: ProjectOwne
             <Text color="gray.500">Loading members...</Text>
           ) : isError ? (
             <Text color="red.500" mb={2}>
-              { ErrorMessageParser.parse(error) || 'Failed to load members.'}
+              {ErrorMessageParser.parse(error) || 'Failed to load members.'}
             </Text>
           ) : owners.length === 0 ? (
             <Text color="gray.600">System administrators</Text>
