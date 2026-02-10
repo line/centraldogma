@@ -1,12 +1,11 @@
 import {
-  Button,
+  ListItem,
   Modal,
   ModalBody,
   ModalCloseButton,
   ModalContent,
   ModalHeader,
   ModalOverlay,
-  ListItem,
   Text,
   UnorderedList,
 } from '@chakra-ui/react';
@@ -31,11 +30,11 @@ export const ProjectOwnersModal = ({projectName, isOpen, onClose}: ProjectOwners
     skip: !projectName,
   });
   const allMembers = ownersMetadata
-      ? Object.entries(ownersMetadata.members).map(([login, member]) => ({
+    ? Object.entries(ownersMetadata.members).map(([login, member]) => ({
         ...member,
         login: member.login || login,
       }))
-      : [];
+    : [];
   const owners = allMembers.filter((member) => member.role === 'OWNER');
   const members = allMembers.filter((member) => member.role !== 'OWNER');
   const errorMessage =
