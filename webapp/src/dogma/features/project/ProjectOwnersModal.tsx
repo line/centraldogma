@@ -12,6 +12,7 @@ import {
 import { useGetMetadataByProjectNameQuery } from 'dogma/features/api/apiSlice';
 import { FaCrown } from 'react-icons/fa';
 import { FaUserGroup } from 'react-icons/fa6';
+import ErrorMessageParser from "../services/ErrorMessageParser";
 
 interface ProjectOwnersModalProps {
   projectName: string | null;
@@ -21,26 +22,22 @@ interface ProjectOwnersModalProps {
 
 export const ProjectOwnersModal = ({ projectName, isOpen, onClose }: ProjectOwnersModalProps) => {
   const {
-    data: ownersMetadata,
-    isLoading: isMetadataLoading,
+    data,
+    isLoading,
     isError,
     error,
   } = useGetMetadataByProjectNameQuery(projectName ?? '', {
     refetchOnFocus: true,
     skip: !projectName,
   });
-  const allMembers = ownersMetadata
-    ? Object.entries(ownersMetadata.members).map(([login, member]) => ({
+  const allMembers = data
+    ? Object.entries(data.members).map(([login, member]) => ({
         ...member,
         login: member.login || login,
       }))
     : [];
   const owners = allMembers.filter((member) => member.role === 'OWNER');
   const members = allMembers.filter((member) => member.role !== 'OWNER');
-  const errorMessage =
-    error && typeof error === 'object' && 'status' in error
-      ? `Failed to load members. (${error.status})`
-      : null;
 
   return (
     <Modal isOpen={isOpen} onClose={onClose}>
@@ -49,11 +46,11 @@ export const ProjectOwnersModal = ({ projectName, isOpen, onClose }: ProjectOwne
         <ModalHeader>Project members</ModalHeader>
         <ModalCloseButton />
         <ModalBody>
-          {isMetadataLoading ? (
+          {isLoading ? (
             <Text color="gray.500">Loading members...</Text>
           ) : isError ? (
             <Text color="red.500" mb={2}>
-              {errorMessage || 'Failed to load members.'}
+              { ErrorMessageParser.parse(error) || 'Failed to load members.'}
             </Text>
           ) : owners.length === 0 ? (
             <Text color="gray.600">System administrators</Text>
