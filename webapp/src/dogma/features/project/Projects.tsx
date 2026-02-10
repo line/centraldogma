@@ -89,6 +89,7 @@ export const Projects = () => {
   const columns = useMemo(
     () => [
       columnHelper.accessor((row: ProjectDto) => row.name, {
+        id: 'name',
         cell: (info) =>
           info.row.original.createdAt ? (
             <ChakraLink href={`/app/projects/${info.getValue()}`} fontWeight="bold">
@@ -141,6 +142,7 @@ export const Projects = () => {
         header: 'Created',
       }),
       columnHelper.accessor((row: ProjectDto) => row.name, {
+        id: 'members',
         cell: (info) => {
           if (!info.row.original.createdAt) {
             return null;
@@ -162,6 +164,7 @@ export const Projects = () => {
         enableSorting: false,
       }),
       columnHelper.accessor((row: ProjectDto) => row.name, {
+        id: 'action',
         cell: (info) => {
           if (isInternalProject(info.row.original.name)) {
             return null;

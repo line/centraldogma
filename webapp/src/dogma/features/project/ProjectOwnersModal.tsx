@@ -1,4 +1,5 @@
 import {
+  Button,
   Modal,
   ModalBody,
   ModalCloseButton,
@@ -20,13 +21,16 @@ interface ProjectOwnersModalProps {
 }
 
 export const ProjectOwnersModal = ({ projectName, isOpen, onClose }: ProjectOwnersModalProps) => {
-  const { data: ownersMetadata, isLoading: isMetadataLoading } = useGetMetadataByProjectNameQuery(
-    projectName ?? '',
-    {
-      refetchOnFocus: true,
-      skip: !projectName,
-    },
-  );
+  const {
+    data: ownersMetadata,
+    isLoading: isMetadataLoading,
+    isError,
+    error,
+    refetch,
+  } = useGetMetadataByProjectNameQuery(projectName ?? '', {
+    refetchOnFocus: true,
+    skip: !projectName,
+  });
   const allMembers = ownersMetadata
     ? Object.entries(ownersMetadata.members).map(([login, member]) => ({
         ...member,
@@ -35,6 +39,8 @@ export const ProjectOwnersModal = ({ projectName, isOpen, onClose }: ProjectOwne
     : [];
   const owners = allMembers.filter((member) => member.role === 'OWNER');
   const members = allMembers.filter((member) => member.role !== 'OWNER');
+  const errorMessage =
+    error && typeof error === 'object' && 'status' in error ? `Failed to load members. (${error.status})` : null;
 
   return (
     <Modal isOpen={isOpen} onClose={onClose}>
@@ -43,8 +49,17 @@ export const ProjectOwnersModal = ({ projectName, isOpen, onClose }: ProjectOwne
         <ModalHeader>Project members</ModalHeader>
         <ModalCloseButton />
         <ModalBody>
-          {isMetadataLoading || !ownersMetadata ? (
+          {isMetadataLoading ? (
             <Text color="gray.500">Loading members...</Text>
+          ) : isError ? (
+            <>
+              <Text color="red.500" mb={2}>
+                {errorMessage || 'Failed to load members.'}
+              </Text>
+              <Button size="sm" onClick={() => refetch()}>
+                Retry
+              </Button>
+            </>
           ) : owners.length === 0 ? (
             <Text color="gray.600">System administrators</Text>
           ) : (
