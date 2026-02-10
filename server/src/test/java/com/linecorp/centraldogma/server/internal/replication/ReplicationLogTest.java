@@ -21,8 +21,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import org.junit.jupiter.api.Test;
 
-import com.fasterxml.jackson.core.JsonParseException;
-import com.fasterxml.jackson.databind.JsonMappingException;
 import com.google.common.collect.ImmutableList;
 
 import com.linecorp.centraldogma.common.Author;
@@ -93,9 +91,9 @@ class ReplicationLogTest {
     }
 
     @Test
-    void testYamlUpsertDeserialization() throws JsonMappingException, JsonParseException {
+    void testYamlUpsertDeserialization() throws Exception {
         //language=JSON
-        String replicationLogJson =
+        final String replicationLogJson =
                 '{' +
                 "  \"replicaId\": 2," +
                 "  \"command\": {" +

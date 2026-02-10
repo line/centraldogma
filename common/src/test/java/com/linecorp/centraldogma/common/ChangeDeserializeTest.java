@@ -29,7 +29,8 @@ import com.linecorp.armeria.internal.common.JacksonUtil;
 
 class ChangeDeserializeTest {
 
-    final ObjectMapper mapper = JacksonUtil.newDefaultObjectMapper();
+    private final ObjectMapper mapper = JacksonUtil.newDefaultObjectMapper();
+
     @Test
     void deserializeContentAsJson() throws JsonProcessingException {
         final String json =
