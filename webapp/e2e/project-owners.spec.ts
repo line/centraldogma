@@ -50,6 +50,6 @@ test('view project members from list', async ({ page }) => {
   await expect(dialog).toBeVisible();
   await expect(dialog.getByText('Project members')).toBeVisible();
   if (members.length > 0) {
-    await expect(dialog.getByTestId('project-member-login').first(), { timeout: 15000 }).toBeVisible();
+    await expect(dialog.getByTestId('project-member-login').first()).toBeVisible({ timeout: 15000 });
   }
 });

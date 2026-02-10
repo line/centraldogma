@@ -89,6 +89,7 @@ export const Projects = () => {
   const columns = useMemo(
     () => [
       columnHelper.accessor((row: ProjectDto) => row.name, {
+        id: 'name',
         cell: (info) =>
           info.row.original.createdAt ? (
             <ChakraLink href={`/app/projects/${info.getValue()}`} fontWeight="bold">
@@ -119,6 +120,7 @@ export const Projects = () => {
         header: 'Name',
       }),
       columnHelper.accessor((row: ProjectDto) => row.creator?.name, {
+        id: 'creator',
         cell: (info) =>
           info.getValue() ? (
             <Author name={info.getValue()} />
@@ -133,14 +135,17 @@ export const Projects = () => {
         header: 'Creator',
       }),
       columnHelper.accessor((row: ProjectDto) => row.userRole, {
+        id: 'role',
         cell: (info) => UserRole({ role: info.getValue() }),
         header: 'Role',
       }),
       columnHelper.accessor((row: ProjectDto) => row.createdAt, {
+        id: 'createdAt',
         cell: (info) => info.getValue() && <DateWithTooltip date={info.getValue()} />,
         header: 'Created',
       }),
       columnHelper.accessor((row: ProjectDto) => row.name, {
+        id: 'members',
         cell: (info) => {
           if (!info.row.original.createdAt) {
             return null;
@@ -162,6 +167,7 @@ export const Projects = () => {
         enableSorting: false,
       }),
       columnHelper.accessor((row: ProjectDto) => row.name, {
+        id: 'action',
         cell: (info) => {
           if (isInternalProject(info.row.original.name)) {
             return null;
@@ -199,7 +205,7 @@ export const Projects = () => {
         enableSorting: false,
       }),
     ],
-    [columnHelper, onOpen, user],
+    [columnHelper, onOpen, user.systemAdmin],
   );
   return (
     <Deferred isLoading={isLoading} error={error}>
