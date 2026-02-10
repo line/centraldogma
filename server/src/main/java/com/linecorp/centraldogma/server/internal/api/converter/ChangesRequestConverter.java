@@ -79,7 +79,14 @@ public final class ChangesRequestConverter implements RequestConverterFunction {
     private static Change<?> readChange(JsonNode node) {
         checkArgument(node.get("path") != null && node.get("type") != null,
                       "a change should have a path and a type");
-        final ChangeType changeType = ChangeType.parse(node.get("type").textValue());
+        ChangeType changeType;
+        try {
+            changeType = ChangeType.parse(node.get("type").textValue());
+        } catch (IllegalArgumentException e) {
+            // Fallback for backward compatibility. `UPSERT_YAML` or other types are treated as `UPSERT_TEXT`.
+            changeType = ChangeType.UPSERT_TEXT;
+        }
+
         if (changeType != ChangeType.REMOVE) {
             if (changeType == ChangeType.UPSERT_JSON) {
                 checkArgument(node.get("content") != null || node.get("rawContent") != null,
@@ -91,7 +98,11 @@ public final class ChangesRequestConverter implements RequestConverterFunction {
 
         final String path = node.get("path").textValue();
         if (changeType == ChangeType.UPSERT_TEXT) {
-            return Change.ofTextUpsert(path, node.get("content").textValue());
+            final JsonNode content = node.get("content");
+            if (content != null) {
+                return Change.ofTextUpsert(path, content.textValue());
+            }
+            return Change.ofTextUpsert(path, node.get("rawContent").textValue());
         }
         if (changeType == ChangeType.UPSERT_JSON) {
             final JsonNode content = node.get("content");
