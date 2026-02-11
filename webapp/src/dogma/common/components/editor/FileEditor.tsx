@@ -263,6 +263,7 @@ const FileEditor = ({
               original={fileContent}
               modified={modifiedContent}
               options={{
+                readOnly: true,
                 autoIndent: 'full',
                 formatOnPaste: true,
                 formatOnType: true,
