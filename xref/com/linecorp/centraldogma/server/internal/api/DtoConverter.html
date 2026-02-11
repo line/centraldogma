@@ -56,13 +56,13 @@
 <a class="jxr_linenumber" name="L48" href="#L48">48</a>  <em class="jxr_javadoccomment"> */</em>
 <a class="jxr_linenumber" name="L49" href="#L49">49</a>  <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">class</strong> <a href="../../../../../../com/linecorp/centraldogma/server/internal/api/DtoConverter.html">DtoConverter</a> {
 <a class="jxr_linenumber" name="L50" href="#L50">50</a>  
-<a class="jxr_linenumber" name="L51" href="#L51">51</a>      <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> <a href="../../../../../../com/linecorp/centraldogma/internal/api/v1/ProjectDto.html">ProjectDto</a> newProjectDto(<a href="../../../../../../com/linecorp/centraldogma/server/storage/project/Project.html">Project</a> project, <a href="../../../../../../com/linecorp/centraldogma/common/ProjectRole.html">ProjectRole</a> userRole) {
+<a class="jxr_linenumber" name="L51" href="#L51">51</a>      <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> <a href="../../../../../../com/linecorp/centraldogma/internal/api/v1/ProjectDto.html">ProjectDto</a> convert(<a href="../../../../../../com/linecorp/centraldogma/server/storage/project/Project.html">Project</a> project, <a href="../../../../../../com/linecorp/centraldogma/common/ProjectRole.html">ProjectRole</a> userRole) {
 <a class="jxr_linenumber" name="L52" href="#L52">52</a>          requireNonNull(project, <span class="jxr_string">"project"</span>);
 <a class="jxr_linenumber" name="L53" href="#L53">53</a>          <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">new</strong> <a href="../../../../../../com/linecorp/centraldogma/internal/api/v1/ProjectDto.html">ProjectDto</a>(project.name(), project.author(), userRole, project.creationTimeMillis());
 <a class="jxr_linenumber" name="L54" href="#L54">54</a>      }
 <a class="jxr_linenumber" name="L55" href="#L55">55</a>  
-<a class="jxr_linenumber" name="L56" href="#L56">56</a>      <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> <a href="../../../../../../com/linecorp/centraldogma/internal/api/v1/RepositoryDto.html">RepositoryDto</a> newRepositoryDto(<a href="../../../../../../com/linecorp/centraldogma/server/storage/repository/Repository.html">Repository</a> repository,
-<a class="jxr_linenumber" name="L57" href="#L57">57</a>                                                   Map&lt;String, RepositoryMetadata&gt; metadataMap) {
+<a class="jxr_linenumber" name="L56" href="#L56">56</a>      <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> <a href="../../../../../../com/linecorp/centraldogma/internal/api/v1/RepositoryDto.html">RepositoryDto</a> convert(<a href="../../../../../../com/linecorp/centraldogma/server/storage/repository/Repository.html">Repository</a> repository,
+<a class="jxr_linenumber" name="L57" href="#L57">57</a>                                          Map&lt;String, RepositoryMetadata&gt; metadataMap) {
 <a class="jxr_linenumber" name="L58" href="#L58">58</a>          requireNonNull(repository, <span class="jxr_string">"repository"</span>);
 <a class="jxr_linenumber" name="L59" href="#L59">59</a>          <strong class="jxr_keyword">final</strong> <a href="../../../../../../com/linecorp/centraldogma/common/RepositoryStatus.html">RepositoryStatus</a> status;
 <a class="jxr_linenumber" name="L60" href="#L60">60</a>          <strong class="jxr_keyword">if</strong> (metadataMap == <strong class="jxr_keyword">null</strong>) {
@@ -75,89 +75,71 @@
 <a class="jxr_linenumber" name="L67" href="#L67">67</a>                  status = metadata.status();
 <a class="jxr_linenumber" name="L68" href="#L68">68</a>              }
 <a class="jxr_linenumber" name="L69" href="#L69">69</a>          }
-<a class="jxr_linenumber" name="L70" href="#L70">70</a>          <strong class="jxr_keyword">return</strong> newRepositoryDto(repository, status);
+<a class="jxr_linenumber" name="L70" href="#L70">70</a>          <strong class="jxr_keyword">return</strong> convert(repository, status);
 <a class="jxr_linenumber" name="L71" href="#L71">71</a>      }
 <a class="jxr_linenumber" name="L72" href="#L72">72</a>  
-<a class="jxr_linenumber" name="L73" href="#L73">73</a>      <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> <a href="../../../../../../com/linecorp/centraldogma/internal/api/v1/RepositoryDto.html">RepositoryDto</a> newRepositoryDto(<a href="../../../../../../com/linecorp/centraldogma/server/storage/repository/Repository.html">Repository</a> repository, <a href="../../../../../../com/linecorp/centraldogma/common/RepositoryStatus.html">RepositoryStatus</a> status) {
+<a class="jxr_linenumber" name="L73" href="#L73">73</a>      <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> <a href="../../../../../../com/linecorp/centraldogma/internal/api/v1/RepositoryDto.html">RepositoryDto</a> convert(<a href="../../../../../../com/linecorp/centraldogma/server/storage/repository/Repository.html">Repository</a> repository, <a href="../../../../../../com/linecorp/centraldogma/common/RepositoryStatus.html">RepositoryStatus</a> status) {
 <a class="jxr_linenumber" name="L74" href="#L74">74</a>          <strong class="jxr_keyword">final</strong> <a href="../../../../../../com/linecorp/centraldogma/common/Revision.html">Revision</a> headRevision = repository.normalizeNow(Revision.HEAD);
 <a class="jxr_linenumber" name="L75" href="#L75">75</a>          <strong class="jxr_keyword">final</strong> String projectName = repository.parent().name();
 <a class="jxr_linenumber" name="L76" href="#L76">76</a>          <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">new</strong> <a href="../../../../../../com/linecorp/centraldogma/internal/api/v1/RepositoryDto.html">RepositoryDto</a>(projectName, repository.name(), repository.author(), headRevision,
 <a class="jxr_linenumber" name="L77" href="#L77">77</a>                                   repository.creationTimeMillis(), status);
 <a class="jxr_linenumber" name="L78" href="#L78">78</a>      }
 <a class="jxr_linenumber" name="L79" href="#L79">79</a>  
-<a class="jxr_linenumber" name="L80" href="#L80">80</a>      <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> &lt;T&gt; EntryDto&lt;?&gt; newEntryDto(<a href="../../../../../../com/linecorp/centraldogma/server/storage/repository/Repository.html">Repository</a> repository, <a href="../../../../../../com/linecorp/centraldogma/common/Revision.html">Revision</a> revision,
-<a class="jxr_linenumber" name="L81" href="#L81">81</a>                                                Entry&lt;T&gt; entry, <strong class="jxr_keyword">boolean</strong> withContent, <strong class="jxr_keyword">boolean</strong> viewRaw) {
+<a class="jxr_linenumber" name="L80" href="#L80">80</a>      <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> &lt;T&gt; EntryDto&lt;T&gt; convert(<a href="../../../../../../com/linecorp/centraldogma/server/storage/repository/Repository.html">Repository</a> repository, <a href="../../../../../../com/linecorp/centraldogma/common/Revision.html">Revision</a> revision,
+<a class="jxr_linenumber" name="L81" href="#L81">81</a>                                            Entry&lt;T&gt; entry, <strong class="jxr_keyword">boolean</strong> withContent) {
 <a class="jxr_linenumber" name="L82" href="#L82">82</a>          requireNonNull(entry, <span class="jxr_string">"entry"</span>);
 <a class="jxr_linenumber" name="L83" href="#L83">83</a>          <strong class="jxr_keyword">if</strong> (withContent &amp;&amp; entry.hasContent()) {
-<a class="jxr_linenumber" name="L84" href="#L84">84</a>              <strong class="jxr_keyword">if</strong> (viewRaw) {
-<a class="jxr_linenumber" name="L85" href="#L85">85</a>                  <em class="jxr_comment">// Raw content is not null if content is present.</em>
-<a class="jxr_linenumber" name="L86" href="#L86">86</a>                  <strong class="jxr_keyword">return</strong> newEntryDto(repository, revision, entry.path(), entry.type(), <strong class="jxr_keyword">null</strong>, entry.rawContent());
-<a class="jxr_linenumber" name="L87" href="#L87">87</a>              }
-<a class="jxr_linenumber" name="L88" href="#L88">88</a>              <strong class="jxr_keyword">if</strong> (entry.type() == EntryType.YAML) {
-<a class="jxr_linenumber" name="L89" href="#L89">89</a>                  <strong class="jxr_keyword">if</strong> (entry.rawContent() == <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="L90" href="#L90">90</a>                      <em class="jxr_comment">// JSON_PATH is used to read the part of YAML files, which is a new feature.</em>
-<a class="jxr_linenumber" name="L91" href="#L91">91</a>                      <strong class="jxr_keyword">return</strong> newEntryDto(repository, revision, entry.path(), entry.type(), entry.content(), <strong class="jxr_keyword">null</strong>);
-<a class="jxr_linenumber" name="L92" href="#L92">92</a>                  } <strong class="jxr_keyword">else</strong> {
-<a class="jxr_linenumber" name="L93" href="#L93">93</a>                      <em class="jxr_comment">// Use EntryType.TEXT for backward compatibility. Old clients may not recognize</em>
-<a class="jxr_linenumber" name="L94" href="#L94">94</a>                      <em class="jxr_comment">// EntryType.YAML.</em>
-<a class="jxr_linenumber" name="L95" href="#L95">95</a>                      <em class="jxr_comment">// TODO(ikhoon): Use entry.content() instead of entry.rawContent() once we drop the support</em>
-<a class="jxr_linenumber" name="L96" href="#L96">96</a>                      <em class="jxr_comment">//               for old clients.</em>
-<a class="jxr_linenumber" name="L97" href="#L97">97</a>                      <strong class="jxr_keyword">return</strong> newEntryDto(repository, revision, entry.path(), EntryType.TEXT, entry.rawContent(),
-<a class="jxr_linenumber" name="L98" href="#L98">98</a>                                         <strong class="jxr_keyword">null</strong>);
-<a class="jxr_linenumber" name="L99" href="#L99">99</a>                  }
-<a class="jxr_linenumber" name="L100" href="#L100">100</a>             }
-<a class="jxr_linenumber" name="L101" href="#L101">101</a>             <strong class="jxr_keyword">return</strong> newEntryDto(repository, revision, entry.path(), entry.type(), entry.content(), <strong class="jxr_keyword">null</strong>);
-<a class="jxr_linenumber" name="L102" href="#L102">102</a>         }
-<a class="jxr_linenumber" name="L103" href="#L103">103</a>         <strong class="jxr_keyword">return</strong> newEntryDto(repository, revision, entry.path(), entry.type());
-<a class="jxr_linenumber" name="L104" href="#L104">104</a>     }
-<a class="jxr_linenumber" name="L105" href="#L105">105</a> 
-<a class="jxr_linenumber" name="L106" href="#L106">106</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> &lt;T&gt; EntryDto&lt;T&gt; newEntryDto(<a href="../../../../../../com/linecorp/centraldogma/server/storage/repository/Repository.html">Repository</a> repository, <a href="../../../../../../com/linecorp/centraldogma/common/Revision.html">Revision</a> revision,
-<a class="jxr_linenumber" name="L107" href="#L107">107</a>                                                String path, <a href="../../../../../../com/linecorp/centraldogma/common/EntryType.html">EntryType</a> type) {
-<a class="jxr_linenumber" name="L108" href="#L108">108</a>         <strong class="jxr_keyword">return</strong> newEntryDto(repository, revision, path, type, <strong class="jxr_keyword">null</strong>, <strong class="jxr_keyword">null</strong>);
-<a class="jxr_linenumber" name="L109" href="#L109">109</a>     }
-<a class="jxr_linenumber" name="L110" href="#L110">110</a> 
-<a class="jxr_linenumber" name="L111" href="#L111">111</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> &lt;T&gt; EntryDto&lt;T&gt; newEntryDto(<a href="../../../../../../com/linecorp/centraldogma/server/storage/repository/Repository.html">Repository</a> repository, <a href="../../../../../../com/linecorp/centraldogma/common/Revision.html">Revision</a> revision, String path,
-<a class="jxr_linenumber" name="L112" href="#L112">112</a>                                                <a href="../../../../../../com/linecorp/centraldogma/common/EntryType.html">EntryType</a> type, @Nullable T content,
-<a class="jxr_linenumber" name="L113" href="#L113">113</a>                                                @Nullable String rawContent) {
-<a class="jxr_linenumber" name="L114" href="#L114">114</a>         requireNonNull(repository, <span class="jxr_string">"repository"</span>);
-<a class="jxr_linenumber" name="L115" href="#L115">115</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">new</strong> EntryDto&lt;&gt;(requireNonNull(revision, <span class="jxr_string">"revision"</span>),
-<a class="jxr_linenumber" name="L116" href="#L116">116</a>                               requireNonNull(path, <span class="jxr_string">"path"</span>),
-<a class="jxr_linenumber" name="L117" href="#L117">117</a>                               requireNonNull(type, <span class="jxr_string">"type"</span>),
-<a class="jxr_linenumber" name="L118" href="#L118">118</a>                               repository.parent().name(),
-<a class="jxr_linenumber" name="L119" href="#L119">119</a>                               repository.name(),
-<a class="jxr_linenumber" name="L120" href="#L120">120</a>                               content, rawContent);
-<a class="jxr_linenumber" name="L121" href="#L121">121</a>     }
-<a class="jxr_linenumber" name="L122" href="#L122">122</a> 
-<a class="jxr_linenumber" name="L123" href="#L123">123</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> <a href="../../../../../../com/linecorp/centraldogma/internal/api/v1/PushResultDto.html">PushResultDto</a> newPushResultDto(<a href="../../../../../../com/linecorp/centraldogma/common/Revision.html">Revision</a> revision, <strong class="jxr_keyword">long</strong> commitTimeMillis) {
-<a class="jxr_linenumber" name="L124" href="#L124">124</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">new</strong> <a href="../../../../../../com/linecorp/centraldogma/internal/api/v1/PushResultDto.html">PushResultDto</a>(revision, commitTimeMillis);
+<a class="jxr_linenumber" name="L84" href="#L84">84</a>              <strong class="jxr_keyword">return</strong> convert(repository, revision, entry.path(), entry.type(), entry.content());
+<a class="jxr_linenumber" name="L85" href="#L85">85</a>          }
+<a class="jxr_linenumber" name="L86" href="#L86">86</a>          <strong class="jxr_keyword">return</strong> convert(repository, revision, entry.path(), entry.type());
+<a class="jxr_linenumber" name="L87" href="#L87">87</a>      }
+<a class="jxr_linenumber" name="L88" href="#L88">88</a>  
+<a class="jxr_linenumber" name="L89" href="#L89">89</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> &lt;T&gt; EntryDto&lt;T&gt; convert(<a href="../../../../../../com/linecorp/centraldogma/server/storage/repository/Repository.html">Repository</a> repository, <a href="../../../../../../com/linecorp/centraldogma/common/Revision.html">Revision</a> revision,
+<a class="jxr_linenumber" name="L90" href="#L90">90</a>                                             String path, <a href="../../../../../../com/linecorp/centraldogma/common/EntryType.html">EntryType</a> type) {
+<a class="jxr_linenumber" name="L91" href="#L91">91</a>          <strong class="jxr_keyword">return</strong> convert(repository, revision, path, type, <strong class="jxr_keyword">null</strong>);
+<a class="jxr_linenumber" name="L92" href="#L92">92</a>      }
+<a class="jxr_linenumber" name="L93" href="#L93">93</a>  
+<a class="jxr_linenumber" name="L94" href="#L94">94</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> &lt;T&gt; EntryDto&lt;T&gt; convert(<a href="../../../../../../com/linecorp/centraldogma/server/storage/repository/Repository.html">Repository</a> repository, <a href="../../../../../../com/linecorp/centraldogma/common/Revision.html">Revision</a> revision, String path,
+<a class="jxr_linenumber" name="L95" href="#L95">95</a>                                             <a href="../../../../../../com/linecorp/centraldogma/common/EntryType.html">EntryType</a> type, @Nullable T content) {
+<a class="jxr_linenumber" name="L96" href="#L96">96</a>          requireNonNull(repository, <span class="jxr_string">"repository"</span>);
+<a class="jxr_linenumber" name="L97" href="#L97">97</a>          <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">new</strong> EntryDto&lt;&gt;(requireNonNull(revision, <span class="jxr_string">"revision"</span>),
+<a class="jxr_linenumber" name="L98" href="#L98">98</a>                                requireNonNull(path, <span class="jxr_string">"path"</span>),
+<a class="jxr_linenumber" name="L99" href="#L99">99</a>                                requireNonNull(type, <span class="jxr_string">"type"</span>),
+<a class="jxr_linenumber" name="L100" href="#L100">100</a>                               repository.parent().name(),
+<a class="jxr_linenumber" name="L101" href="#L101">101</a>                               repository.name(),
+<a class="jxr_linenumber" name="L102" href="#L102">102</a>                               content);
+<a class="jxr_linenumber" name="L103" href="#L103">103</a>     }
+<a class="jxr_linenumber" name="L104" href="#L104">104</a> 
+<a class="jxr_linenumber" name="L105" href="#L105">105</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> <a href="../../../../../../com/linecorp/centraldogma/internal/api/v1/PushResultDto.html">PushResultDto</a> convert(<a href="../../../../../../com/linecorp/centraldogma/common/Revision.html">Revision</a> revision, <strong class="jxr_keyword">long</strong> commitTimeMillis) {
+<a class="jxr_linenumber" name="L106" href="#L106">106</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">new</strong> <a href="../../../../../../com/linecorp/centraldogma/internal/api/v1/PushResultDto.html">PushResultDto</a>(revision, commitTimeMillis);
+<a class="jxr_linenumber" name="L107" href="#L107">107</a>     }
+<a class="jxr_linenumber" name="L108" href="#L108">108</a> 
+<a class="jxr_linenumber" name="L109" href="#L109">109</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> <a href="../../../../../../com/linecorp/centraldogma/internal/api/v1/CommitDto.html">CommitDto</a> convert(<a href="../../../../../../com/linecorp/centraldogma/common/Commit.html">Commit</a> commit) {
+<a class="jxr_linenumber" name="L110" href="#L110">110</a>         requireNonNull(commit, <span class="jxr_string">"commit"</span>);
+<a class="jxr_linenumber" name="L111" href="#L111">111</a> 
+<a class="jxr_linenumber" name="L112" href="#L112">112</a>         <strong class="jxr_keyword">return</strong> convert(commit.revision(), commit.author(),
+<a class="jxr_linenumber" name="L113" href="#L113">113</a>                        <strong class="jxr_keyword">new</strong> <a href="../../../../../../com/linecorp/centraldogma/internal/api/v1/CommitMessageDto.html">CommitMessageDto</a>(commit.summary(), commit.detail(), commit.markup()),
+<a class="jxr_linenumber" name="L114" href="#L114">114</a>                        commit.when());
+<a class="jxr_linenumber" name="L115" href="#L115">115</a>     }
+<a class="jxr_linenumber" name="L116" href="#L116">116</a> 
+<a class="jxr_linenumber" name="L117" href="#L117">117</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> <a href="../../../../../../com/linecorp/centraldogma/internal/api/v1/CommitDto.html">CommitDto</a> convert(<a href="../../../../../../com/linecorp/centraldogma/common/Revision.html">Revision</a> revision, <a href="../../../../../../com/linecorp/centraldogma/common/Author.html">Author</a> author, <a href="../../../../../../com/linecorp/centraldogma/internal/api/v1/CommitMessageDto.html">CommitMessageDto</a> commitMessage,
+<a class="jxr_linenumber" name="L118" href="#L118">118</a>                                     <strong class="jxr_keyword">long</strong> commitTimeMillis) {
+<a class="jxr_linenumber" name="L119" href="#L119">119</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">new</strong> <a href="../../../../../../com/linecorp/centraldogma/internal/api/v1/CommitDto.html">CommitDto</a>(revision, author, commitMessage, commitTimeMillis);
+<a class="jxr_linenumber" name="L120" href="#L120">120</a>     }
+<a class="jxr_linenumber" name="L121" href="#L121">121</a> 
+<a class="jxr_linenumber" name="L122" href="#L122">122</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> &lt;T&gt; ChangeDto&lt;T&gt; convert(Change&lt;T&gt; change) {
+<a class="jxr_linenumber" name="L123" href="#L123">123</a>         requireNonNull(change, <span class="jxr_string">"change"</span>);
+<a class="jxr_linenumber" name="L124" href="#L124">124</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">new</strong> ChangeDto&lt;&gt;(change.path(), change.type(), change.content());
 <a class="jxr_linenumber" name="L125" href="#L125">125</a>     }
 <a class="jxr_linenumber" name="L126" href="#L126">126</a> 
-<a class="jxr_linenumber" name="L127" href="#L127">127</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> <a href="../../../../../../com/linecorp/centraldogma/internal/api/v1/CommitDto.html">CommitDto</a> newCommitDto(<a href="../../../../../../com/linecorp/centraldogma/common/Commit.html">Commit</a> commit) {
-<a class="jxr_linenumber" name="L128" href="#L128">128</a>         requireNonNull(commit, <span class="jxr_string">"commit"</span>);
-<a class="jxr_linenumber" name="L129" href="#L129">129</a> 
-<a class="jxr_linenumber" name="L130" href="#L130">130</a>         <strong class="jxr_keyword">return</strong> newCommitDto(commit.revision(), commit.author(),
-<a class="jxr_linenumber" name="L131" href="#L131">131</a>                             <strong class="jxr_keyword">new</strong> <a href="../../../../../../com/linecorp/centraldogma/internal/api/v1/CommitMessageDto.html">CommitMessageDto</a>(commit.summary(), commit.detail(), commit.markup()),
-<a class="jxr_linenumber" name="L132" href="#L132">132</a>                             commit.when());
-<a class="jxr_linenumber" name="L133" href="#L133">133</a>     }
-<a class="jxr_linenumber" name="L134" href="#L134">134</a> 
-<a class="jxr_linenumber" name="L135" href="#L135">135</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> <a href="../../../../../../com/linecorp/centraldogma/internal/api/v1/CommitDto.html">CommitDto</a> newCommitDto(<a href="../../../../../../com/linecorp/centraldogma/common/Revision.html">Revision</a> revision, <a href="../../../../../../com/linecorp/centraldogma/common/Author.html">Author</a> author, <a href="../../../../../../com/linecorp/centraldogma/internal/api/v1/CommitMessageDto.html">CommitMessageDto</a> commitMessage,
-<a class="jxr_linenumber" name="L136" href="#L136">136</a>                                          <strong class="jxr_keyword">long</strong> commitTimeMillis) {
-<a class="jxr_linenumber" name="L137" href="#L137">137</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">new</strong> <a href="../../../../../../com/linecorp/centraldogma/internal/api/v1/CommitDto.html">CommitDto</a>(revision, author, commitMessage, commitTimeMillis);
-<a class="jxr_linenumber" name="L138" href="#L138">138</a>     }
-<a class="jxr_linenumber" name="L139" href="#L139">139</a> 
-<a class="jxr_linenumber" name="L140" href="#L140">140</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> &lt;T&gt; ChangeDto&lt;T&gt; newChangeDto(Change&lt;T&gt; change) {
-<a class="jxr_linenumber" name="L141" href="#L141">141</a>         requireNonNull(change, <span class="jxr_string">"change"</span>);
-<a class="jxr_linenumber" name="L142" href="#L142">142</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">new</strong> ChangeDto&lt;&gt;(change.path(), change.type(), change.content());
-<a class="jxr_linenumber" name="L143" href="#L143">143</a>     }
-<a class="jxr_linenumber" name="L144" href="#L144">144</a> 
-<a class="jxr_linenumber" name="L145" href="#L145">145</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> &lt;T&gt; MergedEntryDto&lt;T&gt; newMergedEntryDto(MergedEntry&lt;T&gt; mergedEntry) {
-<a class="jxr_linenumber" name="L146" href="#L146">146</a>         requireNonNull(mergedEntry, <span class="jxr_string">"mergedEntry"</span>);
-<a class="jxr_linenumber" name="L147" href="#L147">147</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">new</strong> MergedEntryDto&lt;&gt;(mergedEntry.revision(), mergedEntry.type(),
-<a class="jxr_linenumber" name="L148" href="#L148">148</a>                                     mergedEntry.content(), mergedEntry.paths());
-<a class="jxr_linenumber" name="L149" href="#L149">149</a>     }
-<a class="jxr_linenumber" name="L150" href="#L150">150</a> 
-<a class="jxr_linenumber" name="L151" href="#L151">151</a>     <strong class="jxr_keyword">private</strong> <a href="../../../../../../com/linecorp/centraldogma/server/internal/api/DtoConverter.html">DtoConverter</a>() {}
-<a class="jxr_linenumber" name="L152" href="#L152">152</a> }
+<a class="jxr_linenumber" name="L127" href="#L127">127</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> &lt;T&gt; MergedEntryDto&lt;T&gt; convert(MergedEntry&lt;T&gt; mergedEntry) {
+<a class="jxr_linenumber" name="L128" href="#L128">128</a>         requireNonNull(mergedEntry, <span class="jxr_string">"mergedEntry"</span>);
+<a class="jxr_linenumber" name="L129" href="#L129">129</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">new</strong> MergedEntryDto&lt;&gt;(mergedEntry.revision(), mergedEntry.type(),
+<a class="jxr_linenumber" name="L130" href="#L130">130</a>                                     mergedEntry.content(), mergedEntry.paths());
+<a class="jxr_linenumber" name="L131" href="#L131">131</a>     }
+<a class="jxr_linenumber" name="L132" href="#L132">132</a> 
+<a class="jxr_linenumber" name="L133" href="#L133">133</a>     <strong class="jxr_keyword">private</strong> <a href="../../../../../../com/linecorp/centraldogma/server/internal/api/DtoConverter.html">DtoConverter</a>() {}
+<a class="jxr_linenumber" name="L134" href="#L134">134</a> }
 </pre>
 <hr/>
 <div id="footer">&copy; Copyright 2017&ndash;2026 <a href="https://engineering.linecorp.com/en/">LINE Corporation</a>. All rights reserved.</div>

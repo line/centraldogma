@@ -24,13 +24,13 @@
 <a class="jxr_linenumber" name="L16" href="#L16">16</a>  
 <a class="jxr_linenumber" name="L17" href="#L17">17</a>  <strong class="jxr_keyword">package</strong> com.linecorp.centraldogma.server.internal.api.converter;
 <a class="jxr_linenumber" name="L18" href="#L18">18</a>  
-<a class="jxr_linenumber" name="L19" href="#L19">19</a>  <strong class="jxr_keyword">import</strong> java.lang.reflect.ParameterizedType;
-<a class="jxr_linenumber" name="L20" href="#L20">20</a>  <strong class="jxr_keyword">import</strong> java.util.List;
-<a class="jxr_linenumber" name="L21" href="#L21">21</a>  
-<a class="jxr_linenumber" name="L22" href="#L22">22</a>  <strong class="jxr_keyword">import</strong> javax.annotation.Nullable;
+<a class="jxr_linenumber" name="L19" href="#L19">19</a>  <strong class="jxr_keyword">import</strong> <strong class="jxr_keyword">static</strong> com.google.common.base.Preconditions.checkArgument;
+<a class="jxr_linenumber" name="L20" href="#L20">20</a>  
+<a class="jxr_linenumber" name="L21" href="#L21">21</a>  <strong class="jxr_keyword">import</strong> java.lang.reflect.ParameterizedType;
+<a class="jxr_linenumber" name="L22" href="#L22">22</a>  <strong class="jxr_keyword">import</strong> java.util.List;
 <a class="jxr_linenumber" name="L23" href="#L23">23</a>  
-<a class="jxr_linenumber" name="L24" href="#L24">24</a>  <strong class="jxr_keyword">import</strong> com.fasterxml.jackson.core.JsonParseException;
-<a class="jxr_linenumber" name="L25" href="#L25">25</a>  <strong class="jxr_keyword">import</strong> com.fasterxml.jackson.databind.JsonMappingException;
+<a class="jxr_linenumber" name="L24" href="#L24">24</a>  <strong class="jxr_keyword">import</strong> javax.annotation.Nullable;
+<a class="jxr_linenumber" name="L25" href="#L25">25</a>  
 <a class="jxr_linenumber" name="L26" href="#L26">26</a>  <strong class="jxr_keyword">import</strong> com.fasterxml.jackson.databind.JsonNode;
 <a class="jxr_linenumber" name="L27" href="#L27">27</a>  <strong class="jxr_keyword">import</strong> com.fasterxml.jackson.databind.node.ArrayNode;
 <a class="jxr_linenumber" name="L28" href="#L28">28</a>  <strong class="jxr_keyword">import</strong> com.fasterxml.jackson.databind.node.JsonNodeType;
@@ -41,7 +41,7 @@
 <a class="jxr_linenumber" name="L33" href="#L33">33</a>  <strong class="jxr_keyword">import</strong> com.linecorp.armeria.server.annotation.JacksonRequestConverterFunction;
 <a class="jxr_linenumber" name="L34" href="#L34">34</a>  <strong class="jxr_keyword">import</strong> com.linecorp.armeria.server.annotation.RequestConverterFunction;
 <a class="jxr_linenumber" name="L35" href="#L35">35</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.common.Change;
-<a class="jxr_linenumber" name="L36" href="#L36">36</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.internal.Jackson;
+<a class="jxr_linenumber" name="L36" href="#L36">36</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.common.ChangeType;
 <a class="jxr_linenumber" name="L37" href="#L37">37</a>  
 <a class="jxr_linenumber" name="L38" href="#L38">38</a>  <em class="jxr_javadoccomment">/**</em>
 <a class="jxr_linenumber" name="L39" href="#L39">39</a>  <em class="jxr_javadoccomment"> * A request converter that converts to {@code Iterable&lt;Change&lt;?&gt;&gt;}.</em>
@@ -85,13 +85,50 @@
 <a class="jxr_linenumber" name="L77" href="#L77">77</a>      }
 <a class="jxr_linenumber" name="L78" href="#L78">78</a>  
 <a class="jxr_linenumber" name="L79" href="#L79">79</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> Change&lt;?&gt; readChange(JsonNode node) {
-<a class="jxr_linenumber" name="L80" href="#L80">80</a>          <strong class="jxr_keyword">try</strong> {
-<a class="jxr_linenumber" name="L81" href="#L81">81</a>              <strong class="jxr_keyword">return</strong> Jackson.treeToValue(node, Change.<strong class="jxr_keyword">class</strong>);
-<a class="jxr_linenumber" name="L82" href="#L82">82</a>          } <strong class="jxr_keyword">catch</strong> (JsonParseException | JsonMappingException e) {
-<a class="jxr_linenumber" name="L83" href="#L83">83</a>              <strong class="jxr_keyword">throw</strong> <strong class="jxr_keyword">new</strong> IllegalArgumentException(<span class="jxr_string">"Failed to parse a change"</span>, e);
-<a class="jxr_linenumber" name="L84" href="#L84">84</a>          }
-<a class="jxr_linenumber" name="L85" href="#L85">85</a>      }
-<a class="jxr_linenumber" name="L86" href="#L86">86</a>  }
+<a class="jxr_linenumber" name="L80" href="#L80">80</a>          checkArgument(node.get(<span class="jxr_string">"path"</span>) != <strong class="jxr_keyword">null</strong> &amp;&amp; node.get(<span class="jxr_string">"type"</span>) != <strong class="jxr_keyword">null</strong>,
+<a class="jxr_linenumber" name="L81" href="#L81">81</a>                        <span class="jxr_string">"a change should have a path and a type"</span>);
+<a class="jxr_linenumber" name="L82" href="#L82">82</a>          <strong class="jxr_keyword">final</strong> <a href="../../../../../../../com/linecorp/centraldogma/common/ChangeType.html">ChangeType</a> changeType = ChangeType.parse(node.get(<span class="jxr_string">"type"</span>).textValue());
+<a class="jxr_linenumber" name="L83" href="#L83">83</a>          <strong class="jxr_keyword">if</strong> (changeType != ChangeType.REMOVE) {
+<a class="jxr_linenumber" name="L84" href="#L84">84</a>              <strong class="jxr_keyword">if</strong> (changeType == ChangeType.UPSERT_JSON || changeType == ChangeType.UPSERT_TEXT) {
+<a class="jxr_linenumber" name="L85" href="#L85">85</a>                  checkArgument(node.get(<span class="jxr_string">"content"</span>) != <strong class="jxr_keyword">null</strong> || node.get(<span class="jxr_string">"rawContent"</span>) != <strong class="jxr_keyword">null</strong>,
+<a class="jxr_linenumber" name="L86" href="#L86">86</a>                                <span class="jxr_string">"a change should have a content."</span>);
+<a class="jxr_linenumber" name="L87" href="#L87">87</a>              } <strong class="jxr_keyword">else</strong> {
+<a class="jxr_linenumber" name="L88" href="#L88">88</a>                  checkArgument(node.get(<span class="jxr_string">"content"</span>) != <strong class="jxr_keyword">null</strong>, <span class="jxr_string">"a change should have a content."</span>);
+<a class="jxr_linenumber" name="L89" href="#L89">89</a>              }
+<a class="jxr_linenumber" name="L90" href="#L90">90</a>          }
+<a class="jxr_linenumber" name="L91" href="#L91">91</a>  
+<a class="jxr_linenumber" name="L92" href="#L92">92</a>          <strong class="jxr_keyword">final</strong> String path = node.get(<span class="jxr_string">"path"</span>).textValue();
+<a class="jxr_linenumber" name="L93" href="#L93">93</a>          <strong class="jxr_keyword">if</strong> (changeType == ChangeType.UPSERT_TEXT) {
+<a class="jxr_linenumber" name="L94" href="#L94">94</a>              <strong class="jxr_keyword">final</strong> JsonNode content = node.get(<span class="jxr_string">"content"</span>);
+<a class="jxr_linenumber" name="L95" href="#L95">95</a>              <strong class="jxr_keyword">if</strong> (content != <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="L96" href="#L96">96</a>                  <strong class="jxr_keyword">return</strong> Change.ofTextUpsert(path, content.textValue());
+<a class="jxr_linenumber" name="L97" href="#L97">97</a>              }
+<a class="jxr_linenumber" name="L98" href="#L98">98</a>              <strong class="jxr_keyword">return</strong> Change.ofTextUpsert(path, node.get(<span class="jxr_string">"rawContent"</span>).textValue());
+<a class="jxr_linenumber" name="L99" href="#L99">99</a>          }
+<a class="jxr_linenumber" name="L100" href="#L100">100</a>         <strong class="jxr_keyword">if</strong> (changeType == ChangeType.UPSERT_JSON) {
+<a class="jxr_linenumber" name="L101" href="#L101">101</a>             <strong class="jxr_keyword">final</strong> JsonNode content = node.get(<span class="jxr_string">"content"</span>);
+<a class="jxr_linenumber" name="L102" href="#L102">102</a>             <strong class="jxr_keyword">if</strong> (content != <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="L103" href="#L103">103</a>                 <strong class="jxr_keyword">return</strong> Change.ofJsonUpsert(path, content);
+<a class="jxr_linenumber" name="L104" href="#L104">104</a>             }
+<a class="jxr_linenumber" name="L105" href="#L105">105</a>             <strong class="jxr_keyword">return</strong> Change.ofJsonUpsert(path, node.get(<span class="jxr_string">"rawContent"</span>).textValue());
+<a class="jxr_linenumber" name="L106" href="#L106">106</a>         }
+<a class="jxr_linenumber" name="L107" href="#L107">107</a>         <strong class="jxr_keyword">if</strong> (changeType == ChangeType.REMOVE) {
+<a class="jxr_linenumber" name="L108" href="#L108">108</a>             <strong class="jxr_keyword">return</strong> Change.ofRemoval(path);
+<a class="jxr_linenumber" name="L109" href="#L109">109</a>         }
+<a class="jxr_linenumber" name="L110" href="#L110">110</a>         <strong class="jxr_keyword">if</strong> (changeType == ChangeType.RENAME) {
+<a class="jxr_linenumber" name="L111" href="#L111">111</a>             <strong class="jxr_keyword">return</strong> Change.ofRename(path, node.get(<span class="jxr_string">"content"</span>).textValue());
+<a class="jxr_linenumber" name="L112" href="#L112">112</a>         }
+<a class="jxr_linenumber" name="L113" href="#L113">113</a>         <strong class="jxr_keyword">if</strong> (changeType == ChangeType.APPLY_TEXT_PATCH) {
+<a class="jxr_linenumber" name="L114" href="#L114">114</a>             <strong class="jxr_keyword">return</strong> Change.ofTextPatch(path, node.get(<span class="jxr_string">"content"</span>).textValue());
+<a class="jxr_linenumber" name="L115" href="#L115">115</a>         }
+<a class="jxr_linenumber" name="L116" href="#L116">116</a>         <strong class="jxr_keyword">if</strong> (changeType == ChangeType.APPLY_JSON_PATCH) {
+<a class="jxr_linenumber" name="L117" href="#L117">117</a>             <strong class="jxr_keyword">return</strong> Change.ofJsonPatch(path, node.get(<span class="jxr_string">"content"</span>));
+<a class="jxr_linenumber" name="L118" href="#L118">118</a>         }
+<a class="jxr_linenumber" name="L119" href="#L119">119</a> 
+<a class="jxr_linenumber" name="L120" href="#L120">120</a>         <em class="jxr_comment">// Should never reach here.</em>
+<a class="jxr_linenumber" name="L121" href="#L121">121</a>         <strong class="jxr_keyword">throw</strong> <strong class="jxr_keyword">new</strong> Error();
+<a class="jxr_linenumber" name="L122" href="#L122">122</a>     }
+<a class="jxr_linenumber" name="L123" href="#L123">123</a> }
 </pre>
 <hr/>
 <div id="footer">&copy; Copyright 2017&ndash;2026 <a href="https://engineering.linecorp.com/en/">LINE Corporation</a>. All rights reserved.</div>

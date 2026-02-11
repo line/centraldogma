@@ -61,494 +61,464 @@
 <a class="jxr_linenumber" name="L53" href="#L53">53</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">final</strong> Pattern FILE_PATH_PATTERN = Pattern.compile(
 <a class="jxr_linenumber" name="L54" href="#L54">54</a>              <span class="jxr_string">"^(?:/[-_0-9a-zA-Z](?:[-_.0-9a-zA-Z]*[-_0-9a-zA-Z])?)+$"</span>);
 <a class="jxr_linenumber" name="L55" href="#L55">55</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">final</strong> Pattern JSON_FILE_PATH_PATTERN = Pattern.compile(
-<a class="jxr_linenumber" name="L56" href="#L56">56</a>              <span class="jxr_string">"^(?:/[-_0-9a-zA-Z](?:[-_.0-9a-zA-Z]*[-_0-9a-zA-Z])?)+&#92;&#92;.(?i)(?:json|json5)$"</span>);
-<a class="jxr_linenumber" name="L57" href="#L57">57</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">final</strong> Pattern YAML_FILE_PATH_PATTERN = Pattern.compile(
-<a class="jxr_linenumber" name="L58" href="#L58">58</a>              <span class="jxr_string">"^(?:/[-_0-9a-zA-Z](?:[-_.0-9a-zA-Z]*[-_0-9a-zA-Z])?)+&#92;&#92;.(?i)(?:yaml|yml)$"</span>);
-<a class="jxr_linenumber" name="L59" href="#L59">59</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">final</strong> Pattern STRUCTURED_FILE_PATH_PATTERN = Pattern.compile(
-<a class="jxr_linenumber" name="L60" href="#L60">60</a>              <span class="jxr_string">"^(?:/[-_0-9a-zA-Z](?:[-_.0-9a-zA-Z]*[-_0-9a-zA-Z])?)+&#92;&#92;.(?i)(?:json|json5|yaml|yml)$"</span>);
-<a class="jxr_linenumber" name="L61" href="#L61">61</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">final</strong> Pattern DIR_PATH_PATTERN = Pattern.compile(
-<a class="jxr_linenumber" name="L62" href="#L62">62</a>              <span class="jxr_string">"^(?:/[-_0-9a-zA-Z](?:[-_.0-9a-zA-Z]*[-_0-9a-zA-Z])?)*/?$"</span>);
-<a class="jxr_linenumber" name="L63" href="#L63">63</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">final</strong> Pattern PATH_PATTERN_PATTERN = Pattern.compile(<span class="jxr_string">"^[- /*_.,0-9a-zA-Z]+$"</span>);
-<a class="jxr_linenumber" name="L64" href="#L64">64</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">final</strong> Pattern EMAIL_PATTERN = Pattern.compile(
-<a class="jxr_linenumber" name="L65" href="#L65">65</a>              <span class="jxr_string">"^[_A-Za-z0-9-+]+(?:&#92;&#92;.[_A-Za-z0-9-]+)*@[A-Za-z0-9-]+(?:&#92;&#92;.[A-Za-z0-9]+)*(?:&#92;&#92;.[A-Za-z]{2,})$"</span>);
-<a class="jxr_linenumber" name="L66" href="#L66">66</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">final</strong> Pattern GENERAL_EMAIL_PATTERN = Pattern.compile(
-<a class="jxr_linenumber" name="L67" href="#L67">67</a>              <span class="jxr_string">"^[_A-Za-z0-9-+]+(?:&#92;&#92;.[_A-Za-z0-9-]+)*@(.+)$"</span>);
-<a class="jxr_linenumber" name="L68" href="#L68">68</a>  
-<a class="jxr_linenumber" name="L69" href="#L69">69</a>      <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="L70" href="#L70">70</a>  <em class="jxr_javadoccomment">     * Start with an alphanumeric character.</em>
-<a class="jxr_linenumber" name="L71" href="#L71">71</a>  <em class="jxr_javadoccomment">     * An alphanumeric character, minus, plus, underscore and dot are allowed in the middle.</em>
-<a class="jxr_linenumber" name="L72" href="#L72">72</a>  <em class="jxr_javadoccomment">     * End with an alphanumeric character.</em>
-<a class="jxr_linenumber" name="L73" href="#L73">73</a>  <em class="jxr_javadoccomment">     * Use this pattern for project and repository names that are entered by users.</em>
-<a class="jxr_linenumber" name="L74" href="#L74">74</a>  <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="L75" href="#L75">75</a>      <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">final</strong> Pattern USER_INPUT_PROJECT_AND_REPO_NAME_PATTERN =
-<a class="jxr_linenumber" name="L76" href="#L76">76</a>              Pattern.compile(<span class="jxr_string">"^(?!.*&#92;&#92;.git$)[0-9A-Za-z](?:[-+_0-9A-Za-z.]*[0-9A-Za-z])?$"</span>);
-<a class="jxr_linenumber" name="L77" href="#L77">77</a>  
-<a class="jxr_linenumber" name="L78" href="#L78">78</a>      <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">final</strong> String INTERNAL_PROJECT_PREFIX = <span class="jxr_string">"@"</span>;
-<a class="jxr_linenumber" name="L79" href="#L79">79</a>  
-<a class="jxr_linenumber" name="L80" href="#L80">80</a>      <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="L81" href="#L81">81</a>  <em class="jxr_javadoccomment">     * The difference between this and {@link #USER_INPUT_PROJECT_AND_REPO_NAME_PATTERN} is that this</em>
-<a class="jxr_linenumber" name="L82" href="#L82">82</a>  <em class="jxr_javadoccomment">     * allows {@value INTERNAL_PROJECT_PREFIX} at the beginning for internal projects.</em>
-<a class="jxr_linenumber" name="L83" href="#L83">83</a>  <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="L84" href="#L84">84</a>      <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">final</strong> Pattern PROJECT_AND_REPO_NAME_PATTERN =
-<a class="jxr_linenumber" name="L85" href="#L85">85</a>              Pattern.compile(<span class="jxr_string">"^(?!.*&#92;&#92;.git$)("</span> + INTERNAL_PROJECT_PREFIX +
-<a class="jxr_linenumber" name="L86" href="#L86">86</a>                              <span class="jxr_string">"|[0-9A-Za-z])(?:[-+_0-9A-Za-z.]*[0-9A-Za-z])?$"</span>);
-<a class="jxr_linenumber" name="L87" href="#L87">87</a>  
-<a class="jxr_linenumber" name="L88" href="#L88">88</a>      <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> String validateFileName(String name, String paramName) {
-<a class="jxr_linenumber" name="L89" href="#L89">89</a>          requireNonNull(name, paramName);
-<a class="jxr_linenumber" name="L90" href="#L90">90</a>          checkArgument(isValidFileName(name),
-<a class="jxr_linenumber" name="L91" href="#L91">91</a>                        <span class="jxr_string">"%s: %s (expected: %s)"</span>, paramName, name, FILE_NAME_PATTERN);
-<a class="jxr_linenumber" name="L92" href="#L92">92</a>          <strong class="jxr_keyword">return</strong> name;
-<a class="jxr_linenumber" name="L93" href="#L93">93</a>      }
-<a class="jxr_linenumber" name="L94" href="#L94">94</a>  
-<a class="jxr_linenumber" name="L95" href="#L95">95</a>      <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">boolean</strong> isValidFileName(String name) {
-<a class="jxr_linenumber" name="L96" href="#L96">96</a>          requireNonNull(name, <span class="jxr_string">"name"</span>);
-<a class="jxr_linenumber" name="L97" href="#L97">97</a>          <strong class="jxr_keyword">return</strong> !name.isEmpty() &amp;&amp; FILE_NAME_PATTERN.matcher(name).matches();
-<a class="jxr_linenumber" name="L98" href="#L98">98</a>      }
-<a class="jxr_linenumber" name="L99" href="#L99">99</a>  
-<a class="jxr_linenumber" name="L100" href="#L100">100</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> String validateFilePath(String path, String paramName) {
-<a class="jxr_linenumber" name="L101" href="#L101">101</a>         requireNonNull(path, paramName);
-<a class="jxr_linenumber" name="L102" href="#L102">102</a>         checkArgument(isValidFilePath(path),
-<a class="jxr_linenumber" name="L103" href="#L103">103</a>                       <span class="jxr_string">"%s: %s (expected: %s)"</span>, paramName, path, FILE_PATH_PATTERN);
-<a class="jxr_linenumber" name="L104" href="#L104">104</a>         <strong class="jxr_keyword">return</strong> path;
-<a class="jxr_linenumber" name="L105" href="#L105">105</a>     }
-<a class="jxr_linenumber" name="L106" href="#L106">106</a> 
-<a class="jxr_linenumber" name="L107" href="#L107">107</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">boolean</strong> isValidFilePath(String path) {
-<a class="jxr_linenumber" name="L108" href="#L108">108</a>         requireNonNull(path, <span class="jxr_string">"path"</span>);
-<a class="jxr_linenumber" name="L109" href="#L109">109</a>         <strong class="jxr_keyword">return</strong> !path.isEmpty() &amp;&amp; path.charAt(0) == '/' &amp;&amp;
-<a class="jxr_linenumber" name="L110" href="#L110">110</a>                FILE_PATH_PATTERN.matcher(path).matches();
-<a class="jxr_linenumber" name="L111" href="#L111">111</a>     }
-<a class="jxr_linenumber" name="L112" href="#L112">112</a> 
-<a class="jxr_linenumber" name="L113" href="#L113">113</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> String validateJsonFilePath(String path, String paramName) {
-<a class="jxr_linenumber" name="L114" href="#L114">114</a>         requireNonNull(path, paramName);
-<a class="jxr_linenumber" name="L115" href="#L115">115</a>         checkArgument(isValidJsonFilePath(path),
-<a class="jxr_linenumber" name="L116" href="#L116">116</a>                       <span class="jxr_string">"%s: %s (expected: %s)"</span>, paramName, path, JSON_FILE_PATH_PATTERN);
-<a class="jxr_linenumber" name="L117" href="#L117">117</a>         <strong class="jxr_keyword">return</strong> path;
-<a class="jxr_linenumber" name="L118" href="#L118">118</a>     }
-<a class="jxr_linenumber" name="L119" href="#L119">119</a> 
-<a class="jxr_linenumber" name="L120" href="#L120">120</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">boolean</strong> isValidJsonFilePath(String path) {
-<a class="jxr_linenumber" name="L121" href="#L121">121</a>         requireNonNull(path, <span class="jxr_string">"path"</span>);
-<a class="jxr_linenumber" name="L122" href="#L122">122</a>         <strong class="jxr_keyword">return</strong> !path.isEmpty() &amp;&amp; path.charAt(0) == '/' &amp;&amp;
-<a class="jxr_linenumber" name="L123" href="#L123">123</a>                JSON_FILE_PATH_PATTERN.matcher(path).matches();
-<a class="jxr_linenumber" name="L124" href="#L124">124</a>     }
-<a class="jxr_linenumber" name="L125" href="#L125">125</a> 
-<a class="jxr_linenumber" name="L126" href="#L126">126</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> String validateYamlFilePath(String path, String paramName) {
-<a class="jxr_linenumber" name="L127" href="#L127">127</a>         requireNonNull(path, paramName);
-<a class="jxr_linenumber" name="L128" href="#L128">128</a>         checkArgument(isValidYamlFilePath(path),
-<a class="jxr_linenumber" name="L129" href="#L129">129</a>                       <span class="jxr_string">"%s: %s (expected: %s)"</span>, paramName, path, YAML_FILE_PATH_PATTERN);
-<a class="jxr_linenumber" name="L130" href="#L130">130</a>         <strong class="jxr_keyword">return</strong> path;
-<a class="jxr_linenumber" name="L131" href="#L131">131</a>     }
-<a class="jxr_linenumber" name="L132" href="#L132">132</a> 
-<a class="jxr_linenumber" name="L133" href="#L133">133</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">boolean</strong> isValidStructuredFilePath(String path) {
-<a class="jxr_linenumber" name="L134" href="#L134">134</a>         requireNonNull(path, <span class="jxr_string">"path"</span>);
-<a class="jxr_linenumber" name="L135" href="#L135">135</a>         <strong class="jxr_keyword">return</strong> !path.isEmpty() &amp;&amp; path.charAt(0) == '/' &amp;&amp;
-<a class="jxr_linenumber" name="L136" href="#L136">136</a>                STRUCTURED_FILE_PATH_PATTERN.matcher(path).matches();
-<a class="jxr_linenumber" name="L137" href="#L137">137</a>     }
-<a class="jxr_linenumber" name="L138" href="#L138">138</a> 
-<a class="jxr_linenumber" name="L139" href="#L139">139</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> String validateStructuredFilePath(String path, String paramName) {
-<a class="jxr_linenumber" name="L140" href="#L140">140</a>         requireNonNull(path, paramName);
-<a class="jxr_linenumber" name="L141" href="#L141">141</a>         checkArgument(isValidStructuredFilePath(path),
-<a class="jxr_linenumber" name="L142" href="#L142">142</a>                       <span class="jxr_string">"%s: %s (expected: %s)"</span>, paramName, path, STRUCTURED_FILE_PATH_PATTERN);
-<a class="jxr_linenumber" name="L143" href="#L143">143</a>         <strong class="jxr_keyword">return</strong> path;
-<a class="jxr_linenumber" name="L144" href="#L144">144</a>     }
-<a class="jxr_linenumber" name="L145" href="#L145">145</a> 
-<a class="jxr_linenumber" name="L146" href="#L146">146</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">boolean</strong> isValidYamlFilePath(String path) {
-<a class="jxr_linenumber" name="L147" href="#L147">147</a>         requireNonNull(path, <span class="jxr_string">"path"</span>);
-<a class="jxr_linenumber" name="L148" href="#L148">148</a>         <strong class="jxr_keyword">return</strong> !path.isEmpty() &amp;&amp; path.charAt(0) == '/' &amp;&amp;
-<a class="jxr_linenumber" name="L149" href="#L149">149</a>                YAML_FILE_PATH_PATTERN.matcher(path).matches();
-<a class="jxr_linenumber" name="L150" href="#L150">150</a>     }
-<a class="jxr_linenumber" name="L151" href="#L151">151</a> 
-<a class="jxr_linenumber" name="L152" href="#L152">152</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> String validateJsonPath(String jsonPath, String paramName) {
-<a class="jxr_linenumber" name="L153" href="#L153">153</a>         requireNonNull(jsonPath, paramName);
-<a class="jxr_linenumber" name="L154" href="#L154">154</a>         checkArgument(isValidJsonPath(jsonPath),
-<a class="jxr_linenumber" name="L155" href="#L155">155</a>                       <span class="jxr_string">"%s: %s (expected: a valid JSON path)"</span>, paramName, jsonPath);
-<a class="jxr_linenumber" name="L156" href="#L156">156</a>         <strong class="jxr_keyword">return</strong> jsonPath;
-<a class="jxr_linenumber" name="L157" href="#L157">157</a>     }
-<a class="jxr_linenumber" name="L158" href="#L158">158</a> 
-<a class="jxr_linenumber" name="L159" href="#L159">159</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">boolean</strong> isValidJsonPath(String jsonPath) {
-<a class="jxr_linenumber" name="L160" href="#L160">160</a>         <strong class="jxr_keyword">try</strong> {
-<a class="jxr_linenumber" name="L161" href="#L161">161</a>             JsonPath.compile(jsonPath);
-<a class="jxr_linenumber" name="L162" href="#L162">162</a>             <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">true</strong>;
-<a class="jxr_linenumber" name="L163" href="#L163">163</a>         } <strong class="jxr_keyword">catch</strong> (Exception e) {
-<a class="jxr_linenumber" name="L164" href="#L164">164</a>             <strong class="jxr_keyword">return</strong> false;
-<a class="jxr_linenumber" name="L165" href="#L165">165</a>         }
-<a class="jxr_linenumber" name="L166" href="#L166">166</a>     }
-<a class="jxr_linenumber" name="L167" href="#L167">167</a> 
-<a class="jxr_linenumber" name="L168" href="#L168">168</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> String validateDirPath(String path, String paramName) {
-<a class="jxr_linenumber" name="L169" href="#L169">169</a>         requireNonNull(path, paramName);
-<a class="jxr_linenumber" name="L170" href="#L170">170</a>         checkArgument(isValidDirPath(path),
-<a class="jxr_linenumber" name="L171" href="#L171">171</a>                       <span class="jxr_string">"%s: %s (expected: %s)"</span>, paramName, path, DIR_PATH_PATTERN);
-<a class="jxr_linenumber" name="L172" href="#L172">172</a>         <strong class="jxr_keyword">return</strong> path;
-<a class="jxr_linenumber" name="L173" href="#L173">173</a>     }
-<a class="jxr_linenumber" name="L174" href="#L174">174</a> 
-<a class="jxr_linenumber" name="L175" href="#L175">175</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">boolean</strong> isValidDirPath(String path) {
-<a class="jxr_linenumber" name="L176" href="#L176">176</a>         <strong class="jxr_keyword">return</strong> isValidDirPath(path, false);
-<a class="jxr_linenumber" name="L177" href="#L177">177</a>     }
-<a class="jxr_linenumber" name="L178" href="#L178">178</a> 
-<a class="jxr_linenumber" name="L179" href="#L179">179</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">boolean</strong> isValidDirPath(String path, <strong class="jxr_keyword">boolean</strong> mustEndWithSlash) {
-<a class="jxr_linenumber" name="L180" href="#L180">180</a>         requireNonNull(path);
-<a class="jxr_linenumber" name="L181" href="#L181">181</a>         <strong class="jxr_keyword">if</strong> (mustEndWithSlash &amp;&amp; !path.endsWith(<span class="jxr_string">"/"</span>)) {
-<a class="jxr_linenumber" name="L182" href="#L182">182</a>             <strong class="jxr_keyword">return</strong> false;
-<a class="jxr_linenumber" name="L183" href="#L183">183</a>         }
-<a class="jxr_linenumber" name="L184" href="#L184">184</a>         <strong class="jxr_keyword">return</strong> !path.isEmpty() &amp;&amp; path.charAt(0) == '/' &amp;&amp;
-<a class="jxr_linenumber" name="L185" href="#L185">185</a>                DIR_PATH_PATTERN.matcher(path).matches();
-<a class="jxr_linenumber" name="L186" href="#L186">186</a>     }
-<a class="jxr_linenumber" name="L187" href="#L187">187</a> 
-<a class="jxr_linenumber" name="L188" href="#L188">188</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> String validatePathPattern(String pathPattern, String paramName) {
-<a class="jxr_linenumber" name="L189" href="#L189">189</a>         requireNonNull(pathPattern, paramName);
-<a class="jxr_linenumber" name="L190" href="#L190">190</a>         checkArgument(isValidPathPattern(pathPattern),
-<a class="jxr_linenumber" name="L191" href="#L191">191</a>                       <span class="jxr_string">"%s: %s (expected: %s)"</span>, paramName, pathPattern, PATH_PATTERN_PATTERN);
-<a class="jxr_linenumber" name="L192" href="#L192">192</a>         <strong class="jxr_keyword">return</strong> pathPattern;
-<a class="jxr_linenumber" name="L193" href="#L193">193</a>     }
-<a class="jxr_linenumber" name="L194" href="#L194">194</a> 
-<a class="jxr_linenumber" name="L195" href="#L195">195</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">boolean</strong> isValidPathPattern(String pathPattern) {
-<a class="jxr_linenumber" name="L196" href="#L196">196</a>         requireNonNull(pathPattern, <span class="jxr_string">"pathPattern"</span>);
-<a class="jxr_linenumber" name="L197" href="#L197">197</a>         <strong class="jxr_keyword">return</strong> PATH_PATTERN_PATTERN.matcher(pathPattern).matches();
-<a class="jxr_linenumber" name="L198" href="#L198">198</a>     }
-<a class="jxr_linenumber" name="L199" href="#L199">199</a> 
-<a class="jxr_linenumber" name="L200" href="#L200">200</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> String validateProjectName(String projectName, String paramName, <strong class="jxr_keyword">boolean</strong> allowInternal) {
-<a class="jxr_linenumber" name="L201" href="#L201">201</a>         requireNonNull(projectName, paramName);
-<a class="jxr_linenumber" name="L202" href="#L202">202</a>         <strong class="jxr_keyword">if</strong> (allowInternal) {
-<a class="jxr_linenumber" name="L203" href="#L203">203</a>             checkArgument(isValidProjectName(projectName, <strong class="jxr_keyword">true</strong>),
-<a class="jxr_linenumber" name="L204" href="#L204">204</a>                           <span class="jxr_string">"%s: %s (expected: %s)"</span>, paramName, projectName,
-<a class="jxr_linenumber" name="L205" href="#L205">205</a>                           PROJECT_AND_REPO_NAME_PATTERN);
-<a class="jxr_linenumber" name="L206" href="#L206">206</a>         } <strong class="jxr_keyword">else</strong> {
-<a class="jxr_linenumber" name="L207" href="#L207">207</a>             checkArgument(isValidProjectName(projectName, false),
-<a class="jxr_linenumber" name="L208" href="#L208">208</a>                           <span class="jxr_string">"%s: %s (expected: %s)"</span>, paramName, projectName,
-<a class="jxr_linenumber" name="L209" href="#L209">209</a>                           USER_INPUT_PROJECT_AND_REPO_NAME_PATTERN);
-<a class="jxr_linenumber" name="L210" href="#L210">210</a>         }
-<a class="jxr_linenumber" name="L211" href="#L211">211</a>         <strong class="jxr_keyword">return</strong> projectName;
-<a class="jxr_linenumber" name="L212" href="#L212">212</a>     }
-<a class="jxr_linenumber" name="L213" href="#L213">213</a> 
-<a class="jxr_linenumber" name="L214" href="#L214">214</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">boolean</strong> isValidProjectName(String projectName, <strong class="jxr_keyword">boolean</strong> allowInternal) {
-<a class="jxr_linenumber" name="L215" href="#L215">215</a>         requireNonNull(projectName, <span class="jxr_string">"projectName"</span>);
-<a class="jxr_linenumber" name="L216" href="#L216">216</a>         <strong class="jxr_keyword">if</strong> (allowInternal) {
-<a class="jxr_linenumber" name="L217" href="#L217">217</a>             <strong class="jxr_keyword">return</strong> PROJECT_AND_REPO_NAME_PATTERN.matcher(projectName).matches();
-<a class="jxr_linenumber" name="L218" href="#L218">218</a>         } <strong class="jxr_keyword">else</strong> {
-<a class="jxr_linenumber" name="L219" href="#L219">219</a>             <strong class="jxr_keyword">return</strong> USER_INPUT_PROJECT_AND_REPO_NAME_PATTERN.matcher(projectName).matches();
-<a class="jxr_linenumber" name="L220" href="#L220">220</a>         }
-<a class="jxr_linenumber" name="L221" href="#L221">221</a>     }
-<a class="jxr_linenumber" name="L222" href="#L222">222</a> 
-<a class="jxr_linenumber" name="L223" href="#L223">223</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">boolean</strong> isValidProjectName(String projectName) {
-<a class="jxr_linenumber" name="L224" href="#L224">224</a>         requireNonNull(projectName, <span class="jxr_string">"projectName"</span>);
-<a class="jxr_linenumber" name="L225" href="#L225">225</a>         <strong class="jxr_keyword">return</strong> USER_INPUT_PROJECT_AND_REPO_NAME_PATTERN.matcher(projectName).matches();
-<a class="jxr_linenumber" name="L226" href="#L226">226</a>     }
-<a class="jxr_linenumber" name="L227" href="#L227">227</a> 
-<a class="jxr_linenumber" name="L228" href="#L228">228</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> String validateRepositoryName(String repoName, String paramName) {
-<a class="jxr_linenumber" name="L229" href="#L229">229</a>         requireNonNull(repoName, paramName);
-<a class="jxr_linenumber" name="L230" href="#L230">230</a>         checkArgument(isValidRepositoryName(repoName),
-<a class="jxr_linenumber" name="L231" href="#L231">231</a>                       <span class="jxr_string">"%s: %s (expected: %s)"</span>, paramName, repoName, USER_INPUT_PROJECT_AND_REPO_NAME_PATTERN);
-<a class="jxr_linenumber" name="L232" href="#L232">232</a>         <strong class="jxr_keyword">return</strong> repoName;
-<a class="jxr_linenumber" name="L233" href="#L233">233</a>     }
-<a class="jxr_linenumber" name="L234" href="#L234">234</a> 
-<a class="jxr_linenumber" name="L235" href="#L235">235</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">boolean</strong> isValidRepositoryName(String repoName) {
-<a class="jxr_linenumber" name="L236" href="#L236">236</a>         requireNonNull(repoName, <span class="jxr_string">"repoName"</span>);
-<a class="jxr_linenumber" name="L237" href="#L237">237</a>         <strong class="jxr_keyword">return</strong> USER_INPUT_PROJECT_AND_REPO_NAME_PATTERN.matcher(repoName).matches();
+<a class="jxr_linenumber" name="L56" href="#L56">56</a>              <span class="jxr_string">"^(?:/[-_0-9a-zA-Z](?:[-_.0-9a-zA-Z]*[-_0-9a-zA-Z])?)+&#92;&#92;.(?i)json$"</span>);
+<a class="jxr_linenumber" name="L57" href="#L57">57</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">final</strong> Pattern DIR_PATH_PATTERN = Pattern.compile(
+<a class="jxr_linenumber" name="L58" href="#L58">58</a>              <span class="jxr_string">"^(?:/[-_0-9a-zA-Z](?:[-_.0-9a-zA-Z]*[-_0-9a-zA-Z])?)*/?$"</span>);
+<a class="jxr_linenumber" name="L59" href="#L59">59</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">final</strong> Pattern PATH_PATTERN_PATTERN = Pattern.compile(<span class="jxr_string">"^[- /*_.,0-9a-zA-Z]+$"</span>);
+<a class="jxr_linenumber" name="L60" href="#L60">60</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">final</strong> Pattern EMAIL_PATTERN = Pattern.compile(
+<a class="jxr_linenumber" name="L61" href="#L61">61</a>              <span class="jxr_string">"^[_A-Za-z0-9-+]+(?:&#92;&#92;.[_A-Za-z0-9-]+)*@[A-Za-z0-9-]+(?:&#92;&#92;.[A-Za-z0-9]+)*(?:&#92;&#92;.[A-Za-z]{2,})$"</span>);
+<a class="jxr_linenumber" name="L62" href="#L62">62</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">final</strong> Pattern GENERAL_EMAIL_PATTERN = Pattern.compile(
+<a class="jxr_linenumber" name="L63" href="#L63">63</a>              <span class="jxr_string">"^[_A-Za-z0-9-+]+(?:&#92;&#92;.[_A-Za-z0-9-]+)*@(.+)$"</span>);
+<a class="jxr_linenumber" name="L64" href="#L64">64</a>  
+<a class="jxr_linenumber" name="L65" href="#L65">65</a>      <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L66" href="#L66">66</a>  <em class="jxr_javadoccomment">     * Start with an alphanumeric character.</em>
+<a class="jxr_linenumber" name="L67" href="#L67">67</a>  <em class="jxr_javadoccomment">     * An alphanumeric character, minus, plus, underscore and dot are allowed in the middle.</em>
+<a class="jxr_linenumber" name="L68" href="#L68">68</a>  <em class="jxr_javadoccomment">     * End with an alphanumeric character.</em>
+<a class="jxr_linenumber" name="L69" href="#L69">69</a>  <em class="jxr_javadoccomment">     * Use this pattern for project and repository names that are entered by users.</em>
+<a class="jxr_linenumber" name="L70" href="#L70">70</a>  <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L71" href="#L71">71</a>      <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">final</strong> Pattern USER_INPUT_PROJECT_AND_REPO_NAME_PATTERN =
+<a class="jxr_linenumber" name="L72" href="#L72">72</a>              Pattern.compile(<span class="jxr_string">"^(?!.*&#92;&#92;.git$)[0-9A-Za-z](?:[-+_0-9A-Za-z.]*[0-9A-Za-z])?$"</span>);
+<a class="jxr_linenumber" name="L73" href="#L73">73</a>  
+<a class="jxr_linenumber" name="L74" href="#L74">74</a>      <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">final</strong> String INTERNAL_PROJECT_PREFIX = <span class="jxr_string">"@"</span>;
+<a class="jxr_linenumber" name="L75" href="#L75">75</a>  
+<a class="jxr_linenumber" name="L76" href="#L76">76</a>      <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L77" href="#L77">77</a>  <em class="jxr_javadoccomment">     * The difference between this and {@link #USER_INPUT_PROJECT_AND_REPO_NAME_PATTERN} is that this</em>
+<a class="jxr_linenumber" name="L78" href="#L78">78</a>  <em class="jxr_javadoccomment">     * allows {@value INTERNAL_PROJECT_PREFIX} at the beginning for internal projects.</em>
+<a class="jxr_linenumber" name="L79" href="#L79">79</a>  <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L80" href="#L80">80</a>      <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">final</strong> Pattern PROJECT_AND_REPO_NAME_PATTERN =
+<a class="jxr_linenumber" name="L81" href="#L81">81</a>              Pattern.compile(<span class="jxr_string">"^(?!.*&#92;&#92;.git$)("</span> + INTERNAL_PROJECT_PREFIX +
+<a class="jxr_linenumber" name="L82" href="#L82">82</a>                              <span class="jxr_string">"|[0-9A-Za-z])(?:[-+_0-9A-Za-z.]*[0-9A-Za-z])?$"</span>);
+<a class="jxr_linenumber" name="L83" href="#L83">83</a>  
+<a class="jxr_linenumber" name="L84" href="#L84">84</a>      <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> String validateFileName(String name, String paramName) {
+<a class="jxr_linenumber" name="L85" href="#L85">85</a>          requireNonNull(name, paramName);
+<a class="jxr_linenumber" name="L86" href="#L86">86</a>          checkArgument(isValidFileName(name),
+<a class="jxr_linenumber" name="L87" href="#L87">87</a>                        <span class="jxr_string">"%s: %s (expected: %s)"</span>, paramName, name, FILE_NAME_PATTERN);
+<a class="jxr_linenumber" name="L88" href="#L88">88</a>          <strong class="jxr_keyword">return</strong> name;
+<a class="jxr_linenumber" name="L89" href="#L89">89</a>      }
+<a class="jxr_linenumber" name="L90" href="#L90">90</a>  
+<a class="jxr_linenumber" name="L91" href="#L91">91</a>      <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">boolean</strong> isValidFileName(String name) {
+<a class="jxr_linenumber" name="L92" href="#L92">92</a>          requireNonNull(name, <span class="jxr_string">"name"</span>);
+<a class="jxr_linenumber" name="L93" href="#L93">93</a>          <strong class="jxr_keyword">return</strong> !name.isEmpty() &amp;&amp; FILE_NAME_PATTERN.matcher(name).matches();
+<a class="jxr_linenumber" name="L94" href="#L94">94</a>      }
+<a class="jxr_linenumber" name="L95" href="#L95">95</a>  
+<a class="jxr_linenumber" name="L96" href="#L96">96</a>      <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> String validateFilePath(String path, String paramName) {
+<a class="jxr_linenumber" name="L97" href="#L97">97</a>          requireNonNull(path, paramName);
+<a class="jxr_linenumber" name="L98" href="#L98">98</a>          checkArgument(isValidFilePath(path),
+<a class="jxr_linenumber" name="L99" href="#L99">99</a>                        <span class="jxr_string">"%s: %s (expected: %s)"</span>, paramName, path, FILE_PATH_PATTERN);
+<a class="jxr_linenumber" name="L100" href="#L100">100</a>         <strong class="jxr_keyword">return</strong> path;
+<a class="jxr_linenumber" name="L101" href="#L101">101</a>     }
+<a class="jxr_linenumber" name="L102" href="#L102">102</a> 
+<a class="jxr_linenumber" name="L103" href="#L103">103</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">boolean</strong> isValidFilePath(String path) {
+<a class="jxr_linenumber" name="L104" href="#L104">104</a>         requireNonNull(path, <span class="jxr_string">"path"</span>);
+<a class="jxr_linenumber" name="L105" href="#L105">105</a>         <strong class="jxr_keyword">return</strong> !path.isEmpty() &amp;&amp; path.charAt(0) == '/' &amp;&amp;
+<a class="jxr_linenumber" name="L106" href="#L106">106</a>                FILE_PATH_PATTERN.matcher(path).matches();
+<a class="jxr_linenumber" name="L107" href="#L107">107</a>     }
+<a class="jxr_linenumber" name="L108" href="#L108">108</a> 
+<a class="jxr_linenumber" name="L109" href="#L109">109</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> String validateJsonFilePath(String path, String paramName) {
+<a class="jxr_linenumber" name="L110" href="#L110">110</a>         requireNonNull(path, paramName);
+<a class="jxr_linenumber" name="L111" href="#L111">111</a>         checkArgument(isValidJsonFilePath(path),
+<a class="jxr_linenumber" name="L112" href="#L112">112</a>                       <span class="jxr_string">"%s: %s (expected: %s)"</span>, paramName, path, JSON_FILE_PATH_PATTERN);
+<a class="jxr_linenumber" name="L113" href="#L113">113</a>         <strong class="jxr_keyword">return</strong> path;
+<a class="jxr_linenumber" name="L114" href="#L114">114</a>     }
+<a class="jxr_linenumber" name="L115" href="#L115">115</a> 
+<a class="jxr_linenumber" name="L116" href="#L116">116</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">boolean</strong> isValidJsonFilePath(String path) {
+<a class="jxr_linenumber" name="L117" href="#L117">117</a>         requireNonNull(path, <span class="jxr_string">"path"</span>);
+<a class="jxr_linenumber" name="L118" href="#L118">118</a>         <strong class="jxr_keyword">return</strong> !path.isEmpty() &amp;&amp; path.charAt(0) == '/' &amp;&amp;
+<a class="jxr_linenumber" name="L119" href="#L119">119</a>                JSON_FILE_PATH_PATTERN.matcher(path).matches();
+<a class="jxr_linenumber" name="L120" href="#L120">120</a>     }
+<a class="jxr_linenumber" name="L121" href="#L121">121</a> 
+<a class="jxr_linenumber" name="L122" href="#L122">122</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> String validateJsonPath(String jsonPath, String paramName) {
+<a class="jxr_linenumber" name="L123" href="#L123">123</a>         requireNonNull(jsonPath, paramName);
+<a class="jxr_linenumber" name="L124" href="#L124">124</a>         checkArgument(isValidJsonPath(jsonPath),
+<a class="jxr_linenumber" name="L125" href="#L125">125</a>                       <span class="jxr_string">"%s: %s (expected: a valid JSON path)"</span>, paramName, jsonPath);
+<a class="jxr_linenumber" name="L126" href="#L126">126</a>         <strong class="jxr_keyword">return</strong> jsonPath;
+<a class="jxr_linenumber" name="L127" href="#L127">127</a>     }
+<a class="jxr_linenumber" name="L128" href="#L128">128</a> 
+<a class="jxr_linenumber" name="L129" href="#L129">129</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">boolean</strong> isValidJsonPath(String jsonPath) {
+<a class="jxr_linenumber" name="L130" href="#L130">130</a>         <strong class="jxr_keyword">try</strong> {
+<a class="jxr_linenumber" name="L131" href="#L131">131</a>             JsonPath.compile(jsonPath);
+<a class="jxr_linenumber" name="L132" href="#L132">132</a>             <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">true</strong>;
+<a class="jxr_linenumber" name="L133" href="#L133">133</a>         } <strong class="jxr_keyword">catch</strong> (Exception e) {
+<a class="jxr_linenumber" name="L134" href="#L134">134</a>             <strong class="jxr_keyword">return</strong> false;
+<a class="jxr_linenumber" name="L135" href="#L135">135</a>         }
+<a class="jxr_linenumber" name="L136" href="#L136">136</a>     }
+<a class="jxr_linenumber" name="L137" href="#L137">137</a> 
+<a class="jxr_linenumber" name="L138" href="#L138">138</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> String validateDirPath(String path, String paramName) {
+<a class="jxr_linenumber" name="L139" href="#L139">139</a>         requireNonNull(path, paramName);
+<a class="jxr_linenumber" name="L140" href="#L140">140</a>         checkArgument(isValidDirPath(path),
+<a class="jxr_linenumber" name="L141" href="#L141">141</a>                       <span class="jxr_string">"%s: %s (expected: %s)"</span>, paramName, path, DIR_PATH_PATTERN);
+<a class="jxr_linenumber" name="L142" href="#L142">142</a>         <strong class="jxr_keyword">return</strong> path;
+<a class="jxr_linenumber" name="L143" href="#L143">143</a>     }
+<a class="jxr_linenumber" name="L144" href="#L144">144</a> 
+<a class="jxr_linenumber" name="L145" href="#L145">145</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">boolean</strong> isValidDirPath(String path) {
+<a class="jxr_linenumber" name="L146" href="#L146">146</a>         <strong class="jxr_keyword">return</strong> isValidDirPath(path, false);
+<a class="jxr_linenumber" name="L147" href="#L147">147</a>     }
+<a class="jxr_linenumber" name="L148" href="#L148">148</a> 
+<a class="jxr_linenumber" name="L149" href="#L149">149</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">boolean</strong> isValidDirPath(String path, <strong class="jxr_keyword">boolean</strong> mustEndWithSlash) {
+<a class="jxr_linenumber" name="L150" href="#L150">150</a>         requireNonNull(path);
+<a class="jxr_linenumber" name="L151" href="#L151">151</a>         <strong class="jxr_keyword">if</strong> (mustEndWithSlash &amp;&amp; !path.endsWith(<span class="jxr_string">"/"</span>)) {
+<a class="jxr_linenumber" name="L152" href="#L152">152</a>             <strong class="jxr_keyword">return</strong> false;
+<a class="jxr_linenumber" name="L153" href="#L153">153</a>         }
+<a class="jxr_linenumber" name="L154" href="#L154">154</a>         <strong class="jxr_keyword">return</strong> !path.isEmpty() &amp;&amp; path.charAt(0) == '/' &amp;&amp;
+<a class="jxr_linenumber" name="L155" href="#L155">155</a>                DIR_PATH_PATTERN.matcher(path).matches();
+<a class="jxr_linenumber" name="L156" href="#L156">156</a>     }
+<a class="jxr_linenumber" name="L157" href="#L157">157</a> 
+<a class="jxr_linenumber" name="L158" href="#L158">158</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> String validatePathPattern(String pathPattern, String paramName) {
+<a class="jxr_linenumber" name="L159" href="#L159">159</a>         requireNonNull(pathPattern, paramName);
+<a class="jxr_linenumber" name="L160" href="#L160">160</a>         checkArgument(isValidPathPattern(pathPattern),
+<a class="jxr_linenumber" name="L161" href="#L161">161</a>                       <span class="jxr_string">"%s: %s (expected: %s)"</span>, paramName, pathPattern, PATH_PATTERN_PATTERN);
+<a class="jxr_linenumber" name="L162" href="#L162">162</a>         <strong class="jxr_keyword">return</strong> pathPattern;
+<a class="jxr_linenumber" name="L163" href="#L163">163</a>     }
+<a class="jxr_linenumber" name="L164" href="#L164">164</a> 
+<a class="jxr_linenumber" name="L165" href="#L165">165</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">boolean</strong> isValidPathPattern(String pathPattern) {
+<a class="jxr_linenumber" name="L166" href="#L166">166</a>         requireNonNull(pathPattern, <span class="jxr_string">"pathPattern"</span>);
+<a class="jxr_linenumber" name="L167" href="#L167">167</a>         <strong class="jxr_keyword">return</strong> PATH_PATTERN_PATTERN.matcher(pathPattern).matches();
+<a class="jxr_linenumber" name="L168" href="#L168">168</a>     }
+<a class="jxr_linenumber" name="L169" href="#L169">169</a> 
+<a class="jxr_linenumber" name="L170" href="#L170">170</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> String validateProjectName(String projectName, String paramName, <strong class="jxr_keyword">boolean</strong> allowInternal) {
+<a class="jxr_linenumber" name="L171" href="#L171">171</a>         requireNonNull(projectName, paramName);
+<a class="jxr_linenumber" name="L172" href="#L172">172</a>         <strong class="jxr_keyword">if</strong> (allowInternal) {
+<a class="jxr_linenumber" name="L173" href="#L173">173</a>             checkArgument(isValidProjectName(projectName, <strong class="jxr_keyword">true</strong>),
+<a class="jxr_linenumber" name="L174" href="#L174">174</a>                           <span class="jxr_string">"%s: %s (expected: %s)"</span>, paramName, projectName,
+<a class="jxr_linenumber" name="L175" href="#L175">175</a>                           PROJECT_AND_REPO_NAME_PATTERN);
+<a class="jxr_linenumber" name="L176" href="#L176">176</a>         } <strong class="jxr_keyword">else</strong> {
+<a class="jxr_linenumber" name="L177" href="#L177">177</a>             checkArgument(isValidProjectName(projectName, false),
+<a class="jxr_linenumber" name="L178" href="#L178">178</a>                           <span class="jxr_string">"%s: %s (expected: %s)"</span>, paramName, projectName,
+<a class="jxr_linenumber" name="L179" href="#L179">179</a>                           USER_INPUT_PROJECT_AND_REPO_NAME_PATTERN);
+<a class="jxr_linenumber" name="L180" href="#L180">180</a>         }
+<a class="jxr_linenumber" name="L181" href="#L181">181</a>         <strong class="jxr_keyword">return</strong> projectName;
+<a class="jxr_linenumber" name="L182" href="#L182">182</a>     }
+<a class="jxr_linenumber" name="L183" href="#L183">183</a> 
+<a class="jxr_linenumber" name="L184" href="#L184">184</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">boolean</strong> isValidProjectName(String projectName, <strong class="jxr_keyword">boolean</strong> allowInternal) {
+<a class="jxr_linenumber" name="L185" href="#L185">185</a>         requireNonNull(projectName, <span class="jxr_string">"projectName"</span>);
+<a class="jxr_linenumber" name="L186" href="#L186">186</a>         <strong class="jxr_keyword">if</strong> (allowInternal) {
+<a class="jxr_linenumber" name="L187" href="#L187">187</a>             <strong class="jxr_keyword">return</strong> PROJECT_AND_REPO_NAME_PATTERN.matcher(projectName).matches();
+<a class="jxr_linenumber" name="L188" href="#L188">188</a>         } <strong class="jxr_keyword">else</strong> {
+<a class="jxr_linenumber" name="L189" href="#L189">189</a>             <strong class="jxr_keyword">return</strong> USER_INPUT_PROJECT_AND_REPO_NAME_PATTERN.matcher(projectName).matches();
+<a class="jxr_linenumber" name="L190" href="#L190">190</a>         }
+<a class="jxr_linenumber" name="L191" href="#L191">191</a>     }
+<a class="jxr_linenumber" name="L192" href="#L192">192</a> 
+<a class="jxr_linenumber" name="L193" href="#L193">193</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">boolean</strong> isValidProjectName(String projectName) {
+<a class="jxr_linenumber" name="L194" href="#L194">194</a>         requireNonNull(projectName, <span class="jxr_string">"projectName"</span>);
+<a class="jxr_linenumber" name="L195" href="#L195">195</a>         <strong class="jxr_keyword">return</strong> USER_INPUT_PROJECT_AND_REPO_NAME_PATTERN.matcher(projectName).matches();
+<a class="jxr_linenumber" name="L196" href="#L196">196</a>     }
+<a class="jxr_linenumber" name="L197" href="#L197">197</a> 
+<a class="jxr_linenumber" name="L198" href="#L198">198</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> String validateRepositoryName(String repoName, String paramName) {
+<a class="jxr_linenumber" name="L199" href="#L199">199</a>         requireNonNull(repoName, paramName);
+<a class="jxr_linenumber" name="L200" href="#L200">200</a>         checkArgument(isValidRepositoryName(repoName),
+<a class="jxr_linenumber" name="L201" href="#L201">201</a>                       <span class="jxr_string">"%s: %s (expected: %s)"</span>, paramName, repoName, USER_INPUT_PROJECT_AND_REPO_NAME_PATTERN);
+<a class="jxr_linenumber" name="L202" href="#L202">202</a>         <strong class="jxr_keyword">return</strong> repoName;
+<a class="jxr_linenumber" name="L203" href="#L203">203</a>     }
+<a class="jxr_linenumber" name="L204" href="#L204">204</a> 
+<a class="jxr_linenumber" name="L205" href="#L205">205</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">boolean</strong> isValidRepositoryName(String repoName) {
+<a class="jxr_linenumber" name="L206" href="#L206">206</a>         requireNonNull(repoName, <span class="jxr_string">"repoName"</span>);
+<a class="jxr_linenumber" name="L207" href="#L207">207</a>         <strong class="jxr_keyword">return</strong> USER_INPUT_PROJECT_AND_REPO_NAME_PATTERN.matcher(repoName).matches();
+<a class="jxr_linenumber" name="L208" href="#L208">208</a>     }
+<a class="jxr_linenumber" name="L209" href="#L209">209</a> 
+<a class="jxr_linenumber" name="L210" href="#L210">210</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> String validateEmailAddress(String emailAddr, String paramName) {
+<a class="jxr_linenumber" name="L211" href="#L211">211</a>         requireNonNull(emailAddr, paramName);
+<a class="jxr_linenumber" name="L212" href="#L212">212</a>         checkArgument(isValidEmailAddress(emailAddr),
+<a class="jxr_linenumber" name="L213" href="#L213">213</a>                       <span class="jxr_string">"%s: %s (expected: a valid e-mail address)"</span>, paramName, emailAddr);
+<a class="jxr_linenumber" name="L214" href="#L214">214</a>         <strong class="jxr_keyword">return</strong> emailAddr;
+<a class="jxr_linenumber" name="L215" href="#L215">215</a>     }
+<a class="jxr_linenumber" name="L216" href="#L216">216</a> 
+<a class="jxr_linenumber" name="L217" href="#L217">217</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">boolean</strong> isValidEmailAddress(String emailAddr) {
+<a class="jxr_linenumber" name="L218" href="#L218">218</a>         requireNonNull(emailAddr, <span class="jxr_string">"emailAddr"</span>);
+<a class="jxr_linenumber" name="L219" href="#L219">219</a>         <strong class="jxr_keyword">if</strong> (EMAIL_PATTERN.matcher(emailAddr).matches()) {
+<a class="jxr_linenumber" name="L220" href="#L220">220</a>             <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">true</strong>;
+<a class="jxr_linenumber" name="L221" href="#L221">221</a>         }
+<a class="jxr_linenumber" name="L222" href="#L222">222</a>         <em class="jxr_comment">// Try to check whether the domain part is IP address format.</em>
+<a class="jxr_linenumber" name="L223" href="#L223">223</a>         <strong class="jxr_keyword">final</strong> Matcher m = GENERAL_EMAIL_PATTERN.matcher(emailAddr);
+<a class="jxr_linenumber" name="L224" href="#L224">224</a>         <strong class="jxr_keyword">if</strong> (m.matches()) {
+<a class="jxr_linenumber" name="L225" href="#L225">225</a>             <strong class="jxr_keyword">final</strong> String domainPart = m.group(1);
+<a class="jxr_linenumber" name="L226" href="#L226">226</a>             <strong class="jxr_keyword">return</strong> isValidIpV4Address(domainPart) ||
+<a class="jxr_linenumber" name="L227" href="#L227">227</a>                    isValidIpV6Address(domainPart);
+<a class="jxr_linenumber" name="L228" href="#L228">228</a>         }
+<a class="jxr_linenumber" name="L229" href="#L229">229</a>         <strong class="jxr_keyword">return</strong> false;
+<a class="jxr_linenumber" name="L230" href="#L230">230</a>     }
+<a class="jxr_linenumber" name="L231" href="#L231">231</a> 
+<a class="jxr_linenumber" name="L232" href="#L232">232</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> String toEmailAddress(String emailAddr, String paramName) {
+<a class="jxr_linenumber" name="L233" href="#L233">233</a>         requireNonNull(emailAddr, paramName);
+<a class="jxr_linenumber" name="L234" href="#L234">234</a>         <strong class="jxr_keyword">if</strong> (isValidEmailAddress(emailAddr)) {
+<a class="jxr_linenumber" name="L235" href="#L235">235</a>             <strong class="jxr_keyword">return</strong> emailAddr;
+<a class="jxr_linenumber" name="L236" href="#L236">236</a>         }
+<a class="jxr_linenumber" name="L237" href="#L237">237</a>         <strong class="jxr_keyword">return</strong> emailAddr + USER_EMAIL_SUFFIX;
 <a class="jxr_linenumber" name="L238" href="#L238">238</a>     }
 <a class="jxr_linenumber" name="L239" href="#L239">239</a> 
-<a class="jxr_linenumber" name="L240" href="#L240">240</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> String validateEmailAddress(String emailAddr, String paramName) {
-<a class="jxr_linenumber" name="L241" href="#L241">241</a>         requireNonNull(emailAddr, paramName);
-<a class="jxr_linenumber" name="L242" href="#L242">242</a>         checkArgument(isValidEmailAddress(emailAddr),
-<a class="jxr_linenumber" name="L243" href="#L243">243</a>                       <span class="jxr_string">"%s: %s (expected: a valid e-mail address)"</span>, paramName, emailAddr);
-<a class="jxr_linenumber" name="L244" href="#L244">244</a>         <strong class="jxr_keyword">return</strong> emailAddr;
-<a class="jxr_linenumber" name="L245" href="#L245">245</a>     }
-<a class="jxr_linenumber" name="L246" href="#L246">246</a> 
-<a class="jxr_linenumber" name="L247" href="#L247">247</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">boolean</strong> isValidEmailAddress(String emailAddr) {
-<a class="jxr_linenumber" name="L248" href="#L248">248</a>         requireNonNull(emailAddr, <span class="jxr_string">"emailAddr"</span>);
-<a class="jxr_linenumber" name="L249" href="#L249">249</a>         <strong class="jxr_keyword">if</strong> (EMAIL_PATTERN.matcher(emailAddr).matches()) {
-<a class="jxr_linenumber" name="L250" href="#L250">250</a>             <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">true</strong>;
-<a class="jxr_linenumber" name="L251" href="#L251">251</a>         }
-<a class="jxr_linenumber" name="L252" href="#L252">252</a>         <em class="jxr_comment">// Try to check whether the domain part is IP address format.</em>
-<a class="jxr_linenumber" name="L253" href="#L253">253</a>         <strong class="jxr_keyword">final</strong> Matcher m = GENERAL_EMAIL_PATTERN.matcher(emailAddr);
-<a class="jxr_linenumber" name="L254" href="#L254">254</a>         <strong class="jxr_keyword">if</strong> (m.matches()) {
-<a class="jxr_linenumber" name="L255" href="#L255">255</a>             <strong class="jxr_keyword">final</strong> String domainPart = m.group(1);
-<a class="jxr_linenumber" name="L256" href="#L256">256</a>             <strong class="jxr_keyword">return</strong> isValidIpV4Address(domainPart) ||
-<a class="jxr_linenumber" name="L257" href="#L257">257</a>                    isValidIpV6Address(domainPart);
-<a class="jxr_linenumber" name="L258" href="#L258">258</a>         }
-<a class="jxr_linenumber" name="L259" href="#L259">259</a>         <strong class="jxr_keyword">return</strong> false;
-<a class="jxr_linenumber" name="L260" href="#L260">260</a>     }
-<a class="jxr_linenumber" name="L261" href="#L261">261</a> 
-<a class="jxr_linenumber" name="L262" href="#L262">262</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> String toEmailAddress(String emailAddr, String paramName) {
-<a class="jxr_linenumber" name="L263" href="#L263">263</a>         requireNonNull(emailAddr, paramName);
-<a class="jxr_linenumber" name="L264" href="#L264">264</a>         <strong class="jxr_keyword">if</strong> (isValidEmailAddress(emailAddr)) {
-<a class="jxr_linenumber" name="L265" href="#L265">265</a>             <strong class="jxr_keyword">return</strong> emailAddr;
-<a class="jxr_linenumber" name="L266" href="#L266">266</a>         }
-<a class="jxr_linenumber" name="L267" href="#L267">267</a>         <strong class="jxr_keyword">return</strong> emailAddr + USER_EMAIL_SUFFIX;
+<a class="jxr_linenumber" name="L240" href="#L240">240</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> String emailToUsername(String emailAddr, String paramName) {
+<a class="jxr_linenumber" name="L241" href="#L241">241</a>         validateEmailAddress(emailAddr, paramName);
+<a class="jxr_linenumber" name="L242" href="#L242">242</a>         <strong class="jxr_keyword">return</strong> emailAddr.substring(0, emailAddr.indexOf('@'));
+<a class="jxr_linenumber" name="L243" href="#L243">243</a>     }
+<a class="jxr_linenumber" name="L244" href="#L244">244</a> 
+<a class="jxr_linenumber" name="L245" href="#L245">245</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> List&lt;String&gt; stringToLines(String str) {
+<a class="jxr_linenumber" name="L246" href="#L246">246</a>         <strong class="jxr_keyword">final</strong> BufferedReader reader = <strong class="jxr_keyword">new</strong> BufferedReader(<strong class="jxr_keyword">new</strong> StringReader(str));
+<a class="jxr_linenumber" name="L247" href="#L247">247</a>         <strong class="jxr_keyword">final</strong> List&lt;String&gt; lines = <strong class="jxr_keyword">new</strong> ArrayList&lt;&gt;(128);
+<a class="jxr_linenumber" name="L248" href="#L248">248</a>         <strong class="jxr_keyword">try</strong> {
+<a class="jxr_linenumber" name="L249" href="#L249">249</a>             String line;
+<a class="jxr_linenumber" name="L250" href="#L250">250</a>             <strong class="jxr_keyword">while</strong> ((line = reader.readLine()) != <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="L251" href="#L251">251</a>                 lines.add(line);
+<a class="jxr_linenumber" name="L252" href="#L252">252</a>             }
+<a class="jxr_linenumber" name="L253" href="#L253">253</a>         } <strong class="jxr_keyword">catch</strong> (IOException ignored) {
+<a class="jxr_linenumber" name="L254" href="#L254">254</a>             <em class="jxr_comment">// Should never happen.</em>
+<a class="jxr_linenumber" name="L255" href="#L255">255</a>         }
+<a class="jxr_linenumber" name="L256" href="#L256">256</a>         <strong class="jxr_keyword">return</strong> lines;
+<a class="jxr_linenumber" name="L257" href="#L257">257</a>     }
+<a class="jxr_linenumber" name="L258" href="#L258">258</a> 
+<a class="jxr_linenumber" name="L259" href="#L259">259</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L260" href="#L260">260</a> <em class="jxr_javadoccomment">     * Returns the simplified name of the type of the specified object.</em>
+<a class="jxr_linenumber" name="L261" href="#L261">261</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L262" href="#L262">262</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> String simpleTypeName(Object obj) {
+<a class="jxr_linenumber" name="L263" href="#L263">263</a>         <strong class="jxr_keyword">if</strong> (obj == <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="L264" href="#L264">264</a>             <strong class="jxr_keyword">return</strong> <span class="jxr_string">"null"</span>;
+<a class="jxr_linenumber" name="L265" href="#L265">265</a>         }
+<a class="jxr_linenumber" name="L266" href="#L266">266</a> 
+<a class="jxr_linenumber" name="L267" href="#L267">267</a>         <strong class="jxr_keyword">return</strong> simpleTypeName(obj.getClass(), false);
 <a class="jxr_linenumber" name="L268" href="#L268">268</a>     }
 <a class="jxr_linenumber" name="L269" href="#L269">269</a> 
-<a class="jxr_linenumber" name="L270" href="#L270">270</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> String emailToUsername(String emailAddr, String paramName) {
-<a class="jxr_linenumber" name="L271" href="#L271">271</a>         validateEmailAddress(emailAddr, paramName);
-<a class="jxr_linenumber" name="L272" href="#L272">272</a>         <strong class="jxr_keyword">return</strong> emailAddr.substring(0, emailAddr.indexOf('@'));
-<a class="jxr_linenumber" name="L273" href="#L273">273</a>     }
-<a class="jxr_linenumber" name="L274" href="#L274">274</a> 
-<a class="jxr_linenumber" name="L275" href="#L275">275</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> List&lt;String&gt; stringToLines(String str) {
-<a class="jxr_linenumber" name="L276" href="#L276">276</a>         <strong class="jxr_keyword">final</strong> BufferedReader reader = <strong class="jxr_keyword">new</strong> BufferedReader(<strong class="jxr_keyword">new</strong> StringReader(str));
-<a class="jxr_linenumber" name="L277" href="#L277">277</a>         <strong class="jxr_keyword">final</strong> List&lt;String&gt; lines = <strong class="jxr_keyword">new</strong> ArrayList&lt;&gt;(128);
-<a class="jxr_linenumber" name="L278" href="#L278">278</a>         <strong class="jxr_keyword">try</strong> {
-<a class="jxr_linenumber" name="L279" href="#L279">279</a>             String line;
-<a class="jxr_linenumber" name="L280" href="#L280">280</a>             <strong class="jxr_keyword">while</strong> ((line = reader.readLine()) != <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="L281" href="#L281">281</a>                 lines.add(line);
-<a class="jxr_linenumber" name="L282" href="#L282">282</a>             }
-<a class="jxr_linenumber" name="L283" href="#L283">283</a>         } <strong class="jxr_keyword">catch</strong> (IOException ignored) {
-<a class="jxr_linenumber" name="L284" href="#L284">284</a>             <em class="jxr_comment">// Should never happen.</em>
-<a class="jxr_linenumber" name="L285" href="#L285">285</a>         }
-<a class="jxr_linenumber" name="L286" href="#L286">286</a>         <strong class="jxr_keyword">return</strong> lines;
-<a class="jxr_linenumber" name="L287" href="#L287">287</a>     }
-<a class="jxr_linenumber" name="L288" href="#L288">288</a> 
-<a class="jxr_linenumber" name="L289" href="#L289">289</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="L290" href="#L290">290</a> <em class="jxr_javadoccomment">     * Returns the simplified name of the type of the specified object.</em>
-<a class="jxr_linenumber" name="L291" href="#L291">291</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="L292" href="#L292">292</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> String simpleTypeName(Object obj) {
-<a class="jxr_linenumber" name="L293" href="#L293">293</a>         <strong class="jxr_keyword">if</strong> (obj == <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="L294" href="#L294">294</a>             <strong class="jxr_keyword">return</strong> <span class="jxr_string">"null"</span>;
-<a class="jxr_linenumber" name="L295" href="#L295">295</a>         }
-<a class="jxr_linenumber" name="L296" href="#L296">296</a> 
-<a class="jxr_linenumber" name="L297" href="#L297">297</a>         <strong class="jxr_keyword">return</strong> simpleTypeName(obj.getClass(), false);
-<a class="jxr_linenumber" name="L298" href="#L298">298</a>     }
-<a class="jxr_linenumber" name="L299" href="#L299">299</a> 
-<a class="jxr_linenumber" name="L300" href="#L300">300</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="L301" href="#L301">301</a> <em class="jxr_javadoccomment">     * Returns the simplified name of the specified type.</em>
-<a class="jxr_linenumber" name="L302" href="#L302">302</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="L303" href="#L303">303</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> String simpleTypeName(Class&lt;?&gt; clazz) {
-<a class="jxr_linenumber" name="L304" href="#L304">304</a>         <strong class="jxr_keyword">return</strong> simpleTypeName(clazz, false);
-<a class="jxr_linenumber" name="L305" href="#L305">305</a>     }
-<a class="jxr_linenumber" name="L306" href="#L306">306</a> 
-<a class="jxr_linenumber" name="L307" href="#L307">307</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="L308" href="#L308">308</a> <em class="jxr_javadoccomment">     * Returns the simplified and (optionally) decapitalized name of the specified type.</em>
-<a class="jxr_linenumber" name="L309" href="#L309">309</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="L310" href="#L310">310</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> String simpleTypeName(Class&lt;?&gt; clazz, <strong class="jxr_keyword">boolean</strong> decapitalize) {
-<a class="jxr_linenumber" name="L311" href="#L311">311</a>         <strong class="jxr_keyword">if</strong> (clazz == <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="L312" href="#L312">312</a>             <strong class="jxr_keyword">return</strong> <span class="jxr_string">"null"</span>;
-<a class="jxr_linenumber" name="L313" href="#L313">313</a>         }
-<a class="jxr_linenumber" name="L314" href="#L314">314</a> 
-<a class="jxr_linenumber" name="L315" href="#L315">315</a>         String className = clazz.getName();
-<a class="jxr_linenumber" name="L316" href="#L316">316</a>         <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">int</strong> lastDotIdx = className.lastIndexOf('.');
-<a class="jxr_linenumber" name="L317" href="#L317">317</a>         <strong class="jxr_keyword">if</strong> (lastDotIdx &gt;= 0) {
-<a class="jxr_linenumber" name="L318" href="#L318">318</a>             className = className.substring(lastDotIdx + 1);
-<a class="jxr_linenumber" name="L319" href="#L319">319</a>         }
-<a class="jxr_linenumber" name="L320" href="#L320">320</a> 
-<a class="jxr_linenumber" name="L321" href="#L321">321</a>         <strong class="jxr_keyword">if</strong> (!decapitalize) {
-<a class="jxr_linenumber" name="L322" href="#L322">322</a>             <strong class="jxr_keyword">return</strong> className;
-<a class="jxr_linenumber" name="L323" href="#L323">323</a>         }
-<a class="jxr_linenumber" name="L324" href="#L324">324</a> 
-<a class="jxr_linenumber" name="L325" href="#L325">325</a>         <strong class="jxr_keyword">final</strong> StringBuilder buf = <strong class="jxr_keyword">new</strong> StringBuilder(className.length());
-<a class="jxr_linenumber" name="L326" href="#L326">326</a>         <strong class="jxr_keyword">boolean</strong> lowercase = <strong class="jxr_keyword">true</strong>;
-<a class="jxr_linenumber" name="L327" href="#L327">327</a>         <strong class="jxr_keyword">for</strong> (<strong class="jxr_keyword">int</strong> i = 0; i &lt; className.length(); i++) {
-<a class="jxr_linenumber" name="L328" href="#L328">328</a>             <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">char</strong> c1 = className.charAt(i);
-<a class="jxr_linenumber" name="L329" href="#L329">329</a>             <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">char</strong> c2;
-<a class="jxr_linenumber" name="L330" href="#L330">330</a>             <strong class="jxr_keyword">if</strong> (lowercase) {
-<a class="jxr_linenumber" name="L331" href="#L331">331</a>                 c2 = Character.toLowerCase(c1);
-<a class="jxr_linenumber" name="L332" href="#L332">332</a>                 <strong class="jxr_keyword">if</strong> (c1 == c2) {
-<a class="jxr_linenumber" name="L333" href="#L333">333</a>                     lowercase = false;
-<a class="jxr_linenumber" name="L334" href="#L334">334</a>                 }
-<a class="jxr_linenumber" name="L335" href="#L335">335</a>             } <strong class="jxr_keyword">else</strong> {
-<a class="jxr_linenumber" name="L336" href="#L336">336</a>                 c2 = c1;
-<a class="jxr_linenumber" name="L337" href="#L337">337</a>             }
-<a class="jxr_linenumber" name="L338" href="#L338">338</a>             buf.append(c2);
-<a class="jxr_linenumber" name="L339" href="#L339">339</a>         }
-<a class="jxr_linenumber" name="L340" href="#L340">340</a> 
-<a class="jxr_linenumber" name="L341" href="#L341">341</a>         <strong class="jxr_keyword">return</strong> buf.toString();
-<a class="jxr_linenumber" name="L342" href="#L342">342</a>     }
-<a class="jxr_linenumber" name="L343" href="#L343">343</a> 
-<a class="jxr_linenumber" name="L344" href="#L344">344</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="L345" href="#L345">345</a> <em class="jxr_javadoccomment">     * Casts an object unsafely. Used when you want to suppress the unchecked type warnings.</em>
-<a class="jxr_linenumber" name="L346" href="#L346">346</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="L347" href="#L347">347</a>     @SuppressWarnings(<span class="jxr_string">"unchecked"</span>)
-<a class="jxr_linenumber" name="L348" href="#L348">348</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> &lt;T&gt; T unsafeCast(Object o) {
-<a class="jxr_linenumber" name="L349" href="#L349">349</a>         <strong class="jxr_keyword">return</strong> (T) o;
-<a class="jxr_linenumber" name="L350" href="#L350">350</a>     }
-<a class="jxr_linenumber" name="L351" href="#L351">351</a> 
-<a class="jxr_linenumber" name="L352" href="#L352">352</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="L353" href="#L353">353</a> <em class="jxr_javadoccomment">     * Makes sure the specified {@code values} and all its elements are not {@code null}.</em>
-<a class="jxr_linenumber" name="L354" href="#L354">354</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="L355" href="#L355">355</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> &lt;T&gt; Iterable&lt;T&gt; requireNonNullElements(Iterable&lt;T&gt; values, String name) {
-<a class="jxr_linenumber" name="L356" href="#L356">356</a>         requireNonNull(values, name);
-<a class="jxr_linenumber" name="L357" href="#L357">357</a> 
-<a class="jxr_linenumber" name="L358" href="#L358">358</a>         <strong class="jxr_keyword">int</strong> i = 0;
-<a class="jxr_linenumber" name="L359" href="#L359">359</a>         <strong class="jxr_keyword">for</strong> (T v : values) {
-<a class="jxr_linenumber" name="L360" href="#L360">360</a>             <strong class="jxr_keyword">if</strong> (v == <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="L361" href="#L361">361</a>                 <strong class="jxr_keyword">throw</strong> <strong class="jxr_keyword">new</strong> NullPointerException(name + '[' + i + ']');
-<a class="jxr_linenumber" name="L362" href="#L362">362</a>             }
-<a class="jxr_linenumber" name="L363" href="#L363">363</a>             i++;
-<a class="jxr_linenumber" name="L364" href="#L364">364</a>         }
-<a class="jxr_linenumber" name="L365" href="#L365">365</a> 
-<a class="jxr_linenumber" name="L366" href="#L366">366</a>         <strong class="jxr_keyword">return</strong> values;
-<a class="jxr_linenumber" name="L367" href="#L367">367</a>     }
-<a class="jxr_linenumber" name="L368" href="#L368">368</a> 
-<a class="jxr_linenumber" name="L369" href="#L369">369</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">boolean</strong> isValidIpV4Address(String ip) {
-<a class="jxr_linenumber" name="L370" href="#L370">370</a>         <strong class="jxr_keyword">return</strong> isValidIpV4Address(ip, 0, ip.length());
-<a class="jxr_linenumber" name="L371" href="#L371">371</a>     }
-<a class="jxr_linenumber" name="L372" href="#L372">372</a> 
-<a class="jxr_linenumber" name="L373" href="#L373">373</a>     @SuppressWarnings(<span class="jxr_string">"DuplicateBooleanBranch"</span>)
-<a class="jxr_linenumber" name="L374" href="#L374">374</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">boolean</strong> isValidIpV4Address(String ip, <strong class="jxr_keyword">int</strong> from, <strong class="jxr_keyword">int</strong> toExcluded) {
-<a class="jxr_linenumber" name="L375" href="#L375">375</a>         <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">int</strong> len = toExcluded - from;
-<a class="jxr_linenumber" name="L376" href="#L376">376</a>         <strong class="jxr_keyword">int</strong> i;
-<a class="jxr_linenumber" name="L377" href="#L377">377</a>         <strong class="jxr_keyword">return</strong> len &lt;= 15 &amp;&amp; len &gt;= 7 &amp;&amp;
-<a class="jxr_linenumber" name="L378" href="#L378">378</a>                (i = ip.indexOf('.', from + 1)) &gt; 0 &amp;&amp; isValidIpV4Word(ip, from, i) &amp;&amp;
-<a class="jxr_linenumber" name="L379" href="#L379">379</a>                (i = ip.indexOf('.', from = i + 2)) &gt; 0 &amp;&amp; isValidIpV4Word(ip, from - 1, i) &amp;&amp;
-<a class="jxr_linenumber" name="L380" href="#L380">380</a>                (i = ip.indexOf('.', from = i + 2)) &gt; 0 &amp;&amp; isValidIpV4Word(ip, from - 1, i) &amp;&amp;
-<a class="jxr_linenumber" name="L381" href="#L381">381</a>                isValidIpV4Word(ip, i + 1, toExcluded);
-<a class="jxr_linenumber" name="L382" href="#L382">382</a>     }
-<a class="jxr_linenumber" name="L383" href="#L383">383</a> 
-<a class="jxr_linenumber" name="L384" href="#L384">384</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">boolean</strong> isValidIpV4Word(CharSequence word, <strong class="jxr_keyword">int</strong> from, <strong class="jxr_keyword">int</strong> toExclusive) {
-<a class="jxr_linenumber" name="L385" href="#L385">385</a>         <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">int</strong> len = toExclusive - from;
-<a class="jxr_linenumber" name="L386" href="#L386">386</a>         <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">char</strong> c0;
-<a class="jxr_linenumber" name="L387" href="#L387">387</a>         <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">char</strong> c1;
-<a class="jxr_linenumber" name="L388" href="#L388">388</a>         <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">char</strong> c2;
-<a class="jxr_linenumber" name="L389" href="#L389">389</a>         <strong class="jxr_keyword">if</strong> (len &lt; 1 || len &gt; 3 || (c0 = word.charAt(from)) &lt; '0') {
-<a class="jxr_linenumber" name="L390" href="#L390">390</a>             <strong class="jxr_keyword">return</strong> false;
-<a class="jxr_linenumber" name="L391" href="#L391">391</a>         }
-<a class="jxr_linenumber" name="L392" href="#L392">392</a>         <strong class="jxr_keyword">if</strong> (len == 3) {
-<a class="jxr_linenumber" name="L393" href="#L393">393</a>             <strong class="jxr_keyword">return</strong> (c1 = word.charAt(from + 1)) &gt;= '0' &amp;&amp;
-<a class="jxr_linenumber" name="L394" href="#L394">394</a>                    (c2 = word.charAt(from + 2)) &gt;= '0' &amp;&amp;
-<a class="jxr_linenumber" name="L395" href="#L395">395</a>                    (c0 &lt;= '1' &amp;&amp; c1 &lt;= '9' &amp;&amp; c2 &lt;= '9' ||
-<a class="jxr_linenumber" name="L396" href="#L396">396</a>                     c0 == '2' &amp;&amp; c1 &lt;= '5' &amp;&amp; (c2 &lt;= '5' || c1 &lt; '5' &amp;&amp; c2 &lt;= '9'));
-<a class="jxr_linenumber" name="L397" href="#L397">397</a>         }
-<a class="jxr_linenumber" name="L398" href="#L398">398</a>         <strong class="jxr_keyword">return</strong> c0 &lt;= '9' &amp;&amp; (len == 1 || isValidNumericChar(word.charAt(from + 1)));
-<a class="jxr_linenumber" name="L399" href="#L399">399</a>     }
-<a class="jxr_linenumber" name="L400" href="#L400">400</a> 
-<a class="jxr_linenumber" name="L401" href="#L401">401</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">boolean</strong> isValidIpV6Address(String ip) {
-<a class="jxr_linenumber" name="L402" href="#L402">402</a>         <strong class="jxr_keyword">int</strong> end = ip.length();
-<a class="jxr_linenumber" name="L403" href="#L403">403</a>         <strong class="jxr_keyword">if</strong> (end &lt; 2) {
-<a class="jxr_linenumber" name="L404" href="#L404">404</a>             <strong class="jxr_keyword">return</strong> false;
+<a class="jxr_linenumber" name="L270" href="#L270">270</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L271" href="#L271">271</a> <em class="jxr_javadoccomment">     * Returns the simplified name of the specified type.</em>
+<a class="jxr_linenumber" name="L272" href="#L272">272</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L273" href="#L273">273</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> String simpleTypeName(Class&lt;?&gt; clazz) {
+<a class="jxr_linenumber" name="L274" href="#L274">274</a>         <strong class="jxr_keyword">return</strong> simpleTypeName(clazz, false);
+<a class="jxr_linenumber" name="L275" href="#L275">275</a>     }
+<a class="jxr_linenumber" name="L276" href="#L276">276</a> 
+<a class="jxr_linenumber" name="L277" href="#L277">277</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L278" href="#L278">278</a> <em class="jxr_javadoccomment">     * Returns the simplified and (optionally) decapitalized name of the specified type.</em>
+<a class="jxr_linenumber" name="L279" href="#L279">279</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L280" href="#L280">280</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> String simpleTypeName(Class&lt;?&gt; clazz, <strong class="jxr_keyword">boolean</strong> decapitalize) {
+<a class="jxr_linenumber" name="L281" href="#L281">281</a>         <strong class="jxr_keyword">if</strong> (clazz == <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="L282" href="#L282">282</a>             <strong class="jxr_keyword">return</strong> <span class="jxr_string">"null"</span>;
+<a class="jxr_linenumber" name="L283" href="#L283">283</a>         }
+<a class="jxr_linenumber" name="L284" href="#L284">284</a> 
+<a class="jxr_linenumber" name="L285" href="#L285">285</a>         String className = clazz.getName();
+<a class="jxr_linenumber" name="L286" href="#L286">286</a>         <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">int</strong> lastDotIdx = className.lastIndexOf('.');
+<a class="jxr_linenumber" name="L287" href="#L287">287</a>         <strong class="jxr_keyword">if</strong> (lastDotIdx &gt;= 0) {
+<a class="jxr_linenumber" name="L288" href="#L288">288</a>             className = className.substring(lastDotIdx + 1);
+<a class="jxr_linenumber" name="L289" href="#L289">289</a>         }
+<a class="jxr_linenumber" name="L290" href="#L290">290</a> 
+<a class="jxr_linenumber" name="L291" href="#L291">291</a>         <strong class="jxr_keyword">if</strong> (!decapitalize) {
+<a class="jxr_linenumber" name="L292" href="#L292">292</a>             <strong class="jxr_keyword">return</strong> className;
+<a class="jxr_linenumber" name="L293" href="#L293">293</a>         }
+<a class="jxr_linenumber" name="L294" href="#L294">294</a> 
+<a class="jxr_linenumber" name="L295" href="#L295">295</a>         <strong class="jxr_keyword">final</strong> StringBuilder buf = <strong class="jxr_keyword">new</strong> StringBuilder(className.length());
+<a class="jxr_linenumber" name="L296" href="#L296">296</a>         <strong class="jxr_keyword">boolean</strong> lowercase = <strong class="jxr_keyword">true</strong>;
+<a class="jxr_linenumber" name="L297" href="#L297">297</a>         <strong class="jxr_keyword">for</strong> (<strong class="jxr_keyword">int</strong> i = 0; i &lt; className.length(); i++) {
+<a class="jxr_linenumber" name="L298" href="#L298">298</a>             <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">char</strong> c1 = className.charAt(i);
+<a class="jxr_linenumber" name="L299" href="#L299">299</a>             <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">char</strong> c2;
+<a class="jxr_linenumber" name="L300" href="#L300">300</a>             <strong class="jxr_keyword">if</strong> (lowercase) {
+<a class="jxr_linenumber" name="L301" href="#L301">301</a>                 c2 = Character.toLowerCase(c1);
+<a class="jxr_linenumber" name="L302" href="#L302">302</a>                 <strong class="jxr_keyword">if</strong> (c1 == c2) {
+<a class="jxr_linenumber" name="L303" href="#L303">303</a>                     lowercase = false;
+<a class="jxr_linenumber" name="L304" href="#L304">304</a>                 }
+<a class="jxr_linenumber" name="L305" href="#L305">305</a>             } <strong class="jxr_keyword">else</strong> {
+<a class="jxr_linenumber" name="L306" href="#L306">306</a>                 c2 = c1;
+<a class="jxr_linenumber" name="L307" href="#L307">307</a>             }
+<a class="jxr_linenumber" name="L308" href="#L308">308</a>             buf.append(c2);
+<a class="jxr_linenumber" name="L309" href="#L309">309</a>         }
+<a class="jxr_linenumber" name="L310" href="#L310">310</a> 
+<a class="jxr_linenumber" name="L311" href="#L311">311</a>         <strong class="jxr_keyword">return</strong> buf.toString();
+<a class="jxr_linenumber" name="L312" href="#L312">312</a>     }
+<a class="jxr_linenumber" name="L313" href="#L313">313</a> 
+<a class="jxr_linenumber" name="L314" href="#L314">314</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L315" href="#L315">315</a> <em class="jxr_javadoccomment">     * Casts an object unsafely. Used when you want to suppress the unchecked type warnings.</em>
+<a class="jxr_linenumber" name="L316" href="#L316">316</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L317" href="#L317">317</a>     @SuppressWarnings(<span class="jxr_string">"unchecked"</span>)
+<a class="jxr_linenumber" name="L318" href="#L318">318</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> &lt;T&gt; T unsafeCast(Object o) {
+<a class="jxr_linenumber" name="L319" href="#L319">319</a>         <strong class="jxr_keyword">return</strong> (T) o;
+<a class="jxr_linenumber" name="L320" href="#L320">320</a>     }
+<a class="jxr_linenumber" name="L321" href="#L321">321</a> 
+<a class="jxr_linenumber" name="L322" href="#L322">322</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L323" href="#L323">323</a> <em class="jxr_javadoccomment">     * Makes sure the specified {@code values} and all its elements are not {@code null}.</em>
+<a class="jxr_linenumber" name="L324" href="#L324">324</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L325" href="#L325">325</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> &lt;T&gt; Iterable&lt;T&gt; requireNonNullElements(Iterable&lt;T&gt; values, String name) {
+<a class="jxr_linenumber" name="L326" href="#L326">326</a>         requireNonNull(values, name);
+<a class="jxr_linenumber" name="L327" href="#L327">327</a> 
+<a class="jxr_linenumber" name="L328" href="#L328">328</a>         <strong class="jxr_keyword">int</strong> i = 0;
+<a class="jxr_linenumber" name="L329" href="#L329">329</a>         <strong class="jxr_keyword">for</strong> (T v : values) {
+<a class="jxr_linenumber" name="L330" href="#L330">330</a>             <strong class="jxr_keyword">if</strong> (v == <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="L331" href="#L331">331</a>                 <strong class="jxr_keyword">throw</strong> <strong class="jxr_keyword">new</strong> NullPointerException(name + '[' + i + ']');
+<a class="jxr_linenumber" name="L332" href="#L332">332</a>             }
+<a class="jxr_linenumber" name="L333" href="#L333">333</a>             i++;
+<a class="jxr_linenumber" name="L334" href="#L334">334</a>         }
+<a class="jxr_linenumber" name="L335" href="#L335">335</a> 
+<a class="jxr_linenumber" name="L336" href="#L336">336</a>         <strong class="jxr_keyword">return</strong> values;
+<a class="jxr_linenumber" name="L337" href="#L337">337</a>     }
+<a class="jxr_linenumber" name="L338" href="#L338">338</a> 
+<a class="jxr_linenumber" name="L339" href="#L339">339</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">boolean</strong> isValidIpV4Address(String ip) {
+<a class="jxr_linenumber" name="L340" href="#L340">340</a>         <strong class="jxr_keyword">return</strong> isValidIpV4Address(ip, 0, ip.length());
+<a class="jxr_linenumber" name="L341" href="#L341">341</a>     }
+<a class="jxr_linenumber" name="L342" href="#L342">342</a> 
+<a class="jxr_linenumber" name="L343" href="#L343">343</a>     @SuppressWarnings(<span class="jxr_string">"DuplicateBooleanBranch"</span>)
+<a class="jxr_linenumber" name="L344" href="#L344">344</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">boolean</strong> isValidIpV4Address(String ip, <strong class="jxr_keyword">int</strong> from, <strong class="jxr_keyword">int</strong> toExcluded) {
+<a class="jxr_linenumber" name="L345" href="#L345">345</a>         <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">int</strong> len = toExcluded - from;
+<a class="jxr_linenumber" name="L346" href="#L346">346</a>         <strong class="jxr_keyword">int</strong> i;
+<a class="jxr_linenumber" name="L347" href="#L347">347</a>         <strong class="jxr_keyword">return</strong> len &lt;= 15 &amp;&amp; len &gt;= 7 &amp;&amp;
+<a class="jxr_linenumber" name="L348" href="#L348">348</a>                (i = ip.indexOf('.', from + 1)) &gt; 0 &amp;&amp; isValidIpV4Word(ip, from, i) &amp;&amp;
+<a class="jxr_linenumber" name="L349" href="#L349">349</a>                (i = ip.indexOf('.', from = i + 2)) &gt; 0 &amp;&amp; isValidIpV4Word(ip, from - 1, i) &amp;&amp;
+<a class="jxr_linenumber" name="L350" href="#L350">350</a>                (i = ip.indexOf('.', from = i + 2)) &gt; 0 &amp;&amp; isValidIpV4Word(ip, from - 1, i) &amp;&amp;
+<a class="jxr_linenumber" name="L351" href="#L351">351</a>                isValidIpV4Word(ip, i + 1, toExcluded);
+<a class="jxr_linenumber" name="L352" href="#L352">352</a>     }
+<a class="jxr_linenumber" name="L353" href="#L353">353</a> 
+<a class="jxr_linenumber" name="L354" href="#L354">354</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">boolean</strong> isValidIpV4Word(CharSequence word, <strong class="jxr_keyword">int</strong> from, <strong class="jxr_keyword">int</strong> toExclusive) {
+<a class="jxr_linenumber" name="L355" href="#L355">355</a>         <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">int</strong> len = toExclusive - from;
+<a class="jxr_linenumber" name="L356" href="#L356">356</a>         <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">char</strong> c0;
+<a class="jxr_linenumber" name="L357" href="#L357">357</a>         <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">char</strong> c1;
+<a class="jxr_linenumber" name="L358" href="#L358">358</a>         <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">char</strong> c2;
+<a class="jxr_linenumber" name="L359" href="#L359">359</a>         <strong class="jxr_keyword">if</strong> (len &lt; 1 || len &gt; 3 || (c0 = word.charAt(from)) &lt; '0') {
+<a class="jxr_linenumber" name="L360" href="#L360">360</a>             <strong class="jxr_keyword">return</strong> false;
+<a class="jxr_linenumber" name="L361" href="#L361">361</a>         }
+<a class="jxr_linenumber" name="L362" href="#L362">362</a>         <strong class="jxr_keyword">if</strong> (len == 3) {
+<a class="jxr_linenumber" name="L363" href="#L363">363</a>             <strong class="jxr_keyword">return</strong> (c1 = word.charAt(from + 1)) &gt;= '0' &amp;&amp;
+<a class="jxr_linenumber" name="L364" href="#L364">364</a>                    (c2 = word.charAt(from + 2)) &gt;= '0' &amp;&amp;
+<a class="jxr_linenumber" name="L365" href="#L365">365</a>                    (c0 &lt;= '1' &amp;&amp; c1 &lt;= '9' &amp;&amp; c2 &lt;= '9' ||
+<a class="jxr_linenumber" name="L366" href="#L366">366</a>                     c0 == '2' &amp;&amp; c1 &lt;= '5' &amp;&amp; (c2 &lt;= '5' || c1 &lt; '5' &amp;&amp; c2 &lt;= '9'));
+<a class="jxr_linenumber" name="L367" href="#L367">367</a>         }
+<a class="jxr_linenumber" name="L368" href="#L368">368</a>         <strong class="jxr_keyword">return</strong> c0 &lt;= '9' &amp;&amp; (len == 1 || isValidNumericChar(word.charAt(from + 1)));
+<a class="jxr_linenumber" name="L369" href="#L369">369</a>     }
+<a class="jxr_linenumber" name="L370" href="#L370">370</a> 
+<a class="jxr_linenumber" name="L371" href="#L371">371</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">boolean</strong> isValidIpV6Address(String ip) {
+<a class="jxr_linenumber" name="L372" href="#L372">372</a>         <strong class="jxr_keyword">int</strong> end = ip.length();
+<a class="jxr_linenumber" name="L373" href="#L373">373</a>         <strong class="jxr_keyword">if</strong> (end &lt; 2) {
+<a class="jxr_linenumber" name="L374" href="#L374">374</a>             <strong class="jxr_keyword">return</strong> false;
+<a class="jxr_linenumber" name="L375" href="#L375">375</a>         }
+<a class="jxr_linenumber" name="L376" href="#L376">376</a> 
+<a class="jxr_linenumber" name="L377" href="#L377">377</a>         <em class="jxr_comment">// strip "[]"</em>
+<a class="jxr_linenumber" name="L378" href="#L378">378</a>         <strong class="jxr_keyword">int</strong> start;
+<a class="jxr_linenumber" name="L379" href="#L379">379</a>         <strong class="jxr_keyword">char</strong> c = ip.charAt(0);
+<a class="jxr_linenumber" name="L380" href="#L380">380</a>         <strong class="jxr_keyword">if</strong> (c == '[') {
+<a class="jxr_linenumber" name="L381" href="#L381">381</a>             end--;
+<a class="jxr_linenumber" name="L382" href="#L382">382</a>             <strong class="jxr_keyword">if</strong> (ip.charAt(end) != ']') {
+<a class="jxr_linenumber" name="L383" href="#L383">383</a>                 <em class="jxr_comment">// must have a close ]</em>
+<a class="jxr_linenumber" name="L384" href="#L384">384</a>                 <strong class="jxr_keyword">return</strong> false;
+<a class="jxr_linenumber" name="L385" href="#L385">385</a>             }
+<a class="jxr_linenumber" name="L386" href="#L386">386</a>             start = 1;
+<a class="jxr_linenumber" name="L387" href="#L387">387</a>             c = ip.charAt(1);
+<a class="jxr_linenumber" name="L388" href="#L388">388</a>         } <strong class="jxr_keyword">else</strong> {
+<a class="jxr_linenumber" name="L389" href="#L389">389</a>             start = 0;
+<a class="jxr_linenumber" name="L390" href="#L390">390</a>         }
+<a class="jxr_linenumber" name="L391" href="#L391">391</a> 
+<a class="jxr_linenumber" name="L392" href="#L392">392</a>         <strong class="jxr_keyword">int</strong> colons;
+<a class="jxr_linenumber" name="L393" href="#L393">393</a>         <strong class="jxr_keyword">int</strong> compressBegin;
+<a class="jxr_linenumber" name="L394" href="#L394">394</a>         <strong class="jxr_keyword">if</strong> (c == ':') {
+<a class="jxr_linenumber" name="L395" href="#L395">395</a>             <em class="jxr_comment">// an IPv6 address can start with "::" or with a number</em>
+<a class="jxr_linenumber" name="L396" href="#L396">396</a>             <strong class="jxr_keyword">if</strong> (ip.charAt(start + 1) != ':') {
+<a class="jxr_linenumber" name="L397" href="#L397">397</a>                 <strong class="jxr_keyword">return</strong> false;
+<a class="jxr_linenumber" name="L398" href="#L398">398</a>             }
+<a class="jxr_linenumber" name="L399" href="#L399">399</a>             colons = 2;
+<a class="jxr_linenumber" name="L400" href="#L400">400</a>             compressBegin = start;
+<a class="jxr_linenumber" name="L401" href="#L401">401</a>             start += 2;
+<a class="jxr_linenumber" name="L402" href="#L402">402</a>         } <strong class="jxr_keyword">else</strong> {
+<a class="jxr_linenumber" name="L403" href="#L403">403</a>             colons = 0;
+<a class="jxr_linenumber" name="L404" href="#L404">404</a>             compressBegin = -1;
 <a class="jxr_linenumber" name="L405" href="#L405">405</a>         }
 <a class="jxr_linenumber" name="L406" href="#L406">406</a> 
-<a class="jxr_linenumber" name="L407" href="#L407">407</a>         <em class="jxr_comment">// strip "[]"</em>
-<a class="jxr_linenumber" name="L408" href="#L408">408</a>         <strong class="jxr_keyword">int</strong> start;
-<a class="jxr_linenumber" name="L409" href="#L409">409</a>         <strong class="jxr_keyword">char</strong> c = ip.charAt(0);
-<a class="jxr_linenumber" name="L410" href="#L410">410</a>         <strong class="jxr_keyword">if</strong> (c == '[') {
-<a class="jxr_linenumber" name="L411" href="#L411">411</a>             end--;
-<a class="jxr_linenumber" name="L412" href="#L412">412</a>             <strong class="jxr_keyword">if</strong> (ip.charAt(end) != ']') {
-<a class="jxr_linenumber" name="L413" href="#L413">413</a>                 <em class="jxr_comment">// must have a close ]</em>
-<a class="jxr_linenumber" name="L414" href="#L414">414</a>                 <strong class="jxr_keyword">return</strong> false;
-<a class="jxr_linenumber" name="L415" href="#L415">415</a>             }
-<a class="jxr_linenumber" name="L416" href="#L416">416</a>             start = 1;
-<a class="jxr_linenumber" name="L417" href="#L417">417</a>             c = ip.charAt(1);
-<a class="jxr_linenumber" name="L418" href="#L418">418</a>         } <strong class="jxr_keyword">else</strong> {
-<a class="jxr_linenumber" name="L419" href="#L419">419</a>             start = 0;
-<a class="jxr_linenumber" name="L420" href="#L420">420</a>         }
-<a class="jxr_linenumber" name="L421" href="#L421">421</a> 
-<a class="jxr_linenumber" name="L422" href="#L422">422</a>         <strong class="jxr_keyword">int</strong> colons;
-<a class="jxr_linenumber" name="L423" href="#L423">423</a>         <strong class="jxr_keyword">int</strong> compressBegin;
-<a class="jxr_linenumber" name="L424" href="#L424">424</a>         <strong class="jxr_keyword">if</strong> (c == ':') {
-<a class="jxr_linenumber" name="L425" href="#L425">425</a>             <em class="jxr_comment">// an IPv6 address can start with "::" or with a number</em>
-<a class="jxr_linenumber" name="L426" href="#L426">426</a>             <strong class="jxr_keyword">if</strong> (ip.charAt(start + 1) != ':') {
-<a class="jxr_linenumber" name="L427" href="#L427">427</a>                 <strong class="jxr_keyword">return</strong> false;
-<a class="jxr_linenumber" name="L428" href="#L428">428</a>             }
-<a class="jxr_linenumber" name="L429" href="#L429">429</a>             colons = 2;
-<a class="jxr_linenumber" name="L430" href="#L430">430</a>             compressBegin = start;
-<a class="jxr_linenumber" name="L431" href="#L431">431</a>             start += 2;
-<a class="jxr_linenumber" name="L432" href="#L432">432</a>         } <strong class="jxr_keyword">else</strong> {
-<a class="jxr_linenumber" name="L433" href="#L433">433</a>             colons = 0;
-<a class="jxr_linenumber" name="L434" href="#L434">434</a>             compressBegin = -1;
-<a class="jxr_linenumber" name="L435" href="#L435">435</a>         }
+<a class="jxr_linenumber" name="L407" href="#L407">407</a>         <strong class="jxr_keyword">int</strong> wordLen = 0;
+<a class="jxr_linenumber" name="L408" href="#L408">408</a>         loop:
+<a class="jxr_linenumber" name="L409" href="#L409">409</a>         <strong class="jxr_keyword">for</strong> (<strong class="jxr_keyword">int</strong> i = start; i &lt; end; i++) {
+<a class="jxr_linenumber" name="L410" href="#L410">410</a>             c = ip.charAt(i);
+<a class="jxr_linenumber" name="L411" href="#L411">411</a>             <strong class="jxr_keyword">if</strong> (isValidHexChar(c)) {
+<a class="jxr_linenumber" name="L412" href="#L412">412</a>                 <strong class="jxr_keyword">if</strong> (wordLen &lt; 4) {
+<a class="jxr_linenumber" name="L413" href="#L413">413</a>                     wordLen++;
+<a class="jxr_linenumber" name="L414" href="#L414">414</a>                     <strong class="jxr_keyword">continue</strong>;
+<a class="jxr_linenumber" name="L415" href="#L415">415</a>                 }
+<a class="jxr_linenumber" name="L416" href="#L416">416</a>                 <strong class="jxr_keyword">return</strong> false;
+<a class="jxr_linenumber" name="L417" href="#L417">417</a>             }
+<a class="jxr_linenumber" name="L418" href="#L418">418</a> 
+<a class="jxr_linenumber" name="L419" href="#L419">419</a>             <strong class="jxr_keyword">switch</strong> (c) {
+<a class="jxr_linenumber" name="L420" href="#L420">420</a>                 <strong class="jxr_keyword">case</strong> ':':
+<a class="jxr_linenumber" name="L421" href="#L421">421</a>                     <strong class="jxr_keyword">if</strong> (colons &gt; 7) {
+<a class="jxr_linenumber" name="L422" href="#L422">422</a>                         <strong class="jxr_keyword">return</strong> false;
+<a class="jxr_linenumber" name="L423" href="#L423">423</a>                     }
+<a class="jxr_linenumber" name="L424" href="#L424">424</a>                     <strong class="jxr_keyword">if</strong> (ip.charAt(i - 1) == ':') {
+<a class="jxr_linenumber" name="L425" href="#L425">425</a>                         <strong class="jxr_keyword">if</strong> (compressBegin &gt;= 0) {
+<a class="jxr_linenumber" name="L426" href="#L426">426</a>                             <strong class="jxr_keyword">return</strong> false;
+<a class="jxr_linenumber" name="L427" href="#L427">427</a>                         }
+<a class="jxr_linenumber" name="L428" href="#L428">428</a>                         compressBegin = i - 1;
+<a class="jxr_linenumber" name="L429" href="#L429">429</a>                     } <strong class="jxr_keyword">else</strong> {
+<a class="jxr_linenumber" name="L430" href="#L430">430</a>                         wordLen = 0;
+<a class="jxr_linenumber" name="L431" href="#L431">431</a>                     }
+<a class="jxr_linenumber" name="L432" href="#L432">432</a>                     colons++;
+<a class="jxr_linenumber" name="L433" href="#L433">433</a>                     <strong class="jxr_keyword">break</strong>;
+<a class="jxr_linenumber" name="L434" href="#L434">434</a>                 <strong class="jxr_keyword">case</strong> '.':
+<a class="jxr_linenumber" name="L435" href="#L435">435</a>                     <em class="jxr_comment">// case for the last 32-bits represented as IPv4 x:x:x:x:x:x:d.d.d.d</em>
 <a class="jxr_linenumber" name="L436" href="#L436">436</a> 
-<a class="jxr_linenumber" name="L437" href="#L437">437</a>         <strong class="jxr_keyword">int</strong> wordLen = 0;
-<a class="jxr_linenumber" name="L438" href="#L438">438</a>         loop:
-<a class="jxr_linenumber" name="L439" href="#L439">439</a>         <strong class="jxr_keyword">for</strong> (<strong class="jxr_keyword">int</strong> i = start; i &lt; end; i++) {
-<a class="jxr_linenumber" name="L440" href="#L440">440</a>             c = ip.charAt(i);
-<a class="jxr_linenumber" name="L441" href="#L441">441</a>             <strong class="jxr_keyword">if</strong> (isValidHexChar(c)) {
-<a class="jxr_linenumber" name="L442" href="#L442">442</a>                 <strong class="jxr_keyword">if</strong> (wordLen &lt; 4) {
-<a class="jxr_linenumber" name="L443" href="#L443">443</a>                     wordLen++;
-<a class="jxr_linenumber" name="L444" href="#L444">444</a>                     <strong class="jxr_keyword">continue</strong>;
-<a class="jxr_linenumber" name="L445" href="#L445">445</a>                 }
-<a class="jxr_linenumber" name="L446" href="#L446">446</a>                 <strong class="jxr_keyword">return</strong> false;
-<a class="jxr_linenumber" name="L447" href="#L447">447</a>             }
-<a class="jxr_linenumber" name="L448" href="#L448">448</a> 
-<a class="jxr_linenumber" name="L449" href="#L449">449</a>             <strong class="jxr_keyword">switch</strong> (c) {
-<a class="jxr_linenumber" name="L450" href="#L450">450</a>                 <strong class="jxr_keyword">case</strong> ':':
-<a class="jxr_linenumber" name="L451" href="#L451">451</a>                     <strong class="jxr_keyword">if</strong> (colons &gt; 7) {
-<a class="jxr_linenumber" name="L452" href="#L452">452</a>                         <strong class="jxr_keyword">return</strong> false;
-<a class="jxr_linenumber" name="L453" href="#L453">453</a>                     }
-<a class="jxr_linenumber" name="L454" href="#L454">454</a>                     <strong class="jxr_keyword">if</strong> (ip.charAt(i - 1) == ':') {
-<a class="jxr_linenumber" name="L455" href="#L455">455</a>                         <strong class="jxr_keyword">if</strong> (compressBegin &gt;= 0) {
-<a class="jxr_linenumber" name="L456" href="#L456">456</a>                             <strong class="jxr_keyword">return</strong> false;
-<a class="jxr_linenumber" name="L457" href="#L457">457</a>                         }
-<a class="jxr_linenumber" name="L458" href="#L458">458</a>                         compressBegin = i - 1;
-<a class="jxr_linenumber" name="L459" href="#L459">459</a>                     } <strong class="jxr_keyword">else</strong> {
-<a class="jxr_linenumber" name="L460" href="#L460">460</a>                         wordLen = 0;
-<a class="jxr_linenumber" name="L461" href="#L461">461</a>                     }
-<a class="jxr_linenumber" name="L462" href="#L462">462</a>                     colons++;
-<a class="jxr_linenumber" name="L463" href="#L463">463</a>                     <strong class="jxr_keyword">break</strong>;
-<a class="jxr_linenumber" name="L464" href="#L464">464</a>                 <strong class="jxr_keyword">case</strong> '.':
-<a class="jxr_linenumber" name="L465" href="#L465">465</a>                     <em class="jxr_comment">// case for the last 32-bits represented as IPv4 x:x:x:x:x:x:d.d.d.d</em>
-<a class="jxr_linenumber" name="L466" href="#L466">466</a> 
-<a class="jxr_linenumber" name="L467" href="#L467">467</a>                     <em class="jxr_comment">// check a normal case (6 single colons)</em>
-<a class="jxr_linenumber" name="L468" href="#L468">468</a>                     <strong class="jxr_keyword">if</strong> (compressBegin &lt; 0 &amp;&amp; colons != 6 ||
-<a class="jxr_linenumber" name="L469" href="#L469">469</a>                         <em class="jxr_comment">// a special case ::1:2:3:4:5:d.d.d.d allows 7 colons with an</em>
-<a class="jxr_linenumber" name="L470" href="#L470">470</a>                         <em class="jxr_comment">// IPv4 ending, otherwise 7 :'s is bad</em>
-<a class="jxr_linenumber" name="L471" href="#L471">471</a>                         colons == 7 &amp;&amp; compressBegin &gt;= start || colons &gt; 7) {
-<a class="jxr_linenumber" name="L472" href="#L472">472</a>                         <strong class="jxr_keyword">return</strong> false;
-<a class="jxr_linenumber" name="L473" href="#L473">473</a>                     }
-<a class="jxr_linenumber" name="L474" href="#L474">474</a> 
-<a class="jxr_linenumber" name="L475" href="#L475">475</a>                     <em class="jxr_comment">// Verify this address is of the correct structure to contain an IPv4 address.</em>
-<a class="jxr_linenumber" name="L476" href="#L476">476</a>                     <em class="jxr_comment">// It must be IPv4-Mapped or IPv4-Compatible</em>
-<a class="jxr_linenumber" name="L477" href="#L477">477</a>                     <em class="jxr_comment">// (see  https://datatracker.ietf.org/doc/html/rfc4291#section-2.5.5).</em>
-<a class="jxr_linenumber" name="L478" href="#L478">478</a>                     <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">int</strong> ipv4Start = i - wordLen;
-<a class="jxr_linenumber" name="L479" href="#L479">479</a>                     <strong class="jxr_keyword">int</strong> j = ipv4Start - 2; <em class="jxr_comment">// index of character before the previous ':'.</em>
-<a class="jxr_linenumber" name="L480" href="#L480">480</a>                     <strong class="jxr_keyword">if</strong> (isValidIPv4MappedChar(ip.charAt(j))) {
-<a class="jxr_linenumber" name="L481" href="#L481">481</a>                         <strong class="jxr_keyword">if</strong> (!isValidIPv4MappedChar(ip.charAt(j - 1)) ||
-<a class="jxr_linenumber" name="L482" href="#L482">482</a>                             !isValidIPv4MappedChar(ip.charAt(j - 2)) ||
-<a class="jxr_linenumber" name="L483" href="#L483">483</a>                             !isValidIPv4MappedChar(ip.charAt(j - 3))) {
-<a class="jxr_linenumber" name="L484" href="#L484">484</a>                             <strong class="jxr_keyword">return</strong> false;
-<a class="jxr_linenumber" name="L485" href="#L485">485</a>                         }
-<a class="jxr_linenumber" name="L486" href="#L486">486</a>                         j -= 5;
-<a class="jxr_linenumber" name="L487" href="#L487">487</a>                     }
-<a class="jxr_linenumber" name="L488" href="#L488">488</a> 
-<a class="jxr_linenumber" name="L489" href="#L489">489</a>                     <strong class="jxr_keyword">for</strong> (; j &gt;= start; --j) {
-<a class="jxr_linenumber" name="L490" href="#L490">490</a>                         <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">char</strong> tmpChar = ip.charAt(j);
-<a class="jxr_linenumber" name="L491" href="#L491">491</a>                         <strong class="jxr_keyword">if</strong> (tmpChar != '0' &amp;&amp; tmpChar != ':') {
-<a class="jxr_linenumber" name="L492" href="#L492">492</a>                             <strong class="jxr_keyword">return</strong> false;
-<a class="jxr_linenumber" name="L493" href="#L493">493</a>                         }
-<a class="jxr_linenumber" name="L494" href="#L494">494</a>                     }
-<a class="jxr_linenumber" name="L495" href="#L495">495</a> 
-<a class="jxr_linenumber" name="L496" href="#L496">496</a>                     <em class="jxr_comment">// 7 - is minimum IPv4 address length</em>
-<a class="jxr_linenumber" name="L497" href="#L497">497</a>                     <strong class="jxr_keyword">int</strong> ipv4End = ip.indexOf('%', ipv4Start + 7);
-<a class="jxr_linenumber" name="L498" href="#L498">498</a>                     <strong class="jxr_keyword">if</strong> (ipv4End &lt; 0) {
-<a class="jxr_linenumber" name="L499" href="#L499">499</a>                         ipv4End = end;
-<a class="jxr_linenumber" name="L500" href="#L500">500</a>                     }
-<a class="jxr_linenumber" name="L501" href="#L501">501</a>                     <strong class="jxr_keyword">return</strong> isValidIpV4Address(ip, ipv4Start, ipv4End);
-<a class="jxr_linenumber" name="L502" href="#L502">502</a>                 <strong class="jxr_keyword">case</strong> '%':
-<a class="jxr_linenumber" name="L503" href="#L503">503</a>                     <em class="jxr_comment">// strip the interface name/index after the percent sign</em>
-<a class="jxr_linenumber" name="L504" href="#L504">504</a>                     end = i;
-<a class="jxr_linenumber" name="L505" href="#L505">505</a>                     <strong class="jxr_keyword">break</strong> loop;
-<a class="jxr_linenumber" name="L506" href="#L506">506</a>                 <strong class="jxr_keyword">default</strong>:
-<a class="jxr_linenumber" name="L507" href="#L507">507</a>                     <strong class="jxr_keyword">return</strong> false;
-<a class="jxr_linenumber" name="L508" href="#L508">508</a>             }
+<a class="jxr_linenumber" name="L437" href="#L437">437</a>                     <em class="jxr_comment">// check a normal case (6 single colons)</em>
+<a class="jxr_linenumber" name="L438" href="#L438">438</a>                     <strong class="jxr_keyword">if</strong> (compressBegin &lt; 0 &amp;&amp; colons != 6 ||
+<a class="jxr_linenumber" name="L439" href="#L439">439</a>                         <em class="jxr_comment">// a special case ::1:2:3:4:5:d.d.d.d allows 7 colons with an</em>
+<a class="jxr_linenumber" name="L440" href="#L440">440</a>                         <em class="jxr_comment">// IPv4 ending, otherwise 7 :'s is bad</em>
+<a class="jxr_linenumber" name="L441" href="#L441">441</a>                         colons == 7 &amp;&amp; compressBegin &gt;= start || colons &gt; 7) {
+<a class="jxr_linenumber" name="L442" href="#L442">442</a>                         <strong class="jxr_keyword">return</strong> false;
+<a class="jxr_linenumber" name="L443" href="#L443">443</a>                     }
+<a class="jxr_linenumber" name="L444" href="#L444">444</a> 
+<a class="jxr_linenumber" name="L445" href="#L445">445</a>                     <em class="jxr_comment">// Verify this address is of the correct structure to contain an IPv4 address.</em>
+<a class="jxr_linenumber" name="L446" href="#L446">446</a>                     <em class="jxr_comment">// It must be IPv4-Mapped or IPv4-Compatible</em>
+<a class="jxr_linenumber" name="L447" href="#L447">447</a>                     <em class="jxr_comment">// (see  https://datatracker.ietf.org/doc/html/rfc4291#section-2.5.5).</em>
+<a class="jxr_linenumber" name="L448" href="#L448">448</a>                     <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">int</strong> ipv4Start = i - wordLen;
+<a class="jxr_linenumber" name="L449" href="#L449">449</a>                     <strong class="jxr_keyword">int</strong> j = ipv4Start - 2; <em class="jxr_comment">// index of character before the previous ':'.</em>
+<a class="jxr_linenumber" name="L450" href="#L450">450</a>                     <strong class="jxr_keyword">if</strong> (isValidIPv4MappedChar(ip.charAt(j))) {
+<a class="jxr_linenumber" name="L451" href="#L451">451</a>                         <strong class="jxr_keyword">if</strong> (!isValidIPv4MappedChar(ip.charAt(j - 1)) ||
+<a class="jxr_linenumber" name="L452" href="#L452">452</a>                             !isValidIPv4MappedChar(ip.charAt(j - 2)) ||
+<a class="jxr_linenumber" name="L453" href="#L453">453</a>                             !isValidIPv4MappedChar(ip.charAt(j - 3))) {
+<a class="jxr_linenumber" name="L454" href="#L454">454</a>                             <strong class="jxr_keyword">return</strong> false;
+<a class="jxr_linenumber" name="L455" href="#L455">455</a>                         }
+<a class="jxr_linenumber" name="L456" href="#L456">456</a>                         j -= 5;
+<a class="jxr_linenumber" name="L457" href="#L457">457</a>                     }
+<a class="jxr_linenumber" name="L458" href="#L458">458</a> 
+<a class="jxr_linenumber" name="L459" href="#L459">459</a>                     <strong class="jxr_keyword">for</strong> (; j &gt;= start; --j) {
+<a class="jxr_linenumber" name="L460" href="#L460">460</a>                         <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">char</strong> tmpChar = ip.charAt(j);
+<a class="jxr_linenumber" name="L461" href="#L461">461</a>                         <strong class="jxr_keyword">if</strong> (tmpChar != '0' &amp;&amp; tmpChar != ':') {
+<a class="jxr_linenumber" name="L462" href="#L462">462</a>                             <strong class="jxr_keyword">return</strong> false;
+<a class="jxr_linenumber" name="L463" href="#L463">463</a>                         }
+<a class="jxr_linenumber" name="L464" href="#L464">464</a>                     }
+<a class="jxr_linenumber" name="L465" href="#L465">465</a> 
+<a class="jxr_linenumber" name="L466" href="#L466">466</a>                     <em class="jxr_comment">// 7 - is minimum IPv4 address length</em>
+<a class="jxr_linenumber" name="L467" href="#L467">467</a>                     <strong class="jxr_keyword">int</strong> ipv4End = ip.indexOf('%', ipv4Start + 7);
+<a class="jxr_linenumber" name="L468" href="#L468">468</a>                     <strong class="jxr_keyword">if</strong> (ipv4End &lt; 0) {
+<a class="jxr_linenumber" name="L469" href="#L469">469</a>                         ipv4End = end;
+<a class="jxr_linenumber" name="L470" href="#L470">470</a>                     }
+<a class="jxr_linenumber" name="L471" href="#L471">471</a>                     <strong class="jxr_keyword">return</strong> isValidIpV4Address(ip, ipv4Start, ipv4End);
+<a class="jxr_linenumber" name="L472" href="#L472">472</a>                 <strong class="jxr_keyword">case</strong> '%':
+<a class="jxr_linenumber" name="L473" href="#L473">473</a>                     <em class="jxr_comment">// strip the interface name/index after the percent sign</em>
+<a class="jxr_linenumber" name="L474" href="#L474">474</a>                     end = i;
+<a class="jxr_linenumber" name="L475" href="#L475">475</a>                     <strong class="jxr_keyword">break</strong> loop;
+<a class="jxr_linenumber" name="L476" href="#L476">476</a>                 <strong class="jxr_keyword">default</strong>:
+<a class="jxr_linenumber" name="L477" href="#L477">477</a>                     <strong class="jxr_keyword">return</strong> false;
+<a class="jxr_linenumber" name="L478" href="#L478">478</a>             }
+<a class="jxr_linenumber" name="L479" href="#L479">479</a>         }
+<a class="jxr_linenumber" name="L480" href="#L480">480</a> 
+<a class="jxr_linenumber" name="L481" href="#L481">481</a>         <em class="jxr_comment">// normal case without compression</em>
+<a class="jxr_linenumber" name="L482" href="#L482">482</a>         <strong class="jxr_keyword">if</strong> (compressBegin &lt; 0) {
+<a class="jxr_linenumber" name="L483" href="#L483">483</a>             <strong class="jxr_keyword">return</strong> colons == 7 &amp;&amp; wordLen &gt; 0;
+<a class="jxr_linenumber" name="L484" href="#L484">484</a>         }
+<a class="jxr_linenumber" name="L485" href="#L485">485</a> 
+<a class="jxr_linenumber" name="L486" href="#L486">486</a>         <strong class="jxr_keyword">return</strong> compressBegin + 2 == end ||
+<a class="jxr_linenumber" name="L487" href="#L487">487</a>                <em class="jxr_comment">// 8 colons is valid only if compression in start or end</em>
+<a class="jxr_linenumber" name="L488" href="#L488">488</a>                wordLen &gt; 0 &amp;&amp; (colons &lt; 8 || compressBegin &lt;= start);
+<a class="jxr_linenumber" name="L489" href="#L489">489</a>     }
+<a class="jxr_linenumber" name="L490" href="#L490">490</a> 
+<a class="jxr_linenumber" name="L491" href="#L491">491</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">boolean</strong> isValidNumericChar(<strong class="jxr_keyword">char</strong> c) {
+<a class="jxr_linenumber" name="L492" href="#L492">492</a>         <strong class="jxr_keyword">return</strong> c &gt;= '0' &amp;&amp; c &lt;= '9';
+<a class="jxr_linenumber" name="L493" href="#L493">493</a>     }
+<a class="jxr_linenumber" name="L494" href="#L494">494</a> 
+<a class="jxr_linenumber" name="L495" href="#L495">495</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">boolean</strong> isValidIPv4MappedChar(<strong class="jxr_keyword">char</strong> c) {
+<a class="jxr_linenumber" name="L496" href="#L496">496</a>         <strong class="jxr_keyword">return</strong> c == 'f' || c == 'F';
+<a class="jxr_linenumber" name="L497" href="#L497">497</a>     }
+<a class="jxr_linenumber" name="L498" href="#L498">498</a> 
+<a class="jxr_linenumber" name="L499" href="#L499">499</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">boolean</strong> isValidHexChar(<strong class="jxr_keyword">char</strong> c) {
+<a class="jxr_linenumber" name="L500" href="#L500">500</a>         <strong class="jxr_keyword">return</strong> c &gt;= '0' &amp;&amp; c &lt;= '9' || c &gt;= 'A' &amp;&amp; c &lt;= 'F' || c &gt;= 'a' &amp;&amp; c &lt;= 'f';
+<a class="jxr_linenumber" name="L501" href="#L501">501</a>     }
+<a class="jxr_linenumber" name="L502" href="#L502">502</a> 
+<a class="jxr_linenumber" name="L503" href="#L503">503</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L504" href="#L504">504</a> <em class="jxr_javadoccomment">     * Deletes the specified {@code directory} recursively.</em>
+<a class="jxr_linenumber" name="L505" href="#L505">505</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L506" href="#L506">506</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">void</strong> deleteFileTree(File directory) <strong class="jxr_keyword">throws</strong> IOException {
+<a class="jxr_linenumber" name="L507" href="#L507">507</a>         <strong class="jxr_keyword">if</strong> (directory.exists()) {
+<a class="jxr_linenumber" name="L508" href="#L508">508</a>             Files.walkFileTree(directory.toPath(), DeletingFileVisitor.INSTANCE);
 <a class="jxr_linenumber" name="L509" href="#L509">509</a>         }
-<a class="jxr_linenumber" name="L510" href="#L510">510</a> 
-<a class="jxr_linenumber" name="L511" href="#L511">511</a>         <em class="jxr_comment">// normal case without compression</em>
-<a class="jxr_linenumber" name="L512" href="#L512">512</a>         <strong class="jxr_keyword">if</strong> (compressBegin &lt; 0) {
-<a class="jxr_linenumber" name="L513" href="#L513">513</a>             <strong class="jxr_keyword">return</strong> colons == 7 &amp;&amp; wordLen &gt; 0;
-<a class="jxr_linenumber" name="L514" href="#L514">514</a>         }
-<a class="jxr_linenumber" name="L515" href="#L515">515</a> 
-<a class="jxr_linenumber" name="L516" href="#L516">516</a>         <strong class="jxr_keyword">return</strong> compressBegin + 2 == end ||
-<a class="jxr_linenumber" name="L517" href="#L517">517</a>                <em class="jxr_comment">// 8 colons is valid only if compression in start or end</em>
-<a class="jxr_linenumber" name="L518" href="#L518">518</a>                wordLen &gt; 0 &amp;&amp; (colons &lt; 8 || compressBegin &lt;= start);
-<a class="jxr_linenumber" name="L519" href="#L519">519</a>     }
-<a class="jxr_linenumber" name="L520" href="#L520">520</a> 
-<a class="jxr_linenumber" name="L521" href="#L521">521</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">boolean</strong> isValidNumericChar(<strong class="jxr_keyword">char</strong> c) {
-<a class="jxr_linenumber" name="L522" href="#L522">522</a>         <strong class="jxr_keyword">return</strong> c &gt;= '0' &amp;&amp; c &lt;= '9';
-<a class="jxr_linenumber" name="L523" href="#L523">523</a>     }
-<a class="jxr_linenumber" name="L524" href="#L524">524</a> 
-<a class="jxr_linenumber" name="L525" href="#L525">525</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">boolean</strong> isValidIPv4MappedChar(<strong class="jxr_keyword">char</strong> c) {
-<a class="jxr_linenumber" name="L526" href="#L526">526</a>         <strong class="jxr_keyword">return</strong> c == 'f' || c == 'F';
-<a class="jxr_linenumber" name="L527" href="#L527">527</a>     }
-<a class="jxr_linenumber" name="L528" href="#L528">528</a> 
-<a class="jxr_linenumber" name="L529" href="#L529">529</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">boolean</strong> isValidHexChar(<strong class="jxr_keyword">char</strong> c) {
-<a class="jxr_linenumber" name="L530" href="#L530">530</a>         <strong class="jxr_keyword">return</strong> c &gt;= '0' &amp;&amp; c &lt;= '9' || c &gt;= 'A' &amp;&amp; c &lt;= 'F' || c &gt;= 'a' &amp;&amp; c &lt;= 'f';
-<a class="jxr_linenumber" name="L531" href="#L531">531</a>     }
-<a class="jxr_linenumber" name="L532" href="#L532">532</a> 
-<a class="jxr_linenumber" name="L533" href="#L533">533</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="L534" href="#L534">534</a> <em class="jxr_javadoccomment">     * Deletes the specified {@code directory} recursively.</em>
-<a class="jxr_linenumber" name="L535" href="#L535">535</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="L536" href="#L536">536</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">void</strong> deleteFileTree(File directory) <strong class="jxr_keyword">throws</strong> IOException {
-<a class="jxr_linenumber" name="L537" href="#L537">537</a>         <strong class="jxr_keyword">if</strong> (directory.exists()) {
-<a class="jxr_linenumber" name="L538" href="#L538">538</a>             Files.walkFileTree(directory.toPath(), DeletingFileVisitor.INSTANCE);
-<a class="jxr_linenumber" name="L539" href="#L539">539</a>         }
-<a class="jxr_linenumber" name="L540" href="#L540">540</a>     }
-<a class="jxr_linenumber" name="L541" href="#L541">541</a> 
-<a class="jxr_linenumber" name="L542" href="#L542">542</a>     <strong class="jxr_keyword">private</strong> <a href="../../../../com/linecorp/centraldogma/internal/Util.html">Util</a>() {}
-<a class="jxr_linenumber" name="L543" href="#L543">543</a> }
+<a class="jxr_linenumber" name="L510" href="#L510">510</a>     }
+<a class="jxr_linenumber" name="L511" href="#L511">511</a> 
+<a class="jxr_linenumber" name="L512" href="#L512">512</a>     <strong class="jxr_keyword">private</strong> <a href="../../../../com/linecorp/centraldogma/internal/Util.html">Util</a>() {}
+<a class="jxr_linenumber" name="L513" href="#L513">513</a> }
 </pre>
 <hr/>
 <div id="footer">&copy; Copyright 2017&ndash;2026 <a href="https://engineering.linecorp.com/en/">LINE Corporation</a>. All rights reserved.</div>

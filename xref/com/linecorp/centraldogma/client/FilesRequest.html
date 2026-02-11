@@ -38,7 +38,7 @@
 <a class="jxr_linenumber" name="L30" href="#L30">30</a>  <em class="jxr_javadoccomment"> * {@link CentralDogma#listFiles(String, String, Revision, PathPattern)} request to the</em>
 <a class="jxr_linenumber" name="L31" href="#L31">31</a>  <em class="jxr_javadoccomment"> * Central Dogma repository.</em>
 <a class="jxr_linenumber" name="L32" href="#L32">32</a>  <em class="jxr_javadoccomment"> */</em>
-<a class="jxr_linenumber" name="L33" href="#L33">33</a>  <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">class</strong> <a href="../../../../com/linecorp/centraldogma/client/FilesRequest.html">FilesRequest</a> <strong class="jxr_keyword">extends</strong> AbstractFileRequest&lt;FilesRequest&gt; {
+<a class="jxr_linenumber" name="L33" href="#L33">33</a>  <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">class</strong> <a href="../../../../com/linecorp/centraldogma/client/FilesRequest.html">FilesRequest</a> {
 <a class="jxr_linenumber" name="L34" href="#L34">34</a>  
 <a class="jxr_linenumber" name="L35" href="#L35">35</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> <a href="../../../../com/linecorp/centraldogma/client/CentralDogmaRepository.html">CentralDogmaRepository</a> centralDogmaRepo;
 <a class="jxr_linenumber" name="L36" href="#L36">36</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> <a href="../../../../com/linecorp/centraldogma/common/PathPattern.html">PathPattern</a> pathPattern;
@@ -87,7 +87,7 @@
 <a class="jxr_linenumber" name="L79" href="#L79">79</a>          requireNonNull(revision, <span class="jxr_string">"revision"</span>);
 <a class="jxr_linenumber" name="L80" href="#L80">80</a>          <strong class="jxr_keyword">return</strong> centralDogmaRepo.centralDogma().getFiles(centralDogmaRepo.projectName(),
 <a class="jxr_linenumber" name="L81" href="#L81">81</a>                                                          centralDogmaRepo.repositoryName(),
-<a class="jxr_linenumber" name="L82" href="#L82">82</a>                                                          revision, pathPattern, viewRaw());
+<a class="jxr_linenumber" name="L82" href="#L82">82</a>                                                          revision, pathPattern);
 <a class="jxr_linenumber" name="L83" href="#L83">83</a>      }
 <a class="jxr_linenumber" name="L84" href="#L84">84</a>  }
 </pre>
