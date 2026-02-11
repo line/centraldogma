@@ -41,13 +41,7 @@ final class DefaultChange<T> implements Change<T> {
                                         @JsonProperty("content") @Nullable JsonNode content,
                                         @JsonProperty("rawContent") @Nullable String rawContent) {
         requireNonNull(type, "type");
-        ChangeType changeType;
-        try {
-            changeType = ChangeType.parse(type);
-        } catch (IllegalArgumentException e) {
-            // Fallback for backward compatibility. `UPSERT_YAML` or other types are treated as `UPSERT_TEXT`.
-            changeType = ChangeType.UPSERT_TEXT;
-        }
+        ChangeType changeType = ChangeType.parse(type);
 
         final Class<?> contentType = changeType.contentType();
         if (contentType == Void.class) {
