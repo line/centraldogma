@@ -60,7 +60,6 @@ export const DeleteFileModal = ({
         {
           path: path,
           type: 'REMOVE',
-          content: '',
         },
       ],
     };
