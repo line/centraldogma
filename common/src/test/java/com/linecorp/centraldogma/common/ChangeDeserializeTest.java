@@ -57,7 +57,7 @@ class ChangeDeserializeTest {
     @Test
     void handleYamlUpsertAsUpsert() throws JsonProcessingException {
         final String yaml =
-                "{ \"type\": \"YAML_JSON\", \"path\": \"/foo.yaml\", " +
+                "{ \"type\": \"UPSERT_YAML\", \"path\": \"/foo.yaml\", " +
                 "\"rawContent\": \"key: value\" }";
         final Change<String> change = mapper.readValue(yaml, Change.class);
         assertThat(change.type()).isEqualTo(ChangeType.UPSERT_TEXT);
