@@ -22,7 +22,7 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 

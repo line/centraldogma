@@ -18,7 +18,7 @@ package com.linecorp.centraldogma.server.mirror;
 
 import java.util.ServiceLoader;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import com.linecorp.centraldogma.server.metadata.User;
 

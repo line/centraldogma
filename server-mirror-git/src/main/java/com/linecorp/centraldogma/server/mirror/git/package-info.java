@@ -16,7 +16,7 @@
 /**
  * Central Dogma Git mirroring.
  */
-@NonNullByDefault
+@NullMarked
 package com.linecorp.centraldogma.server.mirror.git;
 
-import com.linecorp.centraldogma.common.util.NonNullByDefault;
+import org.jspecify.annotations.NullMarked;

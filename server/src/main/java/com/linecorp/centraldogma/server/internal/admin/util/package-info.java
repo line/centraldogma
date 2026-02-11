@@ -16,7 +16,7 @@
 /**
  * Internal utility for admin API.
  */
-@NonNullByDefault
+@NullMarked
 package com.linecorp.centraldogma.server.internal.admin.util;
 
-import com.linecorp.centraldogma.common.util.NonNullByDefault;
+import org.jspecify.annotations.NullMarked;

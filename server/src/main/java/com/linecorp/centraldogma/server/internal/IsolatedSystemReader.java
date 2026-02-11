@@ -17,12 +17,11 @@ package com.linecorp.centraldogma.server.internal;
 
 import java.util.regex.Pattern;
 
-import javax.annotation.Nullable;
-
 import org.eclipse.jgit.lib.Config;
 import org.eclipse.jgit.storage.file.FileBasedConfig;
 import org.eclipse.jgit.util.FS;
 import org.eclipse.jgit.util.SystemReader;
+import org.jspecify.annotations.Nullable;
 
 import com.linecorp.armeria.common.util.SystemInfo;
 

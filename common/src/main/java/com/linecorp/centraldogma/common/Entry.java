@@ -23,7 +23,7 @@ import static java.util.Objects.requireNonNull;
 import java.util.Objects;
 import java.util.function.Consumer;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonProcessingException;

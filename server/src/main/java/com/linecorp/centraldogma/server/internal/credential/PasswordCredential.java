@@ -20,8 +20,7 @@ import static com.linecorp.centraldogma.internal.CredentialUtil.requireNonEmpty;
 import static com.linecorp.centraldogma.server.CentralDogmaConfig.convertValue;
 import static java.util.Objects.requireNonNull;
 
-import javax.annotation.Nullable;
-
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

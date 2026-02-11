@@ -20,7 +20,7 @@ import static java.util.Objects.requireNonNull;
 import java.util.List;
 import java.util.Objects;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects.ToStringHelper;

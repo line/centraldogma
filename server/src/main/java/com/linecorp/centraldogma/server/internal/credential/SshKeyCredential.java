@@ -23,8 +23,7 @@ import static java.util.Objects.requireNonNull;
 import java.util.List;
 import java.util.Objects;
 
-import javax.annotation.Nullable;
-
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

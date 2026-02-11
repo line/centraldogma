@@ -37,8 +37,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
-import javax.annotation.Nullable;
-
+import org.jspecify.annotations.Nullable;
 import org.quartz.Job;
 import org.quartz.JobDetail;
 import org.quartz.JobExecutionContext;

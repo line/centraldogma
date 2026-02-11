@@ -25,8 +25,6 @@ import static java.util.Objects.requireNonNull;
 import java.util.List;
 import java.util.function.Function;
 
-import javax.annotation.Nullable;
-
 import org.eclipse.jgit.diff.DiffEntry;
 import org.eclipse.jgit.diff.DiffFormatter;
 import org.eclipse.jgit.dircache.DirCache;
@@ -39,6 +37,7 @@ import org.eclipse.jgit.lib.PersonIdent;
 import org.eclipse.jgit.lib.Repository;
 import org.eclipse.jgit.revwalk.RevWalk;
 import org.eclipse.jgit.treewalk.CanonicalTreeParser;
+import org.jspecify.annotations.Nullable;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;

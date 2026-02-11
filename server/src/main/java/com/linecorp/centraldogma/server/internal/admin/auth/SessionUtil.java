@@ -22,6 +22,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Date;
 
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -49,7 +50,6 @@ import com.linecorp.armeria.common.CookieBuilder;
 import com.linecorp.armeria.common.Cookies;
 import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpRequest;
-import com.linecorp.armeria.common.annotation.Nullable;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.centraldogma.server.auth.Session;
 import com.linecorp.centraldogma.server.auth.SessionKey;
@@ -186,7 +186,7 @@ public final class SessionUtil {
     }
 
     public static boolean validateCsrfToken(ServiceRequestContext ctx, HttpRequest req,
-                                            @javax.annotation.Nullable String expectedCsrfToken) {
+                                            @Nullable String expectedCsrfToken) {
         // Check the token when the method is not safe:
         // https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html#javascript-automatically-including-csrf-tokens-as-an-ajax-request-header
         if (isSafeMethod(req)) {

@@ -20,7 +20,7 @@ import java.net.URI;
 import java.time.Instant;
 import java.time.ZonedDateTime;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import com.cronutils.model.Cron;
 

@@ -16,7 +16,7 @@
 /**
  * An authentication plugin which configures Central Dogma security using SAML protocol.
  */
-@NonNullByDefault
+@NullMarked
 package com.linecorp.centraldogma.server.auth.saml;
 
-import com.linecorp.centraldogma.common.util.NonNullByDefault;
+import org.jspecify.annotations.NullMarked;

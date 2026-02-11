@@ -17,7 +17,7 @@
 /**
  * Central Dogma authentication services and their utilities.
  */
-@NonNullByDefault
+@NullMarked
 package com.linecorp.centraldogma.server.internal.admin.auth;
 
-import com.linecorp.centraldogma.common.util.NonNullByDefault;
+import org.jspecify.annotations.NullMarked;

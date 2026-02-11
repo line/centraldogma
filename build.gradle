@@ -74,6 +74,9 @@ configure(projectsWithFlags('java')) {
         // javax.inject
         api libs.javax.inject
 
+        // JSpecify
+        api libs.jspecify
+
         // JSR305
         implementation libs.findbugs
 

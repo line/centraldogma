@@ -21,8 +21,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import javax.annotation.Nullable;
-
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 
 import com.google.common.collect.ImmutableList;

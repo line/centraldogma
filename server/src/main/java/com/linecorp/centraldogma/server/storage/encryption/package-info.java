@@ -16,7 +16,7 @@
 /**
  * Classes for Encryption.
  */
-@NonNullByDefault
+@NullMarked
 package com.linecorp.centraldogma.server.storage.encryption;
 
-import com.linecorp.centraldogma.common.util.NonNullByDefault;
+import org.jspecify.annotations.NullMarked;

@@ -16,7 +16,7 @@
 /**
  * Central Dogma internal test extensions.
  */
-@NonNullByDefault
+@NullMarked
 package com.linecorp.centraldogma.testing.internal;
 
-import com.linecorp.centraldogma.common.util.NonNullByDefault;
+import org.jspecify.annotations.NullMarked;

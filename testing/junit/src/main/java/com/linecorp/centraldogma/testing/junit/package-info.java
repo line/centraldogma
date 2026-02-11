@@ -17,7 +17,7 @@
 /**
  * Simplifies the integration testing with Central Dogma.
  */
-@NonNullByDefault
+@NullMarked
 package com.linecorp.centraldogma.testing.junit;
 
-import com.linecorp.centraldogma.common.util.NonNullByDefault;
+import org.jspecify.annotations.NullMarked;

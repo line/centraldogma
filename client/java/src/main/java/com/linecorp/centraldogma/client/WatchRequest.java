@@ -21,7 +21,7 @@ import static java.util.Objects.requireNonNull;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.EntryNotFoundException;

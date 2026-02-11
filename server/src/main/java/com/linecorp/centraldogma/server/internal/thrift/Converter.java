@@ -22,7 +22,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.centraldogma.common.ChangeConflictException;
@@ -143,7 +143,7 @@ final class Converter {
 
     ////// ChangeType
     @Nullable
-    static ChangeType convert(@Nullable com.linecorp.centraldogma.common.ChangeType type) {
+    static ChangeType convert(com.linecorp.centraldogma.common.@Nullable ChangeType type) {
         if (type == null) {
             return null;
         }

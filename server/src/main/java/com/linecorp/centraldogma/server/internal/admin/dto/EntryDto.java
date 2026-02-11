@@ -16,7 +16,7 @@
 
 package com.linecorp.centraldogma.server.internal.admin.dto;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.google.common.base.MoreObjects;

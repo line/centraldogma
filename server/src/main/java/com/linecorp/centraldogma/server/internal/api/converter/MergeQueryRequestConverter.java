@@ -18,7 +18,7 @@ package com.linecorp.centraldogma.server.internal.api.converter;
 
 import java.lang.reflect.ParameterizedType;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableList;

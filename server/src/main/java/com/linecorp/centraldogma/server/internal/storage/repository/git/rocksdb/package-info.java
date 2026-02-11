@@ -16,7 +16,7 @@
 /**
  * RocksDB-based implementation of Git storage.
  */
-@NonNullByDefault
+@NullMarked
 package com.linecorp.centraldogma.server.internal.storage.repository.git.rocksdb;
 
-import com.linecorp.centraldogma.common.util.NonNullByDefault;
+import org.jspecify.annotations.NullMarked;

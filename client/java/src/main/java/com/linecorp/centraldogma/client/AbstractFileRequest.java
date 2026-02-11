@@ -18,7 +18,7 @@ package com.linecorp.centraldogma.client;
 
 import static com.linecorp.centraldogma.internal.Util.validateStructuredFilePath;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import com.linecorp.centraldogma.common.QueryType;
 

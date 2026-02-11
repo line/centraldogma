@@ -19,7 +19,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.List;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import com.google.common.collect.ImmutableList;
 

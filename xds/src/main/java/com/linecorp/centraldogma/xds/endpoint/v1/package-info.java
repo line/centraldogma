@@ -17,7 +17,7 @@
 /**
  * xDS endpoint service.
  */
-@NonNullByDefault
+@NullMarked
 package com.linecorp.centraldogma.xds.endpoint.v1;
 
-import com.linecorp.centraldogma.common.util.NonNullByDefault;
+import org.jspecify.annotations.NullMarked;

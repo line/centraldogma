@@ -18,7 +18,7 @@ package com.linecorp.centraldogma.internal.api.v1;
 
 import static java.util.Objects.requireNonNull;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;

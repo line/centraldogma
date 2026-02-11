@@ -17,7 +17,7 @@
 /**
  * Storage management for Central Dogma projects and repositories.
  */
-@NonNullByDefault
+@NullMarked
 package com.linecorp.centraldogma.server.internal.storage;
 
-import com.linecorp.centraldogma.common.util.NonNullByDefault;
+import org.jspecify.annotations.NullMarked;

@@ -22,7 +22,6 @@ import static java.util.Objects.requireNonNull;
 import java.time.Duration;
 import java.util.regex.Pattern;
 
-import javax.annotation.Nullable;
 import javax.naming.AuthenticationException;
 import javax.naming.NamingEnumeration;
 import javax.naming.NamingException;
@@ -38,6 +37,7 @@ import org.apache.shiro.realm.Realm;
 import org.apache.shiro.realm.activedirectory.ActiveDirectoryRealm;
 import org.apache.shiro.realm.ldap.LdapContextFactory;
 import org.apache.shiro.realm.ldap.LdapUtils;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A variant of {@link ActiveDirectoryRealm} that binds first with the privileged credential to search for

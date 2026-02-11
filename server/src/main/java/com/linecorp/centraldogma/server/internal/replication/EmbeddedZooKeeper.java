@@ -22,8 +22,6 @@ import java.net.InetSocketAddress;
 import java.util.concurrent.TimeUnit;
 import java.util.function.ToDoubleFunction;
 
-import javax.annotation.Nullable;
-
 import org.apache.zookeeper.server.DataTree;
 import org.apache.zookeeper.server.DatadirCleanupManager;
 import org.apache.zookeeper.server.PurgeTxnLog;
@@ -34,6 +32,7 @@ import org.apache.zookeeper.server.ZooKeeperServer;
 import org.apache.zookeeper.server.persistence.FileTxnSnapLog;
 import org.apache.zookeeper.server.quorum.QuorumPeer;
 import org.apache.zookeeper.server.quorum.QuorumPeerConfig;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

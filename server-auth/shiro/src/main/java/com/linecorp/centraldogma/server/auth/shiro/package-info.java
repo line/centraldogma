@@ -17,7 +17,7 @@
  * An authentication plugin which configures Central Dogma security using
  * <a href="https://shiro.apache.org/">Apache Shiro</a>.
  */
-@NonNullByDefault
+@NullMarked
 package com.linecorp.centraldogma.server.auth.shiro;
 
-import com.linecorp.centraldogma.common.util.NonNullByDefault;
+import org.jspecify.annotations.NullMarked;

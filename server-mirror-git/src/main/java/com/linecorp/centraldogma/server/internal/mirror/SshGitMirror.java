@@ -26,8 +26,6 @@ import java.security.KeyPair;
 import java.time.Instant;
 import java.util.Collection;
 
-import javax.annotation.Nullable;
-
 import org.apache.sshd.client.ClientBuilder;
 import org.apache.sshd.client.SshClient;
 import org.apache.sshd.client.config.hosts.HostConfigEntryResolver;
@@ -49,6 +47,7 @@ import org.eclipse.jgit.transport.CredentialItem;
 import org.eclipse.jgit.transport.CredentialsProvider;
 import org.eclipse.jgit.transport.SshTransport;
 import org.eclipse.jgit.transport.URIish;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

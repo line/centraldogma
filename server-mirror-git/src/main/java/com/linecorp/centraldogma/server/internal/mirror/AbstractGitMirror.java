@@ -36,8 +36,6 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import javax.annotation.Nullable;
-
 import org.eclipse.jgit.api.RemoteSetUrlCommand;
 import org.eclipse.jgit.api.RemoteSetUrlCommand.UriType;
 import org.eclipse.jgit.api.TransportCommand;
@@ -67,6 +65,7 @@ import org.eclipse.jgit.transport.RefSpec;
 import org.eclipse.jgit.transport.TagOpt;
 import org.eclipse.jgit.transport.URIish;
 import org.eclipse.jgit.treewalk.TreeWalk;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -796,7 +795,7 @@ abstract class AbstractGitMirror extends AbstractMirror {
     }
 
     private static long applyPathEdit(DirCache dirCache, ObjectInserter inserter, String pathString,
-                                      Entry<?> entry, @Nullable byte[] oldContent)
+                                      Entry<?> entry, byte @Nullable [] oldContent)
             throws JsonProcessingException {
         switch (EntryType.guessFromPath(pathString)) {
             case JSON:

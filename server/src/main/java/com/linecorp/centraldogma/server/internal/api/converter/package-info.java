@@ -16,7 +16,7 @@
 /**
  * Converters used for V1 services.
  */
-@NonNullByDefault
+@NullMarked
 package com.linecorp.centraldogma.server.internal.api.converter;
 
-import com.linecorp.centraldogma.common.util.NonNullByDefault;
+import org.jspecify.annotations.NullMarked;

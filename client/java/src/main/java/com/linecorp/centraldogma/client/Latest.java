@@ -20,7 +20,7 @@ import static java.util.Objects.requireNonNull;
 
 import java.util.Objects;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import com.google.common.base.MoreObjects;
 

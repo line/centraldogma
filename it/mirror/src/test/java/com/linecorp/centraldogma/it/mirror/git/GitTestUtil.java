@@ -18,19 +18,18 @@ package com.linecorp.centraldogma.it.mirror.git;
 
 import java.io.IOException;
 
-import javax.annotation.Nullable;
-
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.lib.FileMode;
 import org.eclipse.jgit.lib.ObjectId;
 import org.eclipse.jgit.lib.ObjectReader;
 import org.eclipse.jgit.revwalk.RevWalk;
 import org.eclipse.jgit.treewalk.TreeWalk;
+import org.jspecify.annotations.Nullable;
 
 public final class GitTestUtil {
 
-    @Nullable
-    public static byte[] getFileContent(Git git, ObjectId commitId, String fileName) throws IOException {
+    public static byte @Nullable [] getFileContent(Git git, ObjectId commitId, String fileName)
+            throws IOException {
         try (ObjectReader reader = git.getRepository().newObjectReader();
              TreeWalk treeWalk = new TreeWalk(reader);
              RevWalk revWalk = new RevWalk(reader)) {

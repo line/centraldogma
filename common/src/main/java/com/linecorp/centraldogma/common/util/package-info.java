@@ -16,5 +16,7 @@
 /**
  * Miscellaneous utilities.
  */
-@NonNullByDefault
+@NullMarked
 package com.linecorp.centraldogma.common.util;
+
+import org.jspecify.annotations.NullMarked;

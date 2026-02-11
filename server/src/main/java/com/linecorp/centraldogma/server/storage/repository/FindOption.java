@@ -18,7 +18,7 @@ package com.linecorp.centraldogma.server.storage.repository;
 
 import java.util.Map;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * An option which is specified when retrieving one or more files.

@@ -17,7 +17,7 @@
 /**
  * Provides classes for encryption and decryption of data stored in Central Dogma.
  */
-@NonNullByDefault
+@NullMarked
 package com.linecorp.centraldogma.server.internal.storage.encryption;
 
-import com.linecorp.centraldogma.common.util.NonNullByDefault;
+import org.jspecify.annotations.NullMarked;

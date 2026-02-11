@@ -18,9 +18,10 @@ package com.linecorp.centraldogma.xds.internal;
 
 import java.util.concurrent.CompletionStage;
 
+import org.jspecify.annotations.Nullable;
+
 import com.google.common.base.MoreObjects;
 
-import com.linecorp.armeria.common.annotation.Nullable;
 import com.linecorp.armeria.common.util.UnmodifiableFuture;
 import com.linecorp.centraldogma.server.plugin.AllReplicasPlugin;
 import com.linecorp.centraldogma.server.plugin.PluginContext;

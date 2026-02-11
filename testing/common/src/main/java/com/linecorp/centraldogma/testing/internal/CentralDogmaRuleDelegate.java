@@ -24,7 +24,7 @@ import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 import java.util.concurrent.CompletableFuture;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import com.google.common.collect.Iterables;
 
@@ -61,8 +61,7 @@ public class CentralDogmaRuleDelegate {
     private static final InetSocketAddress TEST_PORT = new InetSocketAddress(NetUtil.LOCALHOST4, 0);
 
     private final boolean useTls;
-    @Nullable
-    private volatile com.linecorp.centraldogma.server.CentralDogma dogma;
+    private volatile com.linecorp.centraldogma.server.@Nullable CentralDogma dogma;
     @Nullable
     private volatile CentralDogma client;
     @Nullable

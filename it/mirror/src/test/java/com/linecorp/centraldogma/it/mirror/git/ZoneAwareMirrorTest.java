@@ -32,8 +32,7 @@ import static org.awaitility.Awaitility.await;
 import java.net.URI;
 import java.util.List;
 
-import javax.annotation.Nullable;
-
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;

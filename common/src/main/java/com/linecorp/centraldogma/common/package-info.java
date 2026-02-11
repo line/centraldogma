@@ -16,7 +16,7 @@
 /**
  * Common data types and exceptions.
  */
-@NonNullByDefault
+@NullMarked
 package com.linecorp.centraldogma.common;
 
-import com.linecorp.centraldogma.common.util.NonNullByDefault;
+import org.jspecify.annotations.NullMarked;

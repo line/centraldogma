@@ -18,7 +18,7 @@ package com.linecorp.centraldogma.server.metadata;
 
 import static java.util.Objects.requireNonNull;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import com.google.common.base.MoreObjects;
 import com.google.common.base.MoreObjects.ToStringHelper;

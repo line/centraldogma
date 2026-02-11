@@ -24,7 +24,7 @@ import static java.util.Objects.requireNonNull;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Function;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import com.google.common.base.Strings;
 
