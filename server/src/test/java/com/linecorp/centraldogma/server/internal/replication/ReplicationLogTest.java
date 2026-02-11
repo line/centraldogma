@@ -17,6 +17,7 @@
 package com.linecorp.centraldogma.server.internal.replication;
 
 import static com.linecorp.centraldogma.testing.internal.TestUtil.assertJsonConversion;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import org.junit.jupiter.api.Test;
 
@@ -24,8 +25,10 @@ import com.google.common.collect.ImmutableList;
 
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
+import com.linecorp.centraldogma.common.ChangeType;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommitResult;
 import com.linecorp.centraldogma.server.command.NormalizingPushCommand;
@@ -85,5 +88,43 @@ class ReplicationLogTest {
                              "  }," +
                              "  \"result\": 43" +
                              '}');
+    }
+
+    @Test
+    void testYamlUpsertDeserialization() throws Exception {
+        //language=JSON
+        final String replicationLogJson =
+                '{' +
+                "  \"replicaId\": 2," +
+                "  \"command\": {" +
+                "    \"type\": \"PUSH\"," +
+                "    \"projectName\": \"foo\"," +
+                "    \"repositoryName\": \"bar\"," +
+                "    \"baseRevision\": 42," +
+                "    \"timestamp\": 1234," +
+                "    \"author\": {" +
+                "      \"name\": \"Sedol Lee\"," +
+                "      \"email\": \"sedol@lee.com\"" +
+                "    }," +
+                "    \"summary\": \"4:1\"," +
+                "    \"detail\": \"L-L-L-W-L\"," +
+                "    \"markup\": \"PLAINTEXT\"," +
+                "    \"changes\": [{" +
+                "      \"type\": \"UPSERT_YAML\"," +
+                "      \"path\": \"/result.txt\"," +
+                "      \"rawContent\": \"key: value\"" +
+                "    }]" +
+                "  }," +
+                "  \"result\": 43" +
+                '}';
+        final ReplicationLog<?> replicationLog = Jackson.readValue(replicationLogJson,
+                                                                   ReplicationLog.class);
+        final PushAsIsCommand pushCommand = (PushAsIsCommand) replicationLog.command();
+        @SuppressWarnings("unchecked")
+        final Change<String> change = (Change<String>) pushCommand.changes().get(0);
+        // For backward compatibility, the change type should be deserialized as "UPSERT_TEXT" instead of
+        // "UPSERT_YAML".
+        assertThat(change.type()).isEqualTo(ChangeType.UPSERT_TEXT);
+        assertThat(change.content()).isEqualTo("key: value");
     }
 }

@@ -80,6 +80,13 @@ public enum ChangeType {
         requireNonNull(value, "value");
         checkArgument(!value.isEmpty(), "the value for ChangeType should not be empty.");
 
-        return valueOf(Ascii.toUpperCase(value));
+        final String upperCase = Ascii.toUpperCase(value);
+
+        if ("UPSERT_YAML".equals(upperCase)) {
+            // Fallback for backward compatibility. `UPSERT_YAML` is treated as `UPSERT_TEXT`.
+            return UPSERT_TEXT;
+        } else {
+            return valueOf(upperCase);
+        }
     }
 }

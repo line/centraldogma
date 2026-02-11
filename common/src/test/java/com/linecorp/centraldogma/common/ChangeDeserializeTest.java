@@ -29,11 +29,12 @@ import com.linecorp.armeria.internal.common.JacksonUtil;
 
 class ChangeDeserializeTest {
 
+    private final ObjectMapper mapper = JacksonUtil.newDefaultObjectMapper();
+
     @Test
     void deserializeContentAsJson() throws JsonProcessingException {
         final String json =
                 "{ \"type\": \"UPSERT_JSON\", \"path\": \"/foo.json\", \"content\": { \"key\": \"value\" } }";
-        final ObjectMapper mapper = JacksonUtil.newDefaultObjectMapper();
         final Change<JsonNode> change = mapper.readValue(json, Change.class);
         assertThat(change.type()).isEqualTo(ChangeType.UPSERT_JSON);
         assertThat(change.path()).isEqualTo("/foo.json");
@@ -46,11 +47,22 @@ class ChangeDeserializeTest {
         final String json =
                 "{ \"type\": \"UPSERT_JSON\", \"path\": \"/foo.json\", " +
                 "\"rawContent\": \"{ \\\"key\\\": \\\"value\\\" }\" }";
-        final ObjectMapper mapper = JacksonUtil.newDefaultObjectMapper();
         final Change<JsonNode> change = mapper.readValue(json, Change.class);
         assertThat(change.type()).isEqualTo(ChangeType.UPSERT_JSON);
         assertThat(change.path()).isEqualTo("/foo.json");
         assertThat(change.content()).isInstanceOf(ObjectNode.class);
         assertThat(change.content().get("key").asText()).isEqualTo("value");
+    }
+
+    @Test
+    void handleYamlUpsertAsUpsert() throws JsonProcessingException {
+        final String yaml =
+                "{ \"type\": \"UPSERT_YAML\", \"path\": \"/foo.yaml\", " +
+                "\"rawContent\": \"key: value\" }";
+        final Change<String> change = mapper.readValue(yaml, Change.class);
+        assertThat(change.type()).isEqualTo(ChangeType.UPSERT_TEXT);
+        assertThat(change.path()).isEqualTo("/foo.yaml");
+        assertThat(change.content()).isInstanceOf(String.class);
+        assertThat(change.content()).isEqualTo("key: value");
     }
 }

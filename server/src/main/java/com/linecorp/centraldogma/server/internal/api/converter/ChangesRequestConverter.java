@@ -81,7 +81,7 @@ public final class ChangesRequestConverter implements RequestConverterFunction {
                       "a change should have a path and a type");
         final ChangeType changeType = ChangeType.parse(node.get("type").textValue());
         if (changeType != ChangeType.REMOVE) {
-            if (changeType == ChangeType.UPSERT_JSON) {
+            if (changeType == ChangeType.UPSERT_JSON || changeType == ChangeType.UPSERT_TEXT) {
                 checkArgument(node.get("content") != null || node.get("rawContent") != null,
                               "a change should have a content.");
             } else {
@@ -91,7 +91,11 @@ public final class ChangesRequestConverter implements RequestConverterFunction {
 
         final String path = node.get("path").textValue();
         if (changeType == ChangeType.UPSERT_TEXT) {
-            return Change.ofTextUpsert(path, node.get("content").textValue());
+            final JsonNode content = node.get("content");
+            if (content != null) {
+                return Change.ofTextUpsert(path, content.textValue());
+            }
+            return Change.ofTextUpsert(path, node.get("rawContent").textValue());
         }
         if (changeType == ChangeType.UPSERT_JSON) {
             final JsonNode content = node.get("content");

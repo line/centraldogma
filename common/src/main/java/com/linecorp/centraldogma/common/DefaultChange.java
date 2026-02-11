@@ -28,6 +28,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.TextNode;
 import com.google.common.base.MoreObjects;
 
 import com.linecorp.centraldogma.internal.Jackson;
@@ -35,22 +36,30 @@ import com.linecorp.centraldogma.internal.Jackson;
 final class DefaultChange<T> implements Change<T> {
 
     @JsonCreator
-    static DefaultChange<?> deserialize(@JsonProperty("type") ChangeType type,
+    static DefaultChange<?> deserialize(@JsonProperty("type") String type,
                                         @JsonProperty("path") String path,
                                         @JsonProperty("content") @Nullable JsonNode content,
                                         @JsonProperty("rawContent") @Nullable String rawContent) {
         requireNonNull(type, "type");
-        final Class<?> contentType = type.contentType();
+        final ChangeType changeType = ChangeType.parse(type);
+
+        final Class<?> contentType = changeType.contentType();
         if (contentType == Void.class) {
             if (content != null && !content.isNull()) {
                 return rejectIncompatibleContent(content, Void.class);
             }
-        } else if (type.contentType() == String.class) {
-            if (content == null || !content.isTextual()) {
+        } else if (changeType.contentType() == String.class) {
+            if (content == null && rawContent == null) {
+                throw new IllegalArgumentException("Either content or rawContent must be set.");
+            }
+            if (rawContent != null && content == null) {
+                content = new TextNode(rawContent);
+            }
+            if (!content.isTextual()) {
                 return rejectIncompatibleContent(content, String.class);
             }
         } else {
-            assert type.contentType() == JsonNode.class;
+            assert changeType.contentType() == JsonNode.class;
             // Raw content is only used for JSON content types for now.
             // TODO(ikhoon): Use rawContent to commit the content as-is.
             if (content == null && rawContent != null) {
@@ -63,14 +72,14 @@ final class DefaultChange<T> implements Change<T> {
             }
         }
 
-        if (type == ChangeType.REMOVE) {
+        if (changeType == ChangeType.REMOVE) {
             return (DefaultChange<?>) Change.ofRemoval(path);
         }
 
         requireNonNull(content, "content");
 
         final Change<?> result;
-        switch (type) {
+        switch (changeType) {
             case UPSERT_JSON:
                 result = Change.ofJsonUpsert(path, content);
                 break;
