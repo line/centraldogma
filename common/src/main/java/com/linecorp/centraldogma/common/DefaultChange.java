@@ -41,7 +41,7 @@ final class DefaultChange<T> implements Change<T> {
                                         @JsonProperty("content") @Nullable JsonNode content,
                                         @JsonProperty("rawContent") @Nullable String rawContent) {
         requireNonNull(type, "type");
-        ChangeType changeType = ChangeType.parse(type);
+        final ChangeType changeType = ChangeType.parse(type);
 
         final Class<?> contentType = changeType.contentType();
         if (contentType == Void.class) {
