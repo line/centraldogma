@@ -41,11 +41,11 @@ const ProjectTokenPage = () => {
             <NewTokenRepositoryRole
               projectName={projectName}
               repoName={repoName}
-              tokens={metadata ? Array.from(Object.values(metadata.tokens)) : []}
+              appIds={metadata ? Array.from(Object.values(metadata.appIds)) : []}
               addTokenRepositoryRole={addTokenRepositoryRole}
               isLoading={isAddTokenLoading}
               tokenRepositoryRole={
-                metadata?.repos[repoName]?.roles?.tokens ?? ({} as UserOrTokenRepositoryRoleDto)
+                metadata?.repos[repoName]?.roles?.appIds ?? ({} as UserOrTokenRepositoryRoleDto)
               }
             />
           </Flex>
@@ -54,7 +54,7 @@ const ProjectTokenPage = () => {
             repoName={repoName}
             entityType="token"
             userOrTokenRepositoryRole={
-              metadata?.repos[repoName]?.roles?.tokens ?? ({} as UserOrTokenRepositoryRoleDto)
+              metadata?.repos[repoName]?.roles?.appIds ?? ({} as UserOrTokenRepositoryRoleDto)
             }
             deleteUserOrToken={deleteTokenRepositoryRole}
             isLoading={isDeleteTokenLoading}

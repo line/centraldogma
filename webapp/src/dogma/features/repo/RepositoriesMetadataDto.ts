@@ -15,7 +15,7 @@ export interface RepositoryMetadataDto {
 export interface RolesDto {
   projects: ProjectRolesDto;
   users: UserOrTokenRepositoryRoleDto;
-  tokens: UserOrTokenRepositoryRoleDto;
+  appIds: UserOrTokenRepositoryRoleDto;
 }
 
 export interface ProjectRolesDto {

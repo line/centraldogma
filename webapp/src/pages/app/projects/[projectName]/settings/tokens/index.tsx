@@ -34,7 +34,7 @@ const ProjectTokenPage = () => {
             <AddAppToken projectName={projectName} />
           </Flex>
           <AppEntityList
-            data={metadata ? Array.from(Object.values(metadata.tokens)) : []}
+            data={metadata ? Array.from(Object.values(metadata.appIds)) : []}
             projectName={projectName}
             entityType={'token'}
             getId={(row) => row.appId}
