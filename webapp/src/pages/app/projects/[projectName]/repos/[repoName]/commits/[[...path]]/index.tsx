@@ -178,6 +178,7 @@ const HistoryListPage = () => {
               projectName={projectName}
               repoName={repoName}
               filePath={filePath}
+              headRevision={headRevision}
               data={historyData || []}
               pagination={pagination}
               setPagination={setPagination}

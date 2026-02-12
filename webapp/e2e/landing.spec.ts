@@ -17,8 +17,9 @@ test('search project', async ({ page }) => {
   await page.goto('/');
 
   await expect(page.getByText('Search project ...')).toBeVisible();
-  await expect(page.getByRole('combobox')).toBeVisible();
-  await page.locator('#project-select').click();
+  const combo = page.getByRole('combobox');
+  await expect(combo).toBeVisible();
+  await combo.click();
   await expect(page.getByRole('option', { name: 'dogma' })).toBeVisible();
   await expect(page.getByRole('option', { name: 'foo' })).toBeVisible();
 });
