@@ -144,7 +144,7 @@ class MirrorRunnerTest {
             if (i == 0) {
                 assertThat(mirrorResponse.content().mirrorStatus()).isEqualTo(MirrorStatus.SUCCESS);
                 assertThat(mirrorResponse.content().description())
-                        .contains("'git+ssh://github.com/line/centraldogma-authtest.git/#main' at 2");
+                        .contains("'git+ssh://github.com/line/centraldogma-authtest.git/#main'");
             } else {
                 assertThat(mirrorResponse.content().mirrorStatus()).isEqualTo(MirrorStatus.UP_TO_DATE);
                 assertThat(mirrorResponse.content().description())
