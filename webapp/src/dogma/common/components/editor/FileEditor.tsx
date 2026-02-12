@@ -248,7 +248,7 @@ const FileEditor = ({
             </Box>
           </TabPanel>
           <TabPanel>
-            {readOnly && !isLoading && !error && modifiedContent === fileContent ? (
+            {readOnly && !isLoading && !error && modifiedContent === originalContent ? (
               <Flex height="50vh" alignItems="center" justifyContent="center">
                 <Heading size="md" color="gray.500">
                   No template variables detected.
