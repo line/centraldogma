@@ -248,30 +248,41 @@ const FileEditor = ({
             </Box>
           </TabPanel>
           <TabPanel>
-            <Flex mb="2">
-              <Spacer />
-              <EditModeToggle
-                switchMode={() => setDiffSideBySide(!diffSideBySide)}
-                value={!diffSideBySide}
-                label="Render side by side?"
-              />
-            </Flex>
-            <DiffEditor
-              height="50vh"
-              language={language}
-              theme={colorMode === 'light' ? 'light' : 'vs-dark'}
-              original={fileContent}
-              modified={modifiedContent}
-              options={{
-                autoIndent: 'full',
-                formatOnPaste: true,
-                formatOnType: true,
-                diffWordWrap: 'on',
-                useTabStops: true,
-                renderSideBySide: diffSideBySide,
-                scrollBeyondLastLine: false,
-              }}
-            />
+            {readOnly && !isLoading && !error && modifiedContent === fileContent ? (
+              <Flex height="50vh" alignItems="center" justifyContent="center">
+                <Heading size="md" color="gray.500">
+                  No template variables detected.
+                </Heading>
+              </Flex>
+            ) : (
+              <>
+                <Flex mb="2">
+                  <Spacer />
+                  <EditModeToggle
+                    switchMode={() => setDiffSideBySide(!diffSideBySide)}
+                    value={!diffSideBySide}
+                    label="Render side by side?"
+                  />
+                </Flex>
+                <DiffEditor
+                  height="50vh"
+                  language={language}
+                  theme={colorMode === 'light' ? 'light' : 'vs-dark'}
+                  original={fileContent}
+                  modified={modifiedContent}
+                  options={{
+                    readOnly: true,
+                    autoIndent: 'full',
+                    formatOnPaste: true,
+                    formatOnType: true,
+                    diffWordWrap: 'on',
+                    useTabStops: true,
+                    renderSideBySide: diffSideBySide,
+                    scrollBeyondLastLine: false,
+                  }}
+                />
+              </>
+            )}
           </TabPanel>
         </TabPanels>
       </Tabs>
