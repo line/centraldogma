@@ -1,7 +1,8 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { RepositoryRole } from 'dogma/features/auth/RepositoryRole';
+import { ProjectMetadataDto } from 'dogma/features/project/ProjectMetadataDto';
 
-const projectMetadata = {
+const projectMetadata: ProjectMetadataDto = {
   name: 'abcd',
   repos: {
     meta: {
@@ -9,10 +10,10 @@ const projectMetadata = {
       roles: {
         projects: {
           member: 'READ' as RepositoryRole,
-          guest: null as 'READ' | 'WRITE' | null,
+          guest: null,
         },
         users: {},
-        tokens: {},
+        appIds: {},
       },
       creation: { user: 'lb56789@localhost.localdomain', timestamp: '2022-11-23T03:13:50.128853Z' },
     },
@@ -21,12 +22,12 @@ const projectMetadata = {
       roles: {
         projects: {
           member: 'WRITE' as RepositoryRole,
-          guest: 'WRITE',
+          guest: 'READ',
         },
         users: {
           'lz123456@localhost.localdomain': 'WRITE',
         },
-        tokens: {
+        appIds: {
           'test-token': 'READ',
         },
       },
@@ -37,10 +38,10 @@ const projectMetadata = {
       roles: {
         projects: {
           member: 'WRITE' as RepositoryRole,
-          guest: null as 'READ' | 'WRITE' | null,
+          guest: 'READ',
         },
         users: {},
-        tokens: {},
+        appIds: {},
       },
       creation: { user: 'lb56789@localhost.localdomain', timestamp: '2022-12-16T05:25:30.973209Z' },
       removal: { user: 'lb56789@localhost.localdomain', timestamp: '2022-12-16T05:25:37.020133Z' },
@@ -63,7 +64,7 @@ const projectMetadata = {
       creation: { user: 'lz123456@localhost.localdomain', timestamp: '2022-12-16T02:54:12.431395Z' },
     },
   },
-  tokens: {
+  appIds: {
     'test-token': {
       appId: 'test-token',
       role: 'MEMBER',

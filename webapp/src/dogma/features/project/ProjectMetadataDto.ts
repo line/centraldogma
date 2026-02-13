@@ -11,6 +11,6 @@ export interface ProjectMetadataDto {
   name: string;
   repos: RepositoriesMetadataDto;
   members: AppMemberDto;
-  tokens: AppTokenDto;
+  appIds: AppTokenDto;
   creation: ProjectCreatorDto;
 }

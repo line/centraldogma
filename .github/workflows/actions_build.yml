@@ -275,6 +275,31 @@ jobs:
           ./gradlew --no-daemon --stacktrace check -PnoLint -PflakyTests=true
         shell: bash
 
+  # Run WebApp end-to-end tests separately to avoid port conflicts.
+  webapp-e2e:
+    if: github.repository == 'line/centraldogma'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      GRADLE_OPTS: -Xmx1280m
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: setup-jdk
+        name: Set up JDK ${{ env.BUILD_JDK_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: ${{ env.BUILD_JDK_VERSION }}
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v5
+
+      - name: Run WebApp E2E tests
+        run: |
+          ./gradlew --no-daemon --stacktrace :webapp:testE2e
+        shell: bash
+
   docker-build:
     if: github.repository == 'line/centraldogma'
     runs-on: ubuntu-latest

@@ -41,19 +41,19 @@ type FormData = {
 export const NewTokenRepositoryRole = ({
   projectName,
   repoName,
-  tokens,
+  appIds,
   addTokenRepositoryRole,
   isLoading,
   tokenRepositoryRole,
 }: {
   projectName: string;
   repoName: string;
-  tokens: AppTokenDetailDto[];
+  appIds: AppTokenDetailDto[];
   addTokenRepositoryRole: ApiAction<AddUserOrTokenRepositoryRoleDto, void>;
   isLoading: boolean;
   tokenRepositoryRole: UserOrTokenRepositoryRoleDto;
 }) => {
-  const tokenOptions: TokenOptionType[] = tokens
+  const tokenOptions: TokenOptionType[] = appIds
     .filter((token) => !(token.appId in tokenRepositoryRole))
     .map((token) => ({
       value: token.appId,
