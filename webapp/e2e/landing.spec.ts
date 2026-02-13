@@ -3,9 +3,6 @@ import { test, expect } from '@playwright/test';
 test.beforeEach('Login', async ({ page }) => {
   await page.goto('/');
 
-  // Wait for page to fully load
-  await page.waitForLoadState('networkidle');
-
   await expect(page.getByText(/Login/)).toBeVisible({ timeout: 10000 });
   await page.getByPlaceholder('ID').fill('foo');
   await page.getByPlaceholder('Password').fill('bar');

@@ -14,8 +14,7 @@
  * under the License.
  */
 
-import { render, screen, waitFor } from '@testing-library/react';
-import { ProjectMetadataDto, ProjectCreatorDto } from 'dogma/features/project/ProjectMetadataDto';
+import { ProjectCreatorDto, ProjectMetadataDto } from 'dogma/features/project/ProjectMetadataDto';
 import { findUserRole } from 'dogma/features/auth/ProjectRole';
 import { findUserRepositoryRole } from 'dogma/features/auth/RepositoryRole';
 import { UserDto } from 'dogma/features/auth/UserDto';
@@ -23,8 +22,6 @@ import { AppTokenDetailDto } from 'dogma/features/project/settings/tokens/AppTok
 // Disabled due to https://github.com/mswjs/msw/issues/1786
 // import { setupServer } from 'msw/node';
 // import { http, HttpResponse } from 'msw';
-import { apiSlice } from 'dogma/features/api/apiSlice';
-import { ApiProvider } from '@reduxjs/toolkit/query/react';
 import '@testing-library/jest-dom';
 
 // Helper type for testing - AppTokenDto is Map<string, AppTokenDetailDto> but server returns object
@@ -48,7 +45,7 @@ describe('ProjectMetadataDto', () => {
             users: {
               'member@example.com': 'WRITE',
             },
-            tokens: {
+            appIds: {
               'test-token': 'READ',
             },
           },

@@ -114,7 +114,7 @@ task testWeb(type: NpmTask) {
 tasks.test.dependsOn(tasks.testWeb)
 
 task testE2e(type: NpmTask) {
-    dependsOn tasks.npmInstall
+    dependsOn tasks.installPlayWright
 
     args = ['run', 'test:e2e']
 

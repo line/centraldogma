@@ -152,8 +152,8 @@ test.describe('Project Metadata API', () => {
     expect(hasTokensField).toBeTruthy();
     expect(metadata).toHaveProperty('creation');
 
-    // Verify tokens/appIds is an object (can be empty)
-    const tokensOrAppIds = metadata.tokens || metadata.appIds;
+    // Verify appIds is an object (can be empty)
+    const tokensOrAppIds = metadata.appIds;
     expect(typeof tokensOrAppIds).toBe('object');
   });
 
