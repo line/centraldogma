@@ -111,6 +111,7 @@ task testWeb(type: NpmTask) {
     inputs.file('next.config.js')
     outputs.upToDateWhen { true }
 }
+tasks.test.dependsOn(tasks.testWeb)
 
 task testE2e(type: NpmTask) {
     dependsOn tasks.npmInstall
@@ -123,8 +124,6 @@ task testE2e(type: NpmTask) {
     inputs.file('playwright.config.ts')
     outputs.upToDateWhen { true }
 }
-tasks.test.dependsOn(tasks.testWeb)
-tasks.test.dependsOn(tasks.testE2e)
 
 tasks.withType(Test).configureEach {
     failOnNoDiscoveredTests = false
