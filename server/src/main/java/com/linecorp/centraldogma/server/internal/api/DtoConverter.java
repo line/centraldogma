@@ -103,7 +103,10 @@ final class DtoConverter {
             return newEntryDto(repository, revision, entry.path(), entry.type(), entry.content(), null,
                                entry.templateRevision());
         }
-        return newEntryDto(repository, revision, entry.path(), entry.type());
+        // Use EntryType.TEXT for YAML entries for backward compatibility.
+        // Old clients may not recognize EntryType.YAML.
+        final EntryType type = entry.type() == EntryType.YAML ? EntryType.TEXT : entry.type();
+        return newEntryDto(repository, revision, entry.path(), type);
     }
 
     private static <T> EntryDto<T> newEntryDto(Repository repository, Revision revision,

@@ -788,6 +788,61 @@ class ContentServiceV1Test {
         }
 
         @Test
+        void listFilesWithYamlShouldNotReturnYamlType() {
+            final WebClient client = dogma.httpClient();
+            addYamlFile(client);
+            // get the list of all files
+            final AggregatedHttpResponse res = client
+                    .get("/api/v1/projects/myPro/repos/myRepo/list/**").aggregate().join();
+            // YAML type should NOT be returned for backward compatibility with old clients.
+            // Old clients do not understand the YAML type.
+            assertThat(res.contentUtf8()).doesNotContain("\"YAML\"");
+            final String expectedJson =
+                    '[' +
+                    "   {" +
+                    "       \"revision\": 2," +
+                    "       \"path\": \"/config.yaml\"," +
+                    "       \"type\": \"TEXT\"," +
+                    "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/contents/config.yaml\"" +
+                    "   }" +
+                    ']';
+            assertThatJson(res.contentUtf8()).isEqualTo(expectedJson);
+        }
+
+        @Test
+        void watchFileWithYamlShouldNotReturnYamlType() {
+            final WebClient client = dogma.httpClient();
+            addYamlFile(client);
+            final RequestHeaders headers = RequestHeaders.of(
+                    HttpMethod.GET, CONTENTS_PREFIX + "/config.yaml",
+                    HttpHeaderNames.IF_NONE_MATCH, "-1");
+            final CompletableFuture<AggregatedHttpResponse> future = client.execute(headers).aggregate();
+
+            assertThatThrownBy(() -> future.get(500, TimeUnit.MILLISECONDS))
+                    .isExactlyInstanceOf(TimeoutException.class);
+
+            // Update the YAML file
+            editYamlFile(client);
+
+            await().atMost(3, TimeUnit.SECONDS).untilAsserted(future::isDone);
+            final AggregatedHttpResponse res = future.join();
+            // YAML type should NOT be returned for backward compatibility with old clients.
+            assertThat(res.contentUtf8()).doesNotContain("\"YAML\"");
+            final String expectedJson =
+                    '{' +
+                    "   \"revision\" : 3," +
+                    "   \"entry\": {" +
+                    "       \"revision\" : 3," +
+                    "       \"path\": \"/config.yaml\"," +
+                    "       \"type\": \"TEXT\"," +
+                    "       \"content\": \"name: updated\\nvalue: 100\\n\"," +
+                    "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/contents/config.yaml\"" +
+                    "   }" +
+                    '}';
+            assertThatJson(res.contentUtf8()).isEqualTo(expectedJson);
+        }
+
+        @Test
         void listADirectoryWithSlash() {
             final WebClient client = dogma.httpClient();
             final String body =
@@ -874,6 +929,40 @@ class ContentServiceV1Test {
                 "   }" +
                 '}';
 
+        final RequestHeaders headers = RequestHeaders.of(HttpMethod.POST, CONTENTS_PREFIX,
+                                                         HttpHeaderNames.CONTENT_TYPE, MediaType.JSON);
+        return client.execute(headers, body).aggregate().join();
+    }
+
+    static AggregatedHttpResponse addYamlFile(WebClient client) {
+        final String body =
+                '{' +
+                "   \"path\" : \"/config.yaml\"," +
+                "   \"type\" : \"UPSERT_YAML\"," +
+                "   \"rawContent\" : \"name: test\\nvalue: 42\\n\"," +
+                "   \"commitMessage\" : {" +
+                "       \"summary\" : \"Add config.yaml\"," +
+                "       \"detail\": \"Add because we need it.\"," +
+                "       \"markup\": \"PLAINTEXT\"" +
+                "   }" +
+                '}';
+        final RequestHeaders headers = RequestHeaders.of(HttpMethod.POST, CONTENTS_PREFIX,
+                                                         HttpHeaderNames.CONTENT_TYPE, MediaType.JSON);
+        return client.execute(headers, body).aggregate().join();
+    }
+
+    static AggregatedHttpResponse editYamlFile(WebClient client) {
+        final String body =
+                '{' +
+                "   \"path\" : \"/config.yaml\"," +
+                "   \"type\" : \"UPSERT_YAML\"," +
+                "   \"rawContent\" : \"name: updated\\nvalue: 100\\n\"," +
+                "   \"commitMessage\" : {" +
+                "       \"summary\" : \"Edit config.yaml\"," +
+                "       \"detail\": \"Edit because we need it.\"," +
+                "       \"markup\": \"PLAINTEXT\"" +
+                "   }" +
+                '}';
         final RequestHeaders headers = RequestHeaders.of(HttpMethod.POST, CONTENTS_PREFIX,
                                                          HttpHeaderNames.CONTENT_TYPE, MediaType.JSON);
         return client.execute(headers, body).aggregate().join();
