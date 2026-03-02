@@ -67,6 +67,10 @@ Here is the properties of the mirroring task:
   - the directory path. The content of the ``remote path`` will be mirrored into this directory.
     If unspecified, ``/`` is used.
 
+  - .. note::
+
+     The directory must be created manually before setting up the mirroring task.
+
 - ``Remote``
 
   - Supported schemes are:
@@ -74,6 +78,10 @@ Here is the properties of the mirroring task:
     - ``git+http``
     - ``git+https``
     - ``git+ssh``
+
+  - .. note::
+
+     ``accessToken`` in ``Credential`` is only supported for ``git+https`` scheme.
 
   - ``repo``
 
