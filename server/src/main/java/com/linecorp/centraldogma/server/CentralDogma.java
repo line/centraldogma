@@ -1248,17 +1248,6 @@ public class CentralDogma implements AutoCloseable {
         }
 
         try {
-            if (pm != null) {
-                logger.info("Stopping the project manager ..");
-                pm.close(ShuttingDownException::new);
-                logger.info("Stopped the project manager.");
-            }
-        } catch (Throwable t) {
-            success = false;
-            logger.warn("Failed to stop the project manager:", t);
-        }
-
-        try {
             if (executor != null) {
                 logger.info("Stopping the command executor ..");
                 executor.stop().get(60, TimeUnit.SECONDS);
@@ -1274,6 +1263,17 @@ public class CentralDogma implements AutoCloseable {
         } catch (Throwable t) {
             success = false;
             logger.warn("Failed to stop the command executor:", t);
+        }
+
+        try {
+            if (pm != null) {
+                logger.info("Stopping the project manager ..");
+                pm.close(ShuttingDownException::new);
+                logger.info("Stopped the project manager.");
+            }
+        } catch (Throwable t) {
+            success = false;
+            logger.warn("Failed to stop the project manager:", t);
         }
 
         try {
