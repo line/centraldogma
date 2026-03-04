@@ -190,7 +190,7 @@
 <a class="jxr_linenumber" name="L182" href="#L182">182</a>         <strong class="jxr_keyword">return</strong> compactMapper.readValue(jp, typeReference);
 <a class="jxr_linenumber" name="L183" href="#L183">183</a>     }
 <a class="jxr_linenumber" name="L184" href="#L184">184</a> 
-<a class="jxr_linenumber" name="L185" href="#L185">185</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> JsonNode readTree(String path, String data) <strong class="jxr_keyword">throws</strong> JsonParseException {
+<a class="jxr_linenumber" name="L185" href="#L185">185</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> JsonNode readTree(String path, String data) <strong class="jxr_keyword">throws</strong> JsonProcessingException {
 <a class="jxr_linenumber" name="L186" href="#L186">186</a>         <strong class="jxr_keyword">if</strong> (isJson(path)) {
 <a class="jxr_linenumber" name="L187" href="#L187">187</a>             <strong class="jxr_keyword">return</strong> readTree(data);
 <a class="jxr_linenumber" name="L188" href="#L188">188</a>         } <strong class="jxr_keyword">else</strong> <strong class="jxr_keyword">if</strong> (isJson5(path)) {
@@ -203,7 +203,7 @@
 <a class="jxr_linenumber" name="L195" href="#L195">195</a>         }
 <a class="jxr_linenumber" name="L196" href="#L196">196</a>     }
 <a class="jxr_linenumber" name="L197" href="#L197">197</a> 
-<a class="jxr_linenumber" name="L198" href="#L198">198</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> JsonNode readTree(String path, byte[] data) <strong class="jxr_keyword">throws</strong> JsonParseException {
+<a class="jxr_linenumber" name="L198" href="#L198">198</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> JsonNode readTree(String path, byte[] data) <strong class="jxr_keyword">throws</strong> JsonProcessingException {
 <a class="jxr_linenumber" name="L199" href="#L199">199</a>         <strong class="jxr_keyword">if</strong> (isJson(path)) {
 <a class="jxr_linenumber" name="L200" href="#L200">200</a>             <strong class="jxr_keyword">return</strong> readTree(data);
 <a class="jxr_linenumber" name="L201" href="#L201">201</a>         } <strong class="jxr_keyword">else</strong> <strong class="jxr_keyword">if</strong> (isJson5(path)) {
@@ -216,20 +216,20 @@
 <a class="jxr_linenumber" name="L208" href="#L208">208</a>         }
 <a class="jxr_linenumber" name="L209" href="#L209">209</a>     }
 <a class="jxr_linenumber" name="L210" href="#L210">210</a> 
-<a class="jxr_linenumber" name="L211" href="#L211">211</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> JsonNode readTree(String data) <strong class="jxr_keyword">throws</strong> JsonParseException {
+<a class="jxr_linenumber" name="L211" href="#L211">211</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> JsonNode readTree(String data) <strong class="jxr_keyword">throws</strong> JsonProcessingException {
 <a class="jxr_linenumber" name="L212" href="#L212">212</a>         <strong class="jxr_keyword">try</strong> {
 <a class="jxr_linenumber" name="L213" href="#L213">213</a>             <strong class="jxr_keyword">return</strong> compactMapper.readTree(data);
-<a class="jxr_linenumber" name="L214" href="#L214">214</a>         } <strong class="jxr_keyword">catch</strong> (JsonParseException e) {
+<a class="jxr_linenumber" name="L214" href="#L214">214</a>         } <strong class="jxr_keyword">catch</strong> (JsonProcessingException e) {
 <a class="jxr_linenumber" name="L215" href="#L215">215</a>             <strong class="jxr_keyword">throw</strong> e;
 <a class="jxr_linenumber" name="L216" href="#L216">216</a>         } <strong class="jxr_keyword">catch</strong> (IOException e) {
 <a class="jxr_linenumber" name="L217" href="#L217">217</a>             <strong class="jxr_keyword">throw</strong> <strong class="jxr_keyword">new</strong> IOError(e);
 <a class="jxr_linenumber" name="L218" href="#L218">218</a>         }
 <a class="jxr_linenumber" name="L219" href="#L219">219</a>     }
 <a class="jxr_linenumber" name="L220" href="#L220">220</a> 
-<a class="jxr_linenumber" name="L221" href="#L221">221</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> JsonNode readTree(byte[] data) <strong class="jxr_keyword">throws</strong> JsonParseException {
+<a class="jxr_linenumber" name="L221" href="#L221">221</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> JsonNode readTree(byte[] data) <strong class="jxr_keyword">throws</strong> JsonProcessingException {
 <a class="jxr_linenumber" name="L222" href="#L222">222</a>         <strong class="jxr_keyword">try</strong> {
 <a class="jxr_linenumber" name="L223" href="#L223">223</a>             <strong class="jxr_keyword">return</strong> compactMapper.readTree(data);
-<a class="jxr_linenumber" name="L224" href="#L224">224</a>         } <strong class="jxr_keyword">catch</strong> (JsonParseException e) {
+<a class="jxr_linenumber" name="L224" href="#L224">224</a>         } <strong class="jxr_keyword">catch</strong> (JsonProcessingException e) {
 <a class="jxr_linenumber" name="L225" href="#L225">225</a>             <strong class="jxr_keyword">throw</strong> e;
 <a class="jxr_linenumber" name="L226" href="#L226">226</a>         } <strong class="jxr_keyword">catch</strong> (IOException e) {
 <a class="jxr_linenumber" name="L227" href="#L227">227</a>             <strong class="jxr_keyword">throw</strong> <strong class="jxr_keyword">new</strong> IOError(e);

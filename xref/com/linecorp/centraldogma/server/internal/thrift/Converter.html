@@ -30,7 +30,7 @@
 <a class="jxr_linenumber" name="L22" href="#L22">22</a>  <strong class="jxr_keyword">import</strong> java.util.function.Function;
 <a class="jxr_linenumber" name="L23" href="#L23">23</a>  <strong class="jxr_keyword">import</strong> java.util.stream.Collectors;
 <a class="jxr_linenumber" name="L24" href="#L24">24</a>  
-<a class="jxr_linenumber" name="L25" href="#L25">25</a>  <strong class="jxr_keyword">import</strong> javax.annotation.Nullable;
+<a class="jxr_linenumber" name="L25" href="#L25">25</a>  <strong class="jxr_keyword">import</strong> org.jspecify.annotations.Nullable;
 <a class="jxr_linenumber" name="L26" href="#L26">26</a>  
 <a class="jxr_linenumber" name="L27" href="#L27">27</a>  <strong class="jxr_keyword">import</strong> com.linecorp.armeria.common.util.Exceptions;
 <a class="jxr_linenumber" name="L28" href="#L28">28</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.common.ChangeConflictException;
@@ -151,7 +151,7 @@
 <a class="jxr_linenumber" name="L143" href="#L143">143</a> 
 <a class="jxr_linenumber" name="L144" href="#L144">144</a>     <em class="jxr_comment">////// ChangeType</em>
 <a class="jxr_linenumber" name="L145" href="#L145">145</a>     @Nullable
-<a class="jxr_linenumber" name="L146" href="#L146">146</a>     <strong class="jxr_keyword">static</strong> <a href="../../../../../../com/linecorp/centraldogma/common/ChangeType.html">ChangeType</a> convert(@Nullable com.linecorp.centraldogma.common.ChangeType type) {
+<a class="jxr_linenumber" name="L146" href="#L146">146</a>     <strong class="jxr_keyword">static</strong> <a href="../../../../../../com/linecorp/centraldogma/common/ChangeType.html">ChangeType</a> convert(com.linecorp.centraldogma.common.@Nullable <a href="../../../../../../com/linecorp/centraldogma/common/ChangeType.html">ChangeType</a> type) {
 <a class="jxr_linenumber" name="L147" href="#L147">147</a>         <strong class="jxr_keyword">if</strong> (type == <strong class="jxr_keyword">null</strong>) {
 <a class="jxr_linenumber" name="L148" href="#L148">148</a>             <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">null</strong>;
 <a class="jxr_linenumber" name="L149" href="#L149">149</a>         }

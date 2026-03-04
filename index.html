@@ -7,7 +7,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   
-  <title>Welcome to Central Dogma &mdash; Central Dogma 0.79.2 documentation</title>
+  <title>Welcome to Central Dogma &mdash; Central Dogma 0.80.0 documentation</title>
   
 
   
@@ -71,7 +71,7 @@
             
             
               <div class="version">
-                0.79
+                0.80
               </div>
             
           
@@ -101,6 +101,7 @@
 <li class="toctree-l1"><a class="reference internal" href="concepts.html">Concepts</a></li>
 <li class="toctree-l1"><a class="reference internal" href="client-cli.html">Command-line client</a></li>
 <li class="toctree-l1"><a class="reference internal" href="client-java.html">Java client library</a></li>
+<li class="toctree-l1"><a class="reference internal" href="templates-variables.html">Templates and Variables</a></li>
 <li class="toctree-l1"><a class="reference internal" href="mirroring.html">Better configuration change workflow with Git-to-CD mirroring</a></li>
 <li class="toctree-l1"><a class="reference internal" href="auth.html">Authentication and Access Control</a></li>
 <li class="toctree-l1"><a class="reference internal" href="known-issues.html">Known issues</a></li>
@@ -198,9 +199,9 @@ much less chance of making a bad configuration change!</p></li>
 <div style="max-width: 512px; margin-bottom: 1em"><script async class="speakerdeck-embed" data-id="a7b66c82136e494595cc06507adef5a4" data-ratio="1.77777777777778" src="//speakerdeck.com/assets/embed.js"></script></div></div>
 <div class="section" id="give-it-a-try">
 <h2>Give it a try!<a class="headerlink" href="#give-it-a-try" title="Permalink to this headline">¶</a></h2>
-<p><a href="https://github.com/line/centraldogma/releases/download/centraldogma-0.79.2/centraldogma-0.79.2.tgz">Download</a> now and give it a try (<a class="reference external" href="https://adoptopenjdk.net/">Java</a> required):</p>
-<pre class="highlight-shell literal-block">$ tar zxvf centraldogma-0.79.2.tgz
-$ cd centraldogma-0.79.2/
+<p><a href="https://github.com/line/centraldogma/releases/download/centraldogma-0.80.0/centraldogma-0.80.0.tgz">Download</a> now and give it a try (<a class="reference external" href="https://adoptopenjdk.net/">Java</a> required):</p>
+<pre class="highlight-shell literal-block">$ tar zxvf centraldogma-0.80.0.tgz
+$ cd centraldogma-0.80.0/
 $ bin/startup
 &lt;Open <a class="reference external" href="http://127.0.0.1:36462/">http://127.0.0.1:36462/</a> in your browser for administrative console.&gt;</pre>
 <p>Using Docker? Launch our image at <a class="reference external" href="https://github.com/line/centraldogma/pkgs/container/centraldogma">Github Packages registry</a>:</p>
@@ -273,6 +274,16 @@ $ bin/startup
 </li>
 </ul>
 </div>
+<div class="section" id="dynamic-configuration-with-templates-and-variables">
+<h2>Dynamic configuration with templates and variables<a class="headerlink" href="#dynamic-configuration-with-templates-and-variables" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li><p>Use <code class="docutils literal notranslate"><span class="pre">${vars.varName}</span></code> syntax to interpolate variables in your configuration files</p></li>
+<li><p>Access nested JSON object properties with dot notation (e.g., <code class="docutils literal notranslate"><span class="pre">${vars.database.host}</span></code>)</p></li>
+<li><p>Define variables at project, repository, or file level with automatic precedence resolution</p></li>
+<li><p>Manage environment-specific configurations with variable files (<code class="docutils literal notranslate"><span class="pre">/vars/dev.json</span></code>, <code class="docutils literal notranslate"><span class="pre">/vars/prod.json</span></code>)</p></li>
+<li><p>Preview rendered templates in real-time through the Web UI</p></li>
+</ul>
+</div>
 <div class="section" id="read-more">
 <h2>Read more<a class="headerlink" href="#read-more" title="Permalink to this headline">¶</a></h2>
 <div class="toctree-wrapper compound">
@@ -307,6 +318,16 @@ $ bin/startup
 <li class="toctree-l2"><a class="reference internal" href="client-java.html#using-dns-based-lookup">Using DNS-based lookup</a></li>
 <li class="toctree-l2"><a class="reference internal" href="client-java.html#spring-boot-integration">Spring Boot integration</a></li>
 <li class="toctree-l2"><a class="reference internal" href="client-java.html#read-the-javadoc">Read the Javadoc</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="templates-variables.html">Templates and Variables</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="templates-variables.html#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="templates-variables.html#variable-types">Variable Types</a></li>
+<li class="toctree-l2"><a class="reference internal" href="templates-variables.html#template-syntax">Template Syntax</a></li>
+<li class="toctree-l2"><a class="reference internal" href="templates-variables.html#variable-precedence">Variable Precedence</a></li>
+<li class="toctree-l2"><a class="reference internal" href="templates-variables.html#variable-files">Variable Files</a></li>
+<li class="toctree-l2"><a class="reference internal" href="templates-variables.html#java-client-api">Java Client API</a></li>
+<li class="toctree-l2"><a class="reference internal" href="templates-variables.html#web-ui">Web UI</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="mirroring.html">Better configuration change workflow with Git-to-CD mirroring</a><ul>

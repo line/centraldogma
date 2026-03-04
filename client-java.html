@@ -7,7 +7,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   
-  <title>Java client library &mdash; Central Dogma 0.79.2 documentation</title>
+  <title>Java client library &mdash; Central Dogma 0.80.0 documentation</title>
   
 
   
@@ -39,7 +39,7 @@
     
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="Better configuration change workflow with Git-to-CD mirroring" href="mirroring.html" />
+    <link rel="next" title="Templates and Variables" href="templates-variables.html" />
     <link rel="prev" title="Command-line client" href="client-cli.html" />
   <script src="https://cdn.jsdelivr.net/npm/interactjs@1.4.0/dist/interact.min.js"></script>
   <script src="_static/center_page.js"></script>
@@ -72,7 +72,7 @@
             
             
               <div class="version">
-                0.79
+                0.80
               </div>
             
           
@@ -122,6 +122,7 @@
 <li class="toctree-l2"><a class="reference internal" href="#read-the-javadoc">Read the Javadoc</a></li>
 </ul>
 </li>
+<li class="toctree-l1"><a class="reference internal" href="templates-variables.html">Templates and Variables</a></li>
 <li class="toctree-l1"><a class="reference internal" href="mirroring.html">Better configuration change workflow with Git-to-CD mirroring</a></li>
 <li class="toctree-l1"><a class="reference internal" href="auth.html">Authentication and Access Control</a></li>
 <li class="toctree-l1"><a class="reference internal" href="known-issues.html">Known issues</a></li>
@@ -212,14 +213,14 @@ exposed by a Central Dogma server.</p>
 <h2>Adding <code class="docutils literal notranslate"><span class="pre">centraldogma-client</span></code> as a dependency<a class="headerlink" href="#adding-centraldogma-client-as-a-dependency" title="Permalink to this headline">¶</a></h2>
 <p>Gradle:</p>
 <pre class="highlight-gradle literal-block">dependencies {
-    compile 'com.linecorp.centraldogma:centraldogma-client-armeria:0.79.2'
+    compile 'com.linecorp.centraldogma:centraldogma-client-armeria:0.80.0'
 }</pre>
 <p>Maven:</p>
 <pre class="highlight-xml literal-block">&lt;dependencies&gt;
   &lt;dependency&gt;
     &lt;groupId&gt;com.linecorp.centraldogma&lt;/groupId&gt;
     &lt;artifactId&gt;centraldogma-client-armeria&lt;/artifactId&gt;
-    &lt;version&gt;0.79.2&lt;/version&gt;
+    &lt;version&gt;0.80.0&lt;/version&gt;
   &lt;/dependency&gt;
 &lt;/dependencies&gt;</pre>
 </div>
@@ -678,14 +679,14 @@ a Java version lower than 17.</p>
 </div>
 <p>Gradle:</p>
 <pre class="highlight-gradle literal-block">dependencies {
-    compile 'com.linecorp.centraldogma:centraldogma-client-spring-boot3-starter:0.79.2'
+    compile 'com.linecorp.centraldogma:centraldogma-client-spring-boot3-starter:0.80.0'
 }</pre>
 <p>Maven:</p>
 <pre class="highlight-xml literal-block">&lt;dependencies&gt;
   &lt;dependency&gt;
     &lt;groupId&gt;com.linecorp.centraldogma&lt;/groupId&gt;
     &lt;artifactId&gt;centraldogma-client-spring-boot3-starter&lt;/artifactId&gt;
-    &lt;version&gt;0.79.2&lt;/version&gt;
+    &lt;version&gt;0.80.0&lt;/version&gt;
   &lt;/dependency&gt;
 &lt;/dependencies&gt;</pre>
 <p>Then, add a new section called <code class="docutils literal notranslate"><span class="pre">centraldogma</span></code> to your Spring Boot application configuration, which is often
@@ -757,7 +758,7 @@ much more than what this tutorial covers, such as fetching and watching multiple
           </div>
           <footer>
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
-        <a href="mirroring.html" class="btn btn-neutral float-right" title="Better configuration change workflow with Git-to-CD mirroring" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="templates-variables.html" class="btn btn-neutral float-right" title="Templates and Variables" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
         <a href="client-cli.html" class="btn btn-neutral float-left" title="Command-line client" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
     </div>
 

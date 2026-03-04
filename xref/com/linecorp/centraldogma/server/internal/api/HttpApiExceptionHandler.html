@@ -31,7 +31,7 @@
 <a class="jxr_linenumber" name="L23" href="#L23">23</a>  <strong class="jxr_keyword">import</strong> java.util.Map;
 <a class="jxr_linenumber" name="L24" href="#L24">24</a>  <strong class="jxr_keyword">import</strong> java.util.function.BiFunction;
 <a class="jxr_linenumber" name="L25" href="#L25">25</a>  
-<a class="jxr_linenumber" name="L26" href="#L26">26</a>  <strong class="jxr_keyword">import</strong> javax.annotation.Nonnull;
+<a class="jxr_linenumber" name="L26" href="#L26">26</a>  <strong class="jxr_keyword">import</strong> org.jspecify.annotations.Nullable;
 <a class="jxr_linenumber" name="L27" href="#L27">27</a>  
 <a class="jxr_linenumber" name="L28" href="#L28">28</a>  <strong class="jxr_keyword">import</strong> com.google.common.collect.ImmutableMap;
 <a class="jxr_linenumber" name="L29" href="#L29">29</a>  
@@ -39,34 +39,34 @@
 <a class="jxr_linenumber" name="L31" href="#L31">31</a>  <strong class="jxr_keyword">import</strong> com.linecorp.armeria.common.HttpResponse;
 <a class="jxr_linenumber" name="L32" href="#L32">32</a>  <strong class="jxr_keyword">import</strong> com.linecorp.armeria.common.HttpStatus;
 <a class="jxr_linenumber" name="L33" href="#L33">33</a>  <strong class="jxr_keyword">import</strong> com.linecorp.armeria.common.RequestHeaders;
-<a class="jxr_linenumber" name="L34" href="#L34">34</a>  <strong class="jxr_keyword">import</strong> com.linecorp.armeria.common.annotation.Nullable;
-<a class="jxr_linenumber" name="L35" href="#L35">35</a>  <strong class="jxr_keyword">import</strong> com.linecorp.armeria.common.util.Exceptions;
-<a class="jxr_linenumber" name="L36" href="#L36">36</a>  <strong class="jxr_keyword">import</strong> com.linecorp.armeria.server.HttpResponseException;
-<a class="jxr_linenumber" name="L37" href="#L37">37</a>  <strong class="jxr_keyword">import</strong> com.linecorp.armeria.server.HttpStatusException;
-<a class="jxr_linenumber" name="L38" href="#L38">38</a>  <strong class="jxr_keyword">import</strong> com.linecorp.armeria.server.RequestTimeoutException;
-<a class="jxr_linenumber" name="L39" href="#L39">39</a>  <strong class="jxr_keyword">import</strong> com.linecorp.armeria.server.ServerErrorHandler;
-<a class="jxr_linenumber" name="L40" href="#L40">40</a>  <strong class="jxr_keyword">import</strong> com.linecorp.armeria.server.ServiceConfig;
-<a class="jxr_linenumber" name="L41" href="#L41">41</a>  <strong class="jxr_keyword">import</strong> com.linecorp.armeria.server.ServiceRequestContext;
-<a class="jxr_linenumber" name="L42" href="#L42">42</a>  <strong class="jxr_keyword">import</strong> com.linecorp.armeria.server.annotation.ExceptionHandlerFunction;
-<a class="jxr_linenumber" name="L43" href="#L43">43</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.common.ApiRequestTimeoutException;
-<a class="jxr_linenumber" name="L44" href="#L44">44</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.common.AuthorizationException;
-<a class="jxr_linenumber" name="L45" href="#L45">45</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.common.ChangeConflictException;
-<a class="jxr_linenumber" name="L46" href="#L46">46</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.common.EntryNoContentException;
-<a class="jxr_linenumber" name="L47" href="#L47">47</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.common.EntryNotFoundException;
-<a class="jxr_linenumber" name="L48" href="#L48">48</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.common.InvalidPushException;
-<a class="jxr_linenumber" name="L49" href="#L49">49</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.common.LockAcquireTimeoutException;
-<a class="jxr_linenumber" name="L50" href="#L50">50</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.common.MirrorAccessException;
-<a class="jxr_linenumber" name="L51" href="#L51">51</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.common.MirrorException;
-<a class="jxr_linenumber" name="L52" href="#L52">52</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.common.PermissionException;
-<a class="jxr_linenumber" name="L53" href="#L53">53</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.common.ProjectExistsException;
-<a class="jxr_linenumber" name="L54" href="#L54">54</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.common.ProjectNotFoundException;
-<a class="jxr_linenumber" name="L55" href="#L55">55</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.common.QueryExecutionException;
-<a class="jxr_linenumber" name="L56" href="#L56">56</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.common.ReadOnlyException;
-<a class="jxr_linenumber" name="L57" href="#L57">57</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.common.RedundantChangeException;
-<a class="jxr_linenumber" name="L58" href="#L58">58</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.common.RepositoryExistsException;
-<a class="jxr_linenumber" name="L59" href="#L59">59</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.common.RepositoryNotFoundException;
-<a class="jxr_linenumber" name="L60" href="#L60">60</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.common.RevisionNotFoundException;
-<a class="jxr_linenumber" name="L61" href="#L61">61</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.common.ShuttingDownException;
+<a class="jxr_linenumber" name="L34" href="#L34">34</a>  <strong class="jxr_keyword">import</strong> com.linecorp.armeria.common.util.Exceptions;
+<a class="jxr_linenumber" name="L35" href="#L35">35</a>  <strong class="jxr_keyword">import</strong> com.linecorp.armeria.server.HttpResponseException;
+<a class="jxr_linenumber" name="L36" href="#L36">36</a>  <strong class="jxr_keyword">import</strong> com.linecorp.armeria.server.HttpStatusException;
+<a class="jxr_linenumber" name="L37" href="#L37">37</a>  <strong class="jxr_keyword">import</strong> com.linecorp.armeria.server.RequestTimeoutException;
+<a class="jxr_linenumber" name="L38" href="#L38">38</a>  <strong class="jxr_keyword">import</strong> com.linecorp.armeria.server.ServerErrorHandler;
+<a class="jxr_linenumber" name="L39" href="#L39">39</a>  <strong class="jxr_keyword">import</strong> com.linecorp.armeria.server.ServiceConfig;
+<a class="jxr_linenumber" name="L40" href="#L40">40</a>  <strong class="jxr_keyword">import</strong> com.linecorp.armeria.server.ServiceRequestContext;
+<a class="jxr_linenumber" name="L41" href="#L41">41</a>  <strong class="jxr_keyword">import</strong> com.linecorp.armeria.server.annotation.ExceptionHandlerFunction;
+<a class="jxr_linenumber" name="L42" href="#L42">42</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.common.ApiRequestTimeoutException;
+<a class="jxr_linenumber" name="L43" href="#L43">43</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.common.AuthorizationException;
+<a class="jxr_linenumber" name="L44" href="#L44">44</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.common.ChangeConflictException;
+<a class="jxr_linenumber" name="L45" href="#L45">45</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.common.EntryNoContentException;
+<a class="jxr_linenumber" name="L46" href="#L46">46</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.common.EntryNotFoundException;
+<a class="jxr_linenumber" name="L47" href="#L47">47</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.common.InvalidPushException;
+<a class="jxr_linenumber" name="L48" href="#L48">48</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.common.LockAcquireTimeoutException;
+<a class="jxr_linenumber" name="L49" href="#L49">49</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.common.MirrorAccessException;
+<a class="jxr_linenumber" name="L50" href="#L50">50</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.common.MirrorException;
+<a class="jxr_linenumber" name="L51" href="#L51">51</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.common.PermissionException;
+<a class="jxr_linenumber" name="L52" href="#L52">52</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.common.ProjectExistsException;
+<a class="jxr_linenumber" name="L53" href="#L53">53</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.common.ProjectNotFoundException;
+<a class="jxr_linenumber" name="L54" href="#L54">54</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.common.QueryExecutionException;
+<a class="jxr_linenumber" name="L55" href="#L55">55</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.common.ReadOnlyException;
+<a class="jxr_linenumber" name="L56" href="#L56">56</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.common.RedundantChangeException;
+<a class="jxr_linenumber" name="L57" href="#L57">57</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.common.RepositoryExistsException;
+<a class="jxr_linenumber" name="L58" href="#L58">58</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.common.RepositoryNotFoundException;
+<a class="jxr_linenumber" name="L59" href="#L59">59</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.common.RevisionNotFoundException;
+<a class="jxr_linenumber" name="L60" href="#L60">60</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.common.ShuttingDownException;
+<a class="jxr_linenumber" name="L61" href="#L61">61</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.common.TemplateProcessingException;
 <a class="jxr_linenumber" name="L62" href="#L62">62</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.common.TextPatchConflictException;
 <a class="jxr_linenumber" name="L63" href="#L63">63</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.common.jsonpatch.JsonPatchConflictException;
 <a class="jxr_linenumber" name="L64" href="#L64">64</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.internal.storage.RequestAlreadyTimedOutException;
@@ -142,64 +142,66 @@
 <a class="jxr_linenumber" name="L134" href="#L134">134</a>                .put(PermissionException.<strong class="jxr_keyword">class</strong>,
 <a class="jxr_linenumber" name="L135" href="#L135">135</a>                     (ctx, cause) -&gt; newResponse(ctx, HttpStatus.FORBIDDEN, cause))
 <a class="jxr_linenumber" name="L136" href="#L136">136</a>                .put(LockAcquireTimeoutException.<strong class="jxr_keyword">class</strong>,
-<a class="jxr_linenumber" name="L137" href="#L137">137</a>                     (ctx, cause) -&gt; newResponse(ctx, HttpStatus.SERVICE_UNAVAILABLE, cause));
-<a class="jxr_linenumber" name="L138" href="#L138">138</a> 
-<a class="jxr_linenumber" name="L139" href="#L139">139</a>         exceptionHandlers = builder.build();
-<a class="jxr_linenumber" name="L140" href="#L140">140</a>     }
-<a class="jxr_linenumber" name="L141" href="#L141">141</a> 
-<a class="jxr_linenumber" name="L142" href="#L142">142</a>     @Override
-<a class="jxr_linenumber" name="L143" href="#L143">143</a>     <strong class="jxr_keyword">public</strong> HttpResponse onServiceException(ServiceRequestContext ctx, Throwable cause) {
-<a class="jxr_linenumber" name="L144" href="#L144">144</a>         <strong class="jxr_keyword">final</strong> Throwable peeledCause = Exceptions.peel(cause);
-<a class="jxr_linenumber" name="L145" href="#L145">145</a> 
-<a class="jxr_linenumber" name="L146" href="#L146">146</a>         <strong class="jxr_keyword">if</strong> (peeledCause instanceof HttpStatusException ||
-<a class="jxr_linenumber" name="L147" href="#L147">147</a>             peeledCause instanceof HttpResponseException) {
-<a class="jxr_linenumber" name="L148" href="#L148">148</a>             <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">null</strong>;
-<a class="jxr_linenumber" name="L149" href="#L149">149</a>         }
-<a class="jxr_linenumber" name="L150" href="#L150">150</a> 
-<a class="jxr_linenumber" name="L151" href="#L151">151</a>         <em class="jxr_comment">// Use precomputed map if the cause is instance of CentralDogmaException to access in a faster way.</em>
-<a class="jxr_linenumber" name="L152" href="#L152">152</a>         <strong class="jxr_keyword">final</strong> BiFunction&lt;ServiceRequestContext, Throwable, HttpResponse&gt; func =
-<a class="jxr_linenumber" name="L153" href="#L153">153</a>                 exceptionHandlers.get(peeledCause.getClass());
-<a class="jxr_linenumber" name="L154" href="#L154">154</a>         <strong class="jxr_keyword">if</strong> (func != <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="L155" href="#L155">155</a>             ctx.setShouldReportUnloggedExceptions(false);
-<a class="jxr_linenumber" name="L156" href="#L156">156</a>             <strong class="jxr_keyword">return</strong> func.apply(ctx, peeledCause);
-<a class="jxr_linenumber" name="L157" href="#L157">157</a>         }
-<a class="jxr_linenumber" name="L158" href="#L158">158</a> 
-<a class="jxr_linenumber" name="L159" href="#L159">159</a>         <strong class="jxr_keyword">if</strong> (peeledCause instanceof ShuttingDownException) {
-<a class="jxr_linenumber" name="L160" href="#L160">160</a>             <strong class="jxr_keyword">if</strong> (Boolean.TRUE.equals(ctx.attr(IS_WATCH_REQUEST))) {
-<a class="jxr_linenumber" name="L161" href="#L161">161</a>                 ctx.setShouldReportUnloggedExceptions(false);
-<a class="jxr_linenumber" name="L162" href="#L162">162</a>                 <em class="jxr_comment">// Use the same status code as handleWatchFailure() in ContentServiceV1.</em>
-<a class="jxr_linenumber" name="L163" href="#L163">163</a>                 <strong class="jxr_keyword">return</strong> HttpResponse.of(HttpStatus.NOT_MODIFIED);
-<a class="jxr_linenumber" name="L164" href="#L164">164</a>             }
-<a class="jxr_linenumber" name="L165" href="#L165">165</a>         }
-<a class="jxr_linenumber" name="L166" href="#L166">166</a> 
-<a class="jxr_linenumber" name="L167" href="#L167">167</a>         <strong class="jxr_keyword">if</strong> (peeledCause instanceof IllegalArgumentException) {
-<a class="jxr_linenumber" name="L168" href="#L168">168</a>             ctx.setShouldReportUnloggedExceptions(false);
-<a class="jxr_linenumber" name="L169" href="#L169">169</a>             <strong class="jxr_keyword">return</strong> newResponse(ctx, HttpStatus.BAD_REQUEST, peeledCause);
-<a class="jxr_linenumber" name="L170" href="#L170">170</a>         }
-<a class="jxr_linenumber" name="L171" href="#L171">171</a> 
-<a class="jxr_linenumber" name="L172" href="#L172">172</a>         <strong class="jxr_keyword">if</strong> (peeledCause instanceof RequestAlreadyTimedOutException) {
-<a class="jxr_linenumber" name="L173" href="#L173">173</a>             ctx.setShouldReportUnloggedExceptions(false);
-<a class="jxr_linenumber" name="L174" href="#L174">174</a>             <strong class="jxr_keyword">return</strong> newResponse(ctx, HttpStatus.SERVICE_UNAVAILABLE, peeledCause);
-<a class="jxr_linenumber" name="L175" href="#L175">175</a>         }
-<a class="jxr_linenumber" name="L176" href="#L176">176</a> 
-<a class="jxr_linenumber" name="L177" href="#L177">177</a>         <strong class="jxr_keyword">if</strong> (peeledCause instanceof RequestTimeoutException) {
-<a class="jxr_linenumber" name="L178" href="#L178">178</a>             ctx.setShouldReportUnloggedExceptions(false);
-<a class="jxr_linenumber" name="L179" href="#L179">179</a>             <strong class="jxr_keyword">return</strong> newResponse(ctx, HttpStatus.SERVICE_UNAVAILABLE,
-<a class="jxr_linenumber" name="L180" href="#L180">180</a>                                <strong class="jxr_keyword">new</strong> <a href="../../../../../../com/linecorp/centraldogma/common/ApiRequestTimeoutException.html">ApiRequestTimeoutException</a>(<span class="jxr_string">"Request timed out"</span>, peeledCause));
-<a class="jxr_linenumber" name="L181" href="#L181">181</a>         }
-<a class="jxr_linenumber" name="L182" href="#L182">182</a> 
-<a class="jxr_linenumber" name="L183" href="#L183">183</a>         <strong class="jxr_keyword">return</strong> newResponse(ctx, HttpStatus.INTERNAL_SERVER_ERROR, peeledCause);
-<a class="jxr_linenumber" name="L184" href="#L184">184</a>     }
+<a class="jxr_linenumber" name="L137" href="#L137">137</a>                     (ctx, cause) -&gt; newResponse(ctx, HttpStatus.SERVICE_UNAVAILABLE, cause))
+<a class="jxr_linenumber" name="L138" href="#L138">138</a>                .put(TemplateProcessingException.<strong class="jxr_keyword">class</strong>,
+<a class="jxr_linenumber" name="L139" href="#L139">139</a>                     (ctx, cause) -&gt; newResponse(ctx, HttpStatus.INTERNAL_SERVER_ERROR, cause));
+<a class="jxr_linenumber" name="L140" href="#L140">140</a> 
+<a class="jxr_linenumber" name="L141" href="#L141">141</a>         exceptionHandlers = builder.build();
+<a class="jxr_linenumber" name="L142" href="#L142">142</a>     }
+<a class="jxr_linenumber" name="L143" href="#L143">143</a> 
+<a class="jxr_linenumber" name="L144" href="#L144">144</a>     @Nullable
+<a class="jxr_linenumber" name="L145" href="#L145">145</a>     @Override
+<a class="jxr_linenumber" name="L146" href="#L146">146</a>     <strong class="jxr_keyword">public</strong> HttpResponse onServiceException(ServiceRequestContext ctx, Throwable cause) {
+<a class="jxr_linenumber" name="L147" href="#L147">147</a>         <strong class="jxr_keyword">final</strong> Throwable peeledCause = Exceptions.peel(cause);
+<a class="jxr_linenumber" name="L148" href="#L148">148</a> 
+<a class="jxr_linenumber" name="L149" href="#L149">149</a>         <strong class="jxr_keyword">if</strong> (peeledCause instanceof HttpStatusException ||
+<a class="jxr_linenumber" name="L150" href="#L150">150</a>             peeledCause instanceof HttpResponseException) {
+<a class="jxr_linenumber" name="L151" href="#L151">151</a>             <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">null</strong>;
+<a class="jxr_linenumber" name="L152" href="#L152">152</a>         }
+<a class="jxr_linenumber" name="L153" href="#L153">153</a> 
+<a class="jxr_linenumber" name="L154" href="#L154">154</a>         <em class="jxr_comment">// Use precomputed map if the cause is instance of CentralDogmaException to access in a faster way.</em>
+<a class="jxr_linenumber" name="L155" href="#L155">155</a>         <strong class="jxr_keyword">final</strong> BiFunction&lt;ServiceRequestContext, Throwable, HttpResponse&gt; func =
+<a class="jxr_linenumber" name="L156" href="#L156">156</a>                 exceptionHandlers.get(peeledCause.getClass());
+<a class="jxr_linenumber" name="L157" href="#L157">157</a>         <strong class="jxr_keyword">if</strong> (func != <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="L158" href="#L158">158</a>             ctx.setShouldReportUnloggedExceptions(false);
+<a class="jxr_linenumber" name="L159" href="#L159">159</a>             <strong class="jxr_keyword">return</strong> func.apply(ctx, peeledCause);
+<a class="jxr_linenumber" name="L160" href="#L160">160</a>         }
+<a class="jxr_linenumber" name="L161" href="#L161">161</a> 
+<a class="jxr_linenumber" name="L162" href="#L162">162</a>         <strong class="jxr_keyword">if</strong> (peeledCause instanceof ShuttingDownException) {
+<a class="jxr_linenumber" name="L163" href="#L163">163</a>             <strong class="jxr_keyword">if</strong> (Boolean.TRUE.equals(ctx.attr(IS_WATCH_REQUEST))) {
+<a class="jxr_linenumber" name="L164" href="#L164">164</a>                 ctx.setShouldReportUnloggedExceptions(false);
+<a class="jxr_linenumber" name="L165" href="#L165">165</a>                 <em class="jxr_comment">// Use the same status code as handleWatchFailure() in ContentServiceV1.</em>
+<a class="jxr_linenumber" name="L166" href="#L166">166</a>                 <strong class="jxr_keyword">return</strong> HttpResponse.of(HttpStatus.NOT_MODIFIED);
+<a class="jxr_linenumber" name="L167" href="#L167">167</a>             }
+<a class="jxr_linenumber" name="L168" href="#L168">168</a>         }
+<a class="jxr_linenumber" name="L169" href="#L169">169</a> 
+<a class="jxr_linenumber" name="L170" href="#L170">170</a>         <strong class="jxr_keyword">if</strong> (peeledCause instanceof IllegalArgumentException) {
+<a class="jxr_linenumber" name="L171" href="#L171">171</a>             ctx.setShouldReportUnloggedExceptions(false);
+<a class="jxr_linenumber" name="L172" href="#L172">172</a>             <strong class="jxr_keyword">return</strong> newResponse(ctx, HttpStatus.BAD_REQUEST, peeledCause);
+<a class="jxr_linenumber" name="L173" href="#L173">173</a>         }
+<a class="jxr_linenumber" name="L174" href="#L174">174</a> 
+<a class="jxr_linenumber" name="L175" href="#L175">175</a>         <strong class="jxr_keyword">if</strong> (peeledCause instanceof RequestAlreadyTimedOutException) {
+<a class="jxr_linenumber" name="L176" href="#L176">176</a>             ctx.setShouldReportUnloggedExceptions(false);
+<a class="jxr_linenumber" name="L177" href="#L177">177</a>             <strong class="jxr_keyword">return</strong> newResponse(ctx, HttpStatus.SERVICE_UNAVAILABLE, peeledCause);
+<a class="jxr_linenumber" name="L178" href="#L178">178</a>         }
+<a class="jxr_linenumber" name="L179" href="#L179">179</a> 
+<a class="jxr_linenumber" name="L180" href="#L180">180</a>         <strong class="jxr_keyword">if</strong> (peeledCause instanceof RequestTimeoutException) {
+<a class="jxr_linenumber" name="L181" href="#L181">181</a>             ctx.setShouldReportUnloggedExceptions(false);
+<a class="jxr_linenumber" name="L182" href="#L182">182</a>             <strong class="jxr_keyword">return</strong> newResponse(ctx, HttpStatus.SERVICE_UNAVAILABLE,
+<a class="jxr_linenumber" name="L183" href="#L183">183</a>                                <strong class="jxr_keyword">new</strong> <a href="../../../../../../com/linecorp/centraldogma/common/ApiRequestTimeoutException.html">ApiRequestTimeoutException</a>(<span class="jxr_string">"Request timed out"</span>, peeledCause));
+<a class="jxr_linenumber" name="L184" href="#L184">184</a>         }
 <a class="jxr_linenumber" name="L185" href="#L185">185</a> 
-<a class="jxr_linenumber" name="L186" href="#L186">186</a>     @Nonnull
-<a class="jxr_linenumber" name="L187" href="#L187">187</a>     @Override
-<a class="jxr_linenumber" name="L188" href="#L188">188</a>     <strong class="jxr_keyword">public</strong> AggregatedHttpResponse renderStatus(@Nullable ServiceRequestContext ctx,
-<a class="jxr_linenumber" name="L189" href="#L189">189</a>                                                ServiceConfig config, @Nullable RequestHeaders headers,
-<a class="jxr_linenumber" name="L190" href="#L190">190</a>                                                HttpStatus status, @Nullable String description,
-<a class="jxr_linenumber" name="L191" href="#L191">191</a>                                                @Nullable Throwable cause) {
-<a class="jxr_linenumber" name="L192" href="#L192">192</a>         <strong class="jxr_keyword">return</strong> newAggregatedResponse(ctx, status, cause, description);
-<a class="jxr_linenumber" name="L193" href="#L193">193</a>     }
-<a class="jxr_linenumber" name="L194" href="#L194">194</a> }
+<a class="jxr_linenumber" name="L186" href="#L186">186</a>         <strong class="jxr_keyword">return</strong> newResponse(ctx, HttpStatus.INTERNAL_SERVER_ERROR, peeledCause);
+<a class="jxr_linenumber" name="L187" href="#L187">187</a>     }
+<a class="jxr_linenumber" name="L188" href="#L188">188</a> 
+<a class="jxr_linenumber" name="L189" href="#L189">189</a>     @Override
+<a class="jxr_linenumber" name="L190" href="#L190">190</a>     <strong class="jxr_keyword">public</strong> AggregatedHttpResponse renderStatus(@Nullable ServiceRequestContext ctx,
+<a class="jxr_linenumber" name="L191" href="#L191">191</a>                                                ServiceConfig config, @Nullable RequestHeaders headers,
+<a class="jxr_linenumber" name="L192" href="#L192">192</a>                                                HttpStatus status, @Nullable String description,
+<a class="jxr_linenumber" name="L193" href="#L193">193</a>                                                @Nullable Throwable cause) {
+<a class="jxr_linenumber" name="L194" href="#L194">194</a>         <strong class="jxr_keyword">return</strong> newAggregatedResponse(ctx, status, cause, description);
+<a class="jxr_linenumber" name="L195" href="#L195">195</a>     }
+<a class="jxr_linenumber" name="L196" href="#L196">196</a> }
 </pre>
 <hr/>
 <div id="footer">&copy; Copyright 2017&ndash;2026 <a href="https://engineering.linecorp.com/en/">LINE Corporation</a>. All rights reserved.</div>

@@ -30,7 +30,7 @@
 <a class="jxr_linenumber" name="L22" href="#L22">22</a>  <strong class="jxr_keyword">import</strong> java.util.concurrent.ScheduledExecutorService;
 <a class="jxr_linenumber" name="L23" href="#L23">23</a>  <strong class="jxr_keyword">import</strong> java.util.function.Function;
 <a class="jxr_linenumber" name="L24" href="#L24">24</a>  
-<a class="jxr_linenumber" name="L25" href="#L25">25</a>  <strong class="jxr_keyword">import</strong> javax.annotation.Nullable;
+<a class="jxr_linenumber" name="L25" href="#L25">25</a>  <strong class="jxr_keyword">import</strong> org.jspecify.annotations.Nullable;
 <a class="jxr_linenumber" name="L26" href="#L26">26</a>  
 <a class="jxr_linenumber" name="L27" href="#L27">27</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.common.PathPattern;
 <a class="jxr_linenumber" name="L28" href="#L28">28</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.common.Revision;
@@ -69,27 +69,28 @@
 <a class="jxr_linenumber" name="L61" href="#L61">61</a>      }
 <a class="jxr_linenumber" name="L62" href="#L62">62</a>  
 <a class="jxr_linenumber" name="L63" href="#L63">63</a>      @Override
-<a class="jxr_linenumber" name="L64" href="#L64">64</a>      CompletableFuture&lt;Latest&lt;T&gt;&gt; doWatch(<a href="../../../../com/linecorp/centraldogma/common/Revision.html">Revision</a> lastKnownRevision) {
-<a class="jxr_linenumber" name="L65" href="#L65">65</a>          <strong class="jxr_keyword">final</strong> CompletableFuture&lt;Revision&gt; future = centralDogma.watchRepository(
-<a class="jxr_linenumber" name="L66" href="#L66">66</a>                  projectName, repositoryName, lastKnownRevision,
-<a class="jxr_linenumber" name="L67" href="#L67">67</a>                  pathPattern, timeoutMillis, errorOnEntryNotFound);
-<a class="jxr_linenumber" name="L68" href="#L68">68</a>          <strong class="jxr_keyword">if</strong> (mapper == <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="L69" href="#L69">69</a>              <strong class="jxr_keyword">return</strong> future.thenApply(revision -&gt; {
-<a class="jxr_linenumber" name="L70" href="#L70">70</a>                  <strong class="jxr_keyword">if</strong> (revision == <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="L71" href="#L71">71</a>                      <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">null</strong>;
-<a class="jxr_linenumber" name="L72" href="#L72">72</a>                  }
-<a class="jxr_linenumber" name="L73" href="#L73">73</a>                  <em class="jxr_comment">//noinspection unchecked</em>
-<a class="jxr_linenumber" name="L74" href="#L74">74</a>                  <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">new</strong> Latest&lt;&gt;(revision, (T) revision);
-<a class="jxr_linenumber" name="L75" href="#L75">75</a>              });
-<a class="jxr_linenumber" name="L76" href="#L76">76</a>          }
-<a class="jxr_linenumber" name="L77" href="#L77">77</a>          <strong class="jxr_keyword">return</strong> future.thenApplyAsync(revision -&gt; {
-<a class="jxr_linenumber" name="L78" href="#L78">78</a>              <strong class="jxr_keyword">if</strong> (revision == <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="L79" href="#L79">79</a>                  <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">null</strong>;
-<a class="jxr_linenumber" name="L80" href="#L80">80</a>              }
-<a class="jxr_linenumber" name="L81" href="#L81">81</a>              <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">new</strong> Latest&lt;&gt;(revision, mapper.apply(revision));
-<a class="jxr_linenumber" name="L82" href="#L82">82</a>          }, mapperExecutor);
-<a class="jxr_linenumber" name="L83" href="#L83">83</a>      }
-<a class="jxr_linenumber" name="L84" href="#L84">84</a>  }
+<a class="jxr_linenumber" name="L64" href="#L64">64</a>      CompletableFuture&lt;Latest&lt;T&gt;&gt; doWatch(<a href="../../../../com/linecorp/centraldogma/common/Revision.html">Revision</a> lastKnownRevision, @Nullable <a href="../../../../com/linecorp/centraldogma/common/Revision.html">Revision</a> templateRevision) {
+<a class="jxr_linenumber" name="L65" href="#L65">65</a>          <em class="jxr_comment">// templateRevision is not used for FilesWatcher</em>
+<a class="jxr_linenumber" name="L66" href="#L66">66</a>          <strong class="jxr_keyword">final</strong> CompletableFuture&lt;Revision&gt; future = centralDogma.watchRepository(
+<a class="jxr_linenumber" name="L67" href="#L67">67</a>                  projectName, repositoryName, lastKnownRevision,
+<a class="jxr_linenumber" name="L68" href="#L68">68</a>                  pathPattern, timeoutMillis, errorOnEntryNotFound);
+<a class="jxr_linenumber" name="L69" href="#L69">69</a>          <strong class="jxr_keyword">if</strong> (mapper == <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="L70" href="#L70">70</a>              <strong class="jxr_keyword">return</strong> future.thenApply(revision -&gt; {
+<a class="jxr_linenumber" name="L71" href="#L71">71</a>                  <strong class="jxr_keyword">if</strong> (revision == <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="L72" href="#L72">72</a>                      <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">null</strong>;
+<a class="jxr_linenumber" name="L73" href="#L73">73</a>                  }
+<a class="jxr_linenumber" name="L74" href="#L74">74</a>                  <em class="jxr_comment">//noinspection unchecked</em>
+<a class="jxr_linenumber" name="L75" href="#L75">75</a>                  <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">new</strong> Latest&lt;&gt;(revision, (T) revision);
+<a class="jxr_linenumber" name="L76" href="#L76">76</a>              });
+<a class="jxr_linenumber" name="L77" href="#L77">77</a>          }
+<a class="jxr_linenumber" name="L78" href="#L78">78</a>          <strong class="jxr_keyword">return</strong> future.thenApplyAsync(revision -&gt; {
+<a class="jxr_linenumber" name="L79" href="#L79">79</a>              <strong class="jxr_keyword">if</strong> (revision == <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="L80" href="#L80">80</a>                  <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">null</strong>;
+<a class="jxr_linenumber" name="L81" href="#L81">81</a>              }
+<a class="jxr_linenumber" name="L82" href="#L82">82</a>              <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">new</strong> Latest&lt;&gt;(revision, mapper.apply(revision));
+<a class="jxr_linenumber" name="L83" href="#L83">83</a>          }, mapperExecutor);
+<a class="jxr_linenumber" name="L84" href="#L84">84</a>      }
+<a class="jxr_linenumber" name="L85" href="#L85">85</a>  }
 </pre>
 <hr/>
 <div id="footer">&copy; Copyright 2017&ndash;2026 <a href="https://engineering.linecorp.com/en/">LINE Corporation</a>. All rights reserved.</div>

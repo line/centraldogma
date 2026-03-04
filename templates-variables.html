@@ -1,0 +1,722 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <title>Templates and Variables &mdash; Central Dogma 0.80.0 documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="_static/overrides.css" type="text/css" />
+
+  
+  
+
+  
+  
+
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/doctools.js"></script>
+    
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Better configuration change workflow with Git-to-CD mirroring" href="mirroring.html" />
+    <link rel="prev" title="Java client library" href="client-java.html" />
+  <script src="https://cdn.jsdelivr.net/npm/interactjs@1.4.0/dist/interact.min.js"></script>
+  <script src="_static/center_page.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.15.6/styles/default.min.css">
+   
+
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="index.html">
+          
+
+          
+            
+            <img src="_static/central_dogma.png" class="logo" alt="Logo"/>
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                0.80
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="setup.html">Setting up</a></li>
+<li class="toctree-l1"><a class="reference internal" href="concepts.html">Concepts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="client-cli.html">Command-line client</a></li>
+<li class="toctree-l1"><a class="reference internal" href="client-java.html">Java client library</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Templates and Variables</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#variable-types">Variable Types</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#string-type">STRING type</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#json-type">JSON type</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#template-syntax">Template Syntax</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#basic-variable-interpolation">Basic variable interpolation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#nested-json-object-access">Nested JSON object access</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#variable-precedence">Variable Precedence</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#example-scenario">Example scenario</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#variable-files">Variable Files</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#supported-formats-and-priority">Supported formats and priority</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#default-variable-files">Default variable files</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#custom-variable-files">Custom variable files</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#java-client-api">Java Client API</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#rendering-templates-with-file-fetch">Rendering templates with file fetch</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#watching-templates-with-watcher">Watching templates with Watcher</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#web-ui">Web UI</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#permissions">Permissions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#managing-variables">Managing variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#creating-and-editing-variables">Creating and editing variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#previewing-templates-with-variables">Previewing templates with variables</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="mirroring.html">Better configuration change workflow with Git-to-CD mirroring</a></li>
+<li class="toctree-l1"><a class="reference internal" href="auth.html">Authentication and Access Control</a></li>
+<li class="toctree-l1"><a class="reference internal" href="known-issues.html">Known issues</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://github.com/line/centraldogma/releases">Release notes</a></li>
+<li class="toctree-l1"><a class="reference external" href="apidocs/index.html#://">API documentation</a></li>
+<li class="toctree-l1"><a class="reference external" href="xref/index.html#://">Source cross-reference</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://github.com/line/centraldogma/issues?q=label%3Aquestion-answered">Questions and answers</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://github.com/line/centraldogma">Fork me on GitHub</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://github.com/line/centraldogma/blob/main/CONTRIBUTING.md">Contributing</a></li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Central Dogma</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
+        
+      <li>Templates and Variables</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+          
+            
+              <a href="https://github.com/line/centraldogma/blob/main/site/src/sphinx/templates-variables.rst" class="fa fa-github"> Edit on GitHub</a>
+            
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="templates-and-variables">
+<span id="templates-variables"></span><h1>Templates and Variables<a class="headerlink" href="#templates-and-variables" title="Permalink to this headline">¶</a></h1>
+<p>Central Dogma supports dynamic configuration through <strong>templates</strong> and <strong>variables</strong>. Templates allow you to use
+placeholder syntax in your configuration files, which are then replaced with actual values from variables at
+runtime. This enables you to:</p>
+<ul class="simple">
+<li><p>Manage multiple environments (development, staging, production) with a single template</p></li>
+<li><p>Centralize common configuration values and reuse them across multiple files</p></li>
+<li><p>Separate sensitive data from configuration structure</p></li>
+<li><p>Apply configuration changes without modifying template files</p></li>
+</ul>
+<div class="section" id="overview">
+<h2>Overview<a class="headerlink" href="#overview" title="Permalink to this headline">¶</a></h2>
+<p>A <strong>template</strong> is any configuration file that contains variable placeholders using the syntax <code class="docutils literal notranslate"><span class="pre">${vars.varName}</span></code>.
+When you fetch a file with template rendering enabled, Central Dogma replaces these placeholders with actual
+values from variables.</p>
+<p>A <strong>variable</strong> is a named value stored at the project or repository level. Variables can be simple strings or
+complex JSON objects. For example, a JSON template file <code class="docutils literal notranslate"><span class="pre">/config.json</span></code>:</p>
+<div class="highlight-json notranslate"><div class="highlight hljs"><pre class="json">{
+  &quot;apiEndpoint&quot;: &quot;${vars.api.url}&quot;,
+  &quot;timeout&quot;: &quot;${vars.api.timeout}&quot;,
+  &quot;debugMode&quot;: &quot;${vars.debug}&quot;
+}</pre></div>
+</div>
+<p>Or a YAML template file <code class="docutils literal notranslate"><span class="pre">/config.yaml</span></code>:</p>
+<div class="highlight-yaml notranslate"><div class="highlight hljs"><pre class="yaml">apiEndpoint: ${vars.api.url}
+timeout: ${vars.api.timeout}
+debugMode: ${vars.debug}</pre></div>
+</div>
+<p>With variables defined as:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">api</span></code>: <code class="docutils literal notranslate"><span class="pre">{&quot;url&quot;:</span> <span class="pre">&quot;https://api.example.com&quot;,</span> <span class="pre">&quot;timeout&quot;:</span> <span class="pre">30}</span></code> (JSON type)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">debug</span></code>: <code class="docutils literal notranslate"><span class="pre">false</span></code> (STRING type)</p></li>
+</ul>
+<p>When fetched with <code class="docutils literal notranslate"><span class="pre">renderTemplate=true</span></code>, the JSON template produces:</p>
+<div class="highlight-json notranslate"><div class="highlight hljs"><pre class="json">{
+  &quot;apiEndpoint&quot;: &quot;https://api.example.com&quot;,
+  &quot;timeout&quot;: &quot;30&quot;,
+  &quot;debugMode&quot;: &quot;false&quot;
+}</pre></div>
+</div>
+<p>And the YAML template produces:</p>
+<div class="highlight-yaml notranslate"><div class="highlight hljs"><pre class="yaml">apiEndpoint: https://api.example.com
+timeout: 30
+debugMode: false</pre></div>
+</div>
+</div>
+<div class="section" id="variable-types">
+<h2>Variable Types<a class="headerlink" href="#variable-types" title="Permalink to this headline">¶</a></h2>
+<p>Central Dogma supports two types of variables:</p>
+<div class="section" id="string-type">
+<h3>STRING type<a class="headerlink" href="#string-type" title="Permalink to this headline">¶</a></h3>
+<p>A <strong>STRING</strong> variable stores a text value as-is. When used in templates, the quoting requirements depend on
+the template file format:</p>
+<ul class="simple">
+<li><p><strong>JSON templates</strong>: Variables must be quoted to maintain valid JSON syntax</p></li>
+<li><p><strong>YAML templates</strong>: Variables don’t need quotes (YAML accepts unquoted strings)</p></li>
+</ul>
+<p>Example variable:</p>
+<ul class="simple">
+<li><p>ID: <code class="docutils literal notranslate"><span class="pre">serviceName</span></code></p></li>
+<li><p>Type: <code class="docutils literal notranslate"><span class="pre">STRING</span></code></p></li>
+<li><p>Value: <code class="docutils literal notranslate"><span class="pre">user-service</span></code></p></li>
+</ul>
+<p>Usage in JSON template:</p>
+<div class="highlight-json notranslate"><div class="highlight hljs"><pre class="json">{
+  &quot;name&quot;: &quot;${vars.serviceName}&quot;
+}</pre></div>
+</div>
+<p>Usage in YAML template:</p>
+<div class="highlight-yaml notranslate"><div class="highlight hljs"><pre class="yaml">name: ${vars.serviceName}</pre></div>
+</div>
+<p>Rendered JSON output:</p>
+<div class="highlight-json notranslate"><div class="highlight hljs"><pre class="json">{
+  &quot;name&quot;: &quot;user-service&quot;
+}</pre></div>
+</div>
+<p>Rendered YAML output:</p>
+<div class="highlight-yaml notranslate"><div class="highlight hljs"><pre class="yaml">name: user-service</pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>In JSON templates, quotes around <code class="docutils literal notranslate"><span class="pre">&quot;${vars.serviceName}&quot;</span></code> are required because Central Dogma validates the
+template file as valid JSON when storing it. Without quotes, <code class="docutils literal notranslate"><span class="pre">${vars.serviceName}</span></code> would be invalid JSON
+syntax. YAML templates don’t have this restriction since YAML accepts unquoted strings.</p>
+</div>
+</div>
+<div class="section" id="json-type">
+<h3>JSON type<a class="headerlink" href="#json-type" title="Permalink to this headline">¶</a></h3>
+<p>A <strong>JSON</strong> variable stores structured data (objects, arrays, numbers, booleans, null). The value must be valid
+JSON. When used in templates, the quoting requirements depend on the template file format:</p>
+<ul class="simple">
+<li><p><strong>JSON templates</strong>: Variables must be quoted to maintain valid JSON syntax</p></li>
+<li><p><strong>YAML templates</strong>: Variables don’t need quotes (YAML accepts unquoted strings)</p></li>
+</ul>
+<p>Example variable:</p>
+<ul class="simple">
+<li><p>ID: <code class="docutils literal notranslate"><span class="pre">database</span></code></p></li>
+<li><p>Type: <code class="docutils literal notranslate"><span class="pre">JSON</span></code></p></li>
+<li><p>Value: <code class="docutils literal notranslate"><span class="pre">{&quot;host&quot;:</span> <span class="pre">&quot;db.example.com&quot;,</span> <span class="pre">&quot;port&quot;:</span> <span class="pre">5432,</span> <span class="pre">&quot;ssl&quot;:</span> <span class="pre">true}</span></code></p></li>
+</ul>
+<p>Usage in JSON template:</p>
+<div class="highlight-json notranslate"><div class="highlight hljs"><pre class="json">{
+  &quot;dbHost&quot;: &quot;${vars.database.host}&quot;,
+  &quot;dbPort&quot;: &quot;${vars.database.port}&quot;,
+  &quot;useSsl&quot;: &quot;${vars.database.ssl}&quot;
+}</pre></div>
+</div>
+<p>Usage in YAML template:</p>
+<div class="highlight-yaml notranslate"><div class="highlight hljs"><pre class="yaml">dbHost: ${vars.database.host}
+dbPort: ${vars.database.port}
+useSsl: ${vars.database.ssl}</pre></div>
+</div>
+<p>Rendered JSON output:</p>
+<div class="highlight-json notranslate"><div class="highlight hljs"><pre class="json">{
+  &quot;dbHost&quot;: &quot;db.example.com&quot;,
+  &quot;dbPort&quot;: &quot;5432&quot;,
+  &quot;useSsl&quot;: &quot;true&quot;
+}</pre></div>
+</div>
+<p>Rendered YAML output:</p>
+<div class="highlight-yaml notranslate"><div class="highlight hljs"><pre class="yaml">dbHost: db.example.com
+dbPort: 5432
+useSsl: true</pre></div>
+</div>
+<div class="admonition tip">
+<p class="admonition-title">Tip</p>
+<p>Jackson converts the quoted JSON values to the proper types when a <code class="docutils literal notranslate"><span class="pre">JsonNode</span></code> is converted into a Java
+object. For example, in the rendered JSON output above, <code class="docutils literal notranslate"><span class="pre">&quot;${vars.database.port}&quot;</span></code> becomes the string <code class="docutils literal notranslate"><span class="pre">&quot;5432&quot;</span></code>
+in the rendered JSON, but when deserialized into a Java class with an <code class="docutils literal notranslate"><span class="pre">int</span></code> field for <code class="docutils literal notranslate"><span class="pre">dbPort</span></code>,
+Jackson will automatically convert <code class="docutils literal notranslate"><span class="pre">&quot;5432&quot;</span></code> to the number <code class="docutils literal notranslate"><span class="pre">5432</span></code>.
+For more details on Jackson coercions, see
+<a class="reference external" href="https://cowtowncoder.medium.com/jackson-2-12-most-wanted-4-5-cbc91c00bcd2">Jackson 2.12 Most Wanted (4/5)</a>.</p>
+</div>
+</div>
+</div>
+<div class="section" id="template-syntax">
+<h2>Template Syntax<a class="headerlink" href="#template-syntax" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="basic-variable-interpolation">
+<h3>Basic variable interpolation<a class="headerlink" href="#basic-variable-interpolation" title="Permalink to this headline">¶</a></h3>
+<p>Use <code class="docutils literal notranslate"><span class="pre">${vars.varName}</span></code> to reference a variable:</p>
+<div class="highlight-text notranslate"><div class="highlight hljs"><pre class="text">Application: ${vars.appName}
+Version: ${vars.version}</pre></div>
+</div>
+</div>
+<div class="section" id="nested-json-object-access">
+<h3>Nested JSON object access<a class="headerlink" href="#nested-json-object-access" title="Permalink to this headline">¶</a></h3>
+<p>For JSON variables containing objects, use dot notation to access nested properties.</p>
+<p><strong>In JSON templates</strong> (quotes required):</p>
+<div class="highlight-json notranslate"><div class="highlight hljs"><pre class="json">{
+  &quot;host&quot;: &quot;${vars.database.host}&quot;,
+  &quot;port&quot;: &quot;${vars.database.port}&quot;,
+  &quot;endpoint&quot;: &quot;${vars.api.url}&quot;,
+  &quot;timeout&quot;: &quot;${vars.api.timeout}&quot;
+}</pre></div>
+</div>
+<p><strong>In YAML templates</strong> (quotes not required):</p>
+<div class="highlight-yaml notranslate"><div class="highlight hljs"><pre class="yaml">host: ${vars.database.host}
+port: ${vars.database.port}
+endpoint: ${vars.api.url}
+timeout: ${vars.api.timeout}</pre></div>
+</div>
+<p>The JSON variable must contain an object with the specified property.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p><strong>Avoid using FreeMarker directives</strong> like <code class="docutils literal notranslate"><span class="pre">&lt;#if&gt;</span></code>, <code class="docutils literal notranslate"><span class="pre">&lt;#list&gt;</span></code>, or <code class="docutils literal notranslate"><span class="pre">&lt;#assign&gt;</span></code> in JSON or YAML templates.
+These directives can break JSON/YAML syntax and make your configuration files invalid when stored.
+Stick to simple variable interpolation with <code class="docutils literal notranslate"><span class="pre">${vars.varName}</span></code> syntax.</p>
+<p>If you need to use FreeMarker directives, use a file extension like <code class="docutils literal notranslate"><span class="pre">.json.ftl</span></code> or <code class="docutils literal notranslate"><span class="pre">.yaml.ftl</span></code> instead
+of <code class="docutils literal notranslate"><span class="pre">.json</span></code> or <code class="docutils literal notranslate"><span class="pre">.yaml</span></code>. Central Dogma does not validate <code class="docutils literal notranslate"><span class="pre">.ftl</span></code> files as JSON/YAML, so the directives
+won’t cause syntax errors during storage.</p>
+</div>
+</div>
+</div>
+<div class="section" id="variable-precedence">
+<h2>Variable Precedence<a class="headerlink" href="#variable-precedence" title="Permalink to this headline">¶</a></h2>
+<p>Variables can be defined at multiple levels, and they are merged with a specific precedence order. Later
+levels override earlier levels for variables with the same ID.</p>
+<p>Precedence hierarchy (from lowest to highest):</p>
+<ol class="arabic simple">
+<li><p><strong>Project-level variables</strong> - Available to all repositories in the project</p></li>
+<li><p><strong>Repository-level variables</strong> - Available only within the specific repository</p></li>
+<li><p><strong>Root variable file</strong> (<code class="docutils literal notranslate"><span class="pre">/.variables.*</span></code>) - Defined in the repository root directory</p></li>
+<li><p><strong>Entry path variable file</strong> (e.g., <code class="docutils literal notranslate"><span class="pre">/configs/.variables.*</span></code>) - Defined in the same directory as the template</p></li>
+<li><p><strong>Client-specified variable file</strong> - Explicitly specified when fetching (e.g., <code class="docutils literal notranslate"><span class="pre">/vars/prod.json</span></code>)</p></li>
+</ol>
+<div class="section" id="example-scenario">
+<h3>Example scenario<a class="headerlink" href="#example-scenario" title="Permalink to this headline">¶</a></h3>
+<p>Given these variables:</p>
+<p><strong>Project level:</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">timeout</span></code>: <code class="docutils literal notranslate"><span class="pre">30</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">region</span></code>: <code class="docutils literal notranslate"><span class="pre">&quot;us-west&quot;</span></code></p></li>
+</ul>
+<p><strong>Repository level:</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">timeout</span></code>: <code class="docutils literal notranslate"><span class="pre">60</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">env</span></code>: <code class="docutils literal notranslate"><span class="pre">&quot;staging&quot;</span></code></p></li>
+</ul>
+<p><strong>Root file</strong> <code class="docutils literal notranslate"><span class="pre">/.variables.json</span></code>:</p>
+<div class="highlight-json notranslate"><div class="highlight hljs"><pre class="json">{
+  &quot;timeout&quot;: 90,
+  &quot;debug&quot;: true
+}</pre></div>
+</div>
+<p><strong>Client-specified file</strong> <code class="docutils literal notranslate"><span class="pre">/vars/prod.json</span></code>:</p>
+<div class="highlight-json notranslate"><div class="highlight hljs"><pre class="json">{
+  &quot;env&quot;: &quot;production&quot;,
+  &quot;debug&quot;: false
+}</pre></div>
+</div>
+<p>When fetching with <code class="docutils literal notranslate"><span class="pre">renderTemplate(&quot;/vars/prod.json&quot;)</span></code>, the merged variables are:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">timeout</span></code>: <code class="docutils literal notranslate"><span class="pre">90</span></code> (from root file, overrides repo and project)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">region</span></code>: <code class="docutils literal notranslate"><span class="pre">&quot;us-west&quot;</span></code> (from project, no overrides)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">env</span></code>: <code class="docutils literal notranslate"><span class="pre">&quot;production&quot;</span></code> (from client file, overrides repo)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">debug</span></code>: <code class="docutils literal notranslate"><span class="pre">false</span></code> (from client file, overrides root file)</p></li>
+</ul>
+</div>
+</div>
+<div class="section" id="variable-files">
+<h2>Variable Files<a class="headerlink" href="#variable-files" title="Permalink to this headline">¶</a></h2>
+<p>In addition to project and repository-level variables, you can create <strong>variable files</strong> in your repository.
+These are regular files that contain variable definitions in JSON, JSON5, or YAML format.</p>
+<div class="section" id="supported-formats-and-priority">
+<h3>Supported formats and priority<a class="headerlink" href="#supported-formats-and-priority" title="Permalink to this headline">¶</a></h3>
+<p>When multiple variable files exist at the same path (e.g., both <code class="docutils literal notranslate"><span class="pre">/.variables.json</span></code> and <code class="docutils literal notranslate"><span class="pre">/.variables.yaml</span></code>),
+the first file found in this order is used:</p>
+<ol class="arabic simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">.variables.json</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">.variables.json5</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">.variables.yaml</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">.variables.yml</span></code></p></li>
+</ol>
+<div class="admonition tip">
+<p class="admonition-title">Tip</p>
+<p>To avoid confusion, use only one format per directory.</p>
+</div>
+</div>
+<div class="section" id="default-variable-files">
+<h3>Default variable files<a class="headerlink" href="#default-variable-files" title="Permalink to this headline">¶</a></h3>
+<p>Central Dogma automatically looks for variable files in two locations:</p>
+<ol class="arabic">
+<li><p><strong>Repository root</strong>: <code class="docutils literal notranslate"><span class="pre">/.variables.{json,json5,yaml,yml}</span></code></p>
+<p>Applied to all templates in the repository.</p>
+</li>
+<li><p><strong>Template directory</strong>: <code class="docutils literal notranslate"><span class="pre">/path/to/.variables.{json,json5,yaml,yml}</span></code></p>
+<p>Applied only to templates in the same directory.</p>
+</li>
+</ol>
+<p>Example <code class="docutils literal notranslate"><span class="pre">/.variables.json</span></code>:</p>
+<div class="highlight-json notranslate"><div class="highlight hljs"><pre class="json">{
+  &quot;appName&quot;: &quot;MyApp&quot;,
+  &quot;version&quot;: &quot;1.0.0&quot;,
+  &quot;database&quot;: {
+    &quot;host&quot;: &quot;db.example.com&quot;,
+    &quot;port&quot;: 5432
+  }
+}</pre></div>
+</div>
+</div>
+<div class="section" id="custom-variable-files">
+<h3>Custom variable files<a class="headerlink" href="#custom-variable-files" title="Permalink to this headline">¶</a></h3>
+<p>You can also create custom variable files for different environments and explicitly specify which one to use
+when fetching templates.</p>
+<p>Example structure:</p>
+<div class="highlight-text notranslate"><div class="highlight hljs"><pre class="text">/
+├── .variables.json          # Common defaults
+├── vars/
+│   ├── dev.json             # Development overrides
+│   ├── staging.json         # Staging overrides
+│   └── prod.json            # Production overrides
+└── config.json              # Template file</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">/.variables.json</span></code> (common defaults):</p>
+<div class="highlight-json notranslate"><div class="highlight hljs"><pre class="json">{
+  &quot;database&quot;: {
+    &quot;host&quot;: &quot;localhost&quot;,
+    &quot;port&quot;: 5432
+  },
+  &quot;api&quot;: {
+    &quot;url&quot;: &quot;http://localhost:8080&quot;,
+    &quot;timeout&quot;: 30
+  }
+}</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">/vars/prod.json</span></code> (production overrides):</p>
+<div class="highlight-json notranslate"><div class="highlight hljs"><pre class="json">{
+  &quot;database&quot;: {
+    &quot;host&quot;: &quot;db.prod.example.com&quot;,
+    &quot;port&quot;: 5432
+  },
+  &quot;api&quot;: {
+    &quot;url&quot;: &quot;https://api.prod.example.com&quot;,
+    &quot;timeout&quot;: 60
+  }
+}</pre></div>
+</div>
+<p>When you fetch <code class="docutils literal notranslate"><span class="pre">/config.json</span></code> with <code class="docutils literal notranslate"><span class="pre">renderTemplate(&quot;/vars/prod.json&quot;)</span></code>, both files are merged with
+production values taking precedence.</p>
+</div>
+</div>
+<div class="section" id="java-client-api">
+<h2>Java Client API<a class="headerlink" href="#java-client-api" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="rendering-templates-with-file-fetch">
+<h3>Rendering templates with file fetch<a class="headerlink" href="#rendering-templates-with-file-fetch" title="Permalink to this headline">¶</a></h3>
+<p>Use <code class="docutils literal notranslate"><span class="pre">renderTemplate(true)</span></code> to automatically resolve variables from project, repository, and default
+variable files:</p>
+<div class="highlight-java notranslate"><div class="highlight hljs"><pre class="java">import com.linecorp.centraldogma.client.CentralDogma;
+import com.linecorp.centraldogma.common.Entry;
+import com.linecorp.centraldogma.common.Query;
+
+CentralDogma dogma = ...;
+
+// Fetch template without rendering
+Entry&lt;String&gt; template = dogma.forRepo(&quot;myProject&quot;, &quot;myRepo&quot;)
+                              .file(Query.ofText(&quot;/config.json&quot;))
+                              .get()
+                              .join();
+System.out.println(template.content());
+// Output: {&quot;serviceName&quot;: &quot;${vars.serviceName}&quot;, &quot;timeout&quot;: &quot;${vars.timeout}&quot;}
+
+// Fetch with template rendering enabled
+Entry&lt;String&gt; rendered = dogma.forRepo(&quot;myProject&quot;, &quot;myRepo&quot;)
+                              .file(Query.ofText(&quot;/config.json&quot;))
+                              .renderTemplate(true)
+                              .get()
+                              .join();
+System.out.println(rendered.content());
+// Output: {&quot;serviceName&quot;: &quot;user-service&quot;, &quot;timeout&quot;: &quot;30&quot;}</pre></div>
+</div>
+<p>Use <code class="docutils literal notranslate"><span class="pre">renderTemplate(String</span> <span class="pre">variableFile)</span></code> to specify a custom variable file:</p>
+<div class="highlight-java notranslate"><div class="highlight hljs"><pre class="java">// Fetch with custom variable file for production environment
+Entry&lt;String&gt; prodConfig = dogma.forRepo(&quot;myProject&quot;, &quot;myRepo&quot;)
+                                .file(Query.ofText(&quot;/config.json&quot;))
+                                .renderTemplate(&quot;/vars/prod.json&quot;)
+                                .get()
+                                .join();
+System.out.println(prodConfig.content());</pre></div>
+</div>
+</div>
+<div class="section" id="watching-templates-with-watcher">
+<h3>Watching templates with Watcher<a class="headerlink" href="#watching-templates-with-watcher" title="Permalink to this headline">¶</a></h3>
+<p>Use <code class="docutils literal notranslate"><span class="pre">Watcher</span></code> to get notified when templates or their variables change:</p>
+<div class="highlight-java notranslate"><div class="highlight hljs"><pre class="java">import com.linecorp.centraldogma.client.Watcher;
+
+// Watch a template with automatic rendering
+Watcher&lt;JsonNode&gt; watcher = dogma.forRepo(&quot;myProject&quot;, &quot;myRepo&quot;)
+                                 .watcher(Query.ofJson(&quot;/config.json&quot;))
+                                 .renderTemplate(true)
+                                 .start();
+
+// Get initial value
+JsonNode initialValue = watcher.awaitInitialValue().value();
+System.out.println(initialValue);
+
+// Listen for changes
+watcher.watch(revision -&gt; {
+    JsonNode newValue = revision.value();
+    System.out.println(&quot;Configuration updated: &quot; + newValue);
+});</pre></div>
+</div>
+<p>The watcher will be notified when:</p>
+<ul class="simple">
+<li><p>The template file itself is modified</p></li>
+<li><p>Any project or repository-level variable used in the template changes</p></li>
+<li><p>The default variable files (<code class="docutils literal notranslate"><span class="pre">.variables.[json|json5|yaml|yml]</span></code>) change</p></li>
+</ul>
+<p>Watch with custom variable file:</p>
+<div class="highlight-java notranslate"><div class="highlight hljs"><pre class="java">// Watch template with production variable file
+Watcher&lt;JsonNode&gt; prodWatcher = dogma.forRepo(&quot;myProject&quot;, &quot;myRepo&quot;)
+                                     .watcher(Query.ofJson(&quot;/config.json&quot;))
+                                     .renderTemplate(&quot;/vars/prod.json&quot;)
+                                     .start();</pre></div>
+</div>
+</div>
+</div>
+<div class="section" id="web-ui">
+<h2>Web UI<a class="headerlink" href="#web-ui" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="permissions">
+<h3>Permissions<a class="headerlink" href="#permissions" title="Permalink to this headline">¶</a></h3>
+<p>The Variable UI requires specific roles:</p>
+<ul class="simple">
+<li><p><strong>Project-level variables</strong>: Requires <code class="docutils literal notranslate"><span class="pre">MEMBER</span></code> role or higher in the project</p></li>
+<li><p><strong>Repository-level variables</strong>: Requires <code class="docutils literal notranslate"><span class="pre">WRITE</span></code> role or higher in the repository</p></li>
+</ul>
+</div>
+<div class="section" id="managing-variables">
+<h3>Managing variables<a class="headerlink" href="#managing-variables" title="Permalink to this headline">¶</a></h3>
+<p>You can manage variables through the Central Dogma web interface.</p>
+<p><strong>Navigating to variables:</strong></p>
+<ul class="simple">
+<li><p>For project-level variables: Go to <code class="docutils literal notranslate"><span class="pre">/app/projects/{projectName}/settings/variables</span></code></p></li>
+<li><p>For repository-level variables: Go to <code class="docutils literal notranslate"><span class="pre">/app/projects/{projectName}/repos/{repoName}/settings/variables</span></code></p></li>
+</ul>
+<p>The variables list page shows all defined variables:</p>
+<img alt="Variables list showing ID, type badges, modified by/at, and delete actions" src="_images/variables-list.png" />
+</div>
+<div class="section" id="creating-and-editing-variables">
+<h3>Creating and editing variables<a class="headerlink" href="#creating-and-editing-variables" title="Permalink to this headline">¶</a></h3>
+<p>Click “New Variable” or click on a variable ID to open the variable form:</p>
+<img alt="Variable form with ID, type selector, value editor, and description fields" src="_images/variable-form.png" />
+<p>The form includes:</p>
+<ul class="simple">
+<li><p><strong>Variable ID</strong>: Alphanumeric identifier starting with a letter. Cannot be changed after creation.</p></li>
+<li><p><strong>Type</strong>: Radio buttons to select STRING or JSON type</p></li>
+<li><dl class="simple">
+<dt><strong>Value</strong>:</dt><dd><ul>
+<li><p>For STRING: Single-line text input</p></li>
+<li><p>For JSON: Multi-line textarea with JSON syntax validation</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+<li><p><strong>Description</strong>: Optional text area to document the variable’s purpose</p></li>
+</ul>
+</div>
+<div class="section" id="previewing-templates-with-variables">
+<h3>Previewing templates with variables<a class="headerlink" href="#previewing-templates-with-variables" title="Permalink to this headline">¶</a></h3>
+<p>When viewing a file in the File Editor, the second tab “Preview with Variables” shows the rendered output:</p>
+<img alt="File editor showing Preview with Variables tab with rendered template output" src="_images/preview-with-variables.png" />
+<p>This tab shows:</p>
+<ul class="simple">
+<li><p>The file content with all variables resolved</p></li>
+<li><p>Real-time preview as you navigate between files</p></li>
+<li><p>Rendering uses all applicable variables (project, repository, and file-level)</p></li>
+<li><p>Any rendering errors are displayed if variables are undefined or malformed</p></li>
+</ul>
+<p>The preview helps you verify that your templates will render correctly before deploying to production.</p>
+</div>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+        <a href="mirroring.html" class="btn btn-neutral float-right" title="Better configuration change workflow with Git-to-CD mirroring" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="client-java.html" class="btn btn-neutral float-left" title="Java client library" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &#169; Copyright 2017-2026, LINE Corporation.
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+  
+  <a href="https://github.com/line/centraldogma" class="github-corner" aria-label="View source on GitHub">
+    <svg width="80" height="80" viewBox="0 0 250 250" aria-hidden="true">
+      <path d="M0,0 L115,115 L130,115 L142,142 L250,250 L250,0 Z" fill="#1e2834"></path>
+      <path class="octo-arm" d="M128.3,109.0 C113.8,99.7 119.0,89.6 119.0,89.6 C122.0,82.7 120.5,78.6 120.5,78.6 C119.2,72.0 123.4,76.3 123.4,76.3 C127.3,80.9 125.5,87.3 125.5,87.3 C122.9,97.6 130.6,101.9 134.4,103.2" fill="#ffffff" style="transform-origin: 130px 106px;"></path>
+      <path class="octo-body" d="M115.0,115.0 C114.9,115.1 118.7,116.5 119.8,115.4 L133.7,101.6 C136.9,99.2 139.9,98.4 142.2,98.6 C133.8,88.0 127.5,74.4 143.8,58.0 C148.5,53.4 154.0,51.2 159.7,51.0 C160.3,49.4 163.2,43.6 171.4,40.1 C171.4,40.1 176.1,42.5 178.8,56.2 C183.1,58.6 187.2,61.8 190.9,65.4 C194.5,69.0 197.7,73.2 200.1,77.6 C213.8,80.2 216.3,84.9 216.3,84.9 C212.7,93.1 206.9,96.0 205.4,96.6 C205.1,102.4 203.0,107.8 198.3,112.5 C181.9,128.9 168.3,122.5 157.7,114.1 C157.9,116.9 156.7,120.9 152.7,124.9 L141.0,136.5 C139.8,137.7 141.6,141.9 141.8,141.8 Z" fill="#ffffff"></path>
+    </svg>
+  </a>
+  <script type="text/javascript" src="_static/add_badges.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.15.6/highlight.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.15.6/languages/gradle.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.15.6/languages/protobuf.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.15.6/languages/thrift.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.15.6/languages/yaml.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlightjs-line-numbers.js/2.7.0/highlightjs-line-numbers.min.js"></script>
+  <script>
+    document.querySelectorAll('div.hljs > pre').forEach(function(block) {
+      hljs.highlightBlock(block);
+      hljs.lineNumbersBlock(block);
+    });
+  </script>
+   
+
+
+</body>
+</html>

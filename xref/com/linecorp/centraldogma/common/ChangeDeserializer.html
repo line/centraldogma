@@ -28,10 +28,10 @@
 <a class="jxr_linenumber" name="L20" href="#L20">20</a>  
 <a class="jxr_linenumber" name="L21" href="#L21">21</a>  <strong class="jxr_keyword">import</strong> java.io.IOException;
 <a class="jxr_linenumber" name="L22" href="#L22">22</a>  
-<a class="jxr_linenumber" name="L23" href="#L23">23</a>  <strong class="jxr_keyword">import</strong> javax.annotation.Nullable;
+<a class="jxr_linenumber" name="L23" href="#L23">23</a>  <strong class="jxr_keyword">import</strong> org.jspecify.annotations.Nullable;
 <a class="jxr_linenumber" name="L24" href="#L24">24</a>  
-<a class="jxr_linenumber" name="L25" href="#L25">25</a>  <strong class="jxr_keyword">import</strong> com.fasterxml.jackson.core.JsonParseException;
-<a class="jxr_linenumber" name="L26" href="#L26">26</a>  <strong class="jxr_keyword">import</strong> com.fasterxml.jackson.core.JsonParser;
+<a class="jxr_linenumber" name="L25" href="#L25">25</a>  <strong class="jxr_keyword">import</strong> com.fasterxml.jackson.core.JsonParser;
+<a class="jxr_linenumber" name="L26" href="#L26">26</a>  <strong class="jxr_keyword">import</strong> com.fasterxml.jackson.core.JsonProcessingException;
 <a class="jxr_linenumber" name="L27" href="#L27">27</a>  <strong class="jxr_keyword">import</strong> com.fasterxml.jackson.core.ObjectCodec;
 <a class="jxr_linenumber" name="L28" href="#L28">28</a>  <strong class="jxr_keyword">import</strong> com.fasterxml.jackson.databind.DeserializationContext;
 <a class="jxr_linenumber" name="L29" href="#L29">29</a>  <strong class="jxr_keyword">import</strong> com.fasterxml.jackson.databind.JsonNode;
@@ -130,7 +130,7 @@
 <a class="jxr_linenumber" name="L122" href="#L122">122</a>                 <strong class="jxr_keyword">if</strong> (rawContent != <strong class="jxr_keyword">null</strong>) {
 <a class="jxr_linenumber" name="L123" href="#L123">123</a>                     <strong class="jxr_keyword">try</strong> {
 <a class="jxr_linenumber" name="L124" href="#L124">124</a>                         result = Change.ofJsonPatch(path, Jackson.readTree(rawContent));
-<a class="jxr_linenumber" name="L125" href="#L125">125</a>                     } <strong class="jxr_keyword">catch</strong> (JsonParseException e) {
+<a class="jxr_linenumber" name="L125" href="#L125">125</a>                     } <strong class="jxr_keyword">catch</strong> (JsonProcessingException e) {
 <a class="jxr_linenumber" name="L126" href="#L126">126</a>                         <strong class="jxr_keyword">throw</strong> <strong class="jxr_keyword">new</strong> IllegalArgumentException(<span class="jxr_string">"failed to parse JSON patch"</span>, e);
 <a class="jxr_linenumber" name="L127" href="#L127">127</a>                     }
 <a class="jxr_linenumber" name="L128" href="#L128">128</a>                 } <strong class="jxr_keyword">else</strong> {
