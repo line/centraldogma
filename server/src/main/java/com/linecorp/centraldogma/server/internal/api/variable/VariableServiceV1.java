@@ -22,9 +22,9 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
-import com.fasterxml.jackson.core.JsonParseException;
+import com.fasterxml.jackson.core.JsonProcessingException;
 
 import com.linecorp.armeria.server.annotation.ConsumesJson;
 import com.linecorp.armeria.server.annotation.Delete;
@@ -244,7 +244,7 @@ public final class VariableServiceV1 extends AbstractService {
         if (variable.type() == VariableType.JSON) {
             try {
                 Jackson.readTree(variable.value());
-            } catch (JsonParseException e) {
+            } catch (JsonProcessingException e) {
                 throw new IllegalArgumentException("Invalid JSON value for variable: " + variable.id(), e);
             }
         }

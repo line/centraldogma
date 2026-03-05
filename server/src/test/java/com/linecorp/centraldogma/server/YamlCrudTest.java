@@ -39,10 +39,12 @@ import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.client.CentralDogmaRepository;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Entry;
+import com.linecorp.centraldogma.common.EntryType;
 import com.linecorp.centraldogma.common.PathPattern;
 import com.linecorp.centraldogma.common.PushResult;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.RedundantChangeException;
+import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.jsonpatch.AddOperation;
 import com.linecorp.centraldogma.common.jsonpatch.JsonPatchConflictException;
 import com.linecorp.centraldogma.common.jsonpatch.JsonPatchOperation;
@@ -170,6 +172,46 @@ class YamlCrudTest {
                                             .join();
 
         assertThat(textEntry.content()).isEqualTo(yamlText);
+    }
+
+    @CsvSource({ "config.yaml", "config.yml" })
+    @ParameterizedTest
+    void listFilesShouldNotReturnYamlType(String fileName) {
+        final Change<JsonNode> change = Change.ofYamlUpsert('/' + fileName, "key: value\n");
+        repo.commit("Add YAML file", change).push().join();
+
+        // listFiles() uses EntryType.valueOf() to parse the type from the server response.
+        // The server should return TEXT for YAML files for backward compatibility.
+        // Old clients that do not have EntryType.YAML would fail with IllegalArgumentException.
+        final Map<String, EntryType> files = repo.file(PathPattern.of("/**")).list().join();
+        assertThat(files.values()).doesNotContain(EntryType.YAML);
+        assertThat(files).containsEntry('/' + fileName, EntryType.TEXT);
+    }
+
+    @Test
+    void watchRepositoryThenListFilesShouldNotReturnYamlType() {
+        //language=yaml
+        final String yamlText = "version: 1\n";
+        final Change<JsonNode> change = Change.ofYamlUpsert("/app.yaml", yamlText);
+        final PushResult initialResult = repo.commit("Add app.yaml", change).push().join();
+
+        //language=yaml
+        final String updatedYaml = "version: 2\n";
+        final Change<JsonNode> updateChange = Change.ofYamlUpsert("/app.yaml", updatedYaml);
+        repo.commit("Update app.yaml", updateChange).push().join();
+
+        // Watch the repository for changes and get the new revision.
+        final Revision newRevision = repo.watch(PathPattern.of("/**"))
+                                         .start(initialResult.revision())
+                                         .join();
+        assertThat(newRevision).isNotNull();
+
+        // List files at the new revision. YAML type should not be returned.
+        final Map<String, EntryType> files = repo.file(PathPattern.of("/**"))
+                                                  .list(newRevision)
+                                                  .join();
+        assertThat(files.values()).doesNotContain(EntryType.YAML);
+        assertThat(files).containsEntry("/app.yaml", EntryType.TEXT);
     }
 
     @Test

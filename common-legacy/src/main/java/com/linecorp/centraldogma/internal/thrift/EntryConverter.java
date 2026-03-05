@@ -19,7 +19,7 @@ package com.linecorp.centraldogma.internal.thrift;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -80,8 +80,8 @@ public final class EntryConverter {
     /**
      * Converts {@link com.linecorp.centraldogma.common.EntryType} to {@link EntryType}.
      */
-    @Nullable
-    public static EntryType convertEntryType(com.linecorp.centraldogma.common.EntryType type) {
+    public static @Nullable EntryType convertEntryType(
+            com.linecorp.centraldogma.common.@Nullable EntryType type) {
         if (type == null) {
             return null;
         }
@@ -101,8 +101,8 @@ public final class EntryConverter {
     /**
      * Converts {@link EntryType} to {@link com.linecorp.centraldogma.common.EntryType}.
      */
-    @Nullable
-    public static com.linecorp.centraldogma.common.EntryType convertEntryType(EntryType type) {
+    public static com.linecorp.centraldogma.common.@Nullable EntryType convertEntryType(
+            @Nullable EntryType type) {
         if (type == null) {
             return null;
         }

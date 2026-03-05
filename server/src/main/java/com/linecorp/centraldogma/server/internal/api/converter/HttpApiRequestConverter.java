@@ -22,7 +22,7 @@ import static java.util.Objects.requireNonNull;
 
 import java.lang.reflect.ParameterizedType;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import com.linecorp.armeria.common.AggregatedHttpRequest;
 import com.linecorp.armeria.common.HttpStatus;

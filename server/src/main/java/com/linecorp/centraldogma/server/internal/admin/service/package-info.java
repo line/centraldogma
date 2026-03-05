@@ -17,7 +17,7 @@
 /**
  * Central Dogma admin services which are implemented by Armeria annotated service.
  */
-@NonNullByDefault
+@NullMarked
 package com.linecorp.centraldogma.server.internal.admin.service;
 
-import com.linecorp.centraldogma.common.util.NonNullByDefault;
+import org.jspecify.annotations.NullMarked;

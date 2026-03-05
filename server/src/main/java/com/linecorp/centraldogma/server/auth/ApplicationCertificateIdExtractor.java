@@ -17,7 +17,7 @@ package com.linecorp.centraldogma.server.auth;
 
 import java.security.cert.X509Certificate;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Extracts the certificate ID from the peer certificate.

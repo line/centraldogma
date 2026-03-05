@@ -16,7 +16,7 @@
 /**
  * Management for the Central Dogma server.
  */
-@NonNullByDefault
+@NullMarked
 package com.linecorp.centraldogma.server.management;
 
-import com.linecorp.centraldogma.common.util.NonNullByDefault;
+import org.jspecify.annotations.NullMarked;

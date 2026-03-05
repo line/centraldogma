@@ -60,8 +60,7 @@ import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
-import javax.annotation.Nullable;
-
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -1296,17 +1295,6 @@ public class CentralDogma implements AutoCloseable {
         }
 
         try {
-            if (pm != null) {
-                logger.info("Stopping the project manager ..");
-                pm.close(ShuttingDownException::new);
-                logger.info("Stopped the project manager.");
-            }
-        } catch (Throwable t) {
-            success = false;
-            logger.warn("Failed to stop the project manager:", t);
-        }
-
-        try {
             if (executor != null) {
                 logger.info("Stopping the command executor ..");
                 executor.stop().get(60, TimeUnit.SECONDS);
@@ -1322,6 +1310,17 @@ public class CentralDogma implements AutoCloseable {
         } catch (Throwable t) {
             success = false;
             logger.warn("Failed to stop the command executor:", t);
+        }
+
+        try {
+            if (pm != null) {
+                logger.info("Stopping the project manager ..");
+                pm.close(ShuttingDownException::new);
+                logger.info("Stopped the project manager.");
+            }
+        } catch (Throwable t) {
+            success = false;
+            logger.warn("Failed to stop the project manager:", t);
         }
 
         try {

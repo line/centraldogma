@@ -25,8 +25,9 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.function.Consumer;
 
-import javax.annotation.Nullable;
 import javax.crypto.SecretKey;
+
+import org.jspecify.annotations.Nullable;
 
 import com.google.common.annotations.VisibleForTesting;
 
@@ -157,20 +158,17 @@ public interface EncryptionStorageManager extends SafeCloseable {
     /**
      * Returns the object associated with the specified key.
      */
-    @Nullable
-    byte[] getObject(byte[] key, byte[] metadataKey);
+    byte @Nullable[] getObject(byte[] key, byte[] metadataKey);
 
     /**
      * Returns the object ID bytes associated with the specified key.
      */
-    @Nullable
-    byte[] getObjectId(byte[] key, byte[] metadataKey);
+    byte @Nullable [] getObjectId(byte[] key, byte[] metadataKey);
 
     /**
      * Returns the value of the specified metadata key.
      */
-    @Nullable
-    byte[] getMetadata(byte[] metadataKey);
+    byte @Nullable[] getMetadata(byte[] metadataKey);
 
     /**
      * Stores the specified key-value object with metadata.
@@ -181,7 +179,7 @@ public interface EncryptionStorageManager extends SafeCloseable {
      * Stores the specified key-value pair with metadata. The {@code previousKeyToRemove} will be removed.
      */
     void putObjectId(byte[] metadataKey, byte[] metadataValue, byte[] key, byte[] value,
-                     @Nullable byte[] previousKeyToRemove);
+                     byte @Nullable [] previousKeyToRemove);
 
     /**
      * Returns {@code true} if the specified key exists.

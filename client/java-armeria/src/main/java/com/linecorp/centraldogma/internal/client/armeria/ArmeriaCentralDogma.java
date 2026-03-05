@@ -40,8 +40,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 
-import javax.annotation.Nullable;
-
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -734,8 +733,7 @@ public final class ArmeriaCentralDogma extends AbstractCentralDogma {
         }
     }
 
-    @Nullable
-    private static <T> Change<T> getDiff(AggregatedHttpResponse res) {
+    private static <T> @Nullable Change<T> getDiff(AggregatedHttpResponse res) {
         switch (res.status().code()) {
             case 200:
                 return toChange(toJson(res, JsonNodeType.OBJECT));
@@ -893,8 +891,7 @@ public final class ArmeriaCentralDogma extends AbstractCentralDogma {
         }
     }
 
-    @Nullable
-    private static Revision watchRepository(AggregatedHttpResponse res, QueryType unused) {
+    private static @Nullable Revision watchRepository(AggregatedHttpResponse res, QueryType unused) {
         switch (res.status().code()) {
             case 200: // OK
                 final JsonNode node = toJson(res, JsonNodeType.OBJECT);
@@ -961,8 +958,8 @@ public final class ArmeriaCentralDogma extends AbstractCentralDogma {
         }
     }
 
-    @Nullable
-    private static <T> Entry<T> watchFile(AggregatedHttpResponse res, QueryType queryType, boolean viewRaw) {
+    private static <T> @Nullable Entry<T> watchFile(AggregatedHttpResponse res, QueryType queryType,
+                                                    boolean viewRaw) {
         switch (res.status().code()) {
             case 200: // OK
                 final JsonNode node = toJson(res, JsonNodeType.OBJECT);
@@ -1089,7 +1086,7 @@ public final class ArmeriaCentralDogma extends AbstractCentralDogma {
         final JsonNode node;
         try {
             node = Jackson.readTree(content);
-        } catch (JsonParseException e) {
+        } catch (JsonProcessingException e) {
             throw new CentralDogmaException("failed to parse the response JSON", e);
         }
 
@@ -1201,7 +1198,7 @@ public final class ArmeriaCentralDogma extends AbstractCentralDogma {
                     return unsafeCast(Entry.ofJson(revision, entryPath, rawContent.asText()));
                 } catch (JsonParseException e) {
                     // Should never reach here as the raw JSON text was already validated by the server.
-                    throw new IllegalStateException(e);
+                    throw new IllegalStateException("Failed to parse JSON content in " + entryPath, e);
                 }
             }
             logger.warn("The server does not support raw content. Using Entry#content() instead. path: {}",
@@ -1218,9 +1215,9 @@ public final class ArmeriaCentralDogma extends AbstractCentralDogma {
             if (rawContent != null) {
                 try {
                     return unsafeCast(Entry.ofYaml(revision, entryPath, rawContent.asText()));
-                } catch (JsonParseException e) {
+                } catch (JsonProcessingException e) {
                     // Should never reach here as the raw JSON text was already validated by the server.
-                    throw new IllegalStateException(e);
+                    throw new IllegalStateException("Failed to parse YAML content in " + entryPath, e);
                 }
             }
             logger.warn("The server does not support raw content. Using Entry#content() instead. path: {}",
@@ -1232,8 +1229,8 @@ public final class ArmeriaCentralDogma extends AbstractCentralDogma {
             try {
                 final JsonNode jsonNode = Yaml.readTree(content.asText());
                 return unsafeCast(Entry.ofYaml(revision, entryPath, jsonNode));
-            } catch (JsonParseException e) {
-                throw new IllegalStateException(e);
+            } catch (JsonProcessingException e) {
+                throw new IllegalStateException("Failed to parse YAML content in " + entryPath, e);
             }
         }
         return unsafeCast(Entry.ofYaml(revision, entryPath, content));

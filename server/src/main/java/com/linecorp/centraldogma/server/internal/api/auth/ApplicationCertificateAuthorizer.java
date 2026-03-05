@@ -24,10 +24,10 @@ import java.security.cert.X509Certificate;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Function;
 
-import javax.annotation.Nullable;
 import javax.net.ssl.SSLPeerUnverifiedException;
 import javax.net.ssl.SSLSession;
 
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

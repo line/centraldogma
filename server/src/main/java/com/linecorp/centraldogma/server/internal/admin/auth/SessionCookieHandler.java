@@ -28,7 +28,7 @@ import static java.util.Objects.requireNonNull;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BooleanSupplier;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import com.google.common.collect.ImmutableSet;
 import com.nimbusds.jose.proc.SecurityContext;

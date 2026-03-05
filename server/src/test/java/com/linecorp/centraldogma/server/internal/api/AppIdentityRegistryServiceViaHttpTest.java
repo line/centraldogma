@@ -26,6 +26,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
 import com.fasterxml.jackson.core.JsonParseException;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
 
@@ -71,7 +72,7 @@ class AppIdentityRegistryServiceViaHttpTest {
     }
 
     @Test
-    void createTokenAndUpdateLevel() throws JsonParseException {
+    void createTokenAndUpdateLevel() throws JsonProcessingException {
         assertThat(systemAdminClient.post(API_V1_PATH_PREFIX + "appIdentities",
                                           QueryParams.of("appId", "forUpdate", "type", "TOKEN",
                                                          "isSystemAdmin", false),

@@ -24,8 +24,9 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.function.Consumer;
 
-import javax.annotation.Nullable;
 import javax.crypto.SecretKey;
+
+import org.jspecify.annotations.Nullable;
 
 import com.google.common.collect.ImmutableList;
 
@@ -163,7 +164,7 @@ final class DefaultEncryptionStorageManager implements EncryptionStorageManager 
 
     @Override
     public void putObjectId(byte[] metadataKey, byte[] metadataValue, byte[] key, byte[] value,
-                            @Nullable byte[] previousKeyToRemove) {
+                            byte @Nullable [] previousKeyToRemove) {
         repositoryEncryptionStorage.putObjectId(metadataKey, metadataValue, key, value, previousKeyToRemove);
     }
 

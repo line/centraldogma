@@ -1,7 +1,8 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { RepositoryRole } from 'dogma/features/auth/RepositoryRole';
+import { ProjectMetadataDto } from 'dogma/features/project/ProjectMetadataDto';
 
-const projectMetadata = {
+const projectMetadata: ProjectMetadataDto = {
   name: 'abcd',
   repos: {
     meta: {
@@ -9,7 +10,7 @@ const projectMetadata = {
       roles: {
         projects: {
           member: 'READ' as RepositoryRole,
-          guest: null as 'READ' | 'WRITE' | null,
+          guest: null,
         },
         users: {},
         appIds: {},
@@ -21,7 +22,7 @@ const projectMetadata = {
       roles: {
         projects: {
           member: 'WRITE' as RepositoryRole,
-          guest: 'WRITE',
+          guest: 'READ',
         },
         users: {
           'lz123456@localhost.localdomain': 'WRITE',
@@ -37,7 +38,7 @@ const projectMetadata = {
       roles: {
         projects: {
           member: 'WRITE' as RepositoryRole,
-          guest: null as 'READ' | 'WRITE' | null,
+          guest: 'READ',
         },
         users: {},
         appIds: {},

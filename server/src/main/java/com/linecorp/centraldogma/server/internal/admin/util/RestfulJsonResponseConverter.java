@@ -16,7 +16,7 @@
 
 package com.linecorp.centraldogma.server.internal.admin.util;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 

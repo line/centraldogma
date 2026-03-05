@@ -20,8 +20,7 @@ import java.security.cert.X509Certificate;
 import java.util.Collection;
 import java.util.List;
 
-import javax.annotation.Nullable;
-
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

@@ -16,7 +16,7 @@
 /**
  * Credential classes for mirroring.
  */
-@NonNullByDefault
+@NullMarked
 package com.linecorp.centraldogma.server.credential;
 
-import com.linecorp.centraldogma.common.util.NonNullByDefault;
+import org.jspecify.annotations.NullMarked;

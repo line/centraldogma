@@ -15,8 +15,7 @@
  */
 package com.linecorp.centraldogma.server.internal.storage.repository.git;
 
-import javax.annotation.Nullable;
-
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 
 import com.linecorp.armeria.common.RequestContext;
