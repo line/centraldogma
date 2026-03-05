@@ -172,6 +172,13 @@ class GitMirrorIntegrationTest {
         // - Remove the sample files created by createProject().
         mirroringService.mirror().join();
 
+        // Make sure the remote Git repository is fetched into `<dataDir>/_mirrors/<proj>-<repo>-<id>/`.
+        final Path fetchedRepo = dogma.dataDir().resolve("_mirrors/" + projName + '-' + REPO_FOO + "-foo");
+        assertThat(fetchedRepo)
+                .exists()
+                .isDirectory()
+                .matches(p -> Files.exists(p.resolve("HEAD")), "a valid Git repository");
+
         //// Make sure a new commit is added.
         final Revision rev1 = client.normalizeRevision(projName, REPO_FOO, Revision.HEAD).join();
         assertThat(rev1).isEqualTo(rev0.forward(1));
