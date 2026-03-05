@@ -19,9 +19,6 @@ import { test, expect } from '@playwright/test';
 test.beforeEach('Login', async ({ page }) => {
   await page.goto('/');
 
-  // Wait for page to fully load
-  await page.waitForLoadState('networkidle');
-
   await expect(page.getByText(/Login/)).toBeVisible({ timeout: 10000 });
   await page.getByPlaceholder('ID').fill('foo');
   await page.getByPlaceholder('Password').fill('bar');
@@ -36,11 +33,11 @@ test.beforeEach('Login', async ({ page }) => {
 test.describe('Project Tokens (appIds)', () => {
   test('should navigate to project tokens settings page', async ({ page }) => {
     // Navigate to the dogma project settings
-    await page.goto('/app/projects/dogma/settings/tokens');
+    await page.goto('/app/projects/dogma/settings/app-identities');
 
     // Verify we're on the tokens settings page
     await expect(page.getByRole('heading', { name: 'dogma' })).toBeVisible();
-    await expect(page.getByRole('tab', { name: 'Tokens' })).toBeVisible();
+    await expect(page.getByRole('tab', { name: 'App Identities' })).toBeVisible();
   });
 
   test('should display tokens tab in project settings', async ({ page }) => {
@@ -48,28 +45,28 @@ test.describe('Project Tokens (appIds)', () => {
     await page.goto('/app/projects/dogma/settings');
 
     // Verify tokens tab exists
-    const tokensTab = page.getByRole('tab', { name: 'Tokens' });
+    const tokensTab = page.getByRole('tab', { name: 'App Identities' });
     await expect(tokensTab).toBeVisible();
 
     // Click on tokens tab
     await tokensTab.click();
 
     // Verify URL changed to tokens page
-    await expect(page).toHaveURL(/\/app\/projects\/dogma\/settings\/tokens/);
+    await expect(page).toHaveURL(/\/app\/projects\/dogma\/settings\/app-identities/);
   });
 
   test('should display Add Token button', async ({ page }) => {
-    await page.goto('/app/projects/dogma/settings/tokens');
+    await page.goto('/app/projects/dogma/settings/app-identities');
 
     // Verify Add Token button is visible
-    await expect(page.getByRole('button', { name: /Add Token/i })).toBeVisible();
+    await expect(page.getByRole('button', { name: /Add App Identity/i })).toBeVisible();
   });
 
   test('should display token list table with correct columns', async ({ page }) => {
-    await page.goto('/app/projects/dogma/settings/tokens');
+    await page.goto('/app/projects/dogma/settings/app-identities');
 
     // Wait for the page to load
-    await expect(page.getByRole('tab', { name: 'Tokens' })).toBeVisible();
+    await expect(page.getByRole('tab', { name: 'App Identities' })).toBeVisible();
 
     // The table should be present
     const table = page.locator('table');
@@ -87,23 +84,23 @@ test.describe('Project Tokens (appIds)', () => {
   });
 
   test('should open add token popover when clicking Add Token button', async ({ page }) => {
-    await page.goto('/app/projects/dogma/settings/tokens');
+    await page.goto('/app/projects/dogma/settings/app-identities');
 
     // Click the Add Token button
-    await page.getByRole('button', { name: /Add Token/i }).click();
+    await page.getByRole('button', { name: /Add App Identity/i }).click();
 
     // Verify popover opens with expected content
-    await expect(page.getByText(/Add a new token/i)).toBeVisible();
+    await expect(page.getByText(/Add a new app identity/i)).toBeVisible();
   });
 
   test('should show token role options in add token popover', async ({ page }) => {
-    await page.goto('/app/projects/dogma/settings/tokens');
+    await page.goto('/app/projects/dogma/settings/app-identities');
 
     // Click the Add Token button
-    await page.getByRole('button', { name: /Add Token/i }).click();
+    await page.getByRole('button', { name: /Add App Identity/i }).click();
 
     // Wait for popover to be visible
-    await expect(page.getByText(/Add a new token/i)).toBeVisible();
+    await expect(page.getByText(/Add a new app identity/i)).toBeVisible();
 
     // Check for role selection - should have Member and Owner radio options
     await expect(page.getByRole('radio', { name: 'Member' })).toBeVisible();
@@ -112,11 +109,11 @@ test.describe('Project Tokens (appIds)', () => {
 
   test('should navigate to repository tokens settings page', async ({ page }) => {
     // Navigate to repository tokens settings
-    await page.goto('/app/projects/dogma/repos/meta/settings/tokens');
+    await page.goto('/app/projects/dogma/repos/meta/settings/app-identities');
 
     // Verify we're on the repository tokens settings page
     await expect(page.getByRole('heading', { name: 'meta' })).toBeVisible();
-    await expect(page.getByRole('tab', { name: 'Tokens' })).toBeVisible();
+    await expect(page.getByRole('tab', { name: 'App Identities' })).toBeVisible();
   });
 
   test('should display tokens tab in repository settings', async ({ page }) => {
@@ -124,14 +121,14 @@ test.describe('Project Tokens (appIds)', () => {
     await page.goto('/app/projects/dogma/repos/meta/settings');
 
     // Verify tokens tab exists
-    const tokensTab = page.getByRole('tab', { name: 'Tokens' });
+    const tokensTab = page.getByRole('tab', { name: 'App Identities' });
     await expect(tokensTab).toBeVisible();
 
     // Click on tokens tab
     await tokensTab.click();
 
     // Verify URL changed to tokens page
-    await expect(page).toHaveURL(/\/app\/projects\/dogma\/repos\/meta\/settings\/tokens/);
+    await expect(page).toHaveURL(/\/app\/projects\/dogma\/repos\/meta\/settings\/app-identities/);
   });
 });
 

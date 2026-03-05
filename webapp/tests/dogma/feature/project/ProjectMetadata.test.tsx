@@ -18,14 +18,14 @@ import { ProjectCreatorDto, ProjectMetadataDto } from 'dogma/features/project/Pr
 import { findUserRole } from 'dogma/features/auth/ProjectRole';
 import { findUserRepositoryRole } from 'dogma/features/auth/RepositoryRole';
 import { UserDto } from 'dogma/features/auth/UserDto';
-import { AppTokenDetailDto } from 'dogma/features/project/settings/tokens/AppTokenDto';
+import { AppIdDetailDto } from 'dogma/features/project/settings/app-identities/AppIdDto';
 // Disabled due to https://github.com/mswjs/msw/issues/1786
 // import { setupServer } from 'msw/node';
 // import { http, HttpResponse } from 'msw';
 import '@testing-library/jest-dom';
 
 // Helper type for testing - AppTokenDto is Map<string, AppTokenDetailDto> but server returns object
-type AppTokenObject = { [key: string]: AppTokenDetailDto };
+type AppTokenObject = { [key: string]: AppIdDetailDto };
 
 describe('ProjectMetadataDto', () => {
   let mockMetadata: ProjectMetadataDto;
@@ -69,12 +69,12 @@ describe('ProjectMetadataDto', () => {
           appId: 'app-token-1',
           role: 'MEMBER',
           creation: { user: 'admin@example.com', timestamp: '2024-01-01T00:00:00Z' },
-        } as AppTokenDetailDto,
+        } as AppIdDetailDto,
         'app-token-2': {
           appId: 'app-token-2',
           role: 'OWNER',
           creation: { user: 'admin@example.com', timestamp: '2024-01-02T00:00:00Z' },
-        } as AppTokenDetailDto,
+        } as AppIdDetailDto,
       },
       creation: { user: 'admin@example.com', timestamp: '2024-01-01T00:00:00Z' },
     } as unknown as ProjectMetadataDto;
