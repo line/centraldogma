@@ -74,7 +74,7 @@ class MetadataApiServiceTest {
     private static final String MEMBER_ID = "member_id@linecorp.com";
     private static final String MEMBER_TOKEN_APP_ID = "foo_token";
     private static final String MEMBER_CERTIFICATE_APP_ID = "foo_cert";
-    private static final String CERT_ID = "centraldogma.com/my-client";
+    private static final String CERT_ID = "my-client";
     private static final String APP_ID = "app_id";
 
     @Order(1)
@@ -88,8 +88,7 @@ class MetadataApiServiceTest {
     @Order(3)
     @RegisterExtension
     static final SignedCertificateExtension clientCert =
-            new SignedCertificateExtension("my-client", ca,
-                                           ImmutableList.of("spiffe://" + CERT_ID));
+            new SignedCertificateExtension("my-client", ca);
 
     @RegisterExtension
     static CentralDogmaExtension dogma = new CentralDogmaExtension() {
@@ -139,11 +138,8 @@ class MetadataApiServiceTest {
                                      .build());
     }
 
-    @SuppressWarnings("NotNullFieldNotInitialized")
     static BlockingWebClient systemAdminClient;
-    @SuppressWarnings("NotNullFieldNotInitialized")
     static BlockingWebClient memberTokenClient;
-    @SuppressWarnings("NotNullFieldNotInitialized")
     static BlockingWebClient memberCertClient;
 
     @BeforeAll

@@ -154,7 +154,8 @@ export const NewAppIdentity = () => {
                   {...register('appId', { pattern: APP_ID_PATTERN })}
                 />
                 <FormHelperText pl={1}>
-                  Register the app identity with a project before accessing it.
+                  A unique identifier for the application. It must be registered with a project to access
+                  repositories.
                 </FormHelperText>
                 {errors.appId && (
                   <FormErrorMessage>The first/last character must be alphanumeric</FormErrorMessage>
@@ -172,7 +173,8 @@ export const NewAppIdentity = () => {
                     })}
                   />
                   <FormHelperText pl={1}>
-                    The ID of the client certificate to be used for mTLS authentication.
+                    An identifier extracted from the client certificate for mTLS authentication, e.g., Common
+                    Name (CN) or SPIFFE ID in SAN.
                   </FormHelperText>
                   {errors.certificateId && <FormErrorMessage>Certificate ID is required</FormErrorMessage>}
                 </FormControl>

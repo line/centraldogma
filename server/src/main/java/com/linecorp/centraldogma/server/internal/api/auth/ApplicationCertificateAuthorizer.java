@@ -60,7 +60,7 @@ public final class ApplicationCertificateAuthorizer implements Authorizer<HttpRe
             AttributeKey.valueOf(ApplicationCertificateAuthorizer.class, "CERTIFICATE_ID");
 
     // TODO(minwoox): Make it configurable via SPI.
-    private static final ApplicationCertificateIdExtractor ID_EXTRACTOR = SpiffeIdExtractor.INSTANCE;
+    private static final ApplicationCertificateIdExtractor ID_EXTRACTOR = CommonNameExtractor.INSTANCE;
 
     private final Function<String, CertificateAppIdentity> certificateLookupFunc;
 
