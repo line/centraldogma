@@ -96,7 +96,11 @@ public final class AppIdentityRegistryService extends AbstractService {
         if (loginUser.isSystemAdmin()) {
             return mds.getAppIdentityRegistry().appIds().values();
         } else {
-            return mds.getAppIdentityRegistry().withoutSecret().appIds().values();
+            return mds.getAppIdentityRegistry()
+                      .withoutSecret()
+                      .appIds()
+                      .values().stream().filter(appIdentity -> !appIdentity.isSystemAdmin())
+                      .collect(toImmutableList());
         }
     }
 
