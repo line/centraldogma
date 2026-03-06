@@ -111,9 +111,6 @@ abstract class AbstractGitMirror extends AbstractMirror {
 
     private static final byte[] EMPTY_BYTE = new byte[0];
 
-    private static final Pattern DISALLOWED_CHARS = Pattern.compile("[^-_a-zA-Z]");
-    private static final Pattern CONSECUTIVE_UNDERSCORES = Pattern.compile("_+");
-
     private static final int GIT_TIMEOUT_SECS = 60;
 
     private static final String HEAD_REF_MASTER = Constants.R_HEADS + Constants.MASTER;
@@ -139,11 +136,10 @@ abstract class AbstractGitMirror extends AbstractMirror {
     GitWithAuth openGit(File workDir,
                         URIish remoteUri,
                         Consumer<TransportCommand<?, ?>> configurator) throws IOException, GitAPIException {
+        // Create a unique directory name to avoid conflicts with other mirroring tasks.
+        final String dirName = localRepo().parent().name() + '-' + localRepo().name() + '-' + id();
         // Now create and open the repository.
-        final File repoDir = new File(
-                workDir,
-                CONSECUTIVE_UNDERSCORES.matcher(DISALLOWED_CHARS.matcher(
-                        remoteRepoUri().toASCIIString()).replaceAll("_")).replaceAll("_"));
+        final File repoDir = new File(workDir, dirName);
         final GitWithAuth git = new GitWithAuth(this, repoDir, remoteUri, configurator);
         boolean success = false;
         try {
