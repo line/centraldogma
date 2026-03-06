@@ -56,7 +56,7 @@ import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
 final class CertificateAppIdentityAuthTest {
 
-    private static final String CERT_ID = "centraldogma.com/my-client";
+    private static final String CERT_ID = "my-client";
 
     @Order(1)
     @RegisterExtension
@@ -69,8 +69,7 @@ final class CertificateAppIdentityAuthTest {
     @Order(3)
     @RegisterExtension
     static final SignedCertificateExtension clientCert =
-            new SignedCertificateExtension("my-client", ca,
-                                           ImmutableList.of("spiffe://" + CERT_ID));
+            new SignedCertificateExtension("my-client", ca);
 
     @RegisterExtension
     static final CentralDogmaExtension dogma = new CentralDogmaExtension() {
