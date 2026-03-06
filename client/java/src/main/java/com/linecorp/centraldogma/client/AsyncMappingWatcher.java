@@ -30,6 +30,7 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 import java.util.function.Function;
 
 import static com.google.common.base.MoreObjects.toStringHelper;
@@ -71,17 +72,27 @@ final class AsyncMappingWatcher<T, U> implements Watcher<U> {
             initialValueFuture.completeExceptionally(cause);
             return null;
         });
+        final Consumer<Throwable> reportFailure = (e) -> {
+            logger.warn("Unexpected exception is raised from mapper.apply(). mapper: {}", mapper, e);
+            if (!initialValueFuture.isDone()) {
+                initialValueFuture.completeExceptionally(e);
+            }
+            close();
+        };
         parent.watch((revision, value) -> {
             if (closed) {
                 return;
             }
-            mapper.apply(value).whenComplete((mappedValue, e) -> {
+            final CompletableFuture<? extends U> mappedValueFuture;
+            try {
+                mappedValueFuture = mapper.apply(value);
+            } catch (Exception e) {
+                reportFailure.accept(e);
+                return;
+            }
+            mappedValueFuture.whenComplete((mappedValue, e) -> {
                 if (null != e) {
-                    logger.warn("Unexpected exception is raised from mapper.apply(). mapper: {}", mapper, e);
-                    if (!initialValueFuture.isDone()) {
-                        initialValueFuture.completeExceptionally(e);
-                    }
-                    close();
+                    reportFailure.accept(e);
                     return;
                 }
 
