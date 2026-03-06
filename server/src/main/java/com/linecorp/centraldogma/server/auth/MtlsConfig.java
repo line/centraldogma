@@ -16,9 +16,9 @@
 package com.linecorp.centraldogma.server.auth;
 
 import static com.google.common.base.MoreObjects.firstNonNull;
-import static com.linecorp.centraldogma.server.CentralDogmaConfig.convertValue;
 
-import java.io.ByteArrayInputStream;
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.InputStream;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
@@ -41,7 +41,7 @@ public final class MtlsConfig {
     private static final MtlsConfig DISABLED = new MtlsConfig(false, ImmutableList.of());
 
     private final boolean enabled;
-    private final List<String> caCertificateFiles;
+    private final List<File> caCertificateFiles;
 
     /**
      * Returns a disabled mTLS configuration.
@@ -54,11 +54,11 @@ public final class MtlsConfig {
      * Creates a new instance.
      *
      * @param enabled whether mTLS is enabled
-     * @param caCertificateFiles the list of CA certificate file paths
+     * @param caCertificateFiles the list of CA certificate files
      */
     @JsonCreator
     public MtlsConfig(@JsonProperty("enabled") @Nullable Boolean enabled,
-                      @JsonProperty("caCertificateFiles") @Nullable List<String> caCertificateFiles) {
+                      @JsonProperty("caCertificateFiles") @Nullable List<File> caCertificateFiles) {
         this.enabled = firstNonNull(enabled, false);
         this.caCertificateFiles = caCertificateFiles != null ? ImmutableList.copyOf(caCertificateFiles)
                                                              : ImmutableList.of();
@@ -73,10 +73,10 @@ public final class MtlsConfig {
     }
 
     /**
-     * Returns the list of CA certificate file paths.
+     * Returns the list of CA certificate files.
      */
     @JsonProperty
-    public List<String> caCertificateFiles() {
+    public List<File> caCertificateFiles() {
         return caCertificateFiles;
     }
 
@@ -85,23 +85,14 @@ public final class MtlsConfig {
      */
     public List<X509Certificate> caCertificates() {
         final List<X509Certificate> certificates = new ArrayList<>();
-        for (String caCertFile : caCertificateFiles) {
-            try (InputStream certInputStream = caCertInputStream(caCertFile)) {
+        for (File caCertFile : caCertificateFiles) {
+            try (InputStream certInputStream = new FileInputStream(caCertFile)) {
                 certificates.addAll(CertificateUtil.toX509Certificates(certInputStream));
             } catch (Exception e) {
                 throw new RuntimeException("Failed to load CA certificate from " + caCertFile, e);
             }
         }
         return certificates;
-    }
-
-    private static InputStream caCertInputStream(String caCertFile) {
-        final String converted = convertValue(caCertFile, "mtls.caCertificateFiles");
-        if (converted == null) {
-            throw new NullPointerException(
-                    "mtls.caCertificateFiles" + '(' + caCertFile + ") is converted to null.");
-        }
-        return new ByteArrayInputStream(converted.getBytes());
     }
 
     @Override

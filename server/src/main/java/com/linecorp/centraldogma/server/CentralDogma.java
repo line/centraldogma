@@ -718,13 +718,8 @@ public class CentralDogma implements AutoCloseable {
         final boolean needsTls =
                 cfg.ports().stream().anyMatch(ServerPort::hasTls) ||
                 (cfg.managementConfig() != null && cfg.managementConfig().protocol().isTls());
-        boolean mtlsEnabled;
         final AuthConfig authConfig = cfg.authConfig();
-        if (authConfig != null && authConfig.mtlsConfig().enabled()) {
-            mtlsEnabled = true;
-        } else {
-            mtlsEnabled = false;
-        }
+        final boolean mtlsEnabled = authConfig != null && authConfig.mtlsConfig().enabled();
 
         if (needsTls) {
             try {
@@ -752,7 +747,9 @@ public class CentralDogma implements AutoCloseable {
                         sb.tlsProvider(tlsProviderBuilder.build(), serverTlsConfigBuilder.build());
                     }
                 } else {
-                    mtlsEnabled = false;
+                    if (mtlsEnabled) {
+                        throw new IllegalStateException("mTLS is enabled but TLS key/cert is not configured.");
+                    }
                     logger.warn(
                             "Missing TLS configuration. Generating a self-signed certificate for TLS support.");
                     sb.tlsSelfSigned();
@@ -761,8 +758,7 @@ public class CentralDogma implements AutoCloseable {
                 Exceptions.throwUnsafely(e);
             }
         } else if (mtlsEnabled) {
-            mtlsEnabled = false;
-            logger.warn("mTLS is enabled but no TLS is configured. Ignoring mTLS configuration.");
+            throw new IllegalStateException("mTLS is enabled but no TLS port is configured.");
         }
 
         sb.clientAddressSources(cfg.clientAddressSourceList());

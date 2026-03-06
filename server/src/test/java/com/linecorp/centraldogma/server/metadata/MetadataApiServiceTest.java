@@ -101,7 +101,7 @@ class MetadataApiServiceTest {
             builder.tls(
                     new TlsConfig(serverCert.certificateFile(), serverCert.privateKeyFile(), null, null, null));
             builder.mtlsConfig(
-                    new MtlsConfig(true, ImmutableList.of("file:" + ca.certificateFile().getAbsolutePath())));
+                    new MtlsConfig(true, ImmutableList.of(ca.certificateFile())));
             builder.systemAdministrators(USERNAME);
         }
 

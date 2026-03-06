@@ -205,7 +205,7 @@ public class DefaultProject implements Project {
             final Map<String, AppIdentityRegistration> appIds;
             if (author.isAppIdentity()) {
                 members = ImmutableMap.of();
-                // author.name() is the appId of the token.
+                // author.name() is the appId of the app identity.
                 final AppIdentityRegistration appIdentityRegistration =
                         new AppIdentityRegistration(author.name(), ProjectRole.OWNER, userAndTimestamp);
 

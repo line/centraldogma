@@ -93,8 +93,8 @@ class ConfigDeserializationTest {
         final Path caCertFile2 = createTempFile(tempDir, "", "");
         Files.write(caCertFile2, "ca-cert-2".getBytes(StandardCharsets.UTF_8));
 
-        final String caCert1 = Jackson.escapeText("file:" + caCertFile1.toAbsolutePath());
-        final String caCert2 = Jackson.escapeText("file:" + caCertFile2.toAbsolutePath());
+        final String caCert1 = Jackson.escapeText(caCertFile1.toAbsolutePath().toString());
+        final String caCert2 = Jackson.escapeText(caCertFile2.toAbsolutePath().toString());
         final String jsonConfig = String.format("{\"mtls\": {" +
                                                 "\"enabled\": true, " +
                                                 "\"caCertificateFiles\": [\"%s\", \"%s\"]" +
@@ -111,7 +111,7 @@ class ConfigDeserializationTest {
         final SelfSignedCertificate ssc = new SelfSignedCertificate();
         final Path caCertFile = ssc.certificate().toPath();
 
-        final String caCert = Jackson.escapeText("file:" + caCertFile.toAbsolutePath());
+        final String caCert = Jackson.escapeText(caCertFile.toAbsolutePath().toString());
         final String jsonConfig = String.format("{\"mtls\": {" +
                                                 "\"enabled\": true, " +
                                                 "\"caCertificateFiles\": [\"%s\"]" +
