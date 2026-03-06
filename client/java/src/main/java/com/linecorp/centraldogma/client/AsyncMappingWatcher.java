@@ -28,6 +28,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 
@@ -52,9 +53,14 @@ final class AsyncMappingWatcher<T, U> implements Watcher<U> {
     private final List<Entry<BiConsumer<? super Revision, ? super U>, Executor>> updateListeners =
             new CopyOnWriteArrayList<>();
 
-    @Nullable
-    private volatile Latest<U> mappedLatest;
+    private final AtomicReference<@Nullable Latest<U>> mappedLatest = new AtomicReference<>();
     private volatile boolean closed;
+
+    private static <U> boolean isUpdate(Latest<U> newLatest, @Nullable Latest<U> existing) {
+        if (existing == null) return true;
+        if (Objects.equals(existing.value(), newLatest.value())) return false;
+        return newLatest.revision().compareTo(existing.revision()) >= 0;
+    }
 
     AsyncMappingWatcher(Watcher<T> parent, Function<? super T, ? extends CompletableFuture<? extends U>> mapper,
                         boolean closeParentWhenClosing) {
@@ -78,14 +84,15 @@ final class AsyncMappingWatcher<T, U> implements Watcher<U> {
                     close();
                     return;
                 }
-                final Latest<U> oldLatest = mappedLatest;
-                if (oldLatest != null && Objects.equals(oldLatest.value(), mappedValue)) {
-                    return;
-                }
 
                 // mappedValue can be nullable which is fine.
                 final Latest<U> newLatest = new Latest<>(revision, mappedValue);
-                mappedLatest = newLatest;
+                final Latest<U> oldLatest = mappedLatest.getAndUpdate(
+                        existing -> isUpdate(newLatest, existing) ? newLatest : existing
+                );
+                if (!isUpdate(newLatest, oldLatest)) {
+                    return;
+                }
                 notifyListeners(newLatest);
                 if (!initialValueFuture.isDone()) {
                     initialValueFuture.complete(newLatest);
@@ -128,7 +135,7 @@ final class AsyncMappingWatcher<T, U> implements Watcher<U> {
 
     @Override
     public Latest<U> latest() {
-        final Latest<U> mappedLatest = this.mappedLatest;
+        final Latest<U> mappedLatest = this.mappedLatest.get();
         if (mappedLatest == null) {
             throw new IllegalStateException("value not available yet");
         }
@@ -157,7 +164,7 @@ final class AsyncMappingWatcher<T, U> implements Watcher<U> {
         requireNonNull(executor, "executor");
         updateListeners.add(Maps.immutableEntry(listener, executor));
 
-        final Latest<U> mappedLatest = this.mappedLatest;
+        final Latest<U> mappedLatest = this.mappedLatest.get();
         if (mappedLatest != null) {
             // There's a chance that listener.accept(...) is called twice for the same value
             // if this watch method is called:
