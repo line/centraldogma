@@ -18,10 +18,10 @@ import SettingView from 'dogma/features/settings/SettingView';
 import Router from 'next/router';
 
 const SystemSettingsPage = () => {
-  Router.push('/app/settings/tokens');
+  Router.push('/app/settings/app-identities');
   return (
     <>
-      <SettingView currentTab={'Application Tokens'}>
+      <SettingView currentTab={'Application Identities'}>
         <div>Redirecting...</div>
       </SettingView>
     </>

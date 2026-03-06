@@ -11,6 +11,7 @@ import StoreProvider from 'dogma/StoreProvider';
 import { Loading } from 'dogma/common/components/Loading';
 import Head from 'next/head';
 import { useAppSelector } from 'dogma/hooks';
+import { ServerConfigLoader } from 'dogma/features/server-config/ServerConfigLoader';
 
 const WEB_AUTH_LOGIN = '/web/auth/login';
 
@@ -55,12 +56,14 @@ const DogmaApp = ({ Component, pageProps }: AppPropsWithLayout) => {
 
   return (
     <StoreProvider>
-      <GlobalCsrfMetaTag />
-      <ChakraProvider theme={theme}>
-        <NotificationWrapper>
-          <Authorized>{getLayout(<Component {...pageProps} />)}</Authorized>
-        </NotificationWrapper>
-      </ChakraProvider>
+      <ServerConfigLoader>
+        <GlobalCsrfMetaTag />
+        <ChakraProvider theme={theme}>
+          <NotificationWrapper>
+            <Authorized>{getLayout(<Component {...pageProps} />)}</Authorized>
+          </NotificationWrapper>
+        </ChakraProvider>
+      </ServerConfigLoader>
     </StoreProvider>
   );
 };

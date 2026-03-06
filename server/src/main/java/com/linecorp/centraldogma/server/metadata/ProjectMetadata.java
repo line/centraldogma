@@ -69,9 +69,9 @@ public class ProjectMetadata implements Identifiable, HasWeight {
     private final Map<String, Member> members;
 
     /**
-     * Tokens which belong to this project.
+     * App identities which belong to this project.
      */
-    private final Map<String, TokenRegistration> appIds;
+    private final Map<String, AppIdentityRegistration> appIds;
 
     /**
      * Specifies when this project is created by whom.
@@ -91,8 +91,8 @@ public class ProjectMetadata implements Identifiable, HasWeight {
     public ProjectMetadata(@JsonProperty("name") String name,
                            @JsonProperty("repos") Map<String, RepositoryMetadata> repos,
                            @JsonProperty("members") Map<String, Member> members,
-                           @JsonProperty("tokens") @Nullable Map<String, TokenRegistration> tokens,
-                           @JsonProperty("appIds") @Nullable Map<String, TokenRegistration> appIds,
+                           @JsonProperty("tokens") @Nullable Map<String, AppIdentityRegistration> tokens,
+                           @JsonProperty("appIds") @Nullable Map<String, AppIdentityRegistration> appIds,
                            @JsonProperty("creation") UserAndTimestamp creation,
                            @JsonProperty("removal") @Nullable UserAndTimestamp removal) {
         this.name = requireNonNull(name, "name");
@@ -142,10 +142,10 @@ public class ProjectMetadata implements Identifiable, HasWeight {
     }
 
     /**
-     * Returns the {@link TokenRegistration}s of this project.
+     * Returns the {@link AppIdentityRegistration}s of this project.
      */
     @JsonProperty
-    public Map<String, TokenRegistration> appIds() {
+    public Map<String, AppIdentityRegistration> appIds() {
         return appIds;
     }
 
@@ -203,15 +203,16 @@ public class ProjectMetadata implements Identifiable, HasWeight {
     }
 
     /**
-     * Returns the {@link TokenRegistration} of the specified application ID in this project.
+     * Returns the {@link AppIdentityRegistration} of the specified application ID in this project.
      */
     @Nullable
-    public TokenRegistration tokenOrDefault(String appId, @Nullable TokenRegistration defaultToken) {
-        final TokenRegistration token = appIds.get(requireNonNull(appId, "appId"));
-        if (token != null) {
-            return token;
+    public AppIdentityRegistration appIdentityOrDefault(String appId,
+                                                        @Nullable AppIdentityRegistration defaultAppIdentity) {
+        final AppIdentityRegistration appIdentityRegistration = appIds.get(requireNonNull(appId, "appId"));
+        if (appIdentityRegistration != null) {
+            return appIdentityRegistration;
         }
-        return defaultToken;
+        return defaultAppIdentity;
     }
 
     @Override
@@ -223,8 +224,8 @@ public class ProjectMetadata implements Identifiable, HasWeight {
         for (Member member : members.values()) {
             weight += member.weight();
         }
-        for (TokenRegistration token : appIds.values()) {
-            weight += token.weight();
+        for (AppIdentityRegistration appIdentityRegistration : appIds.values()) {
+            weight += appIdentityRegistration.weight();
         }
 
         return weight;

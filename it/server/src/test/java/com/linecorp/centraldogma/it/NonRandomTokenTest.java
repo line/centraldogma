@@ -53,13 +53,14 @@ class NonRandomTokenTest {
                                                      .auth(AuthToken.ofOAuth2(accessToken)).build();
 
         final HttpRequest request = HttpRequest.builder()
-                                               .post("/api/v1/tokens")
+                                               .post("/api/v1/appIdentities")
                                                .content(MediaType.FORM_DATA,
-                                                        "secret=appToken-secret&isSystemAdmin=true&appId=foo")
+                                                        "secret=appToken-secret&type=TOKEN" +
+                                                        "&isSystemAdmin=true&appId=foo")
                                                .build();
         AggregatedHttpResponse res = systemAdminClient.execute(request).aggregate().join();
         assertThat(res.status()).isEqualTo(HttpStatus.CREATED);
-        res = systemAdminClient.get("/api/v1/tokens").aggregate().join();
+        res = systemAdminClient.get("/api/v1/appIdentities").aggregate().join();
         assertThat(res.contentUtf8()).contains("\"secret\":\"appToken-secret\"");
     }
 }

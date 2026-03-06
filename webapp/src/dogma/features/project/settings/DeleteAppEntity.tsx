@@ -9,7 +9,7 @@ type DeleteEntityProps = {
   projectName: string;
   repoName?: string;
   id: string;
-  entityType: 'member' | 'token' | 'user';
+  entityType: 'member' | 'appIdentity' | 'user';
   deleteEntity: (projectName: string, id: string, repoName?: string) => Promise<void>;
   isLoading: boolean;
 };

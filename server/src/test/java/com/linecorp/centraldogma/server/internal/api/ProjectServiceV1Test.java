@@ -56,9 +56,9 @@ import com.linecorp.centraldogma.internal.Util;
 import com.linecorp.centraldogma.internal.api.v1.ProjectDto;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.server.internal.admin.auth.SessionUtil;
+import com.linecorp.centraldogma.server.metadata.AppIdentityRegistration;
 import com.linecorp.centraldogma.server.metadata.Member;
 import com.linecorp.centraldogma.server.metadata.ProjectMetadata;
-import com.linecorp.centraldogma.server.metadata.TokenRegistration;
 import com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil;
 import com.linecorp.centraldogma.testing.internal.auth.TestAuthProviderFactory;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
@@ -124,9 +124,9 @@ class ProjectServiceV1Test {
         projectMetadata = createProjectAndReturnMetadata(tokenClient, "myPro2");
         assertThat(projectMetadata.members()).isEmpty();
         assertThat(projectMetadata.appIds().size()).isOne();
-        final TokenRegistration tokenRegistration = projectMetadata.appIds().get("appId2");
-        assertThat(tokenRegistration.id()).isEqualTo("appId2");
-        assertThat(tokenRegistration.role()).isEqualTo(ProjectRole.OWNER);
+        final AppIdentityRegistration appIdentityRegistration = projectMetadata.appIds().get("appId2");
+        assertThat(appIdentityRegistration.id()).isEqualTo("appId2");
+        assertThat(appIdentityRegistration.role()).isEqualTo(ProjectRole.OWNER);
     }
 
     static ResponseEntity<ProjectDto> createProject(BlockingWebClient client, String name) {

@@ -63,8 +63,8 @@ import com.linecorp.centraldogma.common.TextPatchConflictException;
 import com.linecorp.centraldogma.common.jsonpatch.JsonPatchConflictException;
 import com.linecorp.centraldogma.server.internal.storage.RequestAlreadyTimedOutException;
 import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryMetadataException;
+import com.linecorp.centraldogma.server.metadata.AppIdentityNotFoundException;
 import com.linecorp.centraldogma.server.metadata.MemberNotFoundException;
-import com.linecorp.centraldogma.server.metadata.TokenNotFoundException;
 
 /**
  * A default {@link ExceptionHandlerFunction} of HTTP API.
@@ -113,7 +113,7 @@ public final class HttpApiExceptionHandler implements ServerErrorHandler {
                .put(RevisionNotFoundException.class,
                     (ctx, cause) -> newResponse(ctx, HttpStatus.NOT_FOUND, cause,
                                                 "Revision %s does not exist.", cause.getMessage()))
-               .put(TokenNotFoundException.class,
+               .put(AppIdentityNotFoundException.class,
                     (ctx, cause) -> newResponse(ctx, HttpStatus.NOT_FOUND, cause, cause.getMessage()))
                .put(MemberNotFoundException.class,
                     (ctx, cause) -> newResponse(ctx, HttpStatus.NOT_FOUND, cause, cause.getMessage()))

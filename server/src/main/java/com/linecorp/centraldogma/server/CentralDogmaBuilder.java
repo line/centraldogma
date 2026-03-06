@@ -45,6 +45,7 @@ import com.linecorp.armeria.server.ServerPort;
 import com.linecorp.centraldogma.server.auth.AuthConfig;
 import com.linecorp.centraldogma.server.auth.AuthProvider;
 import com.linecorp.centraldogma.server.auth.AuthProviderFactory;
+import com.linecorp.centraldogma.server.auth.MtlsConfig;
 import com.linecorp.centraldogma.server.auth.Session;
 import com.linecorp.centraldogma.server.plugin.Plugin;
 import com.linecorp.centraldogma.server.plugin.PluginConfig;
@@ -122,6 +123,7 @@ public final class CentralDogmaBuilder {
     private String sessionCacheSpec = DEFAULT_SESSION_CACHE_SPEC;
     private long sessionTimeoutMillis = DEFAULT_SESSION_TIMEOUT_MILLIS;
     private String sessionValidationSchedule = DEFAULT_SESSION_VALIDATION_SCHEDULE;
+    private MtlsConfig mtlsConfig = MtlsConfig.disabled();
     @Nullable
     private Object authProviderProperties;
     private MeterRegistry meterRegistry = Flags.meterRegistry();
@@ -490,6 +492,14 @@ public final class CentralDogmaBuilder {
     }
 
     /**
+     * Sets the mTLS configuration.
+     */
+    public CentralDogmaBuilder mtlsConfig(MtlsConfig mtlsConfig) {
+        this.mtlsConfig = requireNonNull(mtlsConfig, "mtlsConfig");
+        return this;
+    }
+
+    /**
      * Sets an additional properties for an {@link AuthProviderFactory}.
      */
     public CentralDogmaBuilder authProviderProperties(Object authProviderProperties) {
@@ -602,7 +612,7 @@ public final class CentralDogmaBuilder {
             authCfg = new AuthConfig(
                     authProviderFactory, systemAdminSet, caseSensitiveLoginNames,
                     sessionCacheSpec, sessionTimeoutMillis, sessionValidationSchedule,
-                    authProviderProperties);
+                    mtlsConfig, authProviderProperties);
         } else {
             authCfg = null;
             logger.info("{} is not specified, so {} will not be configured.",
