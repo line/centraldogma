@@ -36,9 +36,9 @@ import com.linecorp.centraldogma.common.Revision;
 abstract class AbstractMappingWatcher<T, U> implements Watcher<U> {
     private static final Logger logger = LoggerFactory.getLogger(AbstractMappingWatcher.class);
 
-    protected final CompletableFuture<Latest<U>> initialValueFuture = new CompletableFuture<>();
-    protected volatile boolean closed;
-    protected final Watcher<T> parent;
+    final CompletableFuture<Latest<U>> initialValueFuture = new CompletableFuture<>();
+    volatile boolean closed;
+    final Watcher<T> parent;
 
     private final boolean closeParentWhenClosing;
     private final List<Map.Entry<BiConsumer<? super Revision, ? super U>, Executor>> updateListeners =
