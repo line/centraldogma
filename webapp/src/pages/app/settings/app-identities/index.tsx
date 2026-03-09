@@ -14,19 +14,13 @@ import { ActivateAppIdentity } from 'dogma/features/app-identity/ActivateAppIden
 import { DeleteAppIdentity } from 'dogma/features/app-identity/DeleteAppIdentity';
 import { Deferred } from 'dogma/common/components/Deferred';
 import SettingView from 'dogma/features/settings/SettingView';
+import { useAppSelector } from 'dogma/hooks';
 
 const AppIdentityPage = () => {
+  const systemAdmin = useAppSelector((state) => state.auth.user?.systemAdmin ?? false);
   const columnHelper = createColumnHelper<AppIdentityDto>();
   const columns = useMemo(
     () => [
-      columnHelper.accessor((row: AppIdentityDto) => row.type, {
-        cell: (info) => (
-          <Badge colorScheme={info.getValue() === 'TOKEN' ? 'purple' : 'green'}>
-            {info.getValue() === 'TOKEN' ? 'Token' : 'Certificate'}
-          </Badge>
-        ),
-        header: 'Type',
-      }),
       columnHelper.accessor((row: AppIdentityDto) => row.appId, {
         cell: (info) => {
           const identity = info.row.original;
@@ -47,10 +41,22 @@ const AppIdentityPage = () => {
         },
         header: 'Application ID',
       }),
-      columnHelper.accessor((row: AppIdentityDto) => row.systemAdmin, {
-        cell: (info) => <UserRole role={info.getValue() ? 'System Admin' : 'User'} />,
-        header: 'Level',
+      columnHelper.accessor((row: AppIdentityDto) => row.type, {
+        cell: (info) => (
+          <Badge colorScheme={info.getValue() === 'TOKEN' ? 'purple' : 'green'}>
+            {info.getValue() === 'TOKEN' ? 'Token' : 'Certificate'}
+          </Badge>
+        ),
+        header: 'Type',
       }),
+      ...(systemAdmin
+        ? [
+            columnHelper.accessor((row: AppIdentityDto) => row.systemAdmin, {
+              cell: (info) => <UserRole role={info.getValue() ? 'System Admin' : 'User'} />,
+              header: 'Level',
+            }),
+          ]
+        : []),
       columnHelper.accessor((row: AppIdentityDto) => row.creation.user, {
         cell: (info) => <Text>{info.getValue()}</Text>,
         header: 'Created By',
@@ -79,7 +85,7 @@ const AppIdentityPage = () => {
         enableSorting: false,
       }),
     ],
-    [columnHelper],
+    [columnHelper, systemAdmin],
   );
   const { data, error, isLoading } = useGetAppIdentitiesQuery();
   return (
