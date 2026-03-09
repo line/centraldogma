@@ -122,7 +122,6 @@ class WatcherTest {
         originalWatcher.close();
     }
 
-
     @Test
     void mapperAsyncFailure() {
         final Watcher<String> originalWatcher = dogma.client()
@@ -130,13 +129,13 @@ class WatcherTest {
                 .watcher(Query.ofText("/baz.txt"))
                 .start();
         originalWatcher.initialValueFuture().join();
-        final Watcher<String> watcher = originalWatcher.newChildAsync(unused -> CompletableFuture.failedFuture(new RuntimeException()))
+        final Watcher<String> watcher = originalWatcher.newChildAsync(unused ->
+                        CompletableFuture.failedFuture(new RuntimeException()))
                 .newChild(val -> "not called");
         await().untilAsserted(() -> assertThatThrownBy(() -> watcher.initialValueFuture().join())
                 .hasCauseExactlyInstanceOf(RuntimeException.class));
         originalWatcher.close();
     }
-
 
     @Test
     void mapperAsyncException() {
