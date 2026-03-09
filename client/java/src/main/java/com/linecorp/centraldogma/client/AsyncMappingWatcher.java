@@ -99,6 +99,9 @@ final class AsyncMappingWatcher<T, U> implements Watcher<U> {
                 return;
             }
             mappedValueFuture.whenComplete((mappedValue, e) -> {
+                if (closed) {
+                    return;
+                }
                 if (null != e) {
                     reportFailure.accept(e);
                     return;
