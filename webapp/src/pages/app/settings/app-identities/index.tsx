@@ -17,7 +17,7 @@ import SettingView from 'dogma/features/settings/SettingView';
 import { useAppSelector } from 'dogma/hooks';
 
 const AppIdentityPage = () => {
-  const systemAdmin = useAppSelector((state) => state.auth.user.systemAdmin);
+  const systemAdmin = useAppSelector((state) => state.auth.user?.systemAdmin ?? false);
   const columnHelper = createColumnHelper<AppIdentityDto>();
   const columns = useMemo(
     () => [
