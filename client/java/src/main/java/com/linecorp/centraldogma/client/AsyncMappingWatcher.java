@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2026 LINE Corporation
+ * Copyright 2026 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -15,11 +15,8 @@
  */
 package com.linecorp.centraldogma.client;
 
-import com.google.common.collect.Maps;
-import com.linecorp.centraldogma.common.Revision;
-import org.jspecify.annotations.Nullable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import static com.google.common.base.MoreObjects.toStringHelper;
+import static java.util.Objects.requireNonNull;
 
 import java.util.List;
 import java.util.Map.Entry;
@@ -33,14 +30,21 @@ import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
-import static com.google.common.base.MoreObjects.toStringHelper;
-import static java.util.Objects.requireNonNull;
+import org.jspecify.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.google.common.collect.Maps;
+
+import com.linecorp.centraldogma.common.Revision;
 
 final class AsyncMappingWatcher<T, U> implements Watcher<U> {
 
     private static final Logger logger = LoggerFactory.getLogger(AsyncMappingWatcher.class);
 
-    static <T, U> AsyncMappingWatcher<T, U> of(Watcher<T> parent, Function<? super T, ? extends CompletableFuture<? extends U>> mapper,
+    static <T, U> AsyncMappingWatcher<T, U> of(Watcher<T> parent,
+                                               Function<? super T, ? extends CompletableFuture<? extends U>>
+                                                       mapper,
                                                boolean closeParentWhenClosing) {
         requireNonNull(parent, "parent");
         requireNonNull(mapper, "mapper");
@@ -58,8 +62,12 @@ final class AsyncMappingWatcher<T, U> implements Watcher<U> {
     private volatile boolean closed;
 
     private static <U> boolean isUpdate(Latest<U> newLatest, @Nullable Latest<U> existing) {
-        if (existing == null) return true;
-        if (Objects.equals(existing.value(), newLatest.value())) return false;
+        if (existing == null) {
+            return true;
+        }
+        if (Objects.equals(existing.value(), newLatest.value())) {
+            return false;
+        }
         return newLatest.revision().compareTo(existing.revision()) >= 0;
     }
 
@@ -109,7 +117,6 @@ final class AsyncMappingWatcher<T, U> implements Watcher<U> {
                     initialValueFuture.complete(newLatest);
                 }
             });
-
         });
     }
 
