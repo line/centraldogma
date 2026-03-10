@@ -18,22 +18,16 @@ package com.linecorp.centraldogma.client;
 import static com.google.common.base.MoreObjects.toStringHelper;
 import static java.util.Objects.requireNonNull;
 
-import java.util.List;
-import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
-import java.util.function.Consumer;
 import java.util.function.Function;
 
+import com.linecorp.centraldogma.common.Revision;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.linecorp.centraldogma.common.Revision;
 
 final class AsyncMappingWatcher<T, U> extends AbstractMappingWatcher<T, U> {
 
@@ -49,9 +43,6 @@ final class AsyncMappingWatcher<T, U> extends AbstractMappingWatcher<T, U> {
     }
 
     private final Function<? super T, ? extends CompletableFuture<? extends U>> mapper;
-    private final List<Entry<BiConsumer<? super Revision, ? super U>, Executor>> updateListeners =
-            new CopyOnWriteArrayList<>();
-
     private final AtomicReference<@Nullable Latest<U>> mappedLatest = new AtomicReference<>();
 
     private static <U> boolean isUpdate(Latest<U> newLatest, @Nullable Latest<U> existing) {
@@ -72,8 +63,8 @@ final class AsyncMappingWatcher<T, U> extends AbstractMappingWatcher<T, U> {
             initialValueFuture.completeExceptionally(cause);
             return null;
         });
-        final Consumer<Throwable> reportFailure = (e) -> {
-            logger.warn("Unexpected exception is raised from mapper.apply(). mapper: {}", mapper, e);
+        final BiConsumer<Throwable, Revision> reportFailure = (e, r) -> {
+            logger.warn("Unexpected exception is raised from mapper.apply(). mapper: {}, revision {}", mapper, r, e);
             if (!initialValueFuture.isDone()) {
                 initialValueFuture.completeExceptionally(e);
             }
@@ -87,7 +78,7 @@ final class AsyncMappingWatcher<T, U> extends AbstractMappingWatcher<T, U> {
             try {
                 mappedValueFuture = mapper.apply(value);
             } catch (Exception e) {
-                reportFailure.accept(e);
+                reportFailure.accept(e, revision);
                 return;
             }
             mappedValueFuture.whenComplete((mappedValue, e) -> {
@@ -95,7 +86,7 @@ final class AsyncMappingWatcher<T, U> extends AbstractMappingWatcher<T, U> {
                     return;
                 }
                 if (null != e) {
-                    reportFailure.accept(e);
+                    reportFailure.accept(e, revision);
                     return;
                 }
 
@@ -126,6 +117,6 @@ final class AsyncMappingWatcher<T, U> extends AbstractMappingWatcher<T, U> {
 
     @Override
     protected @Nullable Latest<U> mappedLatest() {
-        return this.mappedLatest.get();
+        return mappedLatest.get();
     }
 }

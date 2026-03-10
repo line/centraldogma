@@ -99,7 +99,7 @@ class WatcherTest {
                                                      .watcher(Query.ofText("/baz.txt"))
                                                      .start();
         final Watcher<Boolean> watcher = originalWatcher
-                .newChild(txt -> 1)
+                .newChildAsync(txt -> CompletableFuture.completedFuture(1))
                 .newChild(intValue -> Integer.toString(intValue))
                 .newChild("1"::equals);
 
