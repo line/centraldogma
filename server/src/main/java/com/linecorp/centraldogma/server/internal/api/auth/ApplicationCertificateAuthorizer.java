@@ -72,10 +72,12 @@ public final class ApplicationCertificateAuthorizer implements Authorizer<HttpRe
     public CompletionStage<Boolean> authorize(ServiceRequestContext ctx, HttpRequest data) {
         final Channel channel = ctx.log().ensureAvailable(RequestLogProperty.SESSION).channel();
         assert channel != null;
+        logger.trace("ApplicationCertificateAuthorizer.authorize({})", ctx);
         if (channel.hasAttr(CERTIFICATE_ID)) {
             final Attribute<CertificateId> attr = channel.attr(CERTIFICATE_ID);
             final CertificateId pair = attr.get();
             if (pair == NOT_FOUND) {
+                logger.trace("pair not found: addr={}", ctx.clientAddress());
                 return UnmodifiableFuture.completedFuture(false);
             } else {
                 final String certificateId = pair.certificateId;
@@ -84,23 +86,28 @@ public final class ApplicationCertificateAuthorizer implements Authorizer<HttpRe
             }
         }
         final SSLSession sslSession = ctx.sslSession();
+        logger.trace("SSL session: addr={}, sslSession={}", ctx.clientAddress(), sslSession);
         if (sslSession == null) {
             return returnUnauthorized(channel);
         }
 
         if (sslSession instanceof OpenSslSession && !((OpenSslSession) sslSession).hasPeerCertificates()) {
+            logger.trace("No peer certificate: addr={}", ctx.clientAddress());
             return returnUnauthorized(channel);
         }
 
         final Certificate[] peerCertificates;
         try {
             peerCertificates = sslSession.getPeerCertificates();
+            logger.trace("Peer certificates: addr={}, peerCertificates={}",
+                         ctx.clientAddress(), peerCertificates);
         } catch (SSLPeerUnverifiedException e) {
             // TODO(minwoox): Fix not to raise an exception for no peer certificate.
             return returnUnauthorized(channel);
         }
 
         if (peerCertificates.length == 0) {
+            logger.trace("peer certificate is empty: addr={}", ctx.clientAddress());
             return returnUnauthorized(channel);
         }
 
@@ -142,12 +149,16 @@ public final class ApplicationCertificateAuthorizer implements Authorizer<HttpRe
     private UnmodifiableFuture<Boolean> handleCertificateId(ServiceRequestContext ctx, String certificateId) {
         try {
             final CertificateAppIdentity certificate = certificateLookupFunc.apply(certificateId);
+            logger.trace("Certificate lookup result: addr={}, certificateId={}, certificate={}",
+                         ctx.clientAddress(), certificateId, certificate);
             if (certificate != null && certificate.isActive()) {
                 final String appId = certificate.appId();
                 ctx.logBuilder().authenticatedUser("app/" + appId + "/cert");
                 final UserWithAppIdentity user = new UserWithAppIdentity(certificate);
                 AuthUtil.setCurrentUser(ctx, user);
                 HttpApiUtil.setVerboseResponses(ctx, user);
+                logger.trace("Successfully authorized certificate: certificateId={}, addr={}",
+                             certificateId, ctx.clientAddress());
                 return UnmodifiableFuture.completedFuture(true);
             }
             return UnmodifiableFuture.completedFuture(false);
