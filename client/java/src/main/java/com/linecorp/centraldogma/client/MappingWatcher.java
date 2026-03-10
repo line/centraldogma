@@ -18,19 +18,13 @@ package com.linecorp.centraldogma.client;
 import static com.google.common.base.MoreObjects.toStringHelper;
 import static java.util.Objects.requireNonNull;
 
-import java.util.List;
-import java.util.Map.Entry;
 import java.util.Objects;
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executor;
-import java.util.function.BiConsumer;
 import java.util.function.Function;
 
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.linecorp.centraldogma.common.Revision;
 
 final class MappingWatcher<T, U> extends AbstractMappingWatcher<T, U> {
 
@@ -46,12 +40,9 @@ final class MappingWatcher<T, U> extends AbstractMappingWatcher<T, U> {
     }
 
     private final Function<? super T, ? extends U> mapper;
-    private final List<Entry<BiConsumer<? super Revision, ? super U>, Executor>> updateListeners =
-            new CopyOnWriteArrayList<>();
 
     @Nullable
     private volatile Latest<U> mappedLatest;
-    private volatile boolean closed;
 
     MappingWatcher(Watcher<T> parent, Function<? super T, ? extends U> mapper, Executor mapperExecutor,
                    boolean closeParentWhenClosing) {
