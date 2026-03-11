@@ -72,12 +72,8 @@ final class MappingWatcher<T, U> implements Watcher<U> {
     MappingWatcher(Watcher<T> parent, Function<? super T, ? extends CompletableFuture<? extends U>>
             mapper, boolean closeParentWhenClosing) {
         this.parent = parent;
-        this.closeParentWhenClosing = closeParentWhenClosing;
-        parent.initialValueFuture().exceptionally(cause -> {
-            initialValueFuture.completeExceptionally(cause);
-            return null;
-        });
         this.mapper = mapper;
+        this.closeParentWhenClosing = closeParentWhenClosing;
         parent.initialValueFuture().exceptionally(cause -> {
             initialValueFuture.completeExceptionally(cause);
             return null;
