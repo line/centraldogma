@@ -37,16 +37,16 @@ import com.google.common.collect.Maps;
 
 import com.linecorp.centraldogma.common.Revision;
 
-final class AbstractMappingWatcher<T, U> implements Watcher<U> {
-    private static final Logger logger = LoggerFactory.getLogger(AbstractMappingWatcher.class);
+final class MappingWatcher<T, U> implements Watcher<U> {
+    private static final Logger logger = LoggerFactory.getLogger(MappingWatcher.class);
 
-    static <T, U> AbstractMappingWatcher<T, U> of(Watcher<T> parent,
-                                               Function<? super T, ? extends CompletableFuture<? extends U>>
+    static <T, U> MappingWatcher<T, U> of(Watcher<T> parent,
+                                          Function<? super T, ? extends CompletableFuture<? extends U>>
                                                        mapper,
-                                               boolean closeParentWhenClosing) {
+                                          boolean closeParentWhenClosing) {
         requireNonNull(parent, "parent");
         requireNonNull(mapper, "mapper");
-        return new AbstractMappingWatcher<>(parent, mapper, closeParentWhenClosing);
+        return new MappingWatcher<>(parent, mapper, closeParentWhenClosing);
     }
 
     private final CompletableFuture<Latest<U>> initialValueFuture = new CompletableFuture<>();
@@ -69,7 +69,7 @@ final class AbstractMappingWatcher<T, U> implements Watcher<U> {
         return newLatest.revision().compareTo(existing.revision()) >= 0;
     }
 
-    AbstractMappingWatcher(Watcher<T> parent, Function<? super T, ? extends CompletableFuture<? extends U>>
+    MappingWatcher(Watcher<T> parent, Function<? super T, ? extends CompletableFuture<? extends U>>
             mapper, boolean closeParentWhenClosing) {
         this.parent = parent;
         this.closeParentWhenClosing = closeParentWhenClosing;
