@@ -98,7 +98,7 @@ final class AsyncMappingWatcher<T, U> extends AbstractMappingWatcher<T, U> {
                 if (!isUpdate(newLatest, oldLatest)) {
                     return;
                 }
-                notifyListeners(newLatest, null);
+                notifyListeners(newLatest);
                 if (!initialValueFuture.isDone()) {
                     initialValueFuture.complete(newLatest);
                 }

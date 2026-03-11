@@ -83,7 +83,7 @@ abstract class AbstractMappingWatcher<T, U> implements Watcher<U> {
         }
     }
 
-    protected final void notifyListeners(Latest<U> latest, @Nullable Executor currentExecutor) {
+    protected final void notifyListeners(Latest<U> latest) {
         if (closed) {
             return;
         }
@@ -91,11 +91,7 @@ abstract class AbstractMappingWatcher<T, U> implements Watcher<U> {
         for (Map.Entry<BiConsumer<? super Revision, ? super U>, Executor> entry : updateListeners) {
             final BiConsumer<? super Revision, ? super U> listener = entry.getKey();
             final Executor executor = entry.getValue();
-            if (currentExecutor == executor) {
-                notifyListener(latest, listener);
-            } else {
-                executor.execute(() -> notifyListener(latest, listener));
-            }
+            executor.execute(() -> notifyListener(latest, listener));
         }
     }
 
