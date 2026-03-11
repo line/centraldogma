@@ -281,6 +281,6 @@ public interface Watcher<T> extends AutoCloseable {
      */
     default <U> Watcher<U> newChildAsync(Function<? super T, ? extends CompletableFuture<? extends U>> mapper) {
         requireNonNull(mapper, "mapper");
-        return AsyncMappingWatcher.of(this, mapper, false);
+        return AbstractMappingWatcher.of(this, mapper, false);
     }
 }

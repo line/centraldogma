@@ -15,15 +15,19 @@
  */
 package com.linecorp.centraldogma.client;
 
+import static com.google.common.base.MoreObjects.toStringHelper;
 import static java.util.Objects.requireNonNull;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
+import java.util.function.Function;
 
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
@@ -33,38 +37,106 @@ import com.google.common.collect.Maps;
 
 import com.linecorp.centraldogma.common.Revision;
 
-abstract class AbstractMappingWatcher<T, U> implements Watcher<U> {
+final class AbstractMappingWatcher<T, U> implements Watcher<U> {
     private static final Logger logger = LoggerFactory.getLogger(AbstractMappingWatcher.class);
 
-    final CompletableFuture<Latest<U>> initialValueFuture = new CompletableFuture<>();
-    volatile boolean closed;
-    final Watcher<T> parent;
+    static <T, U> AbstractMappingWatcher<T, U> of(Watcher<T> parent,
+                                               Function<? super T, ? extends CompletableFuture<? extends U>>
+                                                       mapper,
+                                               boolean closeParentWhenClosing) {
+        requireNonNull(parent, "parent");
+        requireNonNull(mapper, "mapper");
+        return new AbstractMappingWatcher<>(parent, mapper, closeParentWhenClosing);
+    }
+
+    private final CompletableFuture<Latest<U>> initialValueFuture = new CompletableFuture<>();
+    private volatile boolean closed;
+    private final Watcher<T> parent;
 
     private final boolean closeParentWhenClosing;
     private final List<Map.Entry<BiConsumer<? super Revision, ? super U>, Executor>> updateListeners =
             new CopyOnWriteArrayList<>();
+    private final Function<? super T, ? extends CompletableFuture<? extends U>> mapper;
+    private final AtomicReference<@Nullable Latest<U>> mappedLatest = new AtomicReference<>();
 
-    AbstractMappingWatcher(Watcher<T> parent, boolean closeParentWhenClosing) {
+    private static <U> boolean isUpdate(Latest<U> newLatest, @Nullable Latest<U> existing) {
+        if (existing == null) {
+            return true;
+        }
+        if (Objects.equals(existing.value(), newLatest.value())) {
+            return false;
+        }
+        return newLatest.revision().compareTo(existing.revision()) >= 0;
+    }
+
+    AbstractMappingWatcher(Watcher<T> parent, Function<? super T, ? extends CompletableFuture<? extends U>>
+            mapper, boolean closeParentWhenClosing) {
         this.parent = parent;
         this.closeParentWhenClosing = closeParentWhenClosing;
         parent.initialValueFuture().exceptionally(cause -> {
             initialValueFuture.completeExceptionally(cause);
             return null;
         });
+        this.mapper = mapper;
+        parent.initialValueFuture().exceptionally(cause -> {
+            initialValueFuture.completeExceptionally(cause);
+            return null;
+        });
+        final BiConsumer<Throwable, Revision> reportFailure = (e, r) -> {
+            logger.warn("Unexpected exception is raised from mapper.apply(). mapper: {}, revision {}", mapper, r, e);
+            if (!initialValueFuture.isDone()) {
+                initialValueFuture.completeExceptionally(e);
+            }
+            close();
+        };
+        parent.watch((revision, value) -> {
+            if (closed) {
+                return;
+            }
+            final CompletableFuture<? extends U> mappedValueFuture;
+            try {
+                mappedValueFuture = mapper.apply(value);
+            } catch (Exception e) {
+                reportFailure.accept(e, revision);
+                return;
+            }
+            mappedValueFuture.whenComplete((mappedValue, e) -> {
+                if (closed) {
+                    return;
+                }
+                if (null != e) {
+                    reportFailure.accept(e, revision);
+                    return;
+                }
+
+                // mappedValue can be nullable which is fine.
+                final Latest<U> newLatest = new Latest<>(revision, mappedValue);
+                final Latest<U> oldLatest = mappedLatest.getAndUpdate(
+                        existing -> isUpdate(newLatest, existing) ? newLatest : existing
+                );
+                if (!isUpdate(newLatest, oldLatest)) {
+                    return;
+                }
+                notifyListeners(newLatest);
+                if (!initialValueFuture.isDone()) {
+                    initialValueFuture.complete(newLatest);
+                }
+            });
+        });
     }
 
     @Override
-    public final ScheduledExecutorService watchScheduler() {
+    public ScheduledExecutorService watchScheduler() {
         return parent.watchScheduler();
     }
 
     @Override
-    public final CompletableFuture<Latest<U>> initialValueFuture() {
+    public CompletableFuture<Latest<U>> initialValueFuture() {
         return initialValueFuture;
     }
 
     @Override
-    public final void close() {
+    public void close() {
         closed = true;
         if (!initialValueFuture.isDone()) {
             initialValueFuture.cancel(false);
@@ -83,7 +155,7 @@ abstract class AbstractMappingWatcher<T, U> implements Watcher<U> {
         }
     }
 
-    protected final void notifyListeners(Latest<U> latest) {
+    private void notifyListeners(Latest<U> latest) {
         if (closed) {
             return;
         }
@@ -95,11 +167,9 @@ abstract class AbstractMappingWatcher<T, U> implements Watcher<U> {
         }
     }
 
-    protected abstract @Nullable Latest<U> mappedLatest();
-
     @Override
-    public final Latest<U> latest() {
-        final Latest<U> mappedLatest = mappedLatest();
+    public Latest<U> latest() {
+        final Latest<U> mappedLatest = this.mappedLatest.get();
         if (mappedLatest == null) {
             throw new IllegalStateException("value not available yet");
         }
@@ -107,12 +177,12 @@ abstract class AbstractMappingWatcher<T, U> implements Watcher<U> {
     }
 
     @Override
-    public final void watch(BiConsumer<? super Revision, ? super U> listener, Executor executor) {
+    public void watch(BiConsumer<? super Revision, ? super U> listener, Executor executor) {
         requireNonNull(listener, "listener");
         requireNonNull(executor, "executor");
         updateListeners.add(Maps.immutableEntry(listener, executor));
 
-        final Latest<U> mappedLatest = mappedLatest();
+        final Latest<U> mappedLatest = this.mappedLatest.get();
         if (mappedLatest != null) {
             // There's a chance that listener.accept(...) is called twice for the same value
             // if this watch method is called:
@@ -126,7 +196,16 @@ abstract class AbstractMappingWatcher<T, U> implements Watcher<U> {
     }
 
     @Override
-    public final void watch(BiConsumer<? super Revision, ? super U> listener) {
+    public void watch(BiConsumer<? super Revision, ? super U> listener) {
         watch(listener, parent.watchScheduler());
+    }
+
+    @Override
+    public String toString() {
+        return toStringHelper(this)
+                .add("parent", parent)
+                .add("mapper", mapper)
+                .add("closed", closed)
+                .toString();
     }
 }
