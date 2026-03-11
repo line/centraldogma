@@ -53,6 +53,8 @@ import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.internal.admin.auth.SessionUtil;
 import com.linecorp.centraldogma.server.internal.api.MetadataApiService.IdAndProjectRole;
 import com.linecorp.centraldogma.server.internal.api.template.Secret;
+import com.linecorp.centraldogma.server.internal.api.template.Variable;
+import com.linecorp.centraldogma.server.internal.api.template.VariableType;
 import com.linecorp.centraldogma.testing.internal.auth.TestAuthProviderFactory;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
@@ -425,7 +427,7 @@ class SecretTemplateCrudTest {
 
     private void createVariable(String projectName, @Nullable String repoName,
                                  String id, String value) {
-        final String json = "{\"id\":\"" + id + "\",\"type\":\"STRING\",\"value\":\"" + value + "\"}";
+        final Variable variable = new Variable(id, VariableType.STRING, value, null);
         final String path;
         if (repoName == null) {
             path = "/api/v1/projects/" + projectName + "/variables";
@@ -435,9 +437,7 @@ class SecretTemplateCrudTest {
 
         final AggregatedHttpResponse response = httpClient.prepare()
                                                           .post(path)
-                                                          .content(
-                                                                  com.linecorp.armeria.common.MediaType.JSON,
-                                                                  json)
+                                                          .contentJson(variable)
                                                           .execute();
         assertThat(response.status()).isEqualTo(HttpStatus.CREATED);
     }
