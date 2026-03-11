@@ -41,7 +41,8 @@ final class MappingWatcher<T, U> implements Watcher<U> {
     private static final Logger logger = LoggerFactory.getLogger(MappingWatcher.class);
 
     static <T, U> MappingWatcher<T, U> of(Watcher<T> parent,
-                                          Function<? super T, ? extends CompletableFuture<? extends U>> mapper) {
+                                          Function<? super T, ? extends CompletableFuture<? extends U>>
+                                                  mapper) {
         requireNonNull(parent, "parent");
         requireNonNull(mapper, "mapper");
         return new MappingWatcher<>(parent, mapper);
