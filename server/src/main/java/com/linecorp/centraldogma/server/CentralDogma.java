@@ -164,7 +164,8 @@ import com.linecorp.centraldogma.server.internal.api.sysadmin.AppIdentityRegistr
 import com.linecorp.centraldogma.server.internal.api.sysadmin.KeyManagementService;
 import com.linecorp.centraldogma.server.internal.api.sysadmin.MirrorAccessControlService;
 import com.linecorp.centraldogma.server.internal.api.sysadmin.ServerStatusService;
-import com.linecorp.centraldogma.server.internal.api.variable.VariableServiceV1;
+import com.linecorp.centraldogma.server.internal.api.template.SecretServiceV1;
+import com.linecorp.centraldogma.server.internal.api.template.VariableServiceV1;
 import com.linecorp.centraldogma.server.internal.mirror.DefaultMirrorAccessController;
 import com.linecorp.centraldogma.server.internal.mirror.DefaultMirroringServicePlugin;
 import com.linecorp.centraldogma.server.internal.mirror.MirrorAccessControl;
@@ -1008,7 +1009,8 @@ public class CentralDogma implements AutoCloseable {
                 .annotatedService(new ProjectServiceV1(projectApiManager, executor))
                 .annotatedService(new RepositoryServiceV1(executor, mds, encryptionStorageManager))
                 .annotatedService(new CredentialServiceV1(projectApiManager, executor))
-                .annotatedService(new VariableServiceV1(pm, executor));
+                .annotatedService(new VariableServiceV1(pm, executor))
+                .annotatedService(new SecretServiceV1(pm, executor));
         if (LOGBACK_ENABLED) {
             apiV1ServiceBuilder.annotatedService(new LoggerService());
         }

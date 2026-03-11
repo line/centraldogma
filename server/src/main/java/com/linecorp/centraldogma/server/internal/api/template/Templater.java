@@ -14,9 +14,11 @@
  * under the License.
  */
 
-package com.linecorp.centraldogma.server.internal.api.variable;
+package com.linecorp.centraldogma.server.internal.api.template;
 
-import static com.linecorp.centraldogma.server.internal.api.variable.VariableServiceV1.crudContext;
+import static com.linecorp.centraldogma.server.internal.api.template.SecretServiceV1.secretCrudContext;
+import static com.linecorp.centraldogma.server.internal.api.template.VariableServiceV1.varaibleCrudContext;
+import static com.linecorp.centraldogma.server.internal.api.template.VariableServiceV1.variableCrudContext;
 
 import java.io.StringWriter;
 import java.time.Duration;
@@ -49,6 +51,8 @@ import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.internal.storage.repository.git.CrudOperation;
 import com.linecorp.centraldogma.server.internal.storage.repository.git.DefaultCrudOperation;
+import com.linecorp.centraldogma.server.metadata.User;
+import com.linecorp.centraldogma.server.metadata.UserWithAppIdentity;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 import com.linecorp.centraldogma.server.storage.repository.HasRevision;
@@ -68,11 +72,13 @@ public final class Templater {
     private static final UnmodifiableFuture<Map<String, Object>> EMPTY_MAP_FUTURE =
             UnmodifiableFuture.completedFuture(ImmutableMap.of());
 
-    private final CrudOperation<Variable> crudRepo;
+    private final CrudOperation<Variable> variableCrudRepo;
+    private final CrudOperation<Secret> secretCrudRepo;
     private final LoadingCache<Entry<?>, Template> cache;
 
     public Templater(CommandExecutor executor, ProjectManager pm) {
-        crudRepo = new DefaultCrudOperation<>(Variable.class, executor, pm);
+        variableCrudRepo = new DefaultCrudOperation<>(Variable.class, executor, pm);
+        secretCrudRepo = new DefaultCrudOperation<>(Secret.class, executor, pm);
         final Configuration cfg = new Configuration(Configuration.VERSION_2_3_32);
         cfg.setDefaultEncoding("UTF-8");
         cfg.setLogTemplateExceptions(false);
@@ -101,7 +107,7 @@ public final class Templater {
 
     public <T> CompletableFuture<Entry<T>> render(Repository repo, Entry<T> entry,
                                                   @Nullable String variableFile,
-                                                  @Nullable Revision templateRevision) {
+                                                  @Nullable Revision templateRevision, User user) {
         if (!entry.hasContent()) {
             return UnmodifiableFuture.completedFuture(entry);
         }
@@ -116,13 +122,22 @@ public final class Templater {
 
         final String projectName = project.name();
         // TODO(ikhoon): Optimize by caching the rendering result for the same set of variables and template.
-        return mergeVariables(crudRepo.findAll(crudContext(projectName, normTemplateRevision)),
-                              crudRepo.findAll(crudContext(projectName, repo.name(), normTemplateRevision)),
-                              findRepoVariableFile(repo, entry),
-                              findEntryPathVariableFile(repo, entry),
-                              findClientVariableFile(repo, entry, variableFile))
-                .thenApply(variables -> process(entry, variables, normTemplateRevision))
-                .toCompletableFuture();
+        final CompletionStage<Map<String, Object>> variablesFuture =
+                mergeVariables(variableCrudRepo.findAll(varaibleCrudContext(projectName, normTemplateRevision)),
+                               variableCrudRepo.findAll(
+                                       variableCrudContext(projectName, repo.name(), normTemplateRevision)),
+                               findRepoVariableFile(repo, entry),
+                               findEntryPathVariableFile(repo, entry),
+                               findClientVariableFile(repo, entry, variableFile));
+
+        final CompletionStage<Map<String, Object>> secretsFuture =
+                mergeSecrets(secretCrudRepo.findAll(secretCrudContext(projectName, normTemplateRevision)),
+                             secretCrudRepo.findAll(
+                                     secretCrudContext(projectName, repo.name(), normTemplateRevision)),
+                             user);
+        return CompletableFutures.combine(variablesFuture, secretsFuture, (variables, secrets) -> {
+            return process(entry, variables, secrets, normTemplateRevision);
+        }).toCompletableFuture();
     }
 
     private static CompletableFuture<Map<String, Object>> findRepoVariableFile(Repository repo,
@@ -204,11 +219,17 @@ public final class Templater {
         }
     }
 
-    private <T> Entry<T> process(Entry<T> entry, Map<String, Object> variables, Revision templateRevision) {
+    private <T> Entry<T> process(Entry<T> entry, Map<String, Object> variables, Map<String, Object> secrets,
+                                 Revision templateRevision) {
         final StringWriter out = new StringWriter();
         final Template template = cache.get(entry);
+        final ImmutableMap<String, Object> dataModel =
+                ImmutableMap.<String, Object>builderWithExpectedSize(variables.size() + secrets.size())
+                            .putAll(variables)
+                            .putAll(secrets)
+                            .build();
         try {
-            template.process(variables, out);
+            template.process(dataModel, out);
             //noinspection unchecked
             final Entry<T> newEntry = (Entry<T>) newEntryWithContent(entry, out.toString());
             return newEntry.withTemplateRevision(templateRevision);
@@ -268,11 +289,46 @@ public final class Templater {
                     final Map<String, Object> variables = builder.buildKeepingLast();
                     // Prefix variables map with "vars" key.
                     // This allows using "vars.varName" in the template.
-                    // TODO(ikhoon): Support secret variables that will be prefixed with "secrets" key.
                     final Map<String, Object> vars = new HashMap<>();
                     vars.put("vars", variables);
                     return vars;
                 });
+    }
+
+    private static CompletionStage<Map<String, Object>> mergeSecrets(
+            CompletableFuture<List<HasRevision<Secret>>> projFuture,
+            CompletableFuture<List<HasRevision<Secret>>> repoFuture, User user) {
+        return CompletableFutures.combine(projFuture, repoFuture, (projVars, repoVars) -> {
+            final ImmutableMap.Builder<String, String> builder =
+                    ImmutableMap.builderWithExpectedSize(projVars.size() + repoVars.size());
+
+            for (HasRevision<Secret> it : projVars) {
+                final Secret secret = it.object();
+                builder.put(secret.id(), maybeMaskSecret(secret, user));
+            }
+            for (HasRevision<Secret> it : repoVars) {
+                final Secret secret = it.object();
+                builder.put(secret.id(), maybeMaskSecret(secret, user));
+            }
+
+            final Map<String, String> secretsMap = builder.buildKeepingLast();
+            // Prefix variables map with "secrets" key.
+            // This allows using "secrets.secretName" in the template.
+            final Map<String, Object> secrets = new HashMap<>();
+            secrets.put("secrets", secretsMap);
+            return secrets;
+        });
+    }
+
+    private static String maybeMaskSecret(Secret secret, User user) {
+        if (user instanceof UserWithAppIdentity || user.isSystemAdmin()) {
+            // Render the secret value if the user is authenticated with an app identity or is a system admin.
+            return secret.value();
+        } else {
+            // Mask the secret value if a user is accessing from web UI.
+            // The secret value will be shown as "****" in the template preview.
+            return "****";
+        }
     }
 
     private static Object parseValue(Variable variable) {

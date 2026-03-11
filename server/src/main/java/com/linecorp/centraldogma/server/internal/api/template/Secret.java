@@ -14,7 +14,7 @@
  * under the License.
  */
 
-package com.linecorp.centraldogma.server.internal.api.variable;
+package com.linecorp.centraldogma.server.internal.api.template;
 
 import static java.util.Objects.requireNonNull;
 
@@ -31,10 +31,9 @@ import com.google.common.base.MoreObjects;
 import com.linecorp.centraldogma.server.metadata.UserAndTimestamp;
 
 @JsonInclude(Include.NON_NULL)
-public final class Variable {
+public final class Secret {
 
     private final String id;
-    private final VariableType type;
     private final String value;
     @Nullable
     private final String description;
@@ -44,22 +43,19 @@ public final class Variable {
     @Nullable
     private UserAndTimestamp creation;
 
-    public Variable(String id, VariableType type, String value, @Nullable String description) {
+    public Secret(String id, String value, @Nullable String description) {
         this.id = requireNonNull(id, "id");
-        this.type = requireNonNull(type, "type");
         this.value = requireNonNull(value, "value");
         this.description = description;
     }
 
     @JsonCreator
-    public Variable(@JsonProperty("id") String id,
-                    @JsonProperty("type") VariableType type,
-                    @JsonProperty("name") @Nullable String name,
-                    @JsonProperty("value") String value,
-                    @JsonProperty("creation") UserAndTimestamp creation,
-                    @JsonProperty("description") @Nullable String description) {
+    public Secret(@JsonProperty("id") String id,
+                  @JsonProperty("name") @Nullable String name,
+                  @JsonProperty("value") String value,
+                  @JsonProperty("creation") @Nullable UserAndTimestamp creation,
+                  @JsonProperty("description") @Nullable String description) {
         this.id = requireNonNull(id, "id");
-        this.type = requireNonNull(type, "type");
         this.name = name;
         this.value = requireNonNull(value, "value");
         this.description = description;
@@ -79,11 +75,6 @@ public final class Variable {
 
     void setName(String name) {
         this.name = name;
-    }
-
-    @JsonProperty("type")
-    public VariableType type() {
-        return type;
     }
 
     @JsonProperty("value")
@@ -107,16 +98,19 @@ public final class Variable {
         this.creation = creation;
     }
 
+    public Secret withoutValue() {
+        return new Secret(id, name, "****", creation, description);
+    }
+
     @Override
     public boolean equals(Object o) {
-        if (!(o instanceof Variable)) {
+        if (!(o instanceof Secret)) {
             return false;
         }
 
-        final Variable variable = (Variable) o;
+        final Secret variable = (Secret) o;
         return id.equals(variable.id) &&
                Objects.equals(name, variable.name) &&
-               type == variable.type &&
                value.equals(variable.value) &&
                Objects.equals(description, variable.description) &&
                Objects.equals(creation, variable.creation);
@@ -124,7 +118,7 @@ public final class Variable {
 
     @Override
     public int hashCode() {
-        return Objects.hash(id, name, type, value, description, creation);
+        return Objects.hash(id, name, value, description, creation);
     }
 
     @Override
@@ -133,8 +127,7 @@ public final class Variable {
                           .omitNullValues()
                           .add("id", id)
                           .add("name", name)
-                          .add("type", type)
-                          .add("value", value)
+                          .add("value", "****")
                           .add("description", description)
                           .add("creation", creation)
                           .toString();

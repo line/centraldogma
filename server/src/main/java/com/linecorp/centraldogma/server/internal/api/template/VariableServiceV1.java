@@ -14,7 +14,7 @@
  * under the License.
  */
 
-package com.linecorp.centraldogma.server.internal.api.variable;
+package com.linecorp.centraldogma.server.internal.api.template;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.ImmutableList.toImmutableList;
@@ -72,7 +72,7 @@ public final class VariableServiceV1 extends AbstractService {
     @RequiresProjectRole(ProjectRole.MEMBER)
     @Get("/projects/{projectName}/variables")
     public CompletableFuture<List<Variable>> list(@Param String projectName) {
-        return repository.findAll(crudContext(projectName))
+        return repository.findAll(variableCrudContext(projectName))
                          .thenApply(variables -> variables.stream()
                                                           .map(HasRevision::object)
                                                           .collect(toImmutableList()));
@@ -86,7 +86,7 @@ public final class VariableServiceV1 extends AbstractService {
     @RequiresProjectRole(ProjectRole.MEMBER)
     @Get("/projects/{projectName}/variables/{id}")
     public CompletableFuture<Variable> getVariable(@Param String projectName, @Param String id) {
-        return repository.find(crudContext(projectName), id).thenApply(variable -> {
+        return repository.find(variableCrudContext(projectName), id).thenApply(variable -> {
             if (variable == null) {
                 throw new EntryNotFoundException(
                         "Variable not found: " + id + " (project: " + projectName + ')');
@@ -109,7 +109,7 @@ public final class VariableServiceV1 extends AbstractService {
                                                                    Author author) {
         validateVariable(newVariable);
         setNameAndCreation(newVariable, projectName, null, author);
-        return repository.save(crudContext(projectName), newVariable.id(), newVariable, author);
+        return repository.save(variableCrudContext(projectName), newVariable.id(), newVariable, author);
     }
 
     /**
@@ -126,7 +126,7 @@ public final class VariableServiceV1 extends AbstractService {
                       "ID in the path must be the same as that in the variable object.");
         validateVariable(variable);
         setNameAndCreation(variable, projectName, null, author);
-        return repository.update(crudContext(projectName), id, variable, author);
+        return repository.update(variableCrudContext(projectName), id, variable, author);
     }
 
     /**
@@ -138,7 +138,7 @@ public final class VariableServiceV1 extends AbstractService {
     @RequiresProjectRole(ProjectRole.MEMBER)
     public CompletableFuture<Void> deleteVariable(@Param String projectName,
                                                   @Param String id, Author author) {
-        return repository.delete(crudContext(projectName), id, author).thenAccept(unused -> {});
+        return repository.delete(variableCrudContext(projectName), id, author).thenAccept(unused -> {});
     }
 
     /**
@@ -150,7 +150,7 @@ public final class VariableServiceV1 extends AbstractService {
     @Get("/projects/{projectName}/repos/{repoName}/variables")
     public CompletableFuture<List<Variable>> listRepoVariables(@Param String projectName,
                                                                @Param String repoName) {
-        return repository.findAll(crudContext(projectName, repoName))
+        return repository.findAll(variableCrudContext(projectName, repoName))
                          .thenApply(variables -> variables.stream()
                                                           .map(HasRevision::object)
                                                           .collect(toImmutableList()));
@@ -166,7 +166,7 @@ public final class VariableServiceV1 extends AbstractService {
     public CompletableFuture<Variable> getRepoVariable(@Param String projectName,
                                                        @Param String repoName,
                                                        @Param String id) {
-        return repository.find(crudContext(projectName, repoName), id).thenApply(variable -> {
+        return repository.find(variableCrudContext(projectName, repoName), id).thenApply(variable -> {
             if (variable == null) {
                 throw new EntryNotFoundException(
                         "Variable not found: " + id + " (project: " + projectName +
@@ -192,7 +192,8 @@ public final class VariableServiceV1 extends AbstractService {
             Author author) {
         validateVariable(newVariable);
         setNameAndCreation(newVariable, projectName, repoName, author);
-        return repository.save(crudContext(projectName, repoName), newVariable.id(), newVariable, author);
+        return repository.save(variableCrudContext(projectName, repoName), newVariable.id(), newVariable,
+                               author);
     }
 
     /**
@@ -211,7 +212,7 @@ public final class VariableServiceV1 extends AbstractService {
                       "ID in the path must be the same as that in the variable object.");
         validateVariable(variable);
         setNameAndCreation(variable, projectName, repoName, author);
-        return repository.update(crudContext(projectName, repoName), id, variable, author);
+        return repository.update(variableCrudContext(projectName, repoName), id, variable, author);
     }
 
     /**
@@ -224,7 +225,7 @@ public final class VariableServiceV1 extends AbstractService {
     public CompletableFuture<Void> deleteRepoVariable(@Param String projectName,
                                                       @Param String repoName,
                                                       @Param String id, Author author) {
-        return repository.delete(crudContext(projectName, repoName), id, author)
+        return repository.delete(variableCrudContext(projectName, repoName), id, author)
                          .thenAccept(unused -> {});
     }
 
@@ -250,19 +251,20 @@ public final class VariableServiceV1 extends AbstractService {
         }
     }
 
-    public static CrudContext crudContext(String projectName) {
-        return crudContext(projectName, null, Revision.HEAD);
+    private static CrudContext variableCrudContext(String projectName) {
+        return variableCrudContext(projectName, null, Revision.HEAD);
     }
 
-    public static CrudContext crudContext(String projectName, Revision revision) {
-        return crudContext(projectName, null, revision);
+    static CrudContext varaibleCrudContext(String projectName, Revision revision) {
+        return variableCrudContext(projectName, null, revision);
     }
 
-    public static CrudContext crudContext(String projectName, @Nullable String repoName) {
-        return crudContext(projectName, repoName, Revision.HEAD);
+    private static CrudContext variableCrudContext(String projectName, @Nullable String repoName) {
+        return variableCrudContext(projectName, repoName, Revision.HEAD);
     }
 
-    public static CrudContext crudContext(String projectName, @Nullable String repoName, Revision revision) {
+    static CrudContext variableCrudContext(String projectName, @Nullable String repoName,
+                                           Revision revision) {
         final String targetPath;
         if (repoName == null) {
             targetPath = VARIABLES;
