@@ -41,23 +41,11 @@ final class MappingWatcher<T, U> implements Watcher<U> {
     private static final Logger logger = LoggerFactory.getLogger(MappingWatcher.class);
 
     static <T, U> MappingWatcher<T, U> of(Watcher<T> parent,
-                                          Function<? super T, ? extends CompletableFuture<? extends U>>
-                                                       mapper,
-                                          boolean closeParentWhenClosing) {
+                                          Function<? super T, ? extends CompletableFuture<? extends U>> mapper) {
         requireNonNull(parent, "parent");
         requireNonNull(mapper, "mapper");
-        return new MappingWatcher<>(parent, mapper, closeParentWhenClosing);
+        return new MappingWatcher<>(parent, mapper);
     }
-
-    private final CompletableFuture<Latest<U>> initialValueFuture = new CompletableFuture<>();
-    private volatile boolean closed;
-    private final Watcher<T> parent;
-
-    private final boolean closeParentWhenClosing;
-    private final List<Map.Entry<BiConsumer<? super Revision, ? super U>, Executor>> updateListeners =
-            new CopyOnWriteArrayList<>();
-    private final Function<? super T, ? extends CompletableFuture<? extends U>> mapper;
-    private final AtomicReference<@Nullable Latest<U>> mappedLatest = new AtomicReference<>();
 
     private static <U> boolean isUpdate(Latest<U> newLatest, @Nullable Latest<U> existing) {
         if (existing == null) {
@@ -69,11 +57,19 @@ final class MappingWatcher<T, U> implements Watcher<U> {
         return newLatest.revision().compareTo(existing.revision()) >= 0;
     }
 
+    private final CompletableFuture<Latest<U>> initialValueFuture = new CompletableFuture<>();
+    private volatile boolean closed;
+    private final Watcher<T> parent;
+
+    private final List<Map.Entry<BiConsumer<? super Revision, ? super U>, Executor>> updateListeners =
+            new CopyOnWriteArrayList<>();
+    private final Function<? super T, ? extends CompletableFuture<? extends U>> mapper;
+    private final AtomicReference<@Nullable Latest<U>> mappedLatest = new AtomicReference<>();
+
     MappingWatcher(Watcher<T> parent, Function<? super T, ? extends CompletableFuture<? extends U>>
-            mapper, boolean closeParentWhenClosing) {
+            mapper) {
         this.parent = parent;
         this.mapper = mapper;
-        this.closeParentWhenClosing = closeParentWhenClosing;
         parent.initialValueFuture().exceptionally(cause -> {
             initialValueFuture.completeExceptionally(cause);
             return null;
@@ -137,9 +133,6 @@ final class MappingWatcher<T, U> implements Watcher<U> {
         closed = true;
         if (!initialValueFuture.isDone()) {
             initialValueFuture.cancel(false);
-        }
-        if (closeParentWhenClosing) {
-            parent.close();
         }
     }
 
