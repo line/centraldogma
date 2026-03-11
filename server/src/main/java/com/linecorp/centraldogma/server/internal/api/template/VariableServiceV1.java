@@ -255,7 +255,7 @@ public final class VariableServiceV1 extends AbstractService {
         return variableCrudContext(projectName, null, Revision.HEAD);
     }
 
-    static CrudContext varaibleCrudContext(String projectName, Revision revision) {
+    static CrudContext variableCrudContext(String projectName, Revision revision) {
         return variableCrudContext(projectName, null, revision);
     }
 

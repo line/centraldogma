@@ -108,12 +108,12 @@ public final class Secret {
             return false;
         }
 
-        final Secret variable = (Secret) o;
-        return id.equals(variable.id) &&
-               Objects.equals(name, variable.name) &&
-               value.equals(variable.value) &&
-               Objects.equals(description, variable.description) &&
-               Objects.equals(creation, variable.creation);
+        final Secret secret = (Secret) o;
+        return id.equals(secret.id) &&
+               Objects.equals(name, secret.name) &&
+               value.equals(secret.value) &&
+               Objects.equals(description, secret.description) &&
+               Objects.equals(creation, secret.creation);
     }
 
     @Override

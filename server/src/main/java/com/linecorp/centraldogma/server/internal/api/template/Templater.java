@@ -17,7 +17,6 @@
 package com.linecorp.centraldogma.server.internal.api.template;
 
 import static com.linecorp.centraldogma.server.internal.api.template.SecretServiceV1.secretCrudContext;
-import static com.linecorp.centraldogma.server.internal.api.template.VariableServiceV1.varaibleCrudContext;
 import static com.linecorp.centraldogma.server.internal.api.template.VariableServiceV1.variableCrudContext;
 
 import java.io.StringWriter;
@@ -123,7 +122,8 @@ public final class Templater {
         final String projectName = project.name();
         // TODO(ikhoon): Optimize by caching the rendering result for the same set of variables and template.
         final CompletionStage<Map<String, Object>> variablesFuture =
-                mergeVariables(variableCrudRepo.findAll(varaibleCrudContext(projectName, normTemplateRevision)),
+                mergeVariables(variableCrudRepo.findAll(
+                                       variableCrudContext(projectName, normTemplateRevision)),
                                variableCrudRepo.findAll(
                                        variableCrudContext(projectName, repo.name(), normTemplateRevision)),
                                findRepoVariableFile(repo, entry),
