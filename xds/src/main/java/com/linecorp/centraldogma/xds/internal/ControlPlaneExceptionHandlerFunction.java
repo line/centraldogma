@@ -15,8 +15,9 @@
  */
 package com.linecorp.centraldogma.xds.internal;
 
+import org.jspecify.annotations.Nullable;
+
 import com.linecorp.armeria.common.RequestContext;
-import com.linecorp.armeria.common.annotation.Nullable;
 import com.linecorp.armeria.common.grpc.GrpcExceptionHandlerFunction;
 import com.linecorp.centraldogma.common.RepositoryNotFoundException;
 import com.linecorp.centraldogma.server.internal.storage.RequestAlreadyTimedOutException;

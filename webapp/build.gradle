@@ -113,6 +113,18 @@ task testWeb(type: NpmTask) {
 }
 tasks.test.dependsOn(tasks.testWeb)
 
+task testE2e(type: NpmTask) {
+    dependsOn tasks.installPlayWright
+
+    args = ['run', 'test:e2e']
+
+    inputs.dir('src')
+    inputs.file('package.json')
+    inputs.file('package-lock.json')
+    inputs.file('playwright.config.ts')
+    outputs.upToDateWhen { true }
+}
+
 tasks.withType(Test).configureEach {
     failOnNoDiscoveredTests = false
 }

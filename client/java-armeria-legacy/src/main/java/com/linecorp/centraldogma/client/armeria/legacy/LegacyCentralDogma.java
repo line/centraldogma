@@ -35,9 +35,8 @@ import java.util.stream.Collector;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
-import javax.annotation.Nullable;
-
 import org.apache.thrift.TException;
+import org.jspecify.annotations.Nullable;
 
 import com.google.common.collect.Iterables;
 import com.spotify.futures.CompletableFutures;

@@ -127,8 +127,8 @@ export const Navbar = () => {
                 <LabelledIcon icon={FaUser} text={user.login} />
               </MenuButton>
               <MenuList>
-                <MenuItem as={RouteLink} href="/app/settings/tokens">
-                  Application tokens
+                <MenuItem as={RouteLink} href="/app/settings/app-identities">
+                  Application identities
                 </MenuItem>
                 <MenuDivider />
                 <MenuItem onClick={handleLogout}>Log out</MenuItem>

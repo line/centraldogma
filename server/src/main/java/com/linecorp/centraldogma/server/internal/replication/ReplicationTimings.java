@@ -16,7 +16,7 @@
 
 package com.linecorp.centraldogma.server.internal.replication;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 interface ReplicationTimings {
 

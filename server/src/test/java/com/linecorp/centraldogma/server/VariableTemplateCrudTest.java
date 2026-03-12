@@ -27,8 +27,7 @@ import static org.awaitility.Awaitility.await;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
-import javax.annotation.Nullable;
-
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;

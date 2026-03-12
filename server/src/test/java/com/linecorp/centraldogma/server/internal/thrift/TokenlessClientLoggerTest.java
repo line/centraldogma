@@ -30,8 +30,7 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.concurrent.ThreadLocalRandom;
 
-import javax.annotation.Nullable;
-
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 

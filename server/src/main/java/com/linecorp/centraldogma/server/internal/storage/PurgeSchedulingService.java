@@ -28,8 +28,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 
-import javax.annotation.Nullable;
-
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,8 +43,8 @@ import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.metadata.AppIdentity;
+import com.linecorp.centraldogma.server.metadata.AppIdentityRegistry;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
-import com.linecorp.centraldogma.server.metadata.Tokens;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 
 /**
@@ -85,7 +84,7 @@ public class PurgeSchedulingService {
         storagePurgingScheduler.start(() -> {
             try {
                 purgeProjectAndRepository(commandExecutor, metadataService);
-                purgeToken(metadataService);
+                purgeAppIdentities(metadataService);
             } catch (Exception e) {
                 logger.warn("Unexpected purging service failure", e);
             }
@@ -149,17 +148,17 @@ public class PurgeSchedulingService {
                 });
     }
 
-    private static void purgeToken(MetadataService metadataService) {
-        final Tokens tokens = metadataService.getTokens();
-        final List<String> purging = tokens.appIds().values()
-                                           .stream()
-                                           .filter(AppIdentity::isDeleted)
-                                           .map(AppIdentity::appId)
-                                           .collect(toImmutableList());
+    private static void purgeAppIdentities(MetadataService metadataService) {
+        final AppIdentityRegistry appIdentityRegistry = metadataService.getAppIdentityRegistry();
+        final List<String> purging = appIdentityRegistry.appIds().values()
+                                                        .stream()
+                                                        .filter(AppIdentity::isDeleted)
+                                                        .map(AppIdentity::appId)
+                                                        .collect(toImmutableList());
 
         if (!purging.isEmpty()) {
-            logger.info("Purging {} tokens: {}", purging.size(), purging);
-            purging.forEach(appId -> metadataService.purgeToken(Author.SYSTEM, appId));
+            logger.info("Purging {} app identities: {}", purging.size(), purging);
+            purging.forEach(appId -> metadataService.purgeAppIdentity(Author.SYSTEM, appId));
         }
     }
 

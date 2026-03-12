@@ -35,8 +35,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletionException;
 
-import javax.annotation.Nullable;
-
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.MergeCommand.FastForwardMode;
 import org.eclipse.jgit.api.MergeResult;
@@ -50,6 +48,7 @@ import org.eclipse.jgit.revwalk.RevCommit;
 import org.eclipse.jgit.storage.file.FileBasedConfig;
 import org.eclipse.jgit.storage.file.FileRepositoryBuilder;
 import org.eclipse.jgit.util.FS;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -172,6 +171,13 @@ class GitMirrorIntegrationTest {
         // - Create /mirror_state.json
         // - Remove the sample files created by createProject().
         mirroringService.mirror().join();
+
+        // Make sure the remote Git repository is fetched into `<dataDir>/_mirrors/<proj>-<repo>-<id>/`.
+        final Path fetchedRepo = dogma.dataDir().resolve("_mirrors/" + projName + '-' + REPO_FOO + "-foo");
+        assertThat(fetchedRepo)
+                .exists()
+                .isDirectory()
+                .matches(p -> Files.exists(p.resolve("HEAD")), "a valid Git repository");
 
         //// Make sure a new commit is added.
         final Revision rev1 = client.normalizeRevision(projName, REPO_FOO, Revision.HEAD).join();

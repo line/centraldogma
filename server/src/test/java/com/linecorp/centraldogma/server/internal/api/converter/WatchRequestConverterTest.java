@@ -18,8 +18,7 @@ package com.linecorp.centraldogma.server.internal.api.converter;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import javax.annotation.Nullable;
-
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 
 import com.linecorp.armeria.common.AggregatedHttpRequest;

@@ -15,12 +15,13 @@
  */
 package com.linecorp.centraldogma.server.metadata;
 
+import org.jspecify.annotations.Nullable;
+
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Objects;
 
-import com.linecorp.armeria.common.annotation.Nullable;
 import com.linecorp.centraldogma.common.RepositoryRole;
 
 /**

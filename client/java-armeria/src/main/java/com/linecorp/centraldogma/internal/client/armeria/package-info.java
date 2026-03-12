@@ -17,7 +17,7 @@
  * <a href="https://line.github.io/armeria/">Armeria</a>-based Central Dogma client internal implementation.
  *
  */
-@NonNullByDefault
+@NullMarked
 package com.linecorp.centraldogma.internal.client.armeria;
 
-import com.linecorp.centraldogma.common.util.NonNullByDefault;
+import org.jspecify.annotations.NullMarked;

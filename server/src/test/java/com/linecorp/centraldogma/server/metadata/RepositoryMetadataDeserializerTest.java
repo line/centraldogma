@@ -40,7 +40,7 @@ class RepositoryMetadataDeserializerTest {
                               "      \"foo@dogma.com\": \"READ\"," +
                               "      \"bar@dogma.com\": \"WRITE\"" +
                               "    }," +
-                              "    \"tokens\": {" +
+                              "    \"appIds\": {" +
                               "      \"goodman\": \"READ\"" +
                               "    }" +
                               "  }," +

@@ -44,7 +44,7 @@ class RepositoryMetadataTest {
                "      \"bar@dogma.com\": \"WRITE\"," +
                "      \"foo@dogma.com\": \"READ\"" +
                "    }," +
-               "    \"tokens\": {" +
+               "    \"appIds\": {" +
                "      \"goodman\": \"READ\"" +
                "    }" +
                "  }," +

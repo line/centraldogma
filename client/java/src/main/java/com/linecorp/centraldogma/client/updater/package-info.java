@@ -16,7 +16,7 @@
 /**
  * Creates a Java bean whose properties are mirrored from Central Dogma automatically.
  */
-@NonNullByDefault
+@NullMarked
 package com.linecorp.centraldogma.client.updater;
 
-import com.linecorp.centraldogma.common.util.NonNullByDefault;
+import org.jspecify.annotations.NullMarked;

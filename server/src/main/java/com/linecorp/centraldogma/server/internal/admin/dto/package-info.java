@@ -17,7 +17,7 @@
 /**
  * Data Transfer Objects used by Central Dogma admin services.
  */
-@NonNullByDefault
+@NullMarked
 package com.linecorp.centraldogma.server.internal.admin.dto;
 
-import com.linecorp.centraldogma.common.util.NonNullByDefault;
+import org.jspecify.annotations.NullMarked;

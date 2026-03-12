@@ -19,7 +19,6 @@ package com.linecorp.centraldogma.internal;
 import java.io.IOError;
 import java.io.IOException;
 
-import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -35,20 +34,14 @@ public final class Yaml {
         mapper.enable(DeserializationFeature.FAIL_ON_READING_DUP_TREE_KEY);
     }
 
-    public static JsonNode readTree(String data) throws JsonParseException {
-        try {
-            return mapper.readTree(data);
-        } catch (JsonParseException e) {
-            throw e;
-        } catch (IOException e) {
-            throw new IOError(e);
-        }
+    public static JsonNode readTree(String data) throws JsonProcessingException {
+        return mapper.readTree(data);
     }
 
-    public static JsonNode readTree(byte[] data) throws JsonParseException {
+    public static JsonNode readTree(byte[] data) throws JsonProcessingException {
         try {
             return mapper.readTree(data);
-        } catch (JsonParseException e) {
+        } catch (JsonProcessingException e) {
             throw e;
         } catch (IOException e) {
             throw new IOError(e);

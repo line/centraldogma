@@ -37,7 +37,6 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
-import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -130,7 +129,7 @@ class RepositoryServiceV1Test {
     }
 
     @Test
-    void createRepository() throws IOException {
+    void createRepository() throws Exception {
         // Add a user (foo2) as a member of the project.
         HttpRequest request = HttpRequest.builder()
                                          .post("/api/v1/metadata/myPro/members")
@@ -140,7 +139,7 @@ class RepositoryServiceV1Test {
         assertThat(systemAdminClient.execute(request).aggregate().join().status()).isSameAs(HttpStatus.OK);
         // Add a token as a member of the project.
         request = HttpRequest.builder()
-                             .post("/api/v1/metadata/myPro/tokens")
+                             .post("/api/v1/metadata/myPro/appIdentities")
                              .contentJson(new IdAndProjectRole("appId2", ProjectRole.MEMBER))
                              .build();
         assertThat(systemAdminClient.execute(request).aggregate().join().status()).isSameAs(HttpStatus.OK);
@@ -175,7 +174,7 @@ class RepositoryServiceV1Test {
     }
 
     private static void createRepositoryAndValidate(
-            WebClient userClient1, String repoName) throws JsonParseException {
+            WebClient userClient1, String repoName) throws JsonProcessingException {
         final AggregatedHttpResponse aRes = createRepository(userClient1, repoName);
         final ResponseHeaders headers = ResponseHeaders.of(aRes.headers());
         assertThat(headers.status()).isEqualTo(HttpStatus.CREATED);

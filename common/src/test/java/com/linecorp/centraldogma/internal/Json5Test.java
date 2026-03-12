@@ -23,6 +23,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import org.junit.jupiter.api.Test;
 
 import com.fasterxml.jackson.core.JsonParseException;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 
 import com.linecorp.centraldogma.internal.JacksonTest.Foo;
@@ -81,7 +82,7 @@ class Json5Test {
     }
 
     @Test
-    void multiLineStringLiterals() throws JsonParseException {
+    void multiLineStringLiterals() throws JsonProcessingException {
         // Multi-line string literals using backslash
         //language=JSON5
         final String json5 = "{ 'text': 'Hello \\\n" +
@@ -91,7 +92,7 @@ class Json5Test {
     }
 
     @Test
-    void multiLineStringWithIndentation() throws JsonParseException {
+    void multiLineStringWithIndentation() throws JsonProcessingException {
         // Multi-line string with indentation
         //language=JSON5
         final String json5 = "{\n" +
@@ -104,7 +105,7 @@ class Json5Test {
     }
 
     @Test
-    void multiLineStringInArray() throws JsonParseException {
+    void multiLineStringInArray() throws JsonProcessingException {
         // Multi-line string in array
         //language=JSON5
         final String json5 = "{\n" +
@@ -119,7 +120,7 @@ class Json5Test {
     }
 
     @Test
-    void multiLineStringNested() throws JsonParseException {
+    void multiLineStringNested() throws JsonProcessingException {
         // Multi-line string in nested object
         //language=JSON5
         final String json5 = "{\n" +

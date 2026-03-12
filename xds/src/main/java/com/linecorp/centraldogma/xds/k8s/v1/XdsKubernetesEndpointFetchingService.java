@@ -38,16 +38,16 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Matcher;
 
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.fasterxml.jackson.core.JsonParseException;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.spotify.futures.CompletableFutures;
 
 import com.linecorp.armeria.client.kubernetes.endpoints.KubernetesEndpointGroup;
-import com.linecorp.armeria.common.annotation.Nullable;
 import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
@@ -320,7 +320,7 @@ final class XdsKubernetesEndpointFetchingService extends XdsResourceWatchingServ
             final JsonNode jsonNode;
             try {
                 jsonNode = Jackson.readTree(json);
-            } catch (JsonParseException e) {
+            } catch (JsonProcessingException e) {
                 // Should never reach here as it is already validated.
                 throw new IllegalStateException(e);
             }

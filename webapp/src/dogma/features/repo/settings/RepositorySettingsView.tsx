@@ -35,7 +35,7 @@ interface RepositorySettingsViewProps {
   children?: (meta: ProjectMetadataDto) => ReactNode;
 }
 
-type TabName = 'users' | 'roles' | 'tokens' | 'mirrors' | 'credentials' | 'variables' | 'danger zone';
+type TabName = 'users' | 'roles' | 'App Identities' | 'mirrors' | 'credentials' | 'variables' | 'Danger Zone';
 
 export interface TapInfo {
   name: TabName;
@@ -48,11 +48,11 @@ const TABS: TapInfo[] = [
   // 'roles' is the index tab
   { name: 'roles', path: '', accessRole: 'ADMIN', allowAnonymous: false },
   { name: 'users', path: 'users', accessRole: 'ADMIN', allowAnonymous: false },
-  { name: 'tokens', path: 'tokens', accessRole: 'ADMIN', allowAnonymous: false },
+  { name: 'App Identities', path: 'app-identities', accessRole: 'ADMIN', allowAnonymous: false },
   { name: 'mirrors', path: 'mirrors', accessRole: 'ADMIN', allowAnonymous: true },
   { name: 'credentials', path: 'credentials', accessRole: 'ADMIN', allowAnonymous: true },
   { name: 'variables', path: 'variables', accessRole: 'WRITE', allowAnonymous: true },
-  { name: 'danger zone', path: 'danger-zone', accessRole: 'ADMIN', allowAnonymous: true },
+  { name: 'Danger Zone', path: 'danger-zone', accessRole: 'ADMIN', allowAnonymous: true },
 ];
 
 function isAllowed(userRepositoryRole: string, anonymous: boolean, tabInfo: TapInfo): boolean {
