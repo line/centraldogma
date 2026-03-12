@@ -19,6 +19,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.awaitility.Awaitility.await;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.jupiter.api.Test;
@@ -98,7 +99,7 @@ class WatcherTest {
                                                      .watcher(Query.ofText("/baz.txt"))
                                                      .start();
         final Watcher<Boolean> watcher = originalWatcher
-                .newChild(txt -> 1)
+                .newChildAsync(txt -> CompletableFuture.completedFuture(1))
                 .newChild(intValue -> Integer.toString(intValue))
                 .newChild("1"::equals);
 
@@ -116,6 +117,37 @@ class WatcherTest {
         final Watcher<String> watcher = originalWatcher.newChild(unused -> {
             throw new RuntimeException();
         }).newChild(val -> "not called");
+        await().untilAsserted(() -> assertThatThrownBy(() -> watcher.initialValueFuture().join())
+                .hasCauseExactlyInstanceOf(RuntimeException.class));
+        originalWatcher.close();
+    }
+
+    @Test
+    void mapperAsyncFailure() {
+        final Watcher<String> originalWatcher = dogma.client()
+                .forRepo("foo", "bar")
+                .watcher(Query.ofText("/baz.txt"))
+                .start();
+        originalWatcher.initialValueFuture().join();
+        final Watcher<String> watcher = originalWatcher.newChildAsync(unused ->
+                        CompletableFuture.failedFuture(new RuntimeException()))
+                .newChild(val -> "not called");
+        await().untilAsserted(() -> assertThatThrownBy(() -> watcher.initialValueFuture().join())
+                .hasCauseExactlyInstanceOf(RuntimeException.class));
+        originalWatcher.close();
+    }
+
+    @Test
+    void mapperAsyncException() {
+        final Watcher<String> originalWatcher = dogma.client()
+                .forRepo("foo", "bar")
+                .watcher(Query.ofText("/baz.txt"))
+                .start();
+        originalWatcher.initialValueFuture().join();
+        final Watcher<String> watcher = originalWatcher.newChildAsync(unused -> {
+                    throw new RuntimeException();
+                })
+                .newChild(val -> "not called");
         await().untilAsserted(() -> assertThatThrownBy(() -> watcher.initialValueFuture().join())
                 .hasCauseExactlyInstanceOf(RuntimeException.class));
         originalWatcher.close();
