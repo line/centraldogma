@@ -84,7 +84,8 @@ import com.linecorp.centraldogma.server.internal.api.converter.QueryRequestConve
 import com.linecorp.centraldogma.server.internal.api.converter.TemplateParamsConverter;
 import com.linecorp.centraldogma.server.internal.api.converter.WatchRequestConverter;
 import com.linecorp.centraldogma.server.internal.api.converter.WatchRequestConverter.WatchRequest;
-import com.linecorp.centraldogma.server.internal.api.variable.Templater;
+import com.linecorp.centraldogma.server.internal.api.template.Templater;
+import com.linecorp.centraldogma.server.metadata.User;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 import com.linecorp.centraldogma.server.storage.repository.EntryTransformer;
@@ -129,22 +130,23 @@ public class ContentServiceV1 extends AbstractService {
     public CompletableFuture<List<EntryDto<?>>> listFiles(ServiceRequestContext ctx,
                                                           @Param String path,
                                                           @Param @Default("-1") String revision,
-                                                          Repository repository) {
+                                                          Repository repository, User user) {
         final String normalizedPath = normalizePath(path);
         final Revision normalizedRev = repository.normalizeNow(new Revision(revision));
         increaseCounterIfOldRevisionUsed(ctx, repository, normalizedRev);
         final CompletableFuture<List<EntryDto<?>>> future = new CompletableFuture<>();
-        findFiles(repository, normalizedPath, normalizedRev, false, false, TemplateParams.disabled(), future);
+        findFiles(repository, normalizedPath, normalizedRev, false, false, TemplateParams.disabled(), future,
+                  user);
         return future;
     }
 
     private void findFiles(Repository repository, String pathPattern, Revision normalizedRev,
                            boolean withContent, boolean viewRaw, TemplateParams templateParams,
-                           CompletableFuture<List<EntryDto<?>>> result) {
+                           CompletableFuture<List<EntryDto<?>>> result, User user) {
         final Map<FindOption<?>, ?> options = withContent ? FindOptions.FIND_ALL_WITH_CONTENT
                                                           : FindOptions.FIND_ALL_WITHOUT_CONTENT;
 
-        final EntryTransformer<Object> transformer = newTemplater(repository, templateParams);
+        final EntryTransformer<Object> transformer = newTemplater(repository, templateParams, user);
         repository.find(normalizedRev, pathPattern, options, transformer).handle((entries, thrown) -> {
             if (thrown != null) {
                 result.completeExceptionally(thrown);
@@ -157,7 +159,7 @@ public class ContentServiceV1 extends AbstractService {
             if (isValidFilePath(pathPattern) && entries.size() == 1 &&
                 entries.values().iterator().next().type() == DIRECTORY) {
                 findFiles(repository, pathPattern + "/*", normalizedRev, withContent, viewRaw,
-                          templateParams, result);
+                          templateParams, result, user);
             } else {
                 result.complete(entries.values().stream()
                                        .map(entry -> newEntryDto(repository, normalizedRev, entry, withContent,
@@ -258,7 +260,7 @@ public class ContentServiceV1 extends AbstractService {
      * jsonpath={jsonpath}
      *
      * <p>Returns the entry of files in the path. This is same with
-     * {@link #listFiles(ServiceRequestContext, String, String, Repository)} except that containing
+     * {@link #listFiles(ServiceRequestContext, String, String, Repository, User)} except that containing
      * the content of the files.
      * Note that if the {@link HttpHeaderNames#IF_NONE_MATCH} in which has a revision is sent with,
      * this will await for the time specified in {@link HttpHeaderNames#PREFER}.
@@ -274,7 +276,7 @@ public class ContentServiceV1 extends AbstractService {
             @RequestConverter(TemplateParamsConverter.class) TemplateParams templateParams,
             Repository repository,
             @RequestConverter(WatchRequestConverter.class) @Nullable WatchRequest watchRequest,
-            @RequestConverter(QueryRequestConverter.class) @Nullable Query<?> query) {
+            @RequestConverter(QueryRequestConverter.class) @Nullable Query<?> query, User user) {
         increaseCounterIfOldRevisionUsed(ctx, repository, new Revision(revision));
         final String normalizedPath = normalizePath(path);
 
@@ -286,7 +288,7 @@ public class ContentServiceV1 extends AbstractService {
             final boolean errorOnEntryNotFound = watchRequest.notifyEntryNotFound();
             if (query != null) {
                 return watchFile(ctx, repository, lastKnownRevision, query, timeOutMillis,
-                                 errorOnEntryNotFound, viewRaw, templateParams);
+                                 errorOnEntryNotFound, viewRaw, templateParams, user);
             }
 
             return watchRepository(ctx, repository, lastKnownRevision, normalizedPath,
@@ -296,24 +298,24 @@ public class ContentServiceV1 extends AbstractService {
         final Revision normalizedRev = repository.normalizeNow(new Revision(revision));
         if (query != null) {
             // get a file
-            return repository.get(normalizedRev, query, newTemplater(repository, templateParams))
+            return repository.get(normalizedRev, query, newTemplater(repository, templateParams, user))
                              .thenApply(result -> newEntryDto(repository, normalizedRev,
                                                               result, true, viewRaw));
         }
         // get files
 
         final CompletableFuture<List<EntryDto<?>>> future = new CompletableFuture<>();
-        findFiles(repository, normalizedPath, normalizedRev, true, viewRaw, templateParams, future);
+        findFiles(repository, normalizedPath, normalizedRev, true, viewRaw, templateParams, future, user);
         return future;
     }
 
     private CompletableFuture<?> watchFile(ServiceRequestContext ctx,
                                            Repository repository, Revision lastKnownRevision,
                                            Query<?> query, long timeOutMillis, boolean errorOnEntryNotFound,
-                                           boolean viewRaw, TemplateParams templateParams) {
+                                           boolean viewRaw, TemplateParams templateParams, User user) {
         final CompletableFuture<? extends Entry<?>> future = watchService.watchFile(
                 repository, lastKnownRevision, query, timeOutMillis, errorOnEntryNotFound, templateParams,
-                newTempRev -> newTemplater(repository, templateParams.withTemplateRevision(newTempRev)));
+                newTempRev -> newTemplater(repository, templateParams.withTemplateRevision(newTempRev), user));
 
         if (!future.isDone()) {
             ctx.log().whenComplete().thenRun(() -> future.cancel(false));
@@ -326,12 +328,14 @@ public class ContentServiceV1 extends AbstractService {
         }).exceptionally(ContentServiceV1::handleWatchFailure);
     }
 
-    private <T> EntryTransformer<T> newTemplater(Repository repository, TemplateParams templateParams) {
+    private <T> EntryTransformer<T> newTemplater(Repository repository, TemplateParams templateParams,
+                                                 User user) {
         if (!templateParams.renderTemplate()) {
             return EntryTransformer.identity();
         } else {
             return entry -> templater.render(repository, entry,
-                                             templateParams.variableFile(), templateParams.templateRevision());
+                                             templateParams.variableFile(), templateParams.templateRevision(),
+                                             user);
         }
     }
 
