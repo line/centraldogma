@@ -9,7 +9,7 @@ import { DeleteAppEntity } from 'dogma/features/project/settings/DeleteAppEntity
 export type AppEntityListProps<Data extends object> = {
   data: Data[];
   projectName: string;
-  entityType: 'member' | 'token';
+  entityType: 'member' | 'appIdentity';
   getId: (row: Data) => string;
   getRole: (row: Data) => string;
   getAddedBy: (row: Data) => string;

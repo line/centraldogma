@@ -16,7 +16,7 @@
 /**
  * Central Dogma commands.
  */
-@NonNullByDefault
+@NullMarked
 package com.linecorp.centraldogma.server.command;
 
-import com.linecorp.centraldogma.common.util.NonNullByDefault;
+import org.jspecify.annotations.NullMarked;

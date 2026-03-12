@@ -25,7 +25,7 @@ import java.util.List;
 import org.assertj.core.api.ThrowableAssert.ThrowingCallable;
 import org.junit.jupiter.api.Test;
 
-import com.fasterxml.jackson.core.JsonParseException;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.collect.ImmutableList;
 
 import com.linecorp.centraldogma.internal.Jackson;
@@ -63,7 +63,7 @@ class ChangeTest {
     }
 
     @Test
-    void testJsonConversion() throws JsonParseException {
+    void testJsonConversion() throws JsonProcessingException {
         assertJsonConversion(Change.ofJsonUpsert("/1.json", "{ \"a\": 42 }"), Change.class,
                              '{' +
                              "  \"type\": \"UPSERT_JSON\"," +

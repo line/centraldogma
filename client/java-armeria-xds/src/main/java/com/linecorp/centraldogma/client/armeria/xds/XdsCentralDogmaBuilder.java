@@ -278,6 +278,11 @@ public final class XdsCentralDogmaBuilder extends AbstractCentralDogmaBuilder<Xd
                                 .setCdsConfig(ConfigSource.newBuilder().setAds(ads))
                                 .setAdsConfig(apiConfigSource)
                                 .build();
+        final StaticResources.Builder staticResourcesBuilder =
+                StaticResources.newBuilder().addClusters(bootstrapCluster());
+        if (localCluster != Cluster.getDefaultInstance()) {
+            staticResourcesBuilder.addClusters(localCluster);
+        }
         final Bootstrap bootstrap =
                 Bootstrap.newBuilder()
                          .setClusterManager(ClusterManager.newBuilder()
@@ -285,8 +290,7 @@ public final class XdsCentralDogmaBuilder extends AbstractCentralDogmaBuilder<Xd
                          .setDynamicResources(dynamicResources)
                          .setNode(Node.newBuilder()
                                       .setLocality(locality))
-                         .setStaticResources(StaticResources.newBuilder().addClusters(bootstrapCluster())
-                                                            .addClusters(localCluster))
+                         .setStaticResources(staticResourcesBuilder)
                          .build();
         return xdsBootstrapFactory.apply(bootstrap);
     }

@@ -22,11 +22,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
+import org.jspecify.annotations.Nullable;
+
 import com.google.common.collect.ImmutableMap;
 import com.google.common.hash.Hashing;
 import com.google.protobuf.Message;
-
-import com.linecorp.armeria.common.annotation.Nullable;
 
 import io.envoyproxy.controlplane.cache.ResourceVersionResolver;
 import io.envoyproxy.controlplane.cache.Resources;
@@ -104,7 +104,7 @@ final class CentralDogmaSnapshotResources<T extends Message> extends SnapshotRes
         throw new IllegalArgumentException("Requesting all resource isn't allowed for " + resourceType);
     }
 
-    private String allResourceVersion() {
+    String allResourceVersion() {
         if (allResourceVersion != null) {
             return allResourceVersion;
         }

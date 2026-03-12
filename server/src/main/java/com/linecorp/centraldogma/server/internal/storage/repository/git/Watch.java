@@ -18,7 +18,7 @@ package com.linecorp.centraldogma.server.internal.storage.repository.git;
 
 import java.util.concurrent.CompletableFuture;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import com.linecorp.centraldogma.common.Revision;
 

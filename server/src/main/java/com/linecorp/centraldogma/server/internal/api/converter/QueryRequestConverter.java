@@ -22,7 +22,7 @@ import static com.linecorp.centraldogma.internal.Util.isValidFilePath;
 import java.lang.reflect.ParameterizedType;
 import java.util.List;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import com.linecorp.armeria.common.AggregatedHttpRequest;
 import com.linecorp.armeria.server.ServiceRequestContext;

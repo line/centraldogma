@@ -22,8 +22,7 @@ import static com.linecorp.centraldogma.internal.CredentialUtil.credentialName;
 
 import java.util.Collection;
 
-import javax.annotation.Nullable;
-
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.condition.DisabledIf;
 import org.junit.jupiter.api.extension.RegisterExtension;

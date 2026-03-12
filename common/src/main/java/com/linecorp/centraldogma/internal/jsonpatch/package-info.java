@@ -34,7 +34,7 @@
 /**
  * Internal utility classes.
  */
-@NonNullByDefault
+@NullMarked
 package com.linecorp.centraldogma.internal.jsonpatch;
 
-import com.linecorp.centraldogma.common.util.NonNullByDefault;
+import org.jspecify.annotations.NullMarked;

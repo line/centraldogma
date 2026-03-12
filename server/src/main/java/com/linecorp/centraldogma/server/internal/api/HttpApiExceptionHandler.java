@@ -23,7 +23,7 @@ import static com.linecorp.centraldogma.server.internal.api.HttpApiUtil.newRespo
 import java.util.Map;
 import java.util.function.BiFunction;
 
-import javax.annotation.Nonnull;
+import org.jspecify.annotations.Nullable;
 
 import com.google.common.collect.ImmutableMap;
 
@@ -31,7 +31,6 @@ import com.linecorp.armeria.common.AggregatedHttpResponse;
 import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.RequestHeaders;
-import com.linecorp.armeria.common.annotation.Nullable;
 import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.armeria.server.HttpResponseException;
 import com.linecorp.armeria.server.HttpStatusException;
@@ -64,8 +63,8 @@ import com.linecorp.centraldogma.common.TextPatchConflictException;
 import com.linecorp.centraldogma.common.jsonpatch.JsonPatchConflictException;
 import com.linecorp.centraldogma.server.internal.storage.RequestAlreadyTimedOutException;
 import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryMetadataException;
+import com.linecorp.centraldogma.server.metadata.AppIdentityNotFoundException;
 import com.linecorp.centraldogma.server.metadata.MemberNotFoundException;
-import com.linecorp.centraldogma.server.metadata.TokenNotFoundException;
 
 /**
  * A default {@link ExceptionHandlerFunction} of HTTP API.
@@ -114,7 +113,7 @@ public final class HttpApiExceptionHandler implements ServerErrorHandler {
                .put(RevisionNotFoundException.class,
                     (ctx, cause) -> newResponse(ctx, HttpStatus.NOT_FOUND, cause,
                                                 "Revision %s does not exist.", cause.getMessage()))
-               .put(TokenNotFoundException.class,
+               .put(AppIdentityNotFoundException.class,
                     (ctx, cause) -> newResponse(ctx, HttpStatus.NOT_FOUND, cause, cause.getMessage()))
                .put(MemberNotFoundException.class,
                     (ctx, cause) -> newResponse(ctx, HttpStatus.NOT_FOUND, cause, cause.getMessage()))
@@ -142,6 +141,7 @@ public final class HttpApiExceptionHandler implements ServerErrorHandler {
         exceptionHandlers = builder.build();
     }
 
+    @Nullable
     @Override
     public HttpResponse onServiceException(ServiceRequestContext ctx, Throwable cause) {
         final Throwable peeledCause = Exceptions.peel(cause);
@@ -186,7 +186,6 @@ public final class HttpApiExceptionHandler implements ServerErrorHandler {
         return newResponse(ctx, HttpStatus.INTERNAL_SERVER_ERROR, peeledCause);
     }
 
-    @Nonnull
     @Override
     public AggregatedHttpResponse renderStatus(@Nullable ServiceRequestContext ctx,
                                                ServiceConfig config, @Nullable RequestHeaders headers,

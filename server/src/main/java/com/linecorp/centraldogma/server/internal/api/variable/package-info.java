@@ -17,7 +17,7 @@
 /**
  * An API for managing variables.
  */
-@NonNullByDefault
+@NullMarked
 package com.linecorp.centraldogma.server.internal.api.variable;
 
-import com.linecorp.centraldogma.common.util.NonNullByDefault;
+import org.jspecify.annotations.NullMarked;

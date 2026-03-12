@@ -17,7 +17,7 @@
 /**
  * Metadata management for Central Dogma projects.
  */
-@NonNullByDefault
+@NullMarked
 package com.linecorp.centraldogma.server.metadata;
 
-import com.linecorp.centraldogma.common.util.NonNullByDefault;
+import org.jspecify.annotations.NullMarked;

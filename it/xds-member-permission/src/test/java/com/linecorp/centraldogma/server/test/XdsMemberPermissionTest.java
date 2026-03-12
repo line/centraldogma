@@ -140,12 +140,12 @@ class XdsMemberPermissionTest {
         // Grant the user role to access the internal project.
         final AggregatedHttpResponse res =
                 adminWebClient.prepare()
-                              .post("/api/v1/metadata/@xds/tokens")
+                              .post("/api/v1/metadata/@xds/appIdentities")
                               .content(MediaType.JSON, "{\"id\":\"" + "testAppId2" + "\",\"role\":\"MEMBER\"}")
                               .execute();
         assertThat(res.status()).isEqualTo(HttpStatus.OK);
 
-        // @xds project should be visible to member tokens.
+        // @xds project should be visible to member app identities.
         await().untilAsserted(
                 () -> assertThat(nonAdminClient.listProjects().join()).containsOnly("foo", "@xds")
         );
