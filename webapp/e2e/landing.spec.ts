@@ -6,7 +6,9 @@ test.beforeEach('Login', async ({ page }) => {
   await expect(page.getByText(/Login/)).toBeVisible({ timeout: 10000 });
   await page.getByPlaceholder('ID').fill('foo');
   await page.getByPlaceholder('Password').fill('bar');
+  const loginResponse = page.waitForResponse((response) => response.url().includes('/api/v1/login'));
   await page.getByRole('button', { name: 'Login' }).click();
+  await loginResponse;
 
   // Wait for login to complete
   await expect(page.getByRole('heading', { name: 'Welcome to Central Dogma!' })).toBeVisible({
@@ -15,6 +17,7 @@ test.beforeEach('Login', async ({ page }) => {
 });
 
 test('welcome message', async ({ page }) => {
+  await page.goto('/');
   await expect(page.getByRole('heading', { name: 'Welcome to Central Dogma!' })).toBeVisible();
 });
 

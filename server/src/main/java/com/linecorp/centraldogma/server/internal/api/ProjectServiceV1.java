@@ -150,7 +150,6 @@ public class ProjectServiceV1 extends AbstractService {
      * <p>Gets the {@link ProjectMetadata} of the specified {@code projectName}.
      */
     @Get("/projects/{projectName}")
-    @RequiresProjectRole(ProjectRole.MEMBER)
     public CompletableFuture<ProjectMetadata> getProjectMetadata(@Param String projectName) {
         if (InternalProjectInitializer.INTERNAL_PROJECT_DOGMA.equals(projectName)) {
             return UnmodifiableFuture.completedFuture(DOGMA_PROJECT_METADATA);
