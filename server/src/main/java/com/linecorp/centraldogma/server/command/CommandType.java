@@ -30,6 +30,7 @@ public enum CommandType {
     REMOVE_REPOSITORY(Void.class),
     UNREMOVE_REPOSITORY(Void.class),
     MIGRATE_TO_ENCRYPTED_REPOSITORY(Void.class),
+    FALLBACK_TO_FILE_REPOSITORY(Void.class),
     NORMALIZING_PUSH(CommitResult.class),
     TRANSFORM(CommitResult.class),
     PUSH(Revision.class),

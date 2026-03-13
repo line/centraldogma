@@ -189,6 +189,10 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
                     (MigrateToEncryptedRepositoryCommand) command);
         }
 
+        if (command instanceof FallbackToFileRepositoryCommand) {
+            return (CompletableFuture<T>) fallbackToFileRepository((FallbackToFileRepositoryCommand) command);
+        }
+
         if (command instanceof NormalizingPushCommand) {
             return (CompletableFuture<T>) push((NormalizingPushCommand) command, true);
         }
@@ -361,6 +365,19 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
                 }
                 throw t;
             }
+            return null;
+        }, repositoryWorker);
+    }
+
+    private CompletableFuture<Void> fallbackToFileRepository(FallbackToFileRepositoryCommand c) {
+        final RepositoryManager repositoryManager = projectManager.get(c.projectName()).repos();
+        final Repository repository = repositoryManager.get(c.repositoryName());
+        if (!repository.isEncrypted()) {
+            throw new IllegalStateException(
+                    "The repository is not encrypted: " + c.projectName() + '/' + c.repositoryName());
+        }
+        return CompletableFuture.supplyAsync(() -> {
+            repositoryManager.fallbackToFileRepository(c.repositoryName());
             return null;
         }, repositoryWorker);
     }

@@ -32,4 +32,9 @@ public interface RepositoryManager extends StorageManager<Repository> {
      * Migrates the specified repository to an encrypted repository.
      */
     void migrateToEncryptedRepository(String repositoryName);
+
+    /**
+     * Falls back the specified encrypted repository to a file-based repository.
+     */
+    void fallbackToFileRepository(String repositoryName);
 }
