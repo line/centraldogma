@@ -317,6 +317,79 @@ public class RepositoryServiceV1 extends AbstractService {
     }
 
     /**
+     * POST /projects/{projectName}/repos/{repoName}/migrate/file
+     *
+     * <p>Falls back the repository from an encrypted repository to a file-based repository.
+     */
+    @Post("/projects/{projectName}/repos/{repoName}/migrate/file")
+    @RequiresSystemAdministrator
+    public CompletableFuture<RepositoryDto> fallbackToFileRepository(ServiceRequestContext ctx,
+                                                                     Project project,
+                                                                     Repository repository,
+                                                                     Author author) {
+        validateFallbackPrerequisites(ctx, project, repository);
+        ctx.setRequestTimeoutMillis(Long.MAX_VALUE); // Disable the request timeout for migration.
+
+        return setRepositoryStatus(author, project, repository, RepositoryStatus.READ_ONLY)
+                .thenCompose(unused -> fallback(author, project, repository));
+    }
+
+    private static void validateFallbackPrerequisites(ServiceRequestContext ctx, Project project,
+                                                      Repository repository) {
+        if (InternalProjectInitializer.INTERNAL_PROJECT_DOGMA.equals(project.name()) ||
+            project.name().startsWith("@") || Project.REPO_DOGMA.equals(repository.name())) {
+            throw new IllegalArgumentException(
+                    "Cannot fallback the internal project or repository to a file-based repository. project: " +
+                    project.name() + ", repository: " + repository.name());
+        }
+
+        if (!repository.isEncrypted()) {
+            throw new IllegalArgumentException(
+                    "The repository is not encrypted. Cannot fallback to a file-based repository." +
+                    " project: " + project.name() + ", repository: " + repository.name());
+        }
+
+        final RepositoryStatus currentStatus = repositoryStatus(repository);
+        if (currentStatus == RepositoryStatus.READ_ONLY) {
+            HttpApiUtil.throwResponse(
+                    ctx, HttpStatus.CONFLICT,
+                    "Cannot fallback a read-only repository to a file-based repository. " +
+                    "Please change the status to ACTIVE first.");
+        }
+    }
+
+    private CompletionStage<RepositoryDto> fallback(Author author, Project project,
+                                                    Repository repository) {
+        final String projectName = project.name();
+        final String repoName = repository.name();
+        logger.info("Starting repository fallback to file-based: project={}, repository={}",
+                    projectName, repoName);
+
+        final Command<Void> command = Command.fallbackToFileRepository(
+                null, author, projectName, repoName);
+
+        return executor().execute(command)
+                         .handle((unused, cause) -> {
+                             if (cause != null) {
+                                 logger.warn("failed to fallback repository to a file-based repository: " +
+                                             "project={}, repository={}", projectName, repoName, cause);
+                                 return setRepositoryStatus(author, project, repository,
+                                                            RepositoryStatus.ACTIVE)
+                                         .thenApply(unused1 -> (RepositoryDto) Exceptions.throwUnsafely(cause));
+                             }
+                             logger.info("Successfully fallback repository to a file-based repository: " +
+                                         "project={}, repository={}", projectName, repoName);
+                             return setRepositoryStatus(author, project, repository, RepositoryStatus.ACTIVE)
+                                     .thenApply(unused1 -> {
+                                         final Repository updatedRepository =
+                                                 project.repos().get(repository.name());
+                                         return newRepositoryDto(updatedRepository,
+                                                                 RepositoryStatus.ACTIVE);
+                                     });
+                         }).thenCompose(Function.identity());
+    }
+
+    /**
      * POST /projects/{projectName}/repos/{repoName}/migrate/encrypted
      *
      * <p>Migrates the repository to an encrypted repository.

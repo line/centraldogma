@@ -54,6 +54,7 @@ import com.linecorp.centraldogma.server.storage.repository.Repository;
         @Type(value = PurgeRepositoryCommand.class, name = "PURGE_REPOSITORY"),
         @Type(value = UnremoveRepositoryCommand.class, name = "UNREMOVE_REPOSITORY"),
         @Type(value = MigrateToEncryptedRepositoryCommand.class, name = "MIGRATE_TO_ENCRYPTED_REPOSITORY"),
+        @Type(value = FallbackToFileRepositoryCommand.class, name = "FALLBACK_TO_FILE_REPOSITORY"),
         @Type(value = NormalizingPushCommand.class, name = "NORMALIZING_PUSH"),
         @Type(value = PushAsIsCommand.class, name = "PUSH"),
         @Type(value = RewrapAllKeysCommand.class, name = "REWRAP_ALL_KEYS"),
@@ -292,6 +293,15 @@ public interface Command<T> {
                                          String projectName, String repositoryName) {
         requireNonNull(author, "author");
         return new PurgeRepositoryCommand(timestamp, author, projectName, repositoryName);
+    }
+
+    /**
+     * Returns a new {@link Command} which is used to fall back a repository to a file-based repository.
+     */
+    static Command<Void> fallbackToFileRepository(@Nullable Long timestamp, Author author,
+                                                  String projectName, String repositoryName) {
+        requireNonNull(author, "author");
+        return new FallbackToFileRepositoryCommand(timestamp, author, projectName, repositoryName);
     }
 
     /**
