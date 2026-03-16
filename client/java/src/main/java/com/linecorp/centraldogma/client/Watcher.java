@@ -273,6 +273,14 @@ public interface Watcher<T> extends AutoCloseable {
     default <U> Watcher<U> newChild(Function<? super T, ? extends U> mapper, Executor executor) {
         requireNonNull(mapper, "mapper");
         requireNonNull(executor, "executor");
-        return MappingWatcher.of(this, mapper, executor, false);
+        return newChildAsync(t -> CompletableFuture.supplyAsync(() -> mapper.apply(t), executor));
+    }
+
+    /**
+     * Returns a {@link Watcher} that applies the {@link Function} for the {@link Latest#value()}.
+     */
+    default <U> Watcher<U> newChildAsync(Function<? super T, ? extends CompletableFuture<? extends U>> mapper) {
+        requireNonNull(mapper, "mapper");
+        return MappingWatcher.of(this, mapper);
     }
 }
