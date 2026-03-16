@@ -28,6 +28,7 @@ import static org.eclipse.jgit.lib.ConfigConstants.CONFIG_KEY_REPO_FORMAT_VERSIO
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
@@ -184,11 +185,17 @@ public final class GitRepositoryManager extends DirectoryBasedStorageManager<Rep
         final Repository encryptedRepository = get(repositoryName);
         final File repoDir = encryptedRepository.repoDir();
 
+        final Path placeholderPath = Paths.get(repoDir.getPath(), ENCRYPTED_REPO_PLACEHOLDER_FILE);
+        if (!encryptedRepository.isEncrypted() || !Files.exists(placeholderPath) || !exist(repoDir)) {
+            throw new StorageException("repository has no preserved file-based repository to fall back to: " +
+                                       projectRepositoryName(repositoryName));
+        }
+
         // Delete the placeholder file so that the original file-based git data is recognized again.
         // migrateToEncryptedRepository() preserves the original git files in repoDir,
         // so we can simply reopen the existing file-based repository.
         try {
-            Files.delete(Paths.get(repoDir.getPath(), ENCRYPTED_REPO_PLACEHOLDER_FILE));
+            Files.delete(placeholderPath);
         } catch (IOException e) {
             throw new StorageException("failed to delete the encrypted repository placeholder file at: " +
                                        repoDir, e);
