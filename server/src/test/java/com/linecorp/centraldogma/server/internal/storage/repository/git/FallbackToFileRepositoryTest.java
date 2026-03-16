@@ -42,6 +42,7 @@ import com.linecorp.centraldogma.common.Commit;
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.common.ShuttingDownException;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.internal.storage.repository.git.rocksdb.RocksDbRepository;
 import com.linecorp.centraldogma.server.storage.encryption.EncryptionStorageManager;
@@ -75,6 +76,10 @@ class FallbackToFileRepositoryTest {
 
     @AfterEach
     void tearDown() {
+        if (gitRepositoryManager != null) {
+            gitRepositoryManager.close(ShuttingDownException::new);
+        }
+
         if (encryptionStorageManager != null) {
             encryptionStorageManager.close();
         }
@@ -210,6 +215,7 @@ class FallbackToFileRepositoryTest {
         final Repository reloadedRepo = reloadedManager.get(REPO_NAME);
         assertThat(reloadedRepo.isEncrypted()).isFalse();
         assertThat(reloadedRepo.jGitRepository()).isNotInstanceOf(RocksDbRepository.class);
+        reloadedManager.close(ShuttingDownException::new);
     }
 
     @Test

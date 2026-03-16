@@ -229,7 +229,12 @@ public final class GitRepositoryManager extends DirectoryBasedStorageManager<Rep
         ((GitRepository) encryptedRepository).close(() -> new CentralDogmaException(
                 projectRepositoryName(repositoryName) +
                 " is fallback to a file-based repository. Try again."));
-        encryptionStorageManager().deleteRepositoryData(parent.name(), repositoryName);
+        try {
+            encryptionStorageManager().deleteRepositoryData(parent.name(), repositoryName);
+        } catch (Throwable t) {
+            logger.warn("Failed to delete the encrypted repository data for the repository '{}' " +
+                        "after fallback. ", projectRepositoryName(repositoryName), t);
+        }
     }
 
     @Override
