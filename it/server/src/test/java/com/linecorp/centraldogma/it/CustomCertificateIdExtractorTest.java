@@ -39,7 +39,6 @@ import com.linecorp.armeria.common.QueryParams;
 import com.linecorp.armeria.common.SessionProtocol;
 import com.linecorp.armeria.common.TlsKeyPair;
 import com.linecorp.armeria.common.TlsProvider;
-import com.linecorp.armeria.common.auth.AuthToken;
 import com.linecorp.armeria.testing.junit5.server.SelfSignedCertificateExtension;
 import com.linecorp.armeria.testing.junit5.server.SignedCertificateExtension;
 import com.linecorp.centraldogma.client.CentralDogma;
@@ -108,57 +107,54 @@ final class CustomCertificateIdExtractorTest {
         }
     };
 
-    private static void configureWebClient(WebClientBuilder builder) {
+    @Test
+    void mtlsWithCustomExtractor() {
         final TlsKeyPair tlsKeyPair = TlsKeyPair.of(clientCert.privateKey(),
                                                     clientCert.certificate());
         final ClientTlsConfig tlsConfig =
                 ClientTlsConfig.builder()
                                .tlsCustomizer(b -> b.trustManager(serverCert.certificate()))
                                .build();
-        builder.factory(ClientFactory.builder()
-                                     .tlsProvider(TlsProvider.of(tlsKeyPair),
-                                                  tlsConfig)
-                                     .build());
-    }
+        try (ClientFactory factory = ClientFactory.builder()
+                                                 .tlsProvider(TlsProvider.of(tlsKeyPair),
+                                                              tlsConfig)
+                                                 .build()) {
+            final WebClientBuilder builder =
+                    WebClient.builder("https://127.0.0.1:" + dogma.serverAddress().getPort());
+            builder.factory(factory);
+            final WebClient mtlsClient = builder.build();
+            final String contentPath = HttpApiV1Constants.PROJECTS_PREFIX + "/foo/repos/bar/contents/a.txt";
 
-    @Test
-    void mtlsWithCustomExtractor() {
-        final WebClientBuilder builder =
-                WebClient.builder("https://127.0.0.1:" + dogma.serverAddress().getPort());
-        configureWebClient(builder);
-        final WebClient mtlsClient = builder.build();
+            // Not authorized yet — no app identity registered.
+            AggregatedHttpResponse contentResponse = mtlsClient.get(contentPath).aggregate().join();
+            assertThat(contentResponse.status()).isEqualTo(HttpStatus.UNAUTHORIZED);
 
-        final String contentPath = HttpApiV1Constants.PROJECTS_PREFIX + "/foo/repos/bar/contents/a.txt";
+            // Register an app identity using the certificate ID produced by TestCertificateIdExtractor
+            // which prepends "test-" to the CN.
+            final AggregatedHttpResponse response =
+                    dogma.httpClient().post(API_V1_PATH_PREFIX + "appIdentities",
+                                            QueryParams.of("appId", "cert1",
+                                                           "type", "CERTIFICATE",
+                                                           "certificateId", CERT_ID,
+                                                           "isSystemAdmin", false),
+                                            HttpData.empty()).aggregate().join();
+            assertThat(response.status()).isEqualTo(HttpStatus.CREATED);
+            assertThat(response.contentUtf8()).contains("\"appId\":\"cert1\"");
 
-        // Not authorized yet — no app identity registered.
-        AggregatedHttpResponse contentResponse = mtlsClient.get(contentPath).aggregate().join();
-        assertThat(contentResponse.status()).isEqualTo(HttpStatus.UNAUTHORIZED);
+            // Still forbidden — no project role granted yet.
+            contentResponse = mtlsClient.get(contentPath).aggregate().join();
+            assertThat(contentResponse.status()).isEqualTo(HttpStatus.FORBIDDEN);
 
-        // Register an app identity using the certificate ID produced by TestCertificateIdExtractor
-        // which prepends "test-" to the CN.
-        final AggregatedHttpResponse response =
-                dogma.httpClient().post(API_V1_PATH_PREFIX + "appIdentities",
-                                        QueryParams.of("appId", "cert1",
-                                                       "type", "CERTIFICATE",
-                                                       "certificateId", CERT_ID,
-                                                       "isSystemAdmin", false),
-                                        HttpData.empty()).aggregate().join();
-        assertThat(response.status()).isEqualTo(HttpStatus.CREATED);
-        assertThat(response.contentUtf8()).contains("\"appId\":\"cert1\"");
+            // Grant the cert1 app identity access to the 'foo' project.
+            final HttpRequest request = HttpRequest.builder()
+                                                   .post("/api/v1/metadata/foo/appIdentities")
+                                                   .contentJson(new IdAndProjectRole("cert1", ProjectRole.MEMBER))
+                                                   .build();
+            assertThat(dogma.httpClient().execute(request).aggregate().join().status()).isSameAs(HttpStatus.OK);
 
-        // Still forbidden — no project role granted yet.
-        contentResponse = mtlsClient.get(contentPath).aggregate().join();
-        assertThat(contentResponse.status()).isEqualTo(HttpStatus.FORBIDDEN);
-
-        // Grant the cert1 app identity access to the 'foo' project.
-        final HttpRequest request = HttpRequest.builder()
-                                               .post("/api/v1/metadata/foo/appIdentities")
-                                               .contentJson(new IdAndProjectRole("cert1", ProjectRole.MEMBER))
-                                               .build();
-        assertThat(dogma.httpClient().execute(request).aggregate().join().status()).isSameAs(HttpStatus.OK);
-
-        // Now the mTLS client can access the content.
-        contentResponse = mtlsClient.get(contentPath).aggregate().join();
-        assertThat(contentResponse.status()).isEqualTo(HttpStatus.OK);
+            // Now the mTLS client can access the content.
+            contentResponse = mtlsClient.get(contentPath).aggregate().join();
+            assertThat(contentResponse.status()).isEqualTo(HttpStatus.OK);
+        }
     }
 }
