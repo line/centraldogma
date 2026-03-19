@@ -148,7 +148,8 @@ final class CustomCertificateIdExtractorTest {
             // Grant the cert1 app identity access to the 'foo' project.
             final HttpRequest request = HttpRequest.builder()
                                                    .post("/api/v1/metadata/foo/appIdentities")
-                                                   .contentJson(new IdAndProjectRole("cert1", ProjectRole.MEMBER))
+                                                   .contentJson(
+                                                           new IdAndProjectRole("cert1", ProjectRole.MEMBER))
                                                    .build();
             assertThat(dogma.httpClient().execute(request).aggregate().join().status()).isSameAs(HttpStatus.OK);
 
