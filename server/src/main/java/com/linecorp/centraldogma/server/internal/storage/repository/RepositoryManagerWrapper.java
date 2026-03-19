@@ -64,6 +64,12 @@ public class RepositoryManagerWrapper implements RepositoryManager {
     }
 
     @Override
+    public void fallbackToFileRepository(String repositoryName) {
+        delegate.fallbackToFileRepository(repositoryName);
+        repos.replace(repositoryName, repoWrapper.apply(delegate.get(repositoryName)));
+    }
+
+    @Override
     public void close(Supplier<CentralDogmaException> failureCauseSupplier) {
         delegate.close(failureCauseSupplier);
     }

@@ -28,6 +28,7 @@ import static org.eclipse.jgit.lib.ConfigConstants.CONFIG_KEY_REPO_FORMAT_VERSIO
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
@@ -174,6 +175,73 @@ public final class GitRepositoryManager extends DirectoryBasedStorageManager<Rep
         // We didn't add repository listeners to the repository so don't have to add the listener here.
         ((GitRepository) oldRepository).close(() -> new CentralDogmaException(
                 projectRepositoryName(repositoryName) + " is migrated to an encrypted repository. Try again."));
+    }
+
+    @Override
+    public void fallbackToFileRepository(String repositoryName) {
+        logger.info("Starting to fallback the repository '{}' to a file-based repository.",
+                    projectRepositoryName(repositoryName));
+        final long startTime = System.nanoTime();
+        final Repository encryptedRepository = get(repositoryName);
+        final File repoDir = encryptedRepository.repoDir();
+
+        final Path placeholderPath = Paths.get(repoDir.getPath(), ENCRYPTED_REPO_PLACEHOLDER_FILE);
+        if (!encryptedRepository.isEncrypted() || !Files.exists(placeholderPath) || !exist(repoDir)) {
+            throw new StorageException("repository has no preserved file-based repository to fall back to: " +
+                                       projectRepositoryName(repositoryName));
+        }
+
+        // Delete the placeholder file so that the original file-based git data is recognized again.
+        // migrateToEncryptedRepository() preserves the original git files in repoDir,
+        // so we can simply reopen the existing file-based repository.
+        try {
+            Files.delete(placeholderPath);
+        } catch (IOException e) {
+            throw new StorageException("failed to delete the encrypted repository placeholder file at: " +
+                                       repoDir, e);
+        }
+
+        // Reopen the existing file-based git repository from repoDir.
+        final GitRepository fileRepository;
+        try {
+            fileRepository = openFileRepository(parent, repoDir, repositoryWorker, cache);
+        } catch (Throwable t) {
+            // Restore the placeholder file so the manager stays in a consistent state.
+            try {
+                Files.createFile(Paths.get(repoDir.getPath(), ENCRYPTED_REPO_PLACEHOLDER_FILE));
+            } catch (IOException ex) {
+                logger.warn("Failed to restore the encrypted repository placeholder file at: {}",
+                            repoDir, ex);
+            }
+            throw new StorageException("failed to reopen the file-based repository after fallback. " +
+                                       "repositoryName: " + projectRepositoryName(repositoryName), t);
+        }
+
+        if (!replaceChild(repositoryName, encryptedRepository, fileRepository)) {
+            fileRepository.internalClose();
+            try {
+                Files.createFile(Paths.get(repoDir.getPath(), ENCRYPTED_REPO_PLACEHOLDER_FILE));
+            } catch (IOException ex) {
+                logger.warn("Failed to restore the encrypted repository placeholder file at: {}",
+                            repoDir, ex);
+            }
+            throw new StorageException(
+                    "failed to replace the encrypted repository with the file-based repository. " +
+                    "repositoryName: " + projectRepositoryName(repositoryName));
+        }
+
+        logger.info("Fallback the repository '{}' to a file-based repository in {} seconds.",
+                    projectRepositoryName(repositoryName),
+                    TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startTime));
+        ((GitRepository) encryptedRepository).close(() -> new CentralDogmaException(
+                projectRepositoryName(repositoryName) +
+                " is fallback to a file-based repository. Try again."));
+        try {
+            encryptionStorageManager().deleteRepositoryData(parent.name(), repositoryName);
+        } catch (Throwable t) {
+            logger.warn("Failed to delete the encrypted repository data for the repository '{}' " +
+                        "after fallback. ", projectRepositoryName(repositoryName), t);
+        }
     }
 
     @Override
