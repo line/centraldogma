@@ -69,7 +69,7 @@ final class CertificateAppIdentityAuthTest {
     @Order(3)
     @RegisterExtension
     static final SignedCertificateExtension clientCert =
-            new SignedCertificateExtension("my-client", ca);
+            new SignedCertificateExtension("my-client", ca, false);
 
     @RegisterExtension
     static final CentralDogmaExtension dogma = new CentralDogmaExtension() {
