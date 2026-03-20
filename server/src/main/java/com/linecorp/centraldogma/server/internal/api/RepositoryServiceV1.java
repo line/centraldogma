@@ -197,6 +197,7 @@ public class RepositoryServiceV1 extends AbstractService {
             return HttpApiUtil.throwResponse(ctx, HttpStatus.BAD_REQUEST,
                                              "Encryption is not enabled in the server.");
         }
+
         final boolean encrypt = request.encrypt() || isEncryptedProject(project);
 
         final CommandExecutor commandExecutor = executor();
