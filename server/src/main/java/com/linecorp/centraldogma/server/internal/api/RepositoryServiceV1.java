@@ -192,15 +192,17 @@ public class RepositoryServiceV1 extends AbstractService {
             return HttpApiUtil.throwResponse(ctx, HttpStatus.FORBIDDEN,
                                              "An internal repository cannot be created.");
         }
+
         if (request.encrypt() && !encryptionStorageManager.enabled()) {
             return HttpApiUtil.throwResponse(ctx, HttpStatus.BAD_REQUEST,
                                              "Encryption is not enabled in the server.");
         }
+        final boolean encrypt = request.encrypt() || isEncryptedProject(project);
 
         final CommandExecutor commandExecutor = executor();
         final CompletableFuture<Revision> future =
                 RepositoryServiceUtil.createRepository(commandExecutor, mds, author, project.name(), repoName,
-                                                       request.encrypt(), encryptionStorageManager);
+                                                       encrypt, encryptionStorageManager);
         return future.handle(returnOrThrow(() -> {
             final Repository repository = project.repos().get(repoName);
             return newRepositoryDto(repository, repositoryStatus(repository));
@@ -540,6 +542,10 @@ public class RepositoryServiceV1 extends AbstractService {
                            Tag.of("repo", repoName),
                            Tag.of("service", firstNonNull(log.serviceName(), "none")),
                            Tag.of("method", log.name()));
+    }
+
+    private static boolean isEncryptedProject(Project project) {
+        return project.repos().get(Project.REPO_DOGMA).isEncrypted();
     }
 
     private static void rejectIfDogmaProject(Project project) {
