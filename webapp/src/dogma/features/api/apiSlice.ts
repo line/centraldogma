@@ -289,9 +289,9 @@ export const apiSlice = createApi({
     getFiles: builder.query<FileDto[] | FileDto, GetFilesByProjectAndRepoName>({
       query: ({ projectName, repoName, revision, filePath, withContent }) => {
         if (withContent) {
-          return `/api/v1/projects/${projectName}/repos/${repoName}/contents${filePath || ''}?revision=${revision || 'head'}&viewRaw=true`;
+          return `/api/v1/projects/${projectName}/repos/${repoName}/contents${filePath || ''}?revision=${revision || 'head'}&viewRaw=true&preserveTrailingSlash=true`;
         } else {
-          return `/api/v1/projects/${projectName}/repos/${repoName}/list${filePath || ''}?revision=${revision || 'head'}`;
+          return `/api/v1/projects/${projectName}/repos/${repoName}/list${filePath || ''}?revision=${revision || 'head'}&preserveTrailingSlash=true`;
         }
       },
       providesTags: ['File'],
