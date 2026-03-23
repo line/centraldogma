@@ -442,7 +442,9 @@ public final class ArmeriaCentralDogma extends AbstractCentralDogma {
         requireNonNull(pathPattern, "pathPattern");
         try {
             final StringBuilder path = pathBuilder(projectName, repositoryName);
-            path.append("/list").append(pathPattern.encoded()).append("?revision=").append(revision.major());
+            path.append("/list").append(pathPattern.encoded())
+                .append("?revision=").append(revision.major())
+                .append("&preserveTrailingSlash=true");
 
             return client.execute(headers(HttpMethod.GET, path.toString()))
                          .aggregate()
@@ -482,7 +484,8 @@ public final class ArmeriaCentralDogma extends AbstractCentralDogma {
                 path.append("/contents").append(query.path()).append('?');
                 final QueryParamsBuilder paramsBuilder =
                         QueryParams.builder()
-                                   .add("revision", normRev.text());
+                                   .add("revision", normRev.text())
+                                   .add("preserveTrailingSlash", "true");
                 if (viewRaw) {
                     paramsBuilder.add("viewRaw", "true");
                 }
@@ -533,7 +536,9 @@ public final class ArmeriaCentralDogma extends AbstractCentralDogma {
 
                 final QueryParamsBuilder paramsBuilder =
                         QueryParams.builder()
-                                   .add("revision", normRev.text());
+                                   .add("revision", normRev.text())
+                                   .add("preserveTrailingSlash", "true");
+
                 if (viewRaw) {
                     paramsBuilder.add("viewRaw", "true");
                 }

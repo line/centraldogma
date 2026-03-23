@@ -33,6 +33,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import com.fasterxml.jackson.databind.JsonNode;
 
@@ -463,21 +464,24 @@ class ContentServiceV1Test {
             assertThatJson(actualJson).isEqualTo(expectedJson);
         }
 
-        @Test
-        void listFiles() {
+        @ValueSource(booleans = { true, false })
+        @ParameterizedTest
+        void listFiles(boolean preserveTrailingSlash) {
             final WebClient client = dogma.httpClient();
             addFooJson(client);
             addBarTxt(client);
             // get the list of all files
             final AggregatedHttpResponse res1 = client
-                    .get("/api/v1/projects/myPro/repos/myRepo/list/**").aggregate().join();
+                    .get("/api/v1/projects/myPro/repos/myRepo/list/**?preserveTrailingSlash=" +
+                         preserveTrailingSlash).aggregate().join();
             final String expectedJson1 =
                     '[' +
                     "   {" +
                     "       \"revision\": 3," +
-                    "       \"path\": \"/a/\"," +
+                    "       \"path\": \"/a" + (preserveTrailingSlash ? "/\"" : "\"") + ',' +
                     "       \"type\": \"DIRECTORY\"," +
-                    "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/contents/a/\"" +
+                    "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/contents/a" +
+                    (preserveTrailingSlash ? "/\"" : "\"") +
                     "   }," +
                     "   {" +
                     "       \"revision\": 3," +
@@ -496,14 +500,16 @@ class ContentServiceV1Test {
 
             // get the list of files only under root
             final AggregatedHttpResponse res2 = client
-                    .get("/api/v1/projects/myPro/repos/myRepo/list/").aggregate().join();
+                    .get("/api/v1/projects/myPro/repos/myRepo/list/?preserveTrailingSlash=" +
+                         preserveTrailingSlash).aggregate().join();
             final String expectedJson2 =
                     '[' +
                     "   {" +
                     "       \"revision\": 3," +
-                    "       \"path\": \"/a/\"," +
+                    "       \"path\": \"/a" + (preserveTrailingSlash ? "/\"" : "\"") + ',' +
                     "       \"type\": \"DIRECTORY\"," +
-                    "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/contents/a/\"" +
+                    "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/contents/a" +
+                    (preserveTrailingSlash ? "/\"" : "\"") +
                     "   }," +
                     "   {" +
                     "       \"revision\": 3," +
@@ -516,7 +522,8 @@ class ContentServiceV1Test {
 
             // get the list of all files with revision 2, so only foo.json will be fetched
             final AggregatedHttpResponse res3 = client
-                    .get("/api/v1/projects/myPro/repos/myRepo/list/**?revision=2").aggregate().join();
+                    .get("/api/v1/projects/myPro/repos/myRepo/list/**?revision=2&" +
+                         "preserveTrailingSlash=" + preserveTrailingSlash).aggregate().join();
             final String expectedJson3 =
                     '[' +
                     "   {" +
@@ -543,21 +550,24 @@ class ContentServiceV1Test {
             assertThatJson(res4.contentUtf8()).isEqualTo(expectedJson4);
         }
 
-        @Test
-        void listFilesWithContent() {
+        @ValueSource(booleans = { true, false })
+        @ParameterizedTest
+        void listFilesWithContent(boolean preserveTrailingSlash) {
             final WebClient client = dogma.httpClient();
             addFooJson(client);
             addBarTxt(client);
 
             // get the list of all files
-            final AggregatedHttpResponse res1 = client.get(CONTENTS_PREFIX + "/**").aggregate().join();
+            final AggregatedHttpResponse res1 = client.get(
+                    CONTENTS_PREFIX + "/**?preserveTrailingSlash=" + preserveTrailingSlash).aggregate().join();
             final String expectedJson1 =
                     '[' +
                     "   {" +
                     "       \"revision\": 3," +
-                    "       \"path\": \"/a/\"," +
+                    "       \"path\": \"/a" + (preserveTrailingSlash ? "/\"" : "\"") + ',' +
                     "       \"type\": \"DIRECTORY\"," +
-                    "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/contents/a/\"" +
+                    "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/contents/a" +
+                    (preserveTrailingSlash ? "/\"" : "\"") +
                     "   }," +
                     "   {" +
                     "       \"revision\": 3," +
@@ -868,7 +878,7 @@ class ContentServiceV1Test {
                     ']';
             // List directory without slash.
             final AggregatedHttpResponse res1 = client
-                    .get("/api/v1/projects/myPro/repos/myRepo/list/a.json").aggregate().join();
+                    .get("/api/v1/projects/myPro/repos/myRepo/list/a.json?preserveTrailingSlash=true").aggregate().join();
             assertThatJson(res1.contentUtf8()).isEqualTo(expectedJson);
 
             // Listing directory with a slash is same with the listing director without slash which is res1.
