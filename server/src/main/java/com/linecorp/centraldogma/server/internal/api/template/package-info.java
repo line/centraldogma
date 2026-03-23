@@ -18,6 +18,6 @@
  * An API for managing variables.
  */
 @NullMarked
-package com.linecorp.centraldogma.server.internal.api.variable;
+package com.linecorp.centraldogma.server.internal.api.template;
 
 import org.jspecify.annotations.NullMarked;

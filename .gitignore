@@ -143,3 +143,6 @@ typings/
 
 # Codex
 AGENTS.md
+
+# Claude
+.claude/settings.local.json

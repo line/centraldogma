@@ -14,7 +14,7 @@
  * under the License.
  */
 
-package com.linecorp.centraldogma.server.internal.api.variable;
+package com.linecorp.centraldogma.server.internal.api.template;
 
 public enum VariableType {
     STRING,
