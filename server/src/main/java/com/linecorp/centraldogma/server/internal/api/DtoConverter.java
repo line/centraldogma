@@ -78,7 +78,8 @@ final class DtoConverter {
     }
 
     public static <T> EntryDto<?> newEntryDto(Repository repository, Revision revision,
-                                              Entry<T> entry, boolean withContent, boolean viewRaw) {
+                                              Entry<T> entry, boolean withContent, boolean viewRaw,
+                                              boolean preserveTrailingSlash) {
         requireNonNull(entry, "entry");
         if (withContent && entry.hasContent()) {
             if (viewRaw) {
@@ -106,7 +107,13 @@ final class DtoConverter {
         // Use EntryType.TEXT for YAML entries for backward compatibility.
         // Old clients may not recognize EntryType.YAML.
         final EntryType type = entry.type() == EntryType.YAML ? EntryType.TEXT : entry.type();
-        return newEntryDto(repository, revision, entry.path(), type);
+        String path = entry.path();
+
+        // The preserveTrailingSlash=false option is used for backward compatibility.
+        if (!preserveTrailingSlash && path.length() > 1 && path.endsWith("/")) {
+            path = path.substring(0, path.length() - 1);
+        }
+        return newEntryDto(repository, revision, path, type);
     }
 
     private static <T> EntryDto<T> newEntryDto(Repository repository, Revision revision,
