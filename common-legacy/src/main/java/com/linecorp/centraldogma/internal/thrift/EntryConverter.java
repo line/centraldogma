@@ -90,6 +90,9 @@ public final class EntryConverter {
             case JSON:
                 return EntryType.JSON;
             case TEXT:
+            // We treat YAML as TEXT because Thrift module has been deprecated and we don't want to add
+            // a new entry type just for YAML.
+            case YAML:
                 return EntryType.TEXT;
             case DIRECTORY:
                 return EntryType.DIRECTORY;
