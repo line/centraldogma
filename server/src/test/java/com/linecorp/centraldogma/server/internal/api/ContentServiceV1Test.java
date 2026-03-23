@@ -878,12 +878,14 @@ class ContentServiceV1Test {
                     ']';
             // List directory without slash.
             final AggregatedHttpResponse res1 = client
-                    .get("/api/v1/projects/myPro/repos/myRepo/list/a.json?preserveTrailingSlash=true").aggregate().join();
+                    .get("/api/v1/projects/myPro/repos/myRepo/list/a.json?preserveTrailingSlash=true")
+                    .aggregate().join();
             assertThatJson(res1.contentUtf8()).isEqualTo(expectedJson);
 
             // Listing directory with a slash is same with the listing director without slash which is res1.
             final AggregatedHttpResponse res2 = client
-                    .get("/api/v1/projects/myPro/repos/myRepo/list/a.json/").aggregate().join();
+                    .get("/api/v1/projects/myPro/repos/myRepo/list/a.json/?preserveTrailingSlash=true")
+                    .aggregate().join();
             assertThatJson(res2.contentUtf8()).isEqualTo(expectedJson);
         }
     }

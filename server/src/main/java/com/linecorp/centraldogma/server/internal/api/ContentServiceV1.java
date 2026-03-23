@@ -126,11 +126,12 @@ public class ContentServiceV1 extends AbstractService {
      * <p>Returns the list of files in the path.
      */
     @Get("regex:/projects/(?<projectName>[^/]+)/repos/(?<repoName>[^/]+)/list(?<path>(|/.*))$")
-    public CompletableFuture<List<EntryDto<?>>> listFiles(ServiceRequestContext ctx,
-                                                          @Param String path,
-                                                          @Param @Default("-1") String revision,
-                                                          @Param @Default("false") boolean preserveTrailingSlash,
-                                                          Repository repository) {
+    public CompletableFuture<List<EntryDto<?>>> listFiles(
+            ServiceRequestContext ctx,
+            @Param String path,
+            @Param @Default("-1") String revision,
+            @Param @Default("false") boolean preserveTrailingSlash,
+            Repository repository) {
         final String normalizedPath = normalizePath(path);
         final Revision normalizedRev = repository.normalizeNow(new Revision(revision));
         increaseCounterIfOldRevisionUsed(ctx, repository, normalizedRev);
