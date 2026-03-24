@@ -106,8 +106,16 @@ const baseQuery = fetchBaseQuery({
   baseUrl: `${process.env.NEXT_PUBLIC_HOST || ''}/`,
   credentials: 'include',
   prepareHeaders: (headers, { getState, type }) => {
+    const { auth } = getState() as { auth: AuthState };
+
+    if (auth.isInAnonymousMode) {
+      // In anonymous mode, the server requires 'Authorization: Bearer anonymous'
+      // to pass through AnonymousTokenAuthorizer.
+      headers.set('Authorization', 'Bearer anonymous');
+      return headers;
+    }
+
     if (type === 'mutation') {
-      const { auth } = getState() as { auth: AuthState };
       const csrfToken = auth.csrfToken;
 
       if (csrfToken) {
@@ -129,8 +137,11 @@ const baseQueryWithReauth: BaseQueryFn<string | FetchArgs, unknown, FetchBaseQue
   const result = await baseQuery(args, api, extraOptions);
 
   if (result.error && result.error.status === 401) {
-    api.dispatch(clearAuth());
-    Router.push(createLoginUrl());
+    const { auth } = api.getState() as { auth: AuthState };
+    if (!auth.isInAnonymousMode) {
+      api.dispatch(clearAuth());
+      Router.push(createLoginUrl());
+    }
   }
   return result;
 };
