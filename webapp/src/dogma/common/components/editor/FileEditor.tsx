@@ -241,6 +241,7 @@ const FileEditor = ({
                   readOnly: readOnly,
                   automaticLayout: true,
                   scrollBeyondLastLine: false,
+                  lineNumbersMinChars: 6,
                 }}
                 onMount={handleEditorMount}
                 beforeMount={registerJson5Language}
