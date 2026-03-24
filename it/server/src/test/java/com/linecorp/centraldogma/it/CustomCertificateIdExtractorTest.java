@@ -69,7 +69,7 @@ final class CustomCertificateIdExtractorTest {
     @Order(3)
     @RegisterExtension
     static final SignedCertificateExtension clientCert =
-            new SignedCertificateExtension(CLIENT_CN, ca);
+            new SignedCertificateExtension(CLIENT_CN, ca, false);
 
     @RegisterExtension
     static final CentralDogmaExtension dogma = new CentralDogmaExtension() {
