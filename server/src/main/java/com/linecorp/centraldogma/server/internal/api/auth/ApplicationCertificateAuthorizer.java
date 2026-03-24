@@ -111,13 +111,10 @@ public final class ApplicationCertificateAuthorizer implements Authorizer<HttpRe
                 continue;
             }
             final X509Certificate x509Certificate = (X509Certificate) peerCert;
-            /* // Uncomment the following lines after fixing Singned Certificate Extension to
-            generate end-entity certs.
             if (x509Certificate.getBasicConstraints() != -1) {
                 logger.trace("Skipping CA certificate: addr={}, cert={}", ctx.clientAddress(), x509Certificate);
                 continue;
             }
-            */
 
             certificateId = ID_EXTRACTOR.extractCertificateId(x509Certificate);
             if (certificateId != null) {
