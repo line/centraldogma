@@ -280,6 +280,7 @@ const FileEditor = ({
                     useTabStops: true,
                     renderSideBySide: diffSideBySide,
                     scrollBeyondLastLine: false,
+                    lineNumbersMinChars: 6,
                   }}
                 />
               </>
