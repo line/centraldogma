@@ -3,6 +3,8 @@ dependencies {
     testImplementation project(':server-auth:shiro')
 
     testImplementation libs.curator.test
+
+    testImplementation libs.armeria.junit5
 }
 
 // To use @SetEnvironmentVariable

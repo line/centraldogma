@@ -21,6 +21,8 @@ import static java.util.Objects.requireNonNull;
 
 import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
+import java.util.List;
+import java.util.ServiceLoader;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Function;
 
@@ -30,6 +32,8 @@ import javax.net.ssl.SSLSession;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.google.common.collect.ImmutableList;
 
 import com.linecorp.armeria.common.HttpRequest;
 import com.linecorp.armeria.common.logging.RequestLogProperty;
@@ -59,8 +63,22 @@ public final class ApplicationCertificateAuthorizer implements Authorizer<HttpRe
     private static final AttributeKey<CertificateId> CERTIFICATE_ID =
             AttributeKey.valueOf(ApplicationCertificateAuthorizer.class, "CERTIFICATE_ID");
 
-    // TODO(minwoox): Make it configurable via SPI.
-    private static final ApplicationCertificateIdExtractor ID_EXTRACTOR = CommonNameExtractor.INSTANCE;
+    private static final ApplicationCertificateIdExtractor ID_EXTRACTOR;
+
+    static {
+        final List<ApplicationCertificateIdExtractor> extractors = ImmutableList.copyOf(
+                ServiceLoader.load(ApplicationCertificateIdExtractor.class,
+                                   ApplicationCertificateAuthorizer.class.getClassLoader()));
+        if (extractors.isEmpty()) {
+            ID_EXTRACTOR = CommonNameExtractor.INSTANCE;
+        } else if (extractors.size() == 1) {
+            ID_EXTRACTOR = extractors.get(0);
+        } else {
+            throw new IllegalStateException(
+                    "Only one ApplicationCertificateIdExtractor implementation must be provided. " +
+                    "found: " + extractors);
+        }
+    }
 
     private final Function<String, CertificateAppIdentity> certificateLookupFunc;
 
