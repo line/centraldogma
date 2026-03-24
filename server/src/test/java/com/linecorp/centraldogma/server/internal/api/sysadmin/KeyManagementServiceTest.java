@@ -82,8 +82,6 @@ class KeyManagementServiceTest {
         @Override
         protected void scaffold(CentralDogma client) {
             client.createProject("foo").join();
-            client.createRepository("foo", "bar") // non-encrypted repo
-                  .join();
         }
     };
 
