@@ -20,7 +20,7 @@ Gradle:
     :class: highlight-gradle
 
     dependencies {
-        compile 'com.linecorp.centraldogma:centraldogma-client-armeria:\ |release|\ '
+        implementation 'com.linecorp.centraldogma:centraldogma-client-armeria:\ |release|\ '
     }
 
 Maven:
@@ -52,7 +52,7 @@ First, we should create a new instance of :api:`com.linecorp.centraldogma.client
     // You can specify an alternative port or enable TLS as well:
     CentralDogma dogma2 = new ArmeriaCentralDogmaBuilder()
             .useTls()                   // Enable TLS.
-            .host("example.com", 8443); // Use port 8443.
+            .host("example.com", 8443)  // Use port 8443.
             .build();
 
 .. note::
