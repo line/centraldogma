@@ -53,9 +53,9 @@
 <a class="jxr_linenumber" name="L45" href="#L45">45</a>              @Nullable <a href="../../../../../../com/linecorp/centraldogma/server/storage/encryption/EncryptionStorageManager.html">EncryptionStorageManager</a> encryptionStorageManager) {
 <a class="jxr_linenumber" name="L46" href="#L46">46</a>          <strong class="jxr_keyword">final</strong> Map&lt;String, RepositoryRole&gt; users;
 <a class="jxr_linenumber" name="L47" href="#L47">47</a>          <strong class="jxr_keyword">final</strong> Map&lt;String, RepositoryRole&gt; appIds;
-<a class="jxr_linenumber" name="L48" href="#L48">48</a>          <strong class="jxr_keyword">if</strong> (author.isToken()) {
+<a class="jxr_linenumber" name="L48" href="#L48">48</a>          <strong class="jxr_keyword">if</strong> (author.isAppIdentity()) {
 <a class="jxr_linenumber" name="L49" href="#L49">49</a>              users = ImmutableMap.of();
-<a class="jxr_linenumber" name="L50" href="#L50">50</a>              <em class="jxr_comment">// author.name() is the appId of the token.</em>
+<a class="jxr_linenumber" name="L50" href="#L50">50</a>              <em class="jxr_comment">// author.name() is the appId.</em>
 <a class="jxr_linenumber" name="L51" href="#L51">51</a>              appIds = ImmutableMap.of(author.name(), RepositoryRole.ADMIN);
 <a class="jxr_linenumber" name="L52" href="#L52">52</a>          } <strong class="jxr_keyword">else</strong> {
 <a class="jxr_linenumber" name="L53" href="#L53">53</a>              users = ImmutableMap.of(author.email(), RepositoryRole.ADMIN);

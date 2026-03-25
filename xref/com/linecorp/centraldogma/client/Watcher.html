@@ -281,9 +281,17 @@
 <a class="jxr_linenumber" name="L273" href="#L273">273</a>     <strong class="jxr_keyword">default</strong> &lt;U&gt; Watcher&lt;U&gt; newChild(Function&lt;? <strong class="jxr_keyword">super</strong> T, ? <strong class="jxr_keyword">extends</strong> U&gt; mapper, Executor executor) {
 <a class="jxr_linenumber" name="L274" href="#L274">274</a>         requireNonNull(mapper, <span class="jxr_string">"mapper"</span>);
 <a class="jxr_linenumber" name="L275" href="#L275">275</a>         requireNonNull(executor, <span class="jxr_string">"executor"</span>);
-<a class="jxr_linenumber" name="L276" href="#L276">276</a>         <strong class="jxr_keyword">return</strong> MappingWatcher.of(<strong class="jxr_keyword">this</strong>, mapper, executor, false);
+<a class="jxr_linenumber" name="L276" href="#L276">276</a>         <strong class="jxr_keyword">return</strong> newChildAsync(t -&gt; CompletableFuture.supplyAsync(() -&gt; mapper.apply(t), executor));
 <a class="jxr_linenumber" name="L277" href="#L277">277</a>     }
-<a class="jxr_linenumber" name="L278" href="#L278">278</a> }
+<a class="jxr_linenumber" name="L278" href="#L278">278</a> 
+<a class="jxr_linenumber" name="L279" href="#L279">279</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L280" href="#L280">280</a> <em class="jxr_javadoccomment">     * Returns a {@link Watcher} that applies the {@link Function} for the {@link Latest#value()}.</em>
+<a class="jxr_linenumber" name="L281" href="#L281">281</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L282" href="#L282">282</a>     <strong class="jxr_keyword">default</strong> &lt;U&gt; Watcher&lt;U&gt; newChildAsync(Function&lt;? <strong class="jxr_keyword">super</strong> T, ? <strong class="jxr_keyword">extends</strong> CompletableFuture&lt;? <strong class="jxr_keyword">extends</strong> U&gt;&gt; mapper) {
+<a class="jxr_linenumber" name="L283" href="#L283">283</a>         requireNonNull(mapper, <span class="jxr_string">"mapper"</span>);
+<a class="jxr_linenumber" name="L284" href="#L284">284</a>         <strong class="jxr_keyword">return</strong> MappingWatcher.of(<strong class="jxr_keyword">this</strong>, mapper);
+<a class="jxr_linenumber" name="L285" href="#L285">285</a>     }
+<a class="jxr_linenumber" name="L286" href="#L286">286</a> }
 </pre>
 <hr/>
 <div id="footer">&copy; Copyright 2017&ndash;2026 <a href="https://engineering.linecorp.com/en/">LINE Corporation</a>. All rights reserved.</div>

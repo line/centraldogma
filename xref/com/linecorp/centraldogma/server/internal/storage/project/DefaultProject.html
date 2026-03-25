@@ -62,9 +62,9 @@
 <a class="jxr_linenumber" name="L54" href="#L54">54</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.internal.storage.repository.RepositoryCache;
 <a class="jxr_linenumber" name="L55" href="#L55">55</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.internal.storage.repository.cache.CachingRepositoryManager;
 <a class="jxr_linenumber" name="L56" href="#L56">56</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.internal.storage.repository.git.GitRepositoryManager;
-<a class="jxr_linenumber" name="L57" href="#L57">57</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.metadata.Member;
-<a class="jxr_linenumber" name="L58" href="#L58">58</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.metadata.ProjectMetadata;
-<a class="jxr_linenumber" name="L59" href="#L59">59</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.metadata.TokenRegistration;
+<a class="jxr_linenumber" name="L57" href="#L57">57</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.metadata.AppIdentityRegistration;
+<a class="jxr_linenumber" name="L58" href="#L58">58</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.metadata.Member;
+<a class="jxr_linenumber" name="L59" href="#L59">59</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.metadata.ProjectMetadata;
 <a class="jxr_linenumber" name="L60" href="#L60">60</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.metadata.UserAndTimestamp;
 <a class="jxr_linenumber" name="L61" href="#L61">61</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.storage.encryption.EncryptionStorageManager;
 <a class="jxr_linenumber" name="L62" href="#L62">62</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.storage.project.Project;
@@ -210,25 +210,25 @@
 <a class="jxr_linenumber" name="L202" href="#L202">202</a> 
 <a class="jxr_linenumber" name="L203" href="#L203">203</a>             <strong class="jxr_keyword">final</strong> <a href="../../../../../../../com/linecorp/centraldogma/server/metadata/UserAndTimestamp.html">UserAndTimestamp</a> userAndTimestamp = UserAndTimestamp.of(author);
 <a class="jxr_linenumber" name="L204" href="#L204">204</a>             <strong class="jxr_keyword">final</strong> Map&lt;String, Member&gt; members;
-<a class="jxr_linenumber" name="L205" href="#L205">205</a>             <strong class="jxr_keyword">final</strong> Map&lt;String, TokenRegistration&gt; tokens;
-<a class="jxr_linenumber" name="L206" href="#L206">206</a>             <strong class="jxr_keyword">if</strong> (author.isToken()) {
+<a class="jxr_linenumber" name="L205" href="#L205">205</a>             <strong class="jxr_keyword">final</strong> Map&lt;String, AppIdentityRegistration&gt; appIds;
+<a class="jxr_linenumber" name="L206" href="#L206">206</a>             <strong class="jxr_keyword">if</strong> (author.isAppIdentity()) {
 <a class="jxr_linenumber" name="L207" href="#L207">207</a>                 members = ImmutableMap.of();
-<a class="jxr_linenumber" name="L208" href="#L208">208</a>                 <em class="jxr_comment">// author.name() is the appId of the token.</em>
-<a class="jxr_linenumber" name="L209" href="#L209">209</a>                 <strong class="jxr_keyword">final</strong> <a href="../../../../../../../com/linecorp/centraldogma/server/metadata/TokenRegistration.html">TokenRegistration</a> tokenRegistration =
-<a class="jxr_linenumber" name="L210" href="#L210">210</a>                         <strong class="jxr_keyword">new</strong> <a href="../../../../../../../com/linecorp/centraldogma/server/metadata/TokenRegistration.html">TokenRegistration</a>(author.name(), ProjectRole.OWNER, userAndTimestamp);
+<a class="jxr_linenumber" name="L208" href="#L208">208</a>                 <em class="jxr_comment">// author.name() is the appId of the app identity.</em>
+<a class="jxr_linenumber" name="L209" href="#L209">209</a>                 <strong class="jxr_keyword">final</strong> <a href="../../../../../../../com/linecorp/centraldogma/server/metadata/AppIdentityRegistration.html">AppIdentityRegistration</a> appIdentityRegistration =
+<a class="jxr_linenumber" name="L210" href="#L210">210</a>                         <strong class="jxr_keyword">new</strong> <a href="../../../../../../../com/linecorp/centraldogma/server/metadata/AppIdentityRegistration.html">AppIdentityRegistration</a>(author.name(), ProjectRole.OWNER, userAndTimestamp);
 <a class="jxr_linenumber" name="L211" href="#L211">211</a> 
-<a class="jxr_linenumber" name="L212" href="#L212">212</a>                 tokens = ImmutableMap.of(tokenRegistration.id(), tokenRegistration);
+<a class="jxr_linenumber" name="L212" href="#L212">212</a>                 appIds = ImmutableMap.of(appIdentityRegistration.id(), appIdentityRegistration);
 <a class="jxr_linenumber" name="L213" href="#L213">213</a>             } <strong class="jxr_keyword">else</strong> {
 <a class="jxr_linenumber" name="L214" href="#L214">214</a>                 <strong class="jxr_keyword">final</strong> <a href="../../../../../../../com/linecorp/centraldogma/server/metadata/Member.html">Member</a> member = <strong class="jxr_keyword">new</strong> <a href="../../../../../../../com/linecorp/centraldogma/server/metadata/Member.html">Member</a>(author, ProjectRole.OWNER, userAndTimestamp);
 <a class="jxr_linenumber" name="L215" href="#L215">215</a>                 members = ImmutableMap.of(member.id(), member);
-<a class="jxr_linenumber" name="L216" href="#L216">216</a>                 tokens = ImmutableMap.of();
+<a class="jxr_linenumber" name="L216" href="#L216">216</a>                 appIds = ImmutableMap.of();
 <a class="jxr_linenumber" name="L217" href="#L217">217</a>             }
 <a class="jxr_linenumber" name="L218" href="#L218">218</a> 
 <a class="jxr_linenumber" name="L219" href="#L219">219</a>             <strong class="jxr_keyword">final</strong> <a href="../../../../../../../com/linecorp/centraldogma/server/metadata/ProjectMetadata.html">ProjectMetadata</a> metadata = <strong class="jxr_keyword">new</strong> <a href="../../../../../../../com/linecorp/centraldogma/server/metadata/ProjectMetadata.html">ProjectMetadata</a>(name,
 <a class="jxr_linenumber" name="L220" href="#L220">220</a>                                                                  ImmutableMap.of(),
 <a class="jxr_linenumber" name="L221" href="#L221">221</a>                                                                  members,
 <a class="jxr_linenumber" name="L222" href="#L222">222</a>                                                                  <strong class="jxr_keyword">null</strong>,
-<a class="jxr_linenumber" name="L223" href="#L223">223</a>                                                                  tokens,
+<a class="jxr_linenumber" name="L223" href="#L223">223</a>                                                                  appIds,
 <a class="jxr_linenumber" name="L224" href="#L224">224</a>                                                                  userAndTimestamp, <strong class="jxr_keyword">null</strong>);
 <a class="jxr_linenumber" name="L225" href="#L225">225</a>             <strong class="jxr_keyword">final</strong> <a href="../../../../../../../com/linecorp/centraldogma/server/command/CommitResult.html">CommitResult</a> result =
 <a class="jxr_linenumber" name="L226" href="#L226">226</a>                     dogmaRepo.commit(headRev, creationTimeMillis, Author.SYSTEM,

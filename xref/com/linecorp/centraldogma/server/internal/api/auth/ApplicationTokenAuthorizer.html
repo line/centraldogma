@@ -40,10 +40,10 @@
 <a class="jxr_linenumber" name="L32" href="#L32">32</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.internal.admin.auth.AbstractAuthorizer;
 <a class="jxr_linenumber" name="L33" href="#L33">33</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.internal.admin.auth.AuthUtil;
 <a class="jxr_linenumber" name="L34" href="#L34">34</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.internal.api.HttpApiUtil;
-<a class="jxr_linenumber" name="L35" href="#L35">35</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.metadata.Token;
-<a class="jxr_linenumber" name="L36" href="#L36">36</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.metadata.TokenNotFoundException;
-<a class="jxr_linenumber" name="L37" href="#L37">37</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.metadata.Tokens;
-<a class="jxr_linenumber" name="L38" href="#L38">38</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.metadata.UserWithToken;
+<a class="jxr_linenumber" name="L35" href="#L35">35</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.metadata.AppIdentityNotFoundException;
+<a class="jxr_linenumber" name="L36" href="#L36">36</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.metadata.AppIdentityRegistry;
+<a class="jxr_linenumber" name="L37" href="#L37">37</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.metadata.Token;
+<a class="jxr_linenumber" name="L38" href="#L38">38</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.metadata.UserWithAppIdentity;
 <a class="jxr_linenumber" name="L39" href="#L39">39</a>  
 <a class="jxr_linenumber" name="L40" href="#L40">40</a>  <em class="jxr_javadoccomment">/**</em>
 <a class="jxr_linenumber" name="L41" href="#L41">41</a>  <em class="jxr_javadoccomment"> * A decorator which finds an application token from a request and validates it.</em>
@@ -62,7 +62,7 @@
 <a class="jxr_linenumber" name="L54" href="#L54">54</a>      @Override
 <a class="jxr_linenumber" name="L55" href="#L55">55</a>      <strong class="jxr_keyword">protected</strong> CompletionStage&lt;Boolean&gt; authorize(ServiceRequestContext ctx, HttpRequest req,
 <a class="jxr_linenumber" name="L56" href="#L56">56</a>                                                   String accessToken) {
-<a class="jxr_linenumber" name="L57" href="#L57">57</a>          <strong class="jxr_keyword">if</strong> (!Tokens.isValidSecret(accessToken)) {
+<a class="jxr_linenumber" name="L57" href="#L57">57</a>          <strong class="jxr_keyword">if</strong> (!AppIdentityRegistry.isValidSecret(accessToken)) {
 <a class="jxr_linenumber" name="L58" href="#L58">58</a>              <strong class="jxr_keyword">return</strong> completedFuture(false);
 <a class="jxr_linenumber" name="L59" href="#L59">59</a>          }
 <a class="jxr_linenumber" name="L60" href="#L60">60</a>  
@@ -70,8 +70,8 @@
 <a class="jxr_linenumber" name="L62" href="#L62">62</a>              <strong class="jxr_keyword">final</strong> <a href="../../../../../../../com/linecorp/centraldogma/server/metadata/Token.html">Token</a> appToken = tokenLookupFunc.apply(accessToken);
 <a class="jxr_linenumber" name="L63" href="#L63">63</a>              <strong class="jxr_keyword">if</strong> (appToken != <strong class="jxr_keyword">null</strong> &amp;&amp; appToken.isActive()) {
 <a class="jxr_linenumber" name="L64" href="#L64">64</a>                  <strong class="jxr_keyword">final</strong> String appId = appToken.appId();
-<a class="jxr_linenumber" name="L65" href="#L65">65</a>                  ctx.logBuilder().authenticatedUser(<span class="jxr_string">"app/"</span> + appId);
-<a class="jxr_linenumber" name="L66" href="#L66">66</a>                  <strong class="jxr_keyword">final</strong> <a href="../../../../../../../com/linecorp/centraldogma/server/metadata/UserWithToken.html">UserWithToken</a> user = <strong class="jxr_keyword">new</strong> <a href="../../../../../../../com/linecorp/centraldogma/server/metadata/UserWithToken.html">UserWithToken</a>(appToken);
+<a class="jxr_linenumber" name="L65" href="#L65">65</a>                  ctx.logBuilder().authenticatedUser(<span class="jxr_string">"app/"</span> + appId + <span class="jxr_string">"/token"</span>);
+<a class="jxr_linenumber" name="L66" href="#L66">66</a>                  <strong class="jxr_keyword">final</strong> <a href="../../../../../../../com/linecorp/centraldogma/server/metadata/UserWithAppIdentity.html">UserWithAppIdentity</a> user = <strong class="jxr_keyword">new</strong> <a href="../../../../../../../com/linecorp/centraldogma/server/metadata/UserWithAppIdentity.html">UserWithAppIdentity</a>(appToken);
 <a class="jxr_linenumber" name="L67" href="#L67">67</a>                  AuthUtil.setCurrentUser(ctx, user);
 <a class="jxr_linenumber" name="L68" href="#L68">68</a>                  HttpApiUtil.setVerboseResponses(ctx, user);
 <a class="jxr_linenumber" name="L69" href="#L69">69</a>                  <strong class="jxr_keyword">return</strong> UnmodifiableFuture.completedFuture(<strong class="jxr_keyword">true</strong>);
@@ -80,7 +80,7 @@
 <a class="jxr_linenumber" name="L72" href="#L72">72</a>          } <strong class="jxr_keyword">catch</strong> (Throwable cause) {
 <a class="jxr_linenumber" name="L73" href="#L73">73</a>              cause = Exceptions.peel(cause);
 <a class="jxr_linenumber" name="L74" href="#L74">74</a>              <strong class="jxr_keyword">if</strong> (cause instanceof IllegalArgumentException ||
-<a class="jxr_linenumber" name="L75" href="#L75">75</a>                  cause instanceof <a href="../../../../../../../com/linecorp/centraldogma/server/metadata/TokenNotFoundException.html">TokenNotFoundException</a>) {
+<a class="jxr_linenumber" name="L75" href="#L75">75</a>                  cause instanceof <a href="../../../../../../../com/linecorp/centraldogma/server/metadata/AppIdentityNotFoundException.html">AppIdentityNotFoundException</a>) {
 <a class="jxr_linenumber" name="L76" href="#L76">76</a>                  <em class="jxr_comment">// Do not log the cause.</em>
 <a class="jxr_linenumber" name="L77" href="#L77">77</a>                  logger.debug(<span class="jxr_string">"Failed to authorize an application token: token={}, addr={}"</span>,
 <a class="jxr_linenumber" name="L78" href="#L78">78</a>                               maskToken(accessToken), ctx.clientAddress());

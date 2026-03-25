@@ -60,11 +60,11 @@
 <a class="jxr_linenumber" name="L52" href="#L52">52</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.internal.api.auth.RequiresSystemAdministrator;
 <a class="jxr_linenumber" name="L53" href="#L53">53</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.internal.api.converter.CreateApiResponseConverter;
 <a class="jxr_linenumber" name="L54" href="#L54">54</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.internal.storage.project.ProjectApiManager;
-<a class="jxr_linenumber" name="L55" href="#L55">55</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.metadata.Member;
-<a class="jxr_linenumber" name="L56" href="#L56">56</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.metadata.ProjectMetadata;
-<a class="jxr_linenumber" name="L57" href="#L57">57</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.metadata.TokenRegistration;
+<a class="jxr_linenumber" name="L55" href="#L55">55</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.metadata.AppIdentityRegistration;
+<a class="jxr_linenumber" name="L56" href="#L56">56</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.metadata.Member;
+<a class="jxr_linenumber" name="L57" href="#L57">57</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.metadata.ProjectMetadata;
 <a class="jxr_linenumber" name="L58" href="#L58">58</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.metadata.User;
-<a class="jxr_linenumber" name="L59" href="#L59">59</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.metadata.UserWithToken;
+<a class="jxr_linenumber" name="L59" href="#L59">59</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.metadata.UserWithAppIdentity;
 <a class="jxr_linenumber" name="L60" href="#L60">60</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer;
 <a class="jxr_linenumber" name="L61" href="#L61">61</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.storage.project.Project;
 <a class="jxr_linenumber" name="L62" href="#L62">62</a>  
@@ -117,11 +117,11 @@
 <a class="jxr_linenumber" name="L109" href="#L109">109</a>         }
 <a class="jxr_linenumber" name="L110" href="#L110">110</a> 
 <a class="jxr_linenumber" name="L111" href="#L111">111</a>         <a href="../../../../../../com/linecorp/centraldogma/common/ProjectRole.html">ProjectRole</a> role = <strong class="jxr_keyword">null</strong>;
-<a class="jxr_linenumber" name="L112" href="#L112">112</a>         <strong class="jxr_keyword">if</strong> (user instanceof UserWithToken) {
-<a class="jxr_linenumber" name="L113" href="#L113">113</a>             <strong class="jxr_keyword">final</strong> String appId = ((UserWithToken) user).token().appId();
-<a class="jxr_linenumber" name="L114" href="#L114">114</a>             <strong class="jxr_keyword">final</strong> <a href="../../../../../../com/linecorp/centraldogma/server/metadata/TokenRegistration.html">TokenRegistration</a> tokenRegistration = metadata.appIds().get(appId);
-<a class="jxr_linenumber" name="L115" href="#L115">115</a>             <strong class="jxr_keyword">if</strong> (tokenRegistration != <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="L116" href="#L116">116</a>                 role = tokenRegistration.role();
+<a class="jxr_linenumber" name="L112" href="#L112">112</a>         <strong class="jxr_keyword">if</strong> (user instanceof UserWithAppIdentity) {
+<a class="jxr_linenumber" name="L113" href="#L113">113</a>             <strong class="jxr_keyword">final</strong> String appId = user.login(); <em class="jxr_comment">// login is appId for UserWithAppIdentity</em>
+<a class="jxr_linenumber" name="L114" href="#L114">114</a>             <strong class="jxr_keyword">final</strong> <a href="../../../../../../com/linecorp/centraldogma/server/metadata/AppIdentityRegistration.html">AppIdentityRegistration</a> appIdentityRegistration = metadata.appIds().get(appId);
+<a class="jxr_linenumber" name="L115" href="#L115">115</a>             <strong class="jxr_keyword">if</strong> (appIdentityRegistration != <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="L116" href="#L116">116</a>                 role = appIdentityRegistration.role();
 <a class="jxr_linenumber" name="L117" href="#L117">117</a>             }
 <a class="jxr_linenumber" name="L118" href="#L118">118</a>         } <strong class="jxr_keyword">else</strong> {
 <a class="jxr_linenumber" name="L119" href="#L119">119</a>             <strong class="jxr_keyword">final</strong> <a href="../../../../../../com/linecorp/centraldogma/server/metadata/Member.html">Member</a> member = metadata.memberOrDefault(user.id(), <strong class="jxr_keyword">null</strong>);
@@ -158,56 +158,55 @@
 <a class="jxr_linenumber" name="L150" href="#L150">150</a> <em class="jxr_javadoccomment">     * &lt;p&gt;Gets the {@link ProjectMetadata} of the specified {@code projectName}.</em>
 <a class="jxr_linenumber" name="L151" href="#L151">151</a> <em class="jxr_javadoccomment">     */</em>
 <a class="jxr_linenumber" name="L152" href="#L152">152</a>     @Get(<span class="jxr_string">"/projects/{projectName}"</span>)
-<a class="jxr_linenumber" name="L153" href="#L153">153</a>     @RequiresProjectRole(ProjectRole.MEMBER)
-<a class="jxr_linenumber" name="L154" href="#L154">154</a>     <strong class="jxr_keyword">public</strong> CompletableFuture&lt;ProjectMetadata&gt; getProjectMetadata(@Param String projectName) {
-<a class="jxr_linenumber" name="L155" href="#L155">155</a>         <strong class="jxr_keyword">if</strong> (InternalProjectInitializer.INTERNAL_PROJECT_DOGMA.equals(projectName)) {
-<a class="jxr_linenumber" name="L156" href="#L156">156</a>             <strong class="jxr_keyword">return</strong> UnmodifiableFuture.completedFuture(DOGMA_PROJECT_METADATA);
-<a class="jxr_linenumber" name="L157" href="#L157">157</a>         }
-<a class="jxr_linenumber" name="L158" href="#L158">158</a>         <em class="jxr_comment">// Remove the Dogma repository from the metadata to avoid exposing it to the user.</em>
-<a class="jxr_linenumber" name="L159" href="#L159">159</a>         <strong class="jxr_keyword">return</strong> projectApiManager.getProjectMetadata(projectName)
-<a class="jxr_linenumber" name="L160" href="#L160">160</a>                                 .thenApply(ProjectMetadata::withoutDogmaRepo);
-<a class="jxr_linenumber" name="L161" href="#L161">161</a>     }
-<a class="jxr_linenumber" name="L162" href="#L162">162</a> 
-<a class="jxr_linenumber" name="L163" href="#L163">163</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="L164" href="#L164">164</a> <em class="jxr_javadoccomment">     * DELETE /projects/{projectName}</em>
-<a class="jxr_linenumber" name="L165" href="#L165">165</a> <em class="jxr_javadoccomment">     *</em>
-<a class="jxr_linenumber" name="L166" href="#L166">166</a> <em class="jxr_javadoccomment">     * &lt;p&gt;Removes a project.</em>
-<a class="jxr_linenumber" name="L167" href="#L167">167</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="L168" href="#L168">168</a>     @Delete(<span class="jxr_string">"/projects/{projectName}"</span>)
-<a class="jxr_linenumber" name="L169" href="#L169">169</a>     @RequiresProjectRole(ProjectRole.OWNER)
-<a class="jxr_linenumber" name="L170" href="#L170">170</a>     <strong class="jxr_keyword">public</strong> CompletableFuture&lt;Void&gt; removeProject(<a href="../../../../../../com/linecorp/centraldogma/server/storage/project/Project.html">Project</a> project, <a href="../../../../../../com/linecorp/centraldogma/common/Author.html">Author</a> author) {
-<a class="jxr_linenumber" name="L171" href="#L171">171</a>         <strong class="jxr_keyword">return</strong> projectApiManager.removeProject(project.name(), author);
-<a class="jxr_linenumber" name="L172" href="#L172">172</a>     }
-<a class="jxr_linenumber" name="L173" href="#L173">173</a> 
-<a class="jxr_linenumber" name="L174" href="#L174">174</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="L175" href="#L175">175</a> <em class="jxr_javadoccomment">     * DELETE /projects/{projectName}/removed</em>
-<a class="jxr_linenumber" name="L176" href="#L176">176</a> <em class="jxr_javadoccomment">     *</em>
-<a class="jxr_linenumber" name="L177" href="#L177">177</a> <em class="jxr_javadoccomment">     * &lt;p&gt;Purges a project that was removed before.</em>
-<a class="jxr_linenumber" name="L178" href="#L178">178</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="L179" href="#L179">179</a>     @Delete(<span class="jxr_string">"/projects/{projectName}/removed"</span>)
-<a class="jxr_linenumber" name="L180" href="#L180">180</a>     @RequiresProjectRole(ProjectRole.OWNER)
-<a class="jxr_linenumber" name="L181" href="#L181">181</a>     <strong class="jxr_keyword">public</strong> CompletableFuture&lt;Void&gt; purgeProject(@Param String projectName, <a href="../../../../../../com/linecorp/centraldogma/common/Author.html">Author</a> author) {
-<a class="jxr_linenumber" name="L182" href="#L182">182</a>         <strong class="jxr_keyword">return</strong> projectApiManager.purgeProject(projectName, author);
-<a class="jxr_linenumber" name="L183" href="#L183">183</a>     }
-<a class="jxr_linenumber" name="L184" href="#L184">184</a> 
-<a class="jxr_linenumber" name="L185" href="#L185">185</a>     <em class="jxr_comment">// TODO(minwoox): Migrate to /projects/{projectName}:unremove when it's supported.</em>
-<a class="jxr_linenumber" name="L186" href="#L186">186</a> 
-<a class="jxr_linenumber" name="L187" href="#L187">187</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="L188" href="#L188">188</a> <em class="jxr_javadoccomment">     * PATCH /projects/{projectName}</em>
-<a class="jxr_linenumber" name="L189" href="#L189">189</a> <em class="jxr_javadoccomment">     *</em>
-<a class="jxr_linenumber" name="L190" href="#L190">190</a> <em class="jxr_javadoccomment">     * &lt;p&gt;Patches a project with the JSON_PATCH. Currently, only unremove project operation is supported.</em>
-<a class="jxr_linenumber" name="L191" href="#L191">191</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="L192" href="#L192">192</a>     @Consumes(<span class="jxr_string">"application/json-patch+json"</span>)
-<a class="jxr_linenumber" name="L193" href="#L193">193</a>     @Patch(<span class="jxr_string">"/projects/{projectName}"</span>)
-<a class="jxr_linenumber" name="L194" href="#L194">194</a>     @RequiresSystemAdministrator
-<a class="jxr_linenumber" name="L195" href="#L195">195</a>     <strong class="jxr_keyword">public</strong> CompletableFuture&lt;ProjectDto&gt; patchProject(@Param String projectName, JsonNode node, <a href="../../../../../../com/linecorp/centraldogma/common/Author.html">Author</a> author,
-<a class="jxr_linenumber" name="L196" href="#L196">196</a>                                                       <a href="../../../../../../com/linecorp/centraldogma/server/metadata/User.html">User</a> user) {
-<a class="jxr_linenumber" name="L197" href="#L197">197</a>         checkUnremoveArgument(node);
-<a class="jxr_linenumber" name="L198" href="#L198">198</a>         <strong class="jxr_keyword">return</strong> projectApiManager.unremoveProject(projectName, author)
-<a class="jxr_linenumber" name="L199" href="#L199">199</a>                                 .handle(returnOrThrow(() -&gt; newProjectDto(
-<a class="jxr_linenumber" name="L200" href="#L200">200</a>                                         projectApiManager.getProject(projectName, user), ProjectRole.OWNER)));
-<a class="jxr_linenumber" name="L201" href="#L201">201</a>     }
-<a class="jxr_linenumber" name="L202" href="#L202">202</a> }
+<a class="jxr_linenumber" name="L153" href="#L153">153</a>     <strong class="jxr_keyword">public</strong> CompletableFuture&lt;ProjectMetadata&gt; getProjectMetadata(@Param String projectName) {
+<a class="jxr_linenumber" name="L154" href="#L154">154</a>         <strong class="jxr_keyword">if</strong> (InternalProjectInitializer.INTERNAL_PROJECT_DOGMA.equals(projectName)) {
+<a class="jxr_linenumber" name="L155" href="#L155">155</a>             <strong class="jxr_keyword">return</strong> UnmodifiableFuture.completedFuture(DOGMA_PROJECT_METADATA);
+<a class="jxr_linenumber" name="L156" href="#L156">156</a>         }
+<a class="jxr_linenumber" name="L157" href="#L157">157</a>         <em class="jxr_comment">// Remove the Dogma repository from the metadata to avoid exposing it to the user.</em>
+<a class="jxr_linenumber" name="L158" href="#L158">158</a>         <strong class="jxr_keyword">return</strong> projectApiManager.getProjectMetadata(projectName)
+<a class="jxr_linenumber" name="L159" href="#L159">159</a>                                 .thenApply(ProjectMetadata::withoutDogmaRepo);
+<a class="jxr_linenumber" name="L160" href="#L160">160</a>     }
+<a class="jxr_linenumber" name="L161" href="#L161">161</a> 
+<a class="jxr_linenumber" name="L162" href="#L162">162</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L163" href="#L163">163</a> <em class="jxr_javadoccomment">     * DELETE /projects/{projectName}</em>
+<a class="jxr_linenumber" name="L164" href="#L164">164</a> <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="L165" href="#L165">165</a> <em class="jxr_javadoccomment">     * &lt;p&gt;Removes a project.</em>
+<a class="jxr_linenumber" name="L166" href="#L166">166</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L167" href="#L167">167</a>     @Delete(<span class="jxr_string">"/projects/{projectName}"</span>)
+<a class="jxr_linenumber" name="L168" href="#L168">168</a>     @RequiresProjectRole(ProjectRole.OWNER)
+<a class="jxr_linenumber" name="L169" href="#L169">169</a>     <strong class="jxr_keyword">public</strong> CompletableFuture&lt;Void&gt; removeProject(<a href="../../../../../../com/linecorp/centraldogma/server/storage/project/Project.html">Project</a> project, <a href="../../../../../../com/linecorp/centraldogma/common/Author.html">Author</a> author) {
+<a class="jxr_linenumber" name="L170" href="#L170">170</a>         <strong class="jxr_keyword">return</strong> projectApiManager.removeProject(project.name(), author);
+<a class="jxr_linenumber" name="L171" href="#L171">171</a>     }
+<a class="jxr_linenumber" name="L172" href="#L172">172</a> 
+<a class="jxr_linenumber" name="L173" href="#L173">173</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L174" href="#L174">174</a> <em class="jxr_javadoccomment">     * DELETE /projects/{projectName}/removed</em>
+<a class="jxr_linenumber" name="L175" href="#L175">175</a> <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="L176" href="#L176">176</a> <em class="jxr_javadoccomment">     * &lt;p&gt;Purges a project that was removed before.</em>
+<a class="jxr_linenumber" name="L177" href="#L177">177</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L178" href="#L178">178</a>     @Delete(<span class="jxr_string">"/projects/{projectName}/removed"</span>)
+<a class="jxr_linenumber" name="L179" href="#L179">179</a>     @RequiresProjectRole(ProjectRole.OWNER)
+<a class="jxr_linenumber" name="L180" href="#L180">180</a>     <strong class="jxr_keyword">public</strong> CompletableFuture&lt;Void&gt; purgeProject(@Param String projectName, <a href="../../../../../../com/linecorp/centraldogma/common/Author.html">Author</a> author) {
+<a class="jxr_linenumber" name="L181" href="#L181">181</a>         <strong class="jxr_keyword">return</strong> projectApiManager.purgeProject(projectName, author);
+<a class="jxr_linenumber" name="L182" href="#L182">182</a>     }
+<a class="jxr_linenumber" name="L183" href="#L183">183</a> 
+<a class="jxr_linenumber" name="L184" href="#L184">184</a>     <em class="jxr_comment">// TODO(minwoox): Migrate to /projects/{projectName}:unremove when it's supported.</em>
+<a class="jxr_linenumber" name="L185" href="#L185">185</a> 
+<a class="jxr_linenumber" name="L186" href="#L186">186</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L187" href="#L187">187</a> <em class="jxr_javadoccomment">     * PATCH /projects/{projectName}</em>
+<a class="jxr_linenumber" name="L188" href="#L188">188</a> <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="L189" href="#L189">189</a> <em class="jxr_javadoccomment">     * &lt;p&gt;Patches a project with the JSON_PATCH. Currently, only unremove project operation is supported.</em>
+<a class="jxr_linenumber" name="L190" href="#L190">190</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L191" href="#L191">191</a>     @Consumes(<span class="jxr_string">"application/json-patch+json"</span>)
+<a class="jxr_linenumber" name="L192" href="#L192">192</a>     @Patch(<span class="jxr_string">"/projects/{projectName}"</span>)
+<a class="jxr_linenumber" name="L193" href="#L193">193</a>     @RequiresSystemAdministrator
+<a class="jxr_linenumber" name="L194" href="#L194">194</a>     <strong class="jxr_keyword">public</strong> CompletableFuture&lt;ProjectDto&gt; patchProject(@Param String projectName, JsonNode node, <a href="../../../../../../com/linecorp/centraldogma/common/Author.html">Author</a> author,
+<a class="jxr_linenumber" name="L195" href="#L195">195</a>                                                       <a href="../../../../../../com/linecorp/centraldogma/server/metadata/User.html">User</a> user) {
+<a class="jxr_linenumber" name="L196" href="#L196">196</a>         checkUnremoveArgument(node);
+<a class="jxr_linenumber" name="L197" href="#L197">197</a>         <strong class="jxr_keyword">return</strong> projectApiManager.unremoveProject(projectName, author)
+<a class="jxr_linenumber" name="L198" href="#L198">198</a>                                 .handle(returnOrThrow(() -&gt; newProjectDto(
+<a class="jxr_linenumber" name="L199" href="#L199">199</a>                                         projectApiManager.getProject(projectName, user), ProjectRole.OWNER)));
+<a class="jxr_linenumber" name="L200" href="#L200">200</a>     }
+<a class="jxr_linenumber" name="L201" href="#L201">201</a> }
 </pre>
 <hr/>
 <div id="footer">&copy; Copyright 2017&ndash;2026 <a href="https://engineering.linecorp.com/en/">LINE Corporation</a>. All rights reserved.</div>

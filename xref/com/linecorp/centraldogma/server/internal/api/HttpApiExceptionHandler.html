@@ -71,8 +71,8 @@
 <a class="jxr_linenumber" name="L63" href="#L63">63</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.common.jsonpatch.JsonPatchConflictException;
 <a class="jxr_linenumber" name="L64" href="#L64">64</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.internal.storage.RequestAlreadyTimedOutException;
 <a class="jxr_linenumber" name="L65" href="#L65">65</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.internal.storage.repository.RepositoryMetadataException;
-<a class="jxr_linenumber" name="L66" href="#L66">66</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.metadata.MemberNotFoundException;
-<a class="jxr_linenumber" name="L67" href="#L67">67</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.metadata.TokenNotFoundException;
+<a class="jxr_linenumber" name="L66" href="#L66">66</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.metadata.AppIdentityNotFoundException;
+<a class="jxr_linenumber" name="L67" href="#L67">67</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.metadata.MemberNotFoundException;
 <a class="jxr_linenumber" name="L68" href="#L68">68</a>  
 <a class="jxr_linenumber" name="L69" href="#L69">69</a>  <em class="jxr_javadoccomment">/**</em>
 <a class="jxr_linenumber" name="L70" href="#L70">70</a>  <em class="jxr_javadoccomment"> * A default {@link ExceptionHandlerFunction} of HTTP API.</em>
@@ -121,7 +121,7 @@
 <a class="jxr_linenumber" name="L113" href="#L113">113</a>                .put(RevisionNotFoundException.<strong class="jxr_keyword">class</strong>,
 <a class="jxr_linenumber" name="L114" href="#L114">114</a>                     (ctx, cause) -&gt; newResponse(ctx, HttpStatus.NOT_FOUND, cause,
 <a class="jxr_linenumber" name="L115" href="#L115">115</a>                                                 <span class="jxr_string">"Revision %s does not exist."</span>, cause.getMessage()))
-<a class="jxr_linenumber" name="L116" href="#L116">116</a>                .put(TokenNotFoundException.<strong class="jxr_keyword">class</strong>,
+<a class="jxr_linenumber" name="L116" href="#L116">116</a>                .put(AppIdentityNotFoundException.<strong class="jxr_keyword">class</strong>,
 <a class="jxr_linenumber" name="L117" href="#L117">117</a>                     (ctx, cause) -&gt; newResponse(ctx, HttpStatus.NOT_FOUND, cause, cause.getMessage()))
 <a class="jxr_linenumber" name="L118" href="#L118">118</a>                .put(MemberNotFoundException.<strong class="jxr_keyword">class</strong>,
 <a class="jxr_linenumber" name="L119" href="#L119">119</a>                     (ctx, cause) -&gt; newResponse(ctx, HttpStatus.NOT_FOUND, cause, cause.getMessage()))

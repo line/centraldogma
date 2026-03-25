@@ -98,37 +98,40 @@
 <a class="jxr_linenumber" name="L90" href="#L90">90</a>              <strong class="jxr_keyword">case</strong> JSON:
 <a class="jxr_linenumber" name="L91" href="#L91">91</a>                  <strong class="jxr_keyword">return</strong> EntryType.JSON;
 <a class="jxr_linenumber" name="L92" href="#L92">92</a>              <strong class="jxr_keyword">case</strong> TEXT:
-<a class="jxr_linenumber" name="L93" href="#L93">93</a>                  <strong class="jxr_keyword">return</strong> EntryType.TEXT;
-<a class="jxr_linenumber" name="L94" href="#L94">94</a>              <strong class="jxr_keyword">case</strong> DIRECTORY:
-<a class="jxr_linenumber" name="L95" href="#L95">95</a>                  <strong class="jxr_keyword">return</strong> EntryType.DIRECTORY;
-<a class="jxr_linenumber" name="L96" href="#L96">96</a>          }
-<a class="jxr_linenumber" name="L97" href="#L97">97</a>  
-<a class="jxr_linenumber" name="L98" href="#L98">98</a>          <strong class="jxr_keyword">throw</strong> <strong class="jxr_keyword">new</strong> Error();
-<a class="jxr_linenumber" name="L99" href="#L99">99</a>      }
+<a class="jxr_linenumber" name="L93" href="#L93">93</a>              <em class="jxr_comment">// We treat YAML as TEXT because Thrift module has been deprecated and we don't want to add</em>
+<a class="jxr_linenumber" name="L94" href="#L94">94</a>              <em class="jxr_comment">// a new entry type just for YAML.</em>
+<a class="jxr_linenumber" name="L95" href="#L95">95</a>              <strong class="jxr_keyword">case</strong> YAML:
+<a class="jxr_linenumber" name="L96" href="#L96">96</a>                  <strong class="jxr_keyword">return</strong> EntryType.TEXT;
+<a class="jxr_linenumber" name="L97" href="#L97">97</a>              <strong class="jxr_keyword">case</strong> DIRECTORY:
+<a class="jxr_linenumber" name="L98" href="#L98">98</a>                  <strong class="jxr_keyword">return</strong> EntryType.DIRECTORY;
+<a class="jxr_linenumber" name="L99" href="#L99">99</a>          }
 <a class="jxr_linenumber" name="L100" href="#L100">100</a> 
-<a class="jxr_linenumber" name="L101" href="#L101">101</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="L102" href="#L102">102</a> <em class="jxr_javadoccomment">     * Converts {@link EntryType} to {@link com.linecorp.centraldogma.common.EntryType}.</em>
-<a class="jxr_linenumber" name="L103" href="#L103">103</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="L104" href="#L104">104</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> com.linecorp.centraldogma.common.@Nullable EntryType convertEntryType(
-<a class="jxr_linenumber" name="L105" href="#L105">105</a>             @Nullable EntryType type) {
-<a class="jxr_linenumber" name="L106" href="#L106">106</a>         <strong class="jxr_keyword">if</strong> (type == <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="L107" href="#L107">107</a>             <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">null</strong>;
-<a class="jxr_linenumber" name="L108" href="#L108">108</a>         }
-<a class="jxr_linenumber" name="L109" href="#L109">109</a> 
-<a class="jxr_linenumber" name="L110" href="#L110">110</a>         <strong class="jxr_keyword">switch</strong> (type) {
-<a class="jxr_linenumber" name="L111" href="#L111">111</a>             <strong class="jxr_keyword">case</strong> JSON:
-<a class="jxr_linenumber" name="L112" href="#L112">112</a>                 <strong class="jxr_keyword">return</strong> com.linecorp.centraldogma.common.EntryType.JSON;
-<a class="jxr_linenumber" name="L113" href="#L113">113</a>             <strong class="jxr_keyword">case</strong> TEXT:
-<a class="jxr_linenumber" name="L114" href="#L114">114</a>                 <strong class="jxr_keyword">return</strong> com.linecorp.centraldogma.common.EntryType.TEXT;
-<a class="jxr_linenumber" name="L115" href="#L115">115</a>             <strong class="jxr_keyword">case</strong> DIRECTORY:
-<a class="jxr_linenumber" name="L116" href="#L116">116</a>                 <strong class="jxr_keyword">return</strong> com.linecorp.centraldogma.common.EntryType.DIRECTORY;
-<a class="jxr_linenumber" name="L117" href="#L117">117</a>         }
-<a class="jxr_linenumber" name="L118" href="#L118">118</a> 
-<a class="jxr_linenumber" name="L119" href="#L119">119</a>         <strong class="jxr_keyword">throw</strong> <strong class="jxr_keyword">new</strong> Error();
-<a class="jxr_linenumber" name="L120" href="#L120">120</a>     }
+<a class="jxr_linenumber" name="L101" href="#L101">101</a>         <strong class="jxr_keyword">throw</strong> <strong class="jxr_keyword">new</strong> Error();
+<a class="jxr_linenumber" name="L102" href="#L102">102</a>     }
+<a class="jxr_linenumber" name="L103" href="#L103">103</a> 
+<a class="jxr_linenumber" name="L104" href="#L104">104</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L105" href="#L105">105</a> <em class="jxr_javadoccomment">     * Converts {@link EntryType} to {@link com.linecorp.centraldogma.common.EntryType}.</em>
+<a class="jxr_linenumber" name="L106" href="#L106">106</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L107" href="#L107">107</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> com.linecorp.centraldogma.common.@Nullable EntryType convertEntryType(
+<a class="jxr_linenumber" name="L108" href="#L108">108</a>             @Nullable EntryType type) {
+<a class="jxr_linenumber" name="L109" href="#L109">109</a>         <strong class="jxr_keyword">if</strong> (type == <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="L110" href="#L110">110</a>             <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">null</strong>;
+<a class="jxr_linenumber" name="L111" href="#L111">111</a>         }
+<a class="jxr_linenumber" name="L112" href="#L112">112</a> 
+<a class="jxr_linenumber" name="L113" href="#L113">113</a>         <strong class="jxr_keyword">switch</strong> (type) {
+<a class="jxr_linenumber" name="L114" href="#L114">114</a>             <strong class="jxr_keyword">case</strong> JSON:
+<a class="jxr_linenumber" name="L115" href="#L115">115</a>                 <strong class="jxr_keyword">return</strong> com.linecorp.centraldogma.common.EntryType.JSON;
+<a class="jxr_linenumber" name="L116" href="#L116">116</a>             <strong class="jxr_keyword">case</strong> TEXT:
+<a class="jxr_linenumber" name="L117" href="#L117">117</a>                 <strong class="jxr_keyword">return</strong> com.linecorp.centraldogma.common.EntryType.TEXT;
+<a class="jxr_linenumber" name="L118" href="#L118">118</a>             <strong class="jxr_keyword">case</strong> DIRECTORY:
+<a class="jxr_linenumber" name="L119" href="#L119">119</a>                 <strong class="jxr_keyword">return</strong> com.linecorp.centraldogma.common.EntryType.DIRECTORY;
+<a class="jxr_linenumber" name="L120" href="#L120">120</a>         }
 <a class="jxr_linenumber" name="L121" href="#L121">121</a> 
-<a class="jxr_linenumber" name="L122" href="#L122">122</a>     <strong class="jxr_keyword">private</strong> <a href="../../../../../com/linecorp/centraldogma/internal/thrift/EntryConverter.html">EntryConverter</a>() {}
-<a class="jxr_linenumber" name="L123" href="#L123">123</a> }
+<a class="jxr_linenumber" name="L122" href="#L122">122</a>         <strong class="jxr_keyword">throw</strong> <strong class="jxr_keyword">new</strong> Error();
+<a class="jxr_linenumber" name="L123" href="#L123">123</a>     }
+<a class="jxr_linenumber" name="L124" href="#L124">124</a> 
+<a class="jxr_linenumber" name="L125" href="#L125">125</a>     <strong class="jxr_keyword">private</strong> <a href="../../../../../com/linecorp/centraldogma/internal/thrift/EntryConverter.html">EntryConverter</a>() {}
+<a class="jxr_linenumber" name="L126" href="#L126">126</a> }
 </pre>
 <hr/>
 <div id="footer">&copy; Copyright 2017&ndash;2026 <a href="https://engineering.linecorp.com/en/">LINE Corporation</a>. All rights reserved.</div>

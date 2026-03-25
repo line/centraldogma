@@ -286,64 +286,68 @@
 <a class="jxr_linenumber" name="L278" href="#L278">278</a>                                 .setCdsConfig(ConfigSource.newBuilder().setAds(ads))
 <a class="jxr_linenumber" name="L279" href="#L279">279</a>                                 .setAdsConfig(apiConfigSource)
 <a class="jxr_linenumber" name="L280" href="#L280">280</a>                                 .build();
-<a class="jxr_linenumber" name="L281" href="#L281">281</a>         <strong class="jxr_keyword">final</strong> Bootstrap bootstrap =
-<a class="jxr_linenumber" name="L282" href="#L282">282</a>                 Bootstrap.newBuilder()
-<a class="jxr_linenumber" name="L283" href="#L283">283</a>                          .setClusterManager(ClusterManager.newBuilder()
-<a class="jxr_linenumber" name="L284" href="#L284">284</a>                                                           .setLocalClusterName(localCluster.getName()))
-<a class="jxr_linenumber" name="L285" href="#L285">285</a>                          .setDynamicResources(dynamicResources)
-<a class="jxr_linenumber" name="L286" href="#L286">286</a>                          .setNode(Node.newBuilder()
-<a class="jxr_linenumber" name="L287" href="#L287">287</a>                                       .setLocality(locality))
-<a class="jxr_linenumber" name="L288" href="#L288">288</a>                          .setStaticResources(StaticResources.newBuilder().addClusters(bootstrapCluster())
-<a class="jxr_linenumber" name="L289" href="#L289">289</a>                                                             .addClusters(localCluster))
-<a class="jxr_linenumber" name="L290" href="#L290">290</a>                          .build();
-<a class="jxr_linenumber" name="L291" href="#L291">291</a>         <strong class="jxr_keyword">return</strong> xdsBootstrapFactory.apply(bootstrap);
-<a class="jxr_linenumber" name="L292" href="#L292">292</a>     }
-<a class="jxr_linenumber" name="L293" href="#L293">293</a> 
-<a class="jxr_linenumber" name="L294" href="#L294">294</a>     <strong class="jxr_keyword">private</strong> Cluster bootstrapCluster() {
-<a class="jxr_linenumber" name="L295" href="#L295">295</a>         <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">boolean</strong> isUnresolved = isUnresolved();
-<a class="jxr_linenumber" name="L296" href="#L296">296</a> 
-<a class="jxr_linenumber" name="L297" href="#L297">297</a>         <strong class="jxr_keyword">final</strong> Cluster.Builder clusterBuilder = Cluster.newBuilder();
-<a class="jxr_linenumber" name="L298" href="#L298">298</a>         <strong class="jxr_keyword">if</strong> (isUnresolved) {
-<a class="jxr_linenumber" name="L299" href="#L299">299</a>             clusterBuilder.setType(DiscoveryType.STRICT_DNS);
-<a class="jxr_linenumber" name="L300" href="#L300">300</a>         } <strong class="jxr_keyword">else</strong> {
-<a class="jxr_linenumber" name="L301" href="#L301">301</a>             clusterBuilder.setType(DiscoveryType.STATIC);
-<a class="jxr_linenumber" name="L302" href="#L302">302</a>         }
-<a class="jxr_linenumber" name="L303" href="#L303">303</a> 
-<a class="jxr_linenumber" name="L304" href="#L304">304</a>         <strong class="jxr_keyword">final</strong> LocalityLbEndpoints.Builder localityLbEndpointsBuilder = LocalityLbEndpoints.newBuilder();
-<a class="jxr_linenumber" name="L305" href="#L305">305</a>         <strong class="jxr_keyword">for</strong> (InetSocketAddress addr : hosts()) {
-<a class="jxr_linenumber" name="L306" href="#L306">306</a>             <strong class="jxr_keyword">final</strong> LbEndpoint lbEndpoint = fromAddress(addr);
-<a class="jxr_linenumber" name="L307" href="#L307">307</a>             localityLbEndpointsBuilder.addLbEndpoints(lbEndpoint);
-<a class="jxr_linenumber" name="L308" href="#L308">308</a>         }
-<a class="jxr_linenumber" name="L309" href="#L309">309</a>         <strong class="jxr_keyword">final</strong> ClusterLoadAssignment clusterLoadAssignment =
-<a class="jxr_linenumber" name="L310" href="#L310">310</a>                 ClusterLoadAssignment.newBuilder()
-<a class="jxr_linenumber" name="L311" href="#L311">311</a>                                      .setClusterName(BOOTSTRAP_CLUSTER_NAME)
-<a class="jxr_linenumber" name="L312" href="#L312">312</a>                                      .addEndpoints(localityLbEndpointsBuilder.build()).build();
-<a class="jxr_linenumber" name="L313" href="#L313">313</a> 
-<a class="jxr_linenumber" name="L314" href="#L314">314</a>         <strong class="jxr_keyword">if</strong> (isUseTls()) {
-<a class="jxr_linenumber" name="L315" href="#L315">315</a>             clusterBuilder.setTransportSocket(
-<a class="jxr_linenumber" name="L316" href="#L316">316</a>                     TransportSocket.newBuilder()
-<a class="jxr_linenumber" name="L317" href="#L317">317</a>                                    .setName(<span class="jxr_string">"envoy.transport_sockets.tls"</span>)
-<a class="jxr_linenumber" name="L318" href="#L318">318</a>                                    .setTypedConfig(Any.pack(UpstreamTlsContext.getDefaultInstance())));
-<a class="jxr_linenumber" name="L319" href="#L319">319</a>         }
-<a class="jxr_linenumber" name="L320" href="#L320">320</a> 
-<a class="jxr_linenumber" name="L321" href="#L321">321</a>         clusterBuilder.setLoadAssignment(clusterLoadAssignment)
-<a class="jxr_linenumber" name="L322" href="#L322">322</a>                       .setName(BOOTSTRAP_CLUSTER_NAME);
-<a class="jxr_linenumber" name="L323" href="#L323">323</a>         <strong class="jxr_keyword">return</strong> clusterBuilder.build();
-<a class="jxr_linenumber" name="L324" href="#L324">324</a>     }
-<a class="jxr_linenumber" name="L325" href="#L325">325</a> 
-<a class="jxr_linenumber" name="L326" href="#L326">326</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> LbEndpoint fromAddress(InetSocketAddress addr) {
-<a class="jxr_linenumber" name="L327" href="#L327">327</a>         <strong class="jxr_keyword">final</strong> String hostString = addr.getHostString();
-<a class="jxr_linenumber" name="L328" href="#L328">328</a>         <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">int</strong> port = addr.getPort();
-<a class="jxr_linenumber" name="L329" href="#L329">329</a>         <strong class="jxr_keyword">final</strong> Address address = Address.newBuilder()
-<a class="jxr_linenumber" name="L330" href="#L330">330</a>                                        .setSocketAddress(SocketAddress.newBuilder()
-<a class="jxr_linenumber" name="L331" href="#L331">331</a>                                                                       .setAddress(hostString)
-<a class="jxr_linenumber" name="L332" href="#L332">332</a>                                                                       .setPortValue(port)).build();
-<a class="jxr_linenumber" name="L333" href="#L333">333</a>         <strong class="jxr_keyword">return</strong> LbEndpoint.newBuilder()
-<a class="jxr_linenumber" name="L334" href="#L334">334</a>                          .setEndpoint(Endpoint.newBuilder()
-<a class="jxr_linenumber" name="L335" href="#L335">335</a>                                               .setAddress(address))
-<a class="jxr_linenumber" name="L336" href="#L336">336</a>                          .build();
-<a class="jxr_linenumber" name="L337" href="#L337">337</a>     }
-<a class="jxr_linenumber" name="L338" href="#L338">338</a> }
+<a class="jxr_linenumber" name="L281" href="#L281">281</a>         <strong class="jxr_keyword">final</strong> StaticResources.Builder staticResourcesBuilder =
+<a class="jxr_linenumber" name="L282" href="#L282">282</a>                 StaticResources.newBuilder().addClusters(bootstrapCluster());
+<a class="jxr_linenumber" name="L283" href="#L283">283</a>         <strong class="jxr_keyword">if</strong> (localCluster != Cluster.getDefaultInstance()) {
+<a class="jxr_linenumber" name="L284" href="#L284">284</a>             staticResourcesBuilder.addClusters(localCluster);
+<a class="jxr_linenumber" name="L285" href="#L285">285</a>         }
+<a class="jxr_linenumber" name="L286" href="#L286">286</a>         <strong class="jxr_keyword">final</strong> Bootstrap bootstrap =
+<a class="jxr_linenumber" name="L287" href="#L287">287</a>                 Bootstrap.newBuilder()
+<a class="jxr_linenumber" name="L288" href="#L288">288</a>                          .setClusterManager(ClusterManager.newBuilder()
+<a class="jxr_linenumber" name="L289" href="#L289">289</a>                                                           .setLocalClusterName(localCluster.getName()))
+<a class="jxr_linenumber" name="L290" href="#L290">290</a>                          .setDynamicResources(dynamicResources)
+<a class="jxr_linenumber" name="L291" href="#L291">291</a>                          .setNode(Node.newBuilder()
+<a class="jxr_linenumber" name="L292" href="#L292">292</a>                                       .setLocality(locality))
+<a class="jxr_linenumber" name="L293" href="#L293">293</a>                          .setStaticResources(staticResourcesBuilder)
+<a class="jxr_linenumber" name="L294" href="#L294">294</a>                          .build();
+<a class="jxr_linenumber" name="L295" href="#L295">295</a>         <strong class="jxr_keyword">return</strong> xdsBootstrapFactory.apply(bootstrap);
+<a class="jxr_linenumber" name="L296" href="#L296">296</a>     }
+<a class="jxr_linenumber" name="L297" href="#L297">297</a> 
+<a class="jxr_linenumber" name="L298" href="#L298">298</a>     <strong class="jxr_keyword">private</strong> Cluster bootstrapCluster() {
+<a class="jxr_linenumber" name="L299" href="#L299">299</a>         <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">boolean</strong> isUnresolved = isUnresolved();
+<a class="jxr_linenumber" name="L300" href="#L300">300</a> 
+<a class="jxr_linenumber" name="L301" href="#L301">301</a>         <strong class="jxr_keyword">final</strong> Cluster.Builder clusterBuilder = Cluster.newBuilder();
+<a class="jxr_linenumber" name="L302" href="#L302">302</a>         <strong class="jxr_keyword">if</strong> (isUnresolved) {
+<a class="jxr_linenumber" name="L303" href="#L303">303</a>             clusterBuilder.setType(DiscoveryType.STRICT_DNS);
+<a class="jxr_linenumber" name="L304" href="#L304">304</a>         } <strong class="jxr_keyword">else</strong> {
+<a class="jxr_linenumber" name="L305" href="#L305">305</a>             clusterBuilder.setType(DiscoveryType.STATIC);
+<a class="jxr_linenumber" name="L306" href="#L306">306</a>         }
+<a class="jxr_linenumber" name="L307" href="#L307">307</a> 
+<a class="jxr_linenumber" name="L308" href="#L308">308</a>         <strong class="jxr_keyword">final</strong> LocalityLbEndpoints.Builder localityLbEndpointsBuilder = LocalityLbEndpoints.newBuilder();
+<a class="jxr_linenumber" name="L309" href="#L309">309</a>         <strong class="jxr_keyword">for</strong> (InetSocketAddress addr : hosts()) {
+<a class="jxr_linenumber" name="L310" href="#L310">310</a>             <strong class="jxr_keyword">final</strong> LbEndpoint lbEndpoint = fromAddress(addr);
+<a class="jxr_linenumber" name="L311" href="#L311">311</a>             localityLbEndpointsBuilder.addLbEndpoints(lbEndpoint);
+<a class="jxr_linenumber" name="L312" href="#L312">312</a>         }
+<a class="jxr_linenumber" name="L313" href="#L313">313</a>         <strong class="jxr_keyword">final</strong> ClusterLoadAssignment clusterLoadAssignment =
+<a class="jxr_linenumber" name="L314" href="#L314">314</a>                 ClusterLoadAssignment.newBuilder()
+<a class="jxr_linenumber" name="L315" href="#L315">315</a>                                      .setClusterName(BOOTSTRAP_CLUSTER_NAME)
+<a class="jxr_linenumber" name="L316" href="#L316">316</a>                                      .addEndpoints(localityLbEndpointsBuilder.build()).build();
+<a class="jxr_linenumber" name="L317" href="#L317">317</a> 
+<a class="jxr_linenumber" name="L318" href="#L318">318</a>         <strong class="jxr_keyword">if</strong> (isUseTls()) {
+<a class="jxr_linenumber" name="L319" href="#L319">319</a>             clusterBuilder.setTransportSocket(
+<a class="jxr_linenumber" name="L320" href="#L320">320</a>                     TransportSocket.newBuilder()
+<a class="jxr_linenumber" name="L321" href="#L321">321</a>                                    .setName(<span class="jxr_string">"envoy.transport_sockets.tls"</span>)
+<a class="jxr_linenumber" name="L322" href="#L322">322</a>                                    .setTypedConfig(Any.pack(UpstreamTlsContext.getDefaultInstance())));
+<a class="jxr_linenumber" name="L323" href="#L323">323</a>         }
+<a class="jxr_linenumber" name="L324" href="#L324">324</a> 
+<a class="jxr_linenumber" name="L325" href="#L325">325</a>         clusterBuilder.setLoadAssignment(clusterLoadAssignment)
+<a class="jxr_linenumber" name="L326" href="#L326">326</a>                       .setName(BOOTSTRAP_CLUSTER_NAME);
+<a class="jxr_linenumber" name="L327" href="#L327">327</a>         <strong class="jxr_keyword">return</strong> clusterBuilder.build();
+<a class="jxr_linenumber" name="L328" href="#L328">328</a>     }
+<a class="jxr_linenumber" name="L329" href="#L329">329</a> 
+<a class="jxr_linenumber" name="L330" href="#L330">330</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> LbEndpoint fromAddress(InetSocketAddress addr) {
+<a class="jxr_linenumber" name="L331" href="#L331">331</a>         <strong class="jxr_keyword">final</strong> String hostString = addr.getHostString();
+<a class="jxr_linenumber" name="L332" href="#L332">332</a>         <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">int</strong> port = addr.getPort();
+<a class="jxr_linenumber" name="L333" href="#L333">333</a>         <strong class="jxr_keyword">final</strong> Address address = Address.newBuilder()
+<a class="jxr_linenumber" name="L334" href="#L334">334</a>                                        .setSocketAddress(SocketAddress.newBuilder()
+<a class="jxr_linenumber" name="L335" href="#L335">335</a>                                                                       .setAddress(hostString)
+<a class="jxr_linenumber" name="L336" href="#L336">336</a>                                                                       .setPortValue(port)).build();
+<a class="jxr_linenumber" name="L337" href="#L337">337</a>         <strong class="jxr_keyword">return</strong> LbEndpoint.newBuilder()
+<a class="jxr_linenumber" name="L338" href="#L338">338</a>                          .setEndpoint(Endpoint.newBuilder()
+<a class="jxr_linenumber" name="L339" href="#L339">339</a>                                               .setAddress(address))
+<a class="jxr_linenumber" name="L340" href="#L340">340</a>                          .build();
+<a class="jxr_linenumber" name="L341" href="#L341">341</a>     }
+<a class="jxr_linenumber" name="L342" href="#L342">342</a> }
 </pre>
 <hr/>
 <div id="footer">&copy; Copyright 2017&ndash;2026 <a href="https://engineering.linecorp.com/en/">LINE Corporation</a>. All rights reserved.</div>

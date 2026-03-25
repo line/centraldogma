@@ -51,8 +51,8 @@
 <a class="jxr_linenumber" name="L43" href="#L43">43</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.command.Command;
 <a class="jxr_linenumber" name="L44" href="#L44">44</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.command.CommandExecutor;
 <a class="jxr_linenumber" name="L45" href="#L45">45</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.metadata.AppIdentity;
-<a class="jxr_linenumber" name="L46" href="#L46">46</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.metadata.MetadataService;
-<a class="jxr_linenumber" name="L47" href="#L47">47</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.metadata.Tokens;
+<a class="jxr_linenumber" name="L46" href="#L46">46</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.metadata.AppIdentityRegistry;
+<a class="jxr_linenumber" name="L47" href="#L47">47</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.metadata.MetadataService;
 <a class="jxr_linenumber" name="L48" href="#L48">48</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.storage.project.ProjectManager;
 <a class="jxr_linenumber" name="L49" href="#L49">49</a>  
 <a class="jxr_linenumber" name="L50" href="#L50">50</a>  <em class="jxr_javadoccomment">/**</em>
@@ -92,7 +92,7 @@
 <a class="jxr_linenumber" name="L84" href="#L84">84</a>          storagePurgingScheduler.start(() -&gt; {
 <a class="jxr_linenumber" name="L85" href="#L85">85</a>              <strong class="jxr_keyword">try</strong> {
 <a class="jxr_linenumber" name="L86" href="#L86">86</a>                  purgeProjectAndRepository(commandExecutor, metadataService);
-<a class="jxr_linenumber" name="L87" href="#L87">87</a>                  purgeToken(metadataService);
+<a class="jxr_linenumber" name="L87" href="#L87">87</a>                  purgeAppIdentities(metadataService);
 <a class="jxr_linenumber" name="L88" href="#L88">88</a>              } <strong class="jxr_keyword">catch</strong> (Exception e) {
 <a class="jxr_linenumber" name="L89" href="#L89">89</a>                  logger.warn(<span class="jxr_string">"Unexpected purging service failure"</span>, e);
 <a class="jxr_linenumber" name="L90" href="#L90">90</a>              }
@@ -156,17 +156,17 @@
 <a class="jxr_linenumber" name="L148" href="#L148">148</a>                 });
 <a class="jxr_linenumber" name="L149" href="#L149">149</a>     }
 <a class="jxr_linenumber" name="L150" href="#L150">150</a> 
-<a class="jxr_linenumber" name="L151" href="#L151">151</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">void</strong> purgeToken(<a href="../../../../../../com/linecorp/centraldogma/server/metadata/MetadataService.html">MetadataService</a> metadataService) {
-<a class="jxr_linenumber" name="L152" href="#L152">152</a>         <strong class="jxr_keyword">final</strong> <a href="../../../../../../com/linecorp/centraldogma/server/metadata/Tokens.html">Tokens</a> tokens = metadataService.getTokens();
-<a class="jxr_linenumber" name="L153" href="#L153">153</a>         <strong class="jxr_keyword">final</strong> List&lt;String&gt; purging = tokens.appIds().values()
-<a class="jxr_linenumber" name="L154" href="#L154">154</a>                                            .stream()
-<a class="jxr_linenumber" name="L155" href="#L155">155</a>                                            .filter(AppIdentity::isDeleted)
-<a class="jxr_linenumber" name="L156" href="#L156">156</a>                                            .map(AppIdentity::appId)
-<a class="jxr_linenumber" name="L157" href="#L157">157</a>                                            .collect(toImmutableList());
+<a class="jxr_linenumber" name="L151" href="#L151">151</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">void</strong> purgeAppIdentities(<a href="../../../../../../com/linecorp/centraldogma/server/metadata/MetadataService.html">MetadataService</a> metadataService) {
+<a class="jxr_linenumber" name="L152" href="#L152">152</a>         <strong class="jxr_keyword">final</strong> <a href="../../../../../../com/linecorp/centraldogma/server/metadata/AppIdentityRegistry.html">AppIdentityRegistry</a> appIdentityRegistry = metadataService.getAppIdentityRegistry();
+<a class="jxr_linenumber" name="L153" href="#L153">153</a>         <strong class="jxr_keyword">final</strong> List&lt;String&gt; purging = appIdentityRegistry.appIds().values()
+<a class="jxr_linenumber" name="L154" href="#L154">154</a>                                                         .stream()
+<a class="jxr_linenumber" name="L155" href="#L155">155</a>                                                         .filter(AppIdentity::isDeleted)
+<a class="jxr_linenumber" name="L156" href="#L156">156</a>                                                         .map(AppIdentity::appId)
+<a class="jxr_linenumber" name="L157" href="#L157">157</a>                                                         .collect(toImmutableList());
 <a class="jxr_linenumber" name="L158" href="#L158">158</a> 
 <a class="jxr_linenumber" name="L159" href="#L159">159</a>         <strong class="jxr_keyword">if</strong> (!purging.isEmpty()) {
-<a class="jxr_linenumber" name="L160" href="#L160">160</a>             logger.info(<span class="jxr_string">"Purging {} tokens: {}"</span>, purging.size(), purging);
-<a class="jxr_linenumber" name="L161" href="#L161">161</a>             purging.forEach(appId -&gt; metadataService.purgeToken(Author.SYSTEM, appId));
+<a class="jxr_linenumber" name="L160" href="#L160">160</a>             logger.info(<span class="jxr_string">"Purging {} app identities: {}"</span>, purging.size(), purging);
+<a class="jxr_linenumber" name="L161" href="#L161">161</a>             purging.forEach(appId -&gt; metadataService.purgeAppIdentity(Author.SYSTEM, appId));
 <a class="jxr_linenumber" name="L162" href="#L162">162</a>         }
 <a class="jxr_linenumber" name="L163" href="#L163">163</a>     }
 <a class="jxr_linenumber" name="L164" href="#L164">164</a> 
