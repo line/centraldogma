@@ -80,7 +80,7 @@ final class StructuredChange extends AbstractChange<JsonNode> {
             Jackson.readTree(bytes);
         } catch (Exception e) {
             throw new ChangeFormatException(
-                    "content cannot be serialized safely. file: " + path + " content: " + jsonNode, e);
+                    "content cannot be serialized safely. file: " + path, e);
         }
     }
 
