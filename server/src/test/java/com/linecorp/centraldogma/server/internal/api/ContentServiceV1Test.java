@@ -136,6 +136,51 @@ class ContentServiceV1Test {
     }
 
     @Test
+    void pushJsonContentWithSurrogateCharacterInFieldName() {
+        final WebClient client = dogma.httpClient();
+        // JSON content with a lone surrogate (U+D80C) in a field name.
+        // \uD80C is a high surrogate without a following low surrogate, which is invalid UTF-8.
+        final String body =
+                '{' +
+                "   \"path\" : \"/surrogate.json\"," +
+                "   \"type\" : \"UPSERT_JSON\"," +
+                "   \"content\" : {\"invalid\\uD80Ckey\": \"value\"}," +
+                "   \"commitMessage\" : {" +
+                "       \"summary\" : \"Add surrogate.json\"," +
+                "       \"detail\": \"\"," +
+                "       \"markup\": \"PLAINTEXT\"" +
+                "   }" +
+                '}';
+        final RequestHeaders headers = RequestHeaders.of(HttpMethod.POST, CONTENTS_PREFIX,
+                                                         HttpHeaderNames.CONTENT_TYPE, MediaType.JSON);
+        final AggregatedHttpResponse res = client.execute(headers, body).aggregate().join();
+        assertThat(res.status()).isEqualTo(HttpStatus.BAD_REQUEST);
+    }
+
+    @Test
+    void pushJsonContentWithSurrogateCharacterInValue() {
+        final WebClient client = dogma.httpClient();
+        // JSON content with a lone surrogate (U+D80C) in a value.
+        // Jackson only validates surrogates in field names during deserialization,
+        // so a lone surrogate in a value does not cause replication failure.
+        final String body =
+                '{' +
+                "   \"path\" : \"/surrogate2.json\"," +
+                "   \"type\" : \"UPSERT_JSON\"," +
+                "   \"content\" : {\"key\": \"invalid\\uD80Cvalue\"}," +
+                "   \"commitMessage\" : {" +
+                "       \"summary\" : \"Add surrogate2.json\"," +
+                "       \"detail\": \"\"," +
+                "       \"markup\": \"PLAINTEXT\"" +
+                "   }" +
+                '}';
+        final RequestHeaders headers = RequestHeaders.of(HttpMethod.POST, CONTENTS_PREFIX,
+                                                         HttpHeaderNames.CONTENT_TYPE, MediaType.JSON);
+        final AggregatedHttpResponse res = client.execute(headers, body).aggregate().join();
+        assertThat(res.status()).isEqualTo(HttpStatus.OK);
+    }
+
+    @Test
     void pushFileToDogmaRepositoryShouldFail() {
         final WebClient client = dogma.httpClient();
 
