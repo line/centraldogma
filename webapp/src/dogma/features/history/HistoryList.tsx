@@ -1,19 +1,22 @@
 import { createColumnHelper, PaginationState } from '@tanstack/react-table';
 import { HistoryDto } from 'dogma/features/history/HistoryDto';
-import { Badge, Box, Button, HStack, Icon } from '@chakra-ui/react';
+import { Badge, Box, Button, HStack, Icon, useDisclosure } from '@chakra-ui/react';
 import { ChakraLink } from 'dogma/common/components/ChakraLink';
 import { DateWithTooltip } from 'dogma/common/components/DateWithTooltip';
-import { ReactElement, useMemo } from 'react';
+import { ReactElement, useMemo, useState } from 'react';
 import { DynamicDataTable } from 'dogma/common/components/table/DynamicDataTable';
 import { Author } from 'dogma/common/components/Author';
 import { GoCodescan } from 'react-icons/go';
 import { VscGitCommit } from 'react-icons/vsc';
 import CompareButton from 'dogma/common/components/CompareButton';
+import { RevertCommitModal } from 'dogma/features/history/RevertCommitModal';
+import { WithRepositoryRole } from 'dogma/features/auth/RepositoryRole';
 
 export type HistoryListProps = {
   projectName: string;
   repoName: string;
   filePath: string;
+  headRevision: number;
   data: HistoryDto[];
   pagination: PaginationState;
   setPagination: (updater: (old: PaginationState) => PaginationState) => void;
@@ -26,6 +29,7 @@ const HistoryList = ({
   projectName,
   repoName,
   filePath,
+  headRevision,
   data,
   pagination,
   setPagination,
@@ -33,6 +37,8 @@ const HistoryList = ({
   onEmptyData,
   isDirectory,
 }: HistoryListProps) => {
+  const { isOpen, onOpen, onClose } = useDisclosure();
+  const [targetRevision, setTargetRevision] = useState<number>(headRevision);
   const columnHelper = createColumnHelper<HistoryDto>();
   const columns = useMemo(
     () => [
@@ -73,6 +79,24 @@ const HistoryList = ({
               repoName={repoName}
               headRevision={info.row.original.revision}
             />
+            {!filePath && (
+              <WithRepositoryRole projectName={projectName} repoName={repoName} roles={['WRITE', 'ADMIN']}>
+                {() => (
+                  <Button
+                    size={'sm'}
+                    colorScheme={'red'}
+                    variant={'outline'}
+                    isDisabled={info.row.original.revision === headRevision}
+                    onClick={() => {
+                      setTargetRevision(info.row.original.revision);
+                      onOpen();
+                    }}
+                  >
+                    Revert
+                  </Button>
+                )}
+              </WithRepositoryRole>
+            )}
           </HStack>
         ),
         header: 'Action',
@@ -86,19 +110,29 @@ const HistoryList = ({
         header: 'Timestamp',
       }),
     ],
-    [columnHelper, projectName, repoName, filePath, isDirectory],
+    [columnHelper, projectName, repoName, filePath, isDirectory, headRevision, onOpen],
   );
 
   return (
-    <DynamicDataTable
-      data={data}
-      columns={columns}
-      setPagination={setPagination}
-      pagination={pagination}
-      pageCount={pageCount}
-      disableGotoButton={true}
-      onEmptyData={onEmptyData}
-    />
+    <>
+      <DynamicDataTable
+        data={data}
+        columns={columns}
+        setPagination={setPagination}
+        pagination={pagination}
+        pageCount={pageCount}
+        disableGotoButton={true}
+        onEmptyData={onEmptyData}
+      />
+      <RevertCommitModal
+        isOpen={isOpen}
+        onClose={onClose}
+        projectName={projectName}
+        repoName={repoName}
+        headRevision={headRevision}
+        targetRevision={targetRevision}
+      />
+    </>
   );
 };
 

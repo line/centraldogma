@@ -1,4 +1,4 @@
-import { fireEvent, render, waitFor } from '@testing-library/react';
+import { render, waitFor } from '@testing-library/react';
 import { HistoryDto } from 'dogma/features/history/HistoryDto';
 import HistoryList from 'dogma/features/history/HistoryList';
 // Disabled to due to https://github.com/mswjs/msw/issues/1786
@@ -6,12 +6,6 @@ import HistoryList from 'dogma/features/history/HistoryList';
 // import { http, HttpResponse } from 'msw';
 import { apiSlice } from 'dogma/features/api/apiSlice';
 import { ApiProvider } from '@reduxjs/toolkit/query/react';
-const expectedProps = {
-  projectName: 'ProjectAlpha',
-  repoName: 'RepoGamma',
-  handleTabChange: jest.fn(),
-  totalRevision: 2,
-};
 const mockHistoryList: HistoryDto[] = [
   {
     revision: 2,
@@ -26,6 +20,17 @@ const mockHistoryList: HistoryDto[] = [
     pushedAt: '2023-01-10T08:17:22Z',
   },
 ];
+const expectedProps = {
+  projectName: 'ProjectAlpha',
+  repoName: 'RepoGamma',
+  filePath: '',
+  headRevision: 2,
+  data: mockHistoryList,
+  pagination: { pageIndex: 0, pageSize: 10 },
+  setPagination: jest.fn(),
+  pageCount: 1,
+  isDirectory: false,
+};
 
 // const handlers = [
 //   http.get(
@@ -75,19 +80,6 @@ xdescribe('HistoryList', () => {
         'href',
         `/app/projects/${expectedProps.projectName}/repos/${expectedProps.repoName}/tree/${2}`,
       );
-    });
-  });
-
-  it('calls handleTabChange when the revision cell is clicked', async () => {
-    const { container } = render(
-      <ApiProvider api={apiSlice}>
-        <HistoryList {...expectedProps} />
-      </ApiProvider>,
-    );
-    await waitFor(() => {
-      const firstCell = container.querySelector('tbody').firstChild.firstChild.firstChild;
-      fireEvent.click(firstCell);
-      expect(expectedProps.handleTabChange).toHaveBeenCalledTimes(1);
     });
   });
 });

@@ -87,6 +87,19 @@ export type GetFileContent = {
   renderTemplate?: boolean;
 };
 
+export type RevertRequest = {
+  projectName: string;
+  repoName: string;
+  data: {
+    targetRevision: number;
+    commitMessage: {
+      summary: string;
+      detail?: string;
+      markup?: string;
+    };
+  };
+};
+
 export type TitleDto = {
   title: string;
   hostname: string;
@@ -328,6 +341,14 @@ export const apiSlice = createApi({
           body: data,
         };
       },
+      invalidatesTags: ['File'],
+    }),
+    revertRepository: builder.mutation({
+      query: ({ projectName, repoName, data }: RevertRequest) => ({
+        url: `/api/v1/projects/${projectName}/repos/${repoName}/revert`,
+        method: 'POST',
+        body: data,
+      }),
       invalidatesTags: ['File'],
     }),
     getHistory: builder.query<HistoryDto[], GetHistory>({
@@ -655,6 +676,7 @@ export const {
   useGetFilesQuery,
   useGetFileContentQuery,
   usePushFileChangesMutation,
+  useRevertRepositoryMutation,
   // History
   useGetHistoryQuery,
   useGetNormalisedRevisionQuery,
