@@ -87,6 +87,19 @@ export type GetFileContent = {
   renderTemplate?: boolean;
 };
 
+export type RevertRequest = {
+  projectName: string;
+  repoName: string;
+  data: {
+    targetRevision: number;
+    commitMessage: {
+      summary: string;
+      detail?: string;
+      markup?: string;
+    };
+  };
+};
+
 export type TitleDto = {
   title: string;
   hostname: string;
@@ -106,8 +119,16 @@ const baseQuery = fetchBaseQuery({
   baseUrl: `${process.env.NEXT_PUBLIC_HOST || ''}/`,
   credentials: 'include',
   prepareHeaders: (headers, { getState, type }) => {
+    const { auth } = getState() as { auth: AuthState };
+
+    if (auth.isInAnonymousMode) {
+      // In anonymous mode, the server requires 'Authorization: Bearer anonymous'
+      // to pass through AnonymousTokenAuthorizer.
+      headers.set('Authorization', 'Bearer anonymous');
+      return headers;
+    }
+
     if (type === 'mutation') {
-      const { auth } = getState() as { auth: AuthState };
       const csrfToken = auth.csrfToken;
 
       if (csrfToken) {
@@ -129,8 +150,11 @@ const baseQueryWithReauth: BaseQueryFn<string | FetchArgs, unknown, FetchBaseQue
   const result = await baseQuery(args, api, extraOptions);
 
   if (result.error && result.error.status === 401) {
-    api.dispatch(clearAuth());
-    Router.push(createLoginUrl());
+    const { auth } = api.getState() as { auth: AuthState };
+    if (!auth.isInAnonymousMode) {
+      api.dispatch(clearAuth());
+      Router.push(createLoginUrl());
+    }
   }
   return result;
 };
@@ -317,6 +341,14 @@ export const apiSlice = createApi({
           body: data,
         };
       },
+      invalidatesTags: ['File'],
+    }),
+    revertRepository: builder.mutation({
+      query: ({ projectName, repoName, data }: RevertRequest) => ({
+        url: `/api/v1/projects/${projectName}/repos/${repoName}/revert`,
+        method: 'POST',
+        body: data,
+      }),
       invalidatesTags: ['File'],
     }),
     getHistory: builder.query<HistoryDto[], GetHistory>({
@@ -644,6 +676,7 @@ export const {
   useGetFilesQuery,
   useGetFileContentQuery,
   usePushFileChangesMutation,
+  useRevertRepositoryMutation,
   // History
   useGetHistoryQuery,
   useGetNormalisedRevisionQuery,
