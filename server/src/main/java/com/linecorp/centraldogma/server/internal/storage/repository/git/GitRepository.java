@@ -78,6 +78,7 @@ import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.CentralDogmaException;
 import com.linecorp.centraldogma.common.Change;
+import com.linecorp.centraldogma.common.ChangeFormatException;
 import com.linecorp.centraldogma.common.Commit;
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.EntryNotFoundException;
@@ -681,7 +682,6 @@ class GitRepository implements Repository {
                         final EntryType oldEntryType = EntryType.guessFromPath(oldPath);
                         switch (oldEntryType) {
                             case JSON:
-                            case YAML:
                                 if (!oldPath.equals(newPath)) {
                                     putChange(changeMap, oldPath, Change.ofRename(oldPath, newPath));
                                 }
@@ -697,38 +697,64 @@ class GitRepository implements Repository {
 
                                 if (!patch.isEmpty()) {
                                     if (diffResultType == DiffResultType.PATCH_TO_UPSERT) {
-                                        final Change<JsonNode> change;
-                                        if (oldEntryType == EntryType.YAML) {
-                                            change = Change.ofYamlUpsert(newPath, newJsonNode);
-                                        } else {
-                                            change = Change.ofJsonUpsert(newPath, newJsonNode);
-                                        }
-                                        putChange(changeMap, newPath, change);
+                                        putChange(changeMap, newPath,
+                                                  Change.ofJsonUpsert(newPath, newJsonNode));
                                     } else {
                                         putChange(changeMap, newPath,
                                                   Change.ofJsonPatch(newPath, Jackson.valueToTree(patch)));
                                     }
                                 }
                                 break;
-                            case TEXT:
-                                final String oldText = sanitizeText(new String(
-                                        reader.open(diffEntry.getOldId().toObjectId()).getBytes(), UTF_8));
-
-                                final String newText = sanitizeText(new String(
-                                        reader.open(diffEntry.getNewId().toObjectId()).getBytes(), UTF_8));
-
-                                if (!oldPath.equals(newPath)) {
-                                    putChange(changeMap, oldPath, Change.ofRename(oldPath, newPath));
+                            case YAML:
+                                final byte[] oldYamlBytes =
+                                        reader.open(diffEntry.getOldId().toObjectId()).getBytes();
+                                final byte[] newYamlBytes =
+                                        reader.open(diffEntry.getNewId().toObjectId()).getBytes();
+                                JsonNode oldYamlNode = null;
+                                JsonNode newYamlNode = null;
+                                try {
+                                    oldYamlNode = Jackson.readTree(oldPath, oldYamlBytes);
+                                    newYamlNode = Jackson.readTree(newPath, newYamlBytes);
+                                } catch (JsonProcessingException e) {
+                                    logger.debug("Failed to parse YAML content for diff at {}; " +
+                                                 "falling back to text diff", oldPath, e);
                                 }
 
-                                if (!oldText.equals(newText)) {
-                                    if (diffResultType == DiffResultType.PATCH_TO_UPSERT) {
-                                        putChange(changeMap, newPath, Change.ofTextUpsert(newPath, newText));
-                                    } else {
-                                        putChange(changeMap, newPath,
-                                                  Change.ofTextPatch(newPath, oldText, newText));
+                                if (oldYamlNode != null && newYamlNode != null) {
+                                    if (!oldPath.equals(newPath)) {
+                                        putChange(changeMap, oldPath,
+                                                  Change.ofRename(oldPath, newPath));
                                     }
+                                    final JsonPatch yamlPatch =
+                                            JsonPatch.generate(oldYamlNode, newYamlNode,
+                                                               ReplaceMode.SAFE);
+                                    if (!yamlPatch.isEmpty()) {
+                                        if (diffResultType == DiffResultType.PATCH_TO_UPSERT) {
+                                            putChange(changeMap, newPath,
+                                                      Change.ofYamlUpsert(newPath, newYamlNode));
+                                        } else {
+                                            putChange(changeMap, newPath,
+                                                      Change.ofJsonPatch(newPath,
+                                                                         Jackson.valueToTree(yamlPatch)));
+                                        }
+                                    }
+                                } else {
+                                    // Malformed YAML: fall back to text diff.
+                                    putTextDiff(changeMap, oldPath, newPath,
+                                                sanitizeText(new String(oldYamlBytes, UTF_8)),
+                                                sanitizeText(new String(newYamlBytes, UTF_8)),
+                                                diffResultType);
                                 }
+                                break;
+                            case TEXT:
+                                putTextDiff(changeMap, oldPath, newPath,
+                                            sanitizeText(new String(
+                                                    reader.open(diffEntry.getOldId().toObjectId())
+                                                          .getBytes(), UTF_8)),
+                                            sanitizeText(new String(
+                                                    reader.open(diffEntry.getNewId().toObjectId())
+                                                          .getBytes(), UTF_8)),
+                                            diffResultType);
                                 break;
                             default:
                                 throw new Error("unexpected old entry type: " + oldEntryType);
@@ -748,7 +774,16 @@ class GitRepository implements Repository {
                                 final String text = sanitizeText(new String(
                                         reader.open(diffEntry.getNewId().toObjectId()).getBytes(), UTF_8));
 
-                                putChange(changeMap, newPath, Change.ofYamlUpsert(newPath, text));
+                                try {
+                                    putChange(changeMap, newPath,
+                                              Change.ofYamlUpsert(newPath, text));
+                                } catch (ChangeFormatException e) {
+                                    // Fall back to text upsert if the YAML is malformed.
+                                    logger.debug("Failed to parse YAML content at {}; " +
+                                                 "falling back to text upsert", newPath, e);
+                                    putChange(changeMap, newPath,
+                                              Change.ofTextUpsert(newPath, text));
+                                }
                                 break;
                             }
                             case TEXT: {
@@ -772,6 +807,20 @@ class GitRepository implements Repository {
             return changeMap;
         } catch (Exception e) {
             throw new StorageException("failed to convert list of DiffEntry to Changes map", e);
+        }
+    }
+
+    private static void putTextDiff(Map<String, Change<?>> changeMap, String oldPath, String newPath,
+                                    String oldText, String newText, DiffResultType diffResultType) {
+        if (!oldPath.equals(newPath)) {
+            putChange(changeMap, oldPath, Change.ofRename(oldPath, newPath));
+        }
+        if (!oldText.equals(newText)) {
+            if (diffResultType == DiffResultType.PATCH_TO_UPSERT) {
+                putChange(changeMap, newPath, Change.ofTextUpsert(newPath, newText));
+            } else {
+                putChange(changeMap, newPath, Change.ofTextPatch(newPath, oldText, newText));
+            }
         }
     }
 

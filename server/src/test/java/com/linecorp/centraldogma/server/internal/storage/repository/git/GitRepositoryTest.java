@@ -975,6 +975,67 @@ class GitRepositoryTest {
     }
 
     @Test
+    void testDiff_addMalformedYaml() {
+        testDiffAddMalformedYaml(fileRepo);
+        testDiffAddMalformedYaml(encryptedRepo);
+    }
+
+    private void testDiffAddMalformedYaml(GitRepository repo) {
+        final String yamlPath = prefix + "malformed_add.yaml";
+        // "key: value: another" is invalid YAML syntax.
+        final String malformedYaml = "key: value: another\n";
+
+        // Commit a malformed YAML file using text upsert (the only way to commit malformed YAML).
+        final Revision rev1 = repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY,
+                                          Change.ofTextUpsert(yamlPath, malformedYaml)).join().revision();
+
+        // diff from INIT should treat the add as a text upsert instead of throwing StorageException.
+        final Map<String, Change<?>> diff = repo.diff(INIT, rev1, prefix + "**").join();
+        assertThat(diff).hasSize(1);
+        assertThat(diff).containsKey(yamlPath);
+        assertThat(diff.get(yamlPath).type()).isEqualTo(ChangeType.UPSERT_TEXT);
+        assertThat(diff.get(yamlPath).content()).isEqualTo(malformedYaml);
+
+        // PATCH_TO_UPSERT should also fall back to text upsert.
+        final Map<String, Change<?>> diffUpsert = repo.diff(INIT, rev1, prefix + "**",
+                                                             DiffResultType.PATCH_TO_UPSERT).join();
+        assertThat(diffUpsert).hasSize(1);
+        assertThat(diffUpsert.get(yamlPath).type()).isEqualTo(ChangeType.UPSERT_TEXT);
+        assertThat(diffUpsert.get(yamlPath).content()).isEqualTo(malformedYaml);
+    }
+
+    @Test
+    void testDiff_modifyMalformedYaml() {
+        testDiffModifyMalformedYaml(fileRepo);
+        testDiffModifyMalformedYaml(encryptedRepo);
+    }
+
+    private void testDiffModifyMalformedYaml(GitRepository repo) {
+        final String yamlPath = prefix + "malformed_modify.yaml";
+        final String malformedYaml1 = "key: value: one\n";
+        final String malformedYaml2 = "key: value: two\n";
+
+        // Commit malformed YAML files using text upsert.
+        final Revision rev1 = repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY,
+                                          Change.ofTextUpsert(yamlPath, malformedYaml1)).join().revision();
+        final Revision rev2 = repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY,
+                                          Change.ofTextUpsert(yamlPath, malformedYaml2)).join().revision();
+
+        // diff should fall back to text patch instead of throwing StorageException.
+        final Map<String, Change<?>> diff = repo.diff(rev1, rev2, prefix + "**").join();
+        assertThat(diff).hasSize(1);
+        assertThat(diff).containsKey(yamlPath);
+        assertThat(diff.get(yamlPath).type()).isEqualTo(ChangeType.APPLY_TEXT_PATCH);
+
+        // PATCH_TO_UPSERT should fall back to text upsert.
+        final Map<String, Change<?>> diffUpsert = repo.diff(rev1, rev2, prefix + "**",
+                                                             DiffResultType.PATCH_TO_UPSERT).join();
+        assertThat(diffUpsert).hasSize(1);
+        assertThat(diffUpsert.get(yamlPath).type()).isEqualTo(ChangeType.UPSERT_TEXT);
+        assertThat(diffUpsert.get(yamlPath).content()).isEqualTo(malformedYaml2);
+    }
+
+    @Test
     void testDiff_addJson5() {
         testDiffAddJson5(fileRepo);
         testDiffAddJson5(encryptedRepo);
