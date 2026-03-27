@@ -17,11 +17,14 @@
 package com.linecorp.centraldogma.common;
 
 import static com.linecorp.centraldogma.testing.internal.TestUtil.assertJsonConversion;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import org.junit.jupiter.api.Test;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import com.linecorp.centraldogma.internal.Jackson;
 
@@ -198,6 +201,46 @@ class ChangeSerializerTest {
                              "  \"path\": \"/empty.txt\"," +
                              "  \"content\": \"\"" +
                              '}');
+    }
+
+    @Test
+    @SuppressWarnings("AvoidEscapedUnicodeCharacters")
+    void rejectLoneSurrogateInFieldName() {
+        final ObjectNode node = Jackson.valueToTree(new TestObject("test", 1));
+        node.put("invalid\uD80Ckey", "value");
+        assertThatThrownBy(() -> Change.ofJsonUpsert("/surrogate.json", node))
+                .isInstanceOf(ChangeFormatException.class)
+                .hasMessageContaining("content cannot be serialized safely");
+    }
+
+    @Test
+    @SuppressWarnings("AvoidEscapedUnicodeCharacters")
+    void loneSurrogateInValuePassesRoundTrip() {
+        // Jackson's UTF8StreamJsonParser only validates surrogates in field names,
+        // not in string values. So a lone surrogate in a value does not cause
+        // replication failure and the roundtrip check correctly allows it.
+        final ObjectNode node = Jackson.valueToTree(new TestObject("test", 1));
+        node.put("key", "value\uD80Cwith surrogate");
+        final Change<JsonNode> change = Change.ofJsonUpsert("/surrogate2.json", node);
+        assertThat(change.content().get("key").asText()).contains("\uD80C");
+    }
+
+    @Test
+    @SuppressWarnings("AvoidEscapedUnicodeCharacters")
+    void surrogatePairInFieldName() {
+        final ObjectNode node = Jackson.valueToTree(new TestObject("test", 1));
+        node.put("valid\uD80C\uDC00key", "value");
+        final Change<JsonNode> change = Change.ofJsonUpsert("/surrogate2.json", node);
+        assertThat(change.content().get("valid\uD80C\uDC00key").asText()).isEqualTo("value");
+    }
+
+    @Test
+    @SuppressWarnings("AvoidEscapedUnicodeCharacters")
+    void rejectLoneSurrogateInRawContent() {
+        assertThatThrownBy(() -> Change.ofJsonUpsert("/surrogate3.json",
+                                                     "{\"key\uD80C\": \"value\"}"))
+                .isInstanceOf(ChangeFormatException.class)
+                .hasMessageContaining("content cannot be serialized safely");
     }
 
     private static class TestObject {
