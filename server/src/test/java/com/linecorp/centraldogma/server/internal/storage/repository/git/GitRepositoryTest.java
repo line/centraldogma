@@ -957,8 +957,8 @@ class GitRepositoryTest {
         assertThat(yamlQuery.type()).isEqualTo(ChangeType.APPLY_JSON_PATCH);
 
         // PATCH_TO_UPSERT diff option returns a YAML upsert with JsonNode content.
-        Map<String, Change<?>> upsertChanges = repo.diff(prevRevision, currRevision, prefix + "**",
-                                                          DiffResultType.PATCH_TO_UPSERT).join();
+        final Map<String, Change<?>> upsertChanges = repo.diff(prevRevision, currRevision, prefix + "**",
+                                                               DiffResultType.PATCH_TO_UPSERT).join();
         assertThat(upsertChanges).hasSize(1);
         assertThat(upsertChanges.get(yamlPath).type()).isEqualTo(ChangeType.UPSERT_YAML);
         assertThatJson(upsertChanges.get(yamlPath).content()).isEqualTo("{\"name\":\"bar\"}");
@@ -1039,10 +1039,9 @@ class GitRepositoryTest {
         assertThat(jsonQuery).isNotNull();
 
         // PATCH_TO_UPSERT diff option.
-        Map<String, Change<?>> upsertChanges = repo.diff(prevRevision, currRevision, prefix + "**",
-                                                          DiffResultType.PATCH_TO_UPSERT).join();
-        assertThat(upsertChanges).hasSize(1)
-                                  .containsEntry(json5Path, Change.ofJsonUpsert(json5Path, content2));
+        final Map<String, Change<?>> upsertChanges = repo.diff(prevRevision, currRevision, prefix + "**",
+                                                               DiffResultType.PATCH_TO_UPSERT).join();
+        assertThat(upsertChanges).hasSize(1).containsEntry(json5Path, Change.ofJsonUpsert(json5Path, content2));
 
         prevRevision = currRevision;
 
