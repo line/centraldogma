@@ -25,9 +25,12 @@ import org.junit.jupiter.params.provider.EnumSource;
 
 import com.fasterxml.jackson.databind.JsonNode;
 
+import java.util.List;
+
 import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.ChangeType;
+import com.linecorp.centraldogma.common.PathPattern;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.Revision;
 
@@ -90,6 +93,140 @@ class GetDiffTest {
         assertThat(client.getDiff(dogma.project(), dogma.repo1(), rev1, rev2,
                                   Query.ofText("/foo.txt")).join())
                 .isEqualTo(Change.ofRemoval("/foo.txt"));
+    }
+
+    @ParameterizedTest
+    @EnumSource(ClientType.class)
+    void diff_yamlAdd(ClientType clientType) {
+        final CentralDogma client = clientType.client(dogma);
+        final String yamlPath = "/test_yaml_add.yaml";
+        final String yamlContent = "key: value\nlist:\n  - item1\n  - item2\n";
+
+        final Revision rev1 = client.forRepo(dogma.project(), dogma.repo1())
+                                    .commit("Add YAML", Change.ofYamlUpsert(yamlPath, yamlContent))
+                                    .push().join().revision();
+
+        // Verify diff from init to current shows the YAML add.
+        final List<Change<?>> diffs = client.forRepo(dogma.project(), dogma.repo1())
+                                            .diff(PathPattern.of(yamlPath))
+                                            .get(rev1.backward(1), rev1).join();
+        assertThat(diffs).hasSize(1);
+        assertThat(diffs.get(0).path()).isEqualTo(yamlPath);
+        assertThat(diffs.get(0).type()).isEqualTo(ChangeType.UPSERT_YAML);
+        assertThatJson(diffs.get(0).content()).isEqualTo(
+                "{" +
+                "  \"key\": \"value\"," +
+                "  \"list\": [\"item1\", \"item2\"]" +
+                "}");
+    }
+
+    @ParameterizedTest
+    @EnumSource(ClientType.class)
+    void diff_yamlModify(ClientType clientType) {
+        final CentralDogma client = clientType.client(dogma);
+        final String yamlPath = "/test_yaml_modify.yml";
+
+        final Revision rev1 = client.forRepo(dogma.project(), dogma.repo1())
+                                    .commit("Add YAML", Change.ofYamlUpsert(yamlPath, "name: foo\n"))
+                                    .push().join().revision();
+
+        final Revision rev2 = client.forRepo(dogma.project(), dogma.repo1())
+                                    .commit("Update YAML", Change.ofYamlUpsert(yamlPath, "name: bar\n"))
+                                    .push().join().revision();
+
+        // Path-pattern diff: YAML is diffed as JSON.
+        final List<Change<?>> diffs = client.forRepo(dogma.project(), dogma.repo1())
+                                            .diff(PathPattern.of(yamlPath))
+                                            .get(rev1, rev2).join();
+        assertThat(diffs).hasSize(1);
+        assertThat(diffs.get(0).path()).isEqualTo(yamlPath);
+        assertThat(diffs.get(0).type()).isEqualTo(ChangeType.APPLY_JSON_PATCH);
+        assertThatJson(diffs.get(0).content()).isEqualTo(
+                "[{" +
+                "  \"op\": \"safeReplace\"," +
+                "  \"path\": \"/name\"," +
+                "  \"oldValue\": \"foo\"," +
+                "  \"value\": \"bar\"" +
+                "}]");
+
+        // Query-based diff: YAML query returns a JSON patch.
+        final Change<?> yamlDiff = client.getDiff(dogma.project(), dogma.repo1(), rev1, rev2,
+                                                   Query.ofYaml(yamlPath)).join();
+        assertThat(yamlDiff.path()).isEqualTo(yamlPath);
+        assertThat(yamlDiff.type()).isEqualTo(ChangeType.APPLY_JSON_PATCH);
+        assertThatJson(yamlDiff.content()).isEqualTo(
+                "[{" +
+                "  \"op\": \"safeReplace\"," +
+                "  \"path\": \"/name\"," +
+                "  \"oldValue\": \"foo\"," +
+                "  \"value\": \"bar\"" +
+                "}]");
+    }
+
+    @ParameterizedTest
+    @EnumSource(ClientType.class)
+    void diff_yamlRemove(ClientType clientType) {
+        final CentralDogma client = clientType.client(dogma);
+        final String yamlPath = "/test_yaml_remove.yaml";
+
+        final Revision rev1 = client.forRepo(dogma.project(), dogma.repo1())
+                                    .commit("Add YAML", Change.ofYamlUpsert(yamlPath, "data: test\n"))
+                                    .push().join().revision();
+
+        final Revision rev2 = client.forRepo(dogma.project(), dogma.repo1())
+                                    .commit("Remove YAML", Change.ofRemoval(yamlPath))
+                                    .push().join().revision();
+
+        final List<Change<?>> diffs = client.forRepo(dogma.project(), dogma.repo1())
+                                            .diff(PathPattern.of(yamlPath))
+                                            .get(rev1, rev2).join();
+        assertThat(diffs).hasSize(1);
+        assertThat(diffs.get(0).path()).isEqualTo(yamlPath);
+        assertThat(diffs.get(0).type()).isEqualTo(ChangeType.REMOVE);
+    }
+
+    @ParameterizedTest
+    @EnumSource(ClientType.class)
+    void diff_json5Modify(ClientType clientType) {
+        final CentralDogma client = clientType.client(dogma);
+        final String json5Path = "/test_json5_modify.json5";
+
+        final Revision rev1 = client.forRepo(dogma.project(), dogma.repo1())
+                                    .commit("Add JSON5",
+                                            Change.ofJsonUpsert(json5Path, "{ \"key\": \"value1\" }"))
+                                    .push().join().revision();
+
+        final Revision rev2 = client.forRepo(dogma.project(), dogma.repo1())
+                                    .commit("Update JSON5",
+                                            Change.ofJsonUpsert(json5Path, "{ \"key\": \"value2\" }"))
+                                    .push().join().revision();
+
+        // Path-pattern diff: JSON5 produces a JSON patch.
+        final List<Change<?>> diffs = client.forRepo(dogma.project(), dogma.repo1())
+                                            .diff(PathPattern.of(json5Path))
+                                            .get(rev1, rev2).join();
+        assertThat(diffs).hasSize(1);
+        assertThat(diffs.get(0).path()).isEqualTo(json5Path);
+        assertThat(diffs.get(0).type()).isEqualTo(ChangeType.APPLY_JSON_PATCH);
+        assertThatJson(diffs.get(0).content()).isEqualTo(
+                "[{" +
+                "  \"op\": \"safeReplace\"," +
+                "  \"path\": \"/key\"," +
+                "  \"oldValue\": \"value1\"," +
+                "  \"value\": \"value2\"" +
+                "}]");
+
+        // Query-based diff with JSON query.
+        final Change<JsonNode> jsonDiff = client.getDiff(dogma.project(), dogma.repo1(), rev1, rev2,
+                                                          Query.ofJson(json5Path)).join();
+        assertThat(jsonDiff.type()).isEqualTo(ChangeType.APPLY_JSON_PATCH);
+        assertThatJson(jsonDiff.content()).isEqualTo(
+                "[{" +
+                "  \"op\": \"safeReplace\"," +
+                "  \"path\": \"/key\"," +
+                "  \"oldValue\": \"value1\"," +
+                "  \"value\": \"value2\"" +
+                "}]");
     }
 
     @ParameterizedTest

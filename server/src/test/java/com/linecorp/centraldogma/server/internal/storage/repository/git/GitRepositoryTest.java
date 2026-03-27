@@ -78,6 +78,7 @@ import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.RevisionNotFoundException;
 import com.linecorp.centraldogma.common.TextPatchConflictException;
 import com.linecorp.centraldogma.common.jsonpatch.JsonPatchConflictException;
+import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.Util;
 import com.linecorp.centraldogma.server.internal.JGitUtil;
 import com.linecorp.centraldogma.server.storage.StorageException;
@@ -890,6 +891,190 @@ class GitRepositoryTest {
 
             prevRevision = currRevision;
         }
+    }
+
+    @Test
+    void testDiff_addYaml() {
+        testDiffAddYaml(fileRepo);
+        testDiffAddYaml(encryptedRepo);
+    }
+
+    private void testDiffAddYaml(GitRepository repo) {
+        final String yamlPath = prefix + "test.yaml";
+        final String yamlContent1 = "key: value1\n";
+        final String yamlContent2 = "key: value2\n";
+
+        // First commit: add a YAML file.
+        final Revision rev1 = repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY,
+                                           Change.ofYamlUpsert(yamlPath, yamlContent1)).join().revision();
+
+        // Second commit: update the YAML file.
+        final Revision rev2 = repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY,
+                                           Change.ofYamlUpsert(yamlPath, yamlContent2)).join().revision();
+
+        // Verify diff between two revisions produces a JSON patch (YAML is diffed as JSON).
+        final Map<String, Change<?>> diff = repo.diff(rev1, rev2, prefix + "**").join();
+        assertThat(diff).hasSize(1);
+        assertThat(diff).containsKey(yamlPath);
+        assertThat(diff.get(yamlPath).type()).isEqualTo(ChangeType.APPLY_JSON_PATCH);
+
+        // Verify PATCH_TO_UPSERT diff returns a YAML upsert with JsonNode content.
+        final Map<String, Change<?>> diffUpsert = repo.diff(rev1, rev2, prefix + "**",
+                                                             DiffResultType.PATCH_TO_UPSERT).join();
+        assertThat(diffUpsert).hasSize(1);
+        assertThat(diffUpsert.get(yamlPath).type()).isEqualTo(ChangeType.UPSERT_YAML);
+        assertThatJson(diffUpsert.get(yamlPath).content()).isEqualTo("{\"key\":\"value2\"}");
+    }
+
+    @Test
+    void testDiff_modifyYaml() {
+        testDiffModifyYaml(fileRepo);
+        testDiffModifyYaml(encryptedRepo);
+    }
+
+    private void testDiffModifyYaml(GitRepository repo) {
+        final String yamlPath = prefix + "test.yml";
+        final String yamlContent1 = "name: foo\n";
+        final String yamlContent2 = "name: bar\n";
+        final String yamlContent3 = "name: baz\n";
+
+        // Initial commit.
+        Revision prevRevision = repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY,
+                                            Change.ofYamlUpsert(yamlPath, yamlContent1)).join().revision();
+
+        // Modify the YAML file.
+        Revision currRevision = repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY,
+                                            Change.ofYamlUpsert(yamlPath, yamlContent2)).join().revision();
+
+        // Path-pattern diff produces a JSON patch (YAML is diffed as JSON).
+        Map<String, Change<?>> changes = repo.diff(prevRevision, currRevision, prefix + "**").join();
+        assertThat(changes).hasSize(1);
+        assertThat(changes.get(yamlPath).type()).isEqualTo(ChangeType.APPLY_JSON_PATCH);
+
+        // Verify the YAML query works for a .yml file.
+        final Change<?> yamlQuery = repo.diff(prevRevision, currRevision, Query.ofYaml(yamlPath)).join();
+        assertThat(yamlQuery).isNotNull();
+        assertThat(yamlQuery.type()).isEqualTo(ChangeType.APPLY_JSON_PATCH);
+
+        // PATCH_TO_UPSERT diff option returns a YAML upsert with JsonNode content.
+        Map<String, Change<?>> upsertChanges = repo.diff(prevRevision, currRevision, prefix + "**",
+                                                          DiffResultType.PATCH_TO_UPSERT).join();
+        assertThat(upsertChanges).hasSize(1);
+        assertThat(upsertChanges.get(yamlPath).type()).isEqualTo(ChangeType.UPSERT_YAML);
+        assertThatJson(upsertChanges.get(yamlPath).content()).isEqualTo("{\"name\":\"bar\"}");
+
+        prevRevision = currRevision;
+
+        // Modify the YAML file again.
+        currRevision = repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY,
+                                   Change.ofYamlUpsert(yamlPath, yamlContent3)).join().revision();
+
+        changes = repo.diff(prevRevision, currRevision, prefix + "**").join();
+        assertThat(changes).hasSize(1);
+        assertThat(changes.get(yamlPath).type()).isEqualTo(ChangeType.APPLY_JSON_PATCH);
+    }
+
+    @Test
+    void testDiff_addJson5() {
+        testDiffAddJson5(fileRepo);
+        testDiffAddJson5(encryptedRepo);
+    }
+
+    private void testDiffAddJson5(GitRepository repo) {
+        final String json5Path = prefix + "test.json5";
+        final JsonNode content1 = Jackson.valueToTree(
+                Collections.singletonMap("key", "value1"));
+        final JsonNode content2 = Jackson.valueToTree(
+                Collections.singletonMap("key", "value2"));
+
+        // First commit: add a JSON5 file.
+        final Revision rev1 = repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY,
+                                           Change.ofJsonUpsert(json5Path, content1)).join().revision();
+
+        // Second commit: update the JSON5 file.
+        final Revision rev2 = repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY,
+                                           Change.ofJsonUpsert(json5Path, content2)).join().revision();
+
+        // Verify diff between two revisions.
+        final Map<String, Change<?>> diff = repo.diff(rev1, rev2, prefix + "**").join();
+        assertThat(diff).hasSize(1);
+        assertThat(diff).containsKey(json5Path);
+
+        // Verify PATCH_TO_UPSERT diff.
+        final Map<String, Change<?>> diffUpsert = repo.diff(rev1, rev2, prefix + "**",
+                                                             DiffResultType.PATCH_TO_UPSERT).join();
+        assertThat(diffUpsert).hasSize(1)
+                              .containsEntry(json5Path, Change.ofJsonUpsert(json5Path, content2));
+    }
+
+    @Test
+    void testDiff_modifyJson5() {
+        testDiffModifyJson5(fileRepo);
+        testDiffModifyJson5(encryptedRepo);
+    }
+
+    private void testDiffModifyJson5(GitRepository repo) {
+        final String json5Path = prefix + "test.json5";
+        final JsonNode content1 = Jackson.valueToTree(
+                Collections.singletonMap("name", "foo"));
+        final JsonNode content2 = Jackson.valueToTree(
+                Collections.singletonMap("name", "bar"));
+        final JsonNode content3 = Jackson.valueToTree(
+                Collections.singletonMap("name", "baz"));
+
+        // Initial commit.
+        Revision prevRevision = repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY,
+                                            Change.ofJsonUpsert(json5Path, content1)).join().revision();
+
+        // Modify the JSON5 file.
+        Revision currRevision = repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY,
+                                            Change.ofJsonUpsert(json5Path, content2)).join().revision();
+
+        Map<String, Change<?>> changes = repo.diff(prevRevision, currRevision, prefix + "**").join();
+        assertThat(changes).hasSize(1);
+        assertThat(changes).containsKey(json5Path);
+
+        // Verify the JSON query works for a .json5 file.
+        final Change<?> jsonQuery = repo.diff(prevRevision, currRevision, Query.ofJson(json5Path)).join();
+        assertThat(jsonQuery).isNotNull();
+
+        // PATCH_TO_UPSERT diff option.
+        Map<String, Change<?>> upsertChanges = repo.diff(prevRevision, currRevision, prefix + "**",
+                                                          DiffResultType.PATCH_TO_UPSERT).join();
+        assertThat(upsertChanges).hasSize(1)
+                                  .containsEntry(json5Path, Change.ofJsonUpsert(json5Path, content2));
+
+        prevRevision = currRevision;
+
+        // Modify the JSON5 file again.
+        currRevision = repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY,
+                                   Change.ofJsonUpsert(json5Path, content3)).join().revision();
+
+        changes = repo.diff(prevRevision, currRevision, prefix + "**").join();
+        assertThat(changes).hasSize(1);
+        assertThat(changes).containsKey(json5Path);
+    }
+
+    @Test
+    void testDiff_removeYaml() {
+        testDiffRemoveYaml(fileRepo);
+        testDiffRemoveYaml(encryptedRepo);
+    }
+
+    private void testDiffRemoveYaml(GitRepository repo) {
+        final String yamlPath = prefix + "test.yaml";
+
+        // Add a YAML file.
+        final Revision rev1 = repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY,
+                                           Change.ofYamlUpsert(yamlPath, "key: value\n")).join().revision();
+
+        // Remove the YAML file.
+        final Revision rev2 = repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY,
+                                           Change.ofRemoval(yamlPath)).join().revision();
+
+        final Map<String, Change<?>> changes = repo.diff(rev1, rev2, prefix + "**").join();
+        assertThat(changes).hasSize(1)
+                           .containsEntry(yamlPath, Change.ofRemoval(yamlPath));
     }
 
     /**

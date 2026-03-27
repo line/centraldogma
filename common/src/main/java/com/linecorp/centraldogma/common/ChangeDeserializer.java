@@ -109,10 +109,11 @@ final class ChangeDeserializer extends StdDeserializer<Change<?>> {
                 }
                 break;
             case UPSERT_YAML:
-                if (rawContent == null) {
-                    throw new IllegalArgumentException("rawContent is required for YAML_UPSERT");
+                if (rawContent != null) {
+                    result = Change.ofYamlUpsert(path, rawContent);
+                } else {
+                    result = Change.ofYamlUpsert(path, content);
                 }
-                result = Change.ofYamlUpsert(path, rawContent);
                 break;
             case RENAME:
                 assert content != null;
