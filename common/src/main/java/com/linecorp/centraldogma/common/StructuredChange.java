@@ -68,6 +68,20 @@ final class StructuredChange extends AbstractChange<JsonNode> {
             }
             this.structuredText = structuredText;
         }
+
+        // Verify that the content can be deserialized after serialization to prevent issues
+        // with invalid surrogate characters, etc.
+        verifySerializationRoundTrip(path);
+    }
+
+    private void verifySerializationRoundTrip(String path) {
+        try {
+            final byte[] bytes = Jackson.writeValueAsBytes(jsonNode);
+            Jackson.readTree(bytes);
+        } catch (Exception e) {
+            throw new ChangeFormatException(
+                    "content cannot be serialized safely. file: " + path, e);
+        }
     }
 
     @Override
