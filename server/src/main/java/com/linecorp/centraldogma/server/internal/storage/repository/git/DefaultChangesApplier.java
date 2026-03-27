@@ -105,8 +105,10 @@ final class DefaultChangesApplier extends AbstractChangesApplier {
                 }
                 case UPSERT_YAML:
                     String newYaml = change.rawContent();
-                    // rawContent must not be null for YAML upsert.
-                    assert newYaml != null;
+                    if (newYaml == null) {
+                        // rawContent can be null when the change was created from a JsonNode.
+                        newYaml = Yaml.writeValueAsString(change.content());
+                    }
                     newYaml = sanitizeText(newYaml);
 
                     final String oldYaml;

@@ -113,6 +113,17 @@ public interface Change<T> {
     }
 
     /**
+     * Returns a newly-created {@link Change} whose type is {@link ChangeType#UPSERT_YAML}.
+     *
+     * @param path the path of the file
+     * @param jsonNode the content of the file
+     */
+    static Change<JsonNode> ofYamlUpsert(String path, JsonNode jsonNode) {
+        requireNonNull(jsonNode, "jsonNode");
+        return new StructuredChange(path, ChangeType.UPSERT_YAML, jsonNode);
+    }
+
+    /**
      * Returns a newly-created {@link Change} whose type is {@link ChangeType#REMOVE}.
      *
      * @param path the path of the file to remove
@@ -396,6 +407,8 @@ public interface Change<T> {
         switch (entryType) {
             case JSON:
                 return ofJsonUpsert(targetPath, content);
+            case YAML:
+                return ofYamlUpsert(targetPath, content);
             case TEXT:
                 return ofTextUpsert(targetPath, content);
             default:
