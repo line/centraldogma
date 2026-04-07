@@ -16,12 +16,10 @@
 
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
 import { UserDto } from 'dogma/features/auth/UserDto';
-import axios from 'axios';
 import ErrorMessageParser from 'dogma/features/services/ErrorMessageParser';
 import { newNotification } from 'dogma/features/notification/notificationSlice';
 
-axios.defaults.baseURL = process.env.NEXT_PUBLIC_HOST || '';
-axios.defaults.withCredentials = true;
+const baseUrl = process.env.NEXT_PUBLIC_HOST || '';
 
 const getCsrfTokenFromMeta = (): string | null => {
   if (typeof window === 'undefined') {
@@ -43,16 +41,23 @@ const updateCsrfTokenInMeta = (token: string) => {
 
 export const getUser = createAsyncThunk('/auth/user', async (_, { dispatch, rejectWithValue }) => {
   try {
-    // TODO(ikhoon): Replace axios with fetch
-    const response = await axios.get(`/api/v0/users/me`);
-    const csrfTokenFromHeader = response.headers['x-csrf-token'];
+    const response = await fetch(`${baseUrl}/api/v0/users/me`, { credentials: 'include' });
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({ message: response.statusText }));
+      throw { response: { data, status: response.status }, message: data.message || response.statusText };
+    }
+    const csrfTokenFromHeader = response.headers.get('x-csrf-token');
+    const data = await response.json();
     return {
-      user: response.data as UserDto,
+      user: data as UserDto,
       csrfToken: csrfTokenFromHeader,
     };
   } catch (err) {
     const error: string = ErrorMessageParser.parse(err);
-    dispatch(newNotification('', error, 'error'));
+    // Don't show "Unauthorized" notification on the login page — it's expected.
+    if (!err.response || err.response.status !== 401) {
+      dispatch(newNotification('', error, 'error'));
+    }
     return rejectWithValue(error);
   }
 });
@@ -66,11 +71,22 @@ export const login = createAsyncThunk(
   '/auth/login',
   async (params: LoginParams, { dispatch, rejectWithValue }) => {
     try {
-      const { data } = await axios.post(`/api/v1/login`, params, {
+      const response = await fetch(`${baseUrl}/api/v1/login`, {
+        method: 'POST',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
         },
+        body: new URLSearchParams({ username: params.username, password: params.password }),
       });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: response.statusText }));
+        throw {
+          response: { data: errorData, status: response.status },
+          message: errorData.message || response.statusText,
+        };
+      }
+      const data = await response.json();
       updateCsrfTokenInMeta(data.csrf_token);
       return data;
     } catch (err) {
@@ -85,7 +101,11 @@ export const checkSecurityEnabled = createAsyncThunk(
   '/auth/securityEnabled',
   async (_, { dispatch, rejectWithValue }) => {
     try {
-      await axios.get(`/security_enabled`);
+      const response = await fetch(`${baseUrl}/security_enabled`, { credentials: 'include' });
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({ message: response.statusText }));
+        throw { response: { data, status: response.status }, message: data.message || response.statusText };
+      }
     } catch (err) {
       const error: string = ErrorMessageParser.parse(err);
       if (err.response && err.response.status === 404) {
@@ -100,11 +120,17 @@ export const checkSecurityEnabled = createAsyncThunk(
 export const logout = createAsyncThunk('/auth/logout', async (_, { getState, dispatch, rejectWithValue }) => {
   try {
     const { auth } = getState() as { auth: AuthState };
-    await axios.post(`/api/v1/logout`, _, {
+    const response = await fetch(`${baseUrl}/api/v1/logout`, {
+      method: 'POST',
+      credentials: 'include',
       headers: {
         'X-CSRF-Token': auth.csrfToken,
       },
     });
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({ message: response.statusText }));
+      throw { response: { data, status: response.status }, message: data.message || response.statusText };
+    }
   } catch (err) {
     const error: string = ErrorMessageParser.parse(err);
     dispatch(newNotification('', error, 'error'));
