@@ -55,9 +55,10 @@ class GetFileTest {
                                                     Query.ofJson("/test/foo.json")).join();
         assertThatJson(json.content()).isEqualTo("{\"a\":\"b\"}");
 
+        // Query.ofText returns the raw text stored in git (with trailing newline).
         final Entry<String> text = client.getFile(dogma.project(), dogma.repo1(), Revision.HEAD,
                                                   Query.ofText("/test/foo.json")).join();
-        assertThat(text.content()).isEqualTo("{\"a\":\"b\"}");
+        assertThat(text.content()).isEqualTo("{ \"a\": \"b\" }\n");
         client.forRepo(dogma.project(), dogma.repo1())
               .commit("Remove a file", Change.ofRemoval("/test/foo.json"))
               .push().join();

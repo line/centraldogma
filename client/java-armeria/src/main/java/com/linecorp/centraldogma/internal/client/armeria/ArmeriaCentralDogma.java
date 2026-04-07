@@ -1062,6 +1062,9 @@ public final class ArmeriaCentralDogma extends AbstractCentralDogma {
                 paramsBuilder.add("jsonpath", expr);
             }
         }
+        if (queryType != QueryType.IDENTITY && queryType != QueryType.JSON_PATH) {
+            paramsBuilder.add("queryType", queryType.name());
+        }
     }
 
     /**

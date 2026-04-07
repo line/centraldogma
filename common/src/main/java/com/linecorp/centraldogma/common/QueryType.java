@@ -25,22 +25,28 @@ import java.util.Set;
  */
 public enum QueryType {
     /**
-     * Retrieves the content as it is.
+     * Retrieves the content in its native type. The return type depends on the {@link EntryType}:
+     * <ul>
+     *   <li>{@link EntryType#JSON} and {@link EntryType#YAML} entries return a {@code JsonNode}.</li>
+     *   <li>{@link EntryType#TEXT} entries return a {@code String}.</li>
+     * </ul>
      */
     IDENTITY(EnumSet.of(EntryType.TEXT, EntryType.JSON, EntryType.YAML)),
 
     /**
-     * Retrieves the textual content as it is.
+     * Retrieves the content as a {@code String}, regardless of the {@link EntryType}.
+     * Unlike {@link #IDENTITY}, which returns a {@code JsonNode} for JSON and YAML entries,
+     * this type always returns the textual representation of the content.
      */
-    IDENTITY_TEXT(EnumSet.of(EntryType.TEXT)),
+    IDENTITY_TEXT(EnumSet.of(EntryType.TEXT, EntryType.JSON, EntryType.YAML)),
 
     /**
-     * Retrieves the JSON content as it is.
+     * Retrieves the JSON content as a {@code JsonNode}. Only supports {@link EntryType#JSON} entries.
      */
     IDENTITY_JSON(EnumSet.of(EntryType.JSON)),
 
     /**
-     * Retrieves the YAML content as it is.
+     * Retrieves the YAML content as a {@code JsonNode}. Only supports {@link EntryType#YAML} entries.
      */
     IDENTITY_YAML(EnumSet.of(EntryType.YAML)),
 

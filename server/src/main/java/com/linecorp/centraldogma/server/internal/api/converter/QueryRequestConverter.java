@@ -23,6 +23,8 @@ import java.lang.reflect.ParameterizedType;
 import java.util.List;
 
 import org.jspecify.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.linecorp.armeria.common.AggregatedHttpRequest;
 import com.linecorp.armeria.server.ServiceRequestContext;
@@ -36,6 +38,8 @@ import io.netty.handler.codec.http.QueryStringDecoder;
  * A request converter that converts to {@link Query} when the request has a valid file path.
  */
 public final class QueryRequestConverter implements RequestConverterFunction {
+
+    private static final Logger logger = LoggerFactory.getLogger(QueryRequestConverter.class);
 
     /**
      * Converts the specified {@code request} to a {@link Query} when the request has a valid file path.
@@ -54,6 +58,14 @@ public final class QueryRequestConverter implements RequestConverterFunction {
         }
 
         if (isValidFilePath(path)) {
+            final String queryTypeParam = ctx.queryParam("queryType");
+            if (queryTypeParam != null) {
+                try {
+                    return Query.of(QueryType.valueOf(queryTypeParam), path);
+                } catch (IllegalArgumentException e) {
+                    logger.trace("Invalid queryType: {}, defaulting to IDENTITY", queryTypeParam, e);
+                }
+            }
             return Query.of(QueryType.IDENTITY, path);
         }
 
