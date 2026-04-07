@@ -81,7 +81,10 @@ export const login = createAsyncThunk(
       });
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ message: response.statusText }));
-        throw { response: { data: errorData, status: response.status }, message: errorData.message || response.statusText };
+        throw {
+          response: { data: errorData, status: response.status },
+          message: errorData.message || response.statusText,
+        };
       }
       const data = await response.json();
       updateCsrfTokenInMeta(data.csrf_token);
