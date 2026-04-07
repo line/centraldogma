@@ -66,6 +66,7 @@ node-gradle-plugin = "7.1.0"
 osdetector = "1.7.3"
 owasp = "1.4.0"
 proguard = "7.8.1"
+prometheus-metrics = "1.5.1"
 protobuf = "3.25.8"
 protobuf-gradle-plugin = "0.9.5"
 quartz = "2.5.2"
@@ -96,6 +97,7 @@ armeria = { module = "com.linecorp.armeria:armeria-bom", version.ref = "armeria"
 jackson = { module = "com.fasterxml.jackson:jackson-bom", version.ref = "jackson" }
 grpc-java = { module = "io.grpc:grpc-bom", version.ref = "grpc-java" }
 junit5 = { module = "org.junit:junit-bom", version.ref = "junit5" }
+prometheus-metrics = { module = "io.prometheus:prometheus-metrics-bom", version.ref = "prometheus-metrics" }
 
 [libraries.armeria]
 module = "com.linecorp.armeria:armeria"
