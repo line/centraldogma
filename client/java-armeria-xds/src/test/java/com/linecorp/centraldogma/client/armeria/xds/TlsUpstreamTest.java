@@ -32,7 +32,6 @@ import com.linecorp.armeria.common.SessionProtocol;
 import com.linecorp.armeria.server.ServerBuilder;
 import com.linecorp.armeria.server.grpc.GrpcService;
 import com.linecorp.armeria.testing.junit5.server.ServerExtension;
-import com.linecorp.armeria.xds.XdsBootstrap;
 import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Entry;
@@ -104,7 +103,6 @@ class TlsUpstreamTest {
         try (CentralDogma client = new XdsCentralDogmaBuilder()
                 .useTls(true)
                 .clientFactory(ClientFactory.insecure())
-                .xdsBoostrapFactory(XdsBootstrap::of)
                 .host("127.0.0.1", server.httpsPort()).build()) {
             final Entry<JsonNode> entry = client.forRepo("foo", "bar")
                                                 .file(Query.ofJsonPath("/foo.json"))
