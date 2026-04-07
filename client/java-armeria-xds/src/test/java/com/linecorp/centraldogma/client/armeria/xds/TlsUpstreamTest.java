@@ -18,9 +18,7 @@ package com.linecorp.centraldogma.client.armeria.xds;
 
 import static net.javacrumbs.jsonunit.fluent.JsonFluentAssert.assertThatJson;
 
-import java.lang.reflect.Constructor;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.function.Consumer;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
@@ -30,13 +28,10 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
 import com.linecorp.armeria.client.ClientFactory;
-import com.linecorp.armeria.client.grpc.GrpcClientBuilder;
-import com.linecorp.armeria.common.CommonPools;
 import com.linecorp.armeria.common.SessionProtocol;
 import com.linecorp.armeria.server.ServerBuilder;
 import com.linecorp.armeria.server.grpc.GrpcService;
 import com.linecorp.armeria.testing.junit5.server.ServerExtension;
-import com.linecorp.armeria.xds.XdsBootstrap;
 import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Entry;
@@ -46,10 +41,8 @@ import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 import io.envoyproxy.controlplane.cache.v3.SimpleCache;
 import io.envoyproxy.controlplane.cache.v3.Snapshot;
 import io.envoyproxy.controlplane.server.V3DiscoveryServer;
-import io.envoyproxy.envoy.config.bootstrap.v3.Bootstrap;
 import io.envoyproxy.envoy.config.cluster.v3.Cluster;
 import io.envoyproxy.envoy.config.listener.v3.Listener;
-import io.netty.util.concurrent.EventExecutor;
 
 class TlsUpstreamTest {
 
@@ -110,34 +103,12 @@ class TlsUpstreamTest {
         try (CentralDogma client = new XdsCentralDogmaBuilder()
                 .useTls(true)
                 .clientFactory(ClientFactory.insecure())
-                .xdsBoostrapFactory(TlsUpstreamTest::insecureXdsBootstrap)
                 .host("127.0.0.1", server.httpsPort()).build()) {
             final Entry<JsonNode> entry = client.forRepo("foo", "bar")
                                                 .file(Query.ofJsonPath("/foo.json"))
                                                 .get()
                                                 .get();
             assertThatJson(entry.content()).node("a").isStringEqualTo("bar");
-        }
-    }
-
-    /**
-     * A dirty workaround to set {@link ClientFactory#insecure()} when making requests to the xDS server.
-     */
-    private static XdsBootstrap insecureXdsBootstrap(Bootstrap bootstrap) {
-        try {
-            final Class<?> bootstrapImplClazz =
-                    TlsUpstreamTest.class.getClassLoader()
-                                         .loadClass("com.linecorp.armeria.xds.XdsBootstrapImpl");
-            final Constructor<?> ctor =
-                    bootstrapImplClazz
-                            .getDeclaredConstructor(Bootstrap.class, EventExecutor.class, Consumer.class);
-            ctor.setAccessible(true);
-            return (XdsBootstrap) ctor.newInstance(bootstrap, CommonPools.workerGroup().next(),
-                                                   (Consumer<GrpcClientBuilder>) grpcClientBuilder -> {
-                                                       grpcClientBuilder.factory(ClientFactory.insecure());
-                                                   });
-        } catch (Exception e) {
-            throw new RuntimeException(e);
         }
     }
 }

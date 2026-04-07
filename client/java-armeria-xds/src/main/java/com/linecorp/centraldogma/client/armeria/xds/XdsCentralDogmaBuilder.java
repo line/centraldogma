@@ -24,7 +24,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Consumer;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -116,9 +115,6 @@ public final class XdsCentralDogmaBuilder extends AbstractCentralDogmaBuilder<Xd
     // an default instance means no local cluster
     private Cluster localCluster = Cluster.getDefaultInstance();
 
-    // TODO: @jrhee17 remove this once xDS TLS is fully supported
-    private Function<Bootstrap, XdsBootstrap> xdsBootstrapFactory = XdsBootstrap::of;
-
     /**
      * Sets the name of the {@link Listener} that should be requested to the xDS bootstrap servers.
      * The default is {@value #DEFAULT_LISTENER_NAME}.
@@ -190,12 +186,6 @@ public final class XdsCentralDogmaBuilder extends AbstractCentralDogmaBuilder<Xd
      */
     public XdsCentralDogmaBuilder clientFactory(ClientFactory clientFactory) {
         this.clientFactory = requireNonNull(clientFactory, "clientFactory");
-        return this;
-    }
-
-    @VisibleForTesting
-    XdsCentralDogmaBuilder xdsBoostrapFactory(Function<Bootstrap, XdsBootstrap> xdsBootstrapFactory) {
-        this.xdsBootstrapFactory = requireNonNull(xdsBootstrapFactory, "xdsBootstrapFactory");
         return this;
     }
 
@@ -292,7 +282,7 @@ public final class XdsCentralDogmaBuilder extends AbstractCentralDogmaBuilder<Xd
                                       .setLocality(locality))
                          .setStaticResources(staticResourcesBuilder)
                          .build();
-        return xdsBootstrapFactory.apply(bootstrap);
+        return XdsBootstrap.of(bootstrap);
     }
 
     private Cluster bootstrapCluster() {
