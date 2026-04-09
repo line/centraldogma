@@ -31,6 +31,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 
 import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.common.Change;
+import com.linecorp.centraldogma.common.ChangeConflictException;
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.EntryNotFoundException;
 import com.linecorp.centraldogma.common.ProjectNotFoundException;
@@ -92,6 +93,108 @@ class GetFileTest {
                 client.getFile(dogma.project(), "non_exist_repo", Revision.HEAD,
                                Query.ofJsonPath("/test/test2.json", "$.a")).join())
                 .isInstanceOf(CompletionException.class).hasCauseInstanceOf(RepositoryNotFoundException.class);
+    }
+
+    @ParameterizedTest
+    @EnumSource(ClientType.class)
+    void getJsonAfterInvalidTextPatch(ClientType clientType) {
+        final CentralDogma client = clientType.client(dogma);
+        final String path = "/test/patched.json";
+
+        // Push an initial JSON file.
+        client.forRepo(dogma.project(), dogma.repo1())
+              .commit("Add JSON", Change.ofJsonUpsert(path, "{ \"a\": \"b\" }"))
+              .push().join();
+
+        // Committing a text patch that produces invalid JSON should be rejected.
+        final Change<String> invalidPatch = Change.ofTextPatch(path,
+                                                               "{ \"a\": \"b\" }",
+                                                               "{ \"a\": \"c\"");
+        assertThatThrownBy(() -> client.forRepo(dogma.project(), dogma.repo1())
+                                       .commit("Update JSON via invalid text patch", invalidPatch)
+                                       .push().join())
+                .isInstanceOf(CompletionException.class)
+                .hasCauseInstanceOf(ChangeConflictException.class);
+
+        // A valid text patch should succeed and the file should be readable as JSON.
+        final Change<String> validPatch = Change.ofTextPatch(path,
+                                                             "{ \"a\": \"b\" }",
+                                                             "{ \"a\": \"c\" }");
+        client.forRepo(dogma.project(), dogma.repo1())
+              .commit("Update JSON via valid text patch", validPatch)
+              .push().join();
+
+        final Entry<JsonNode> json = client.getFile(dogma.project(), dogma.repo1(), Revision.HEAD,
+                                                    Query.ofJson(path)).join();
+        assertThatJson(json.content()).isEqualTo("{\"a\":\"c\"}");
+    }
+
+    @ParameterizedTest
+    @EnumSource(ClientType.class)
+    void getJson5AfterInvalidTextPatch(ClientType clientType) {
+        final CentralDogma client = clientType.client(dogma);
+        final String path = "/test/patched.json5";
+
+        // Push an initial JSON5 file.
+        client.forRepo(dogma.project(), dogma.repo1())
+              .commit("Add JSON5", Change.ofJsonUpsert(path, "{ \"a\": \"b\" }"))
+              .push().join();
+
+        // Committing a text patch that produces invalid JSON5 should be rejected.
+        final Change<String> invalidPatch = Change.ofTextPatch(path,
+                                                               "{ \"a\": \"b\" }",
+                                                               "{ \"a\": \"c\"");
+        assertThatThrownBy(() -> client.forRepo(dogma.project(), dogma.repo1())
+                                       .commit("Update JSON5 via invalid text patch", invalidPatch)
+                                       .push().join())
+                .isInstanceOf(CompletionException.class)
+                .hasCauseInstanceOf(ChangeConflictException.class);
+
+        // A valid text patch should succeed and the file should be readable as JSON.
+        final Change<String> validPatch = Change.ofTextPatch(path,
+                                                             "{ \"a\": \"b\" }",
+                                                             "{ \"a\": \"c\" }");
+        client.forRepo(dogma.project(), dogma.repo1())
+              .commit("Update JSON5 via valid text patch", validPatch)
+              .push().join();
+
+        final Entry<JsonNode> json5 = client.getFile(dogma.project(), dogma.repo1(), Revision.HEAD,
+                                                     Query.ofJson(path)).join();
+        assertThatJson(json5.content()).isEqualTo("{\"a\":\"c\"}");
+    }
+
+    @ParameterizedTest
+    @EnumSource(ClientType.class)
+    void getYamlAfterInvalidTextPatch(ClientType clientType) {
+        final CentralDogma client = clientType.client(dogma);
+        final String path = "/test/patched.yaml";
+
+        // Push an initial YAML file.
+        client.forRepo(dogma.project(), dogma.repo1())
+              .commit("Add YAML", Change.ofYamlUpsert(path, "a: b\n"))
+              .push().join();
+
+        // Committing a text patch that produces invalid YAML should be rejected.
+        final Change<String> invalidPatch = Change.ofTextPatch(path,
+                                                               "a: b",
+                                                               "a: b\n  invalid:");
+        assertThatThrownBy(() -> client.forRepo(dogma.project(), dogma.repo1())
+                                       .commit("Update YAML via invalid text patch", invalidPatch)
+                                       .push().join())
+                .isInstanceOf(CompletionException.class)
+                .hasCauseInstanceOf(ChangeConflictException.class);
+
+        // A valid text patch should succeed and the file should be readable as YAML.
+        final Change<String> validPatch = Change.ofTextPatch(path,
+                                                             "a: b",
+                                                             "a: c");
+        client.forRepo(dogma.project(), dogma.repo1())
+              .commit("Update YAML via valid text patch", validPatch)
+              .push().join();
+
+        final Entry<JsonNode> yaml = client.getFile(dogma.project(), dogma.repo1(), Revision.HEAD,
+                                                    Query.ofYaml(path)).join();
+        assertThatJson(yaml.content()).isEqualTo("{\"a\":\"c\"}");
     }
 
     @ParameterizedTest
