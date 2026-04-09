@@ -123,10 +123,10 @@ class ChangeTest {
     @Test
     void shouldAllowJsonFileWith_OfText() {
         // Text operations should accept any file type including JSON and JSON5.
-        final Change<String> textUpsertJson = Change.ofTextUpsert("/foo.json", "abc");
+        final Change<String> textUpsertJson = Change.ofTextUpsert("/foo.json", "{\"a\":\"b\"}");
         assertThat(textUpsertJson.type()).isEqualTo(ChangeType.UPSERT_TEXT);
 
-        final Change<String> textUpsertJson5 = Change.ofTextUpsert("/foo.json5", "abc");
+        final Change<String> textUpsertJson5 = Change.ofTextUpsert("/foo.json5", "{\"a\":\"b\"}");
         assertThat(textUpsertJson5.type()).isEqualTo(ChangeType.UPSERT_TEXT);
 
         final Change<String> textPatchJson = Change.ofTextPatch("/foo.json", "abc");
