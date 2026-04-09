@@ -65,6 +65,7 @@ import com.linecorp.centraldogma.common.InvalidPushException;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.MergeQuery;
 import com.linecorp.centraldogma.common.Query;
+import com.linecorp.centraldogma.common.QueryType;
 import com.linecorp.centraldogma.common.RedundantChangeException;
 import com.linecorp.centraldogma.common.RepositoryRole;
 import com.linecorp.centraldogma.common.Revision;
@@ -343,7 +344,7 @@ public class ContentServiceV1 extends AbstractService {
 
     /**
      * GET /projects/{projectName}/repos/{repoName}/contents{path}?revision={revision}&amp;
-     * jsonpath={jsonpath}
+     * jsonpath={jsonpath} or queryType={queryType}
      *
      * <p>Returns the entry of files in the path. This is same with
      * {@link #listFiles(ServiceRequestContext, String, String, boolean, Repository)} except that containing
@@ -353,6 +354,19 @@ public class ContentServiceV1 extends AbstractService {
      * During the time if the specified revision becomes different with the latest revision, this will
      * response back right away to the client.
      * {@link HttpStatus#NOT_MODIFIED} otherwise.
+     *
+     * <p>The {@code jsonpath} and {@code queryType} parameters are mutually exclusive.
+     * If {@code jsonpath} is specified, it takes precedence and {@code queryType} is ignored.
+     *
+     * <p>The {@code queryType} parameter specifies how the file content is retrieved and returned.
+     * The supported values are defined in {@link QueryType}:
+     * <ul>
+     *   <li>{@link QueryType#IDENTITY} (default) - Returns the content in its native type.</li>
+     *   <li>{@link QueryType#IDENTITY_TEXT} - Returns the content as a {@link String},
+     *       regardless of the entry type.</li>
+     *   <li>{@link QueryType#IDENTITY_JSON} - Returns the JSON content as a {@code JsonNode}.</li>
+     *   <li>{@link QueryType#IDENTITY_YAML} - Returns the YAML content as a {@code JsonNode}.</li>
+     * </ul>
      */
     @Get("regex:/projects/(?<projectName>[^/]+)/repos/(?<repoName>[^/]+)/contents(?<path>(|/.*))$")
     public CompletableFuture<?> getFiles(
@@ -500,12 +514,26 @@ public class ContentServiceV1 extends AbstractService {
 
     /**
      * GET /projects/{projectName}/repos/{repoName}/compare?
-     * path={path}&amp;from={from}&amp;to={to}&amp;jsonpath={jsonpath} returns a diff.
+     * path={path}&amp;from={from}&amp;to={to}&amp;jsonpath={jsonpath} or queryType={queryType}
+     * returns a diff.
      *
      * <p>or,
      *
      * <p>GET /projects/{projectName}/repos/{repoName}/compare?
      * pathPattern={pathPattern}&amp;from={from}&amp;to={to} returns diffs.
+     *
+     * <p>The {@code jsonpath} and {@code queryType} parameters are mutually exclusive.
+     * If {@code jsonpath} is specified, it takes precedence and {@code queryType} is ignored.
+     *
+     * <p>The {@code queryType} parameter specifies how the file content is queried for diff computation.
+     * The supported values are defined in {@link QueryType}:
+     * <ul>
+     *   <li>{@link QueryType#IDENTITY} (default) - Queries the content in its native type.</li>
+     *   <li>{@link QueryType#IDENTITY_TEXT} - Queries the content as a {@link String},
+     *       regardless of the entry type.</li>
+     *   <li>{@link QueryType#IDENTITY_JSON} - Queries the JSON content as a {@code JsonNode}.</li>
+     *   <li>{@link QueryType#IDENTITY_YAML} - Queries the YAML content as a {@code JsonNode}.</li>
+     * </ul>
      */
     @Get("/projects/{projectName}/repos/{repoName}/compare")
     public CompletableFuture<?> getDiff(
