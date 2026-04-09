@@ -36,16 +36,11 @@ import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 class TextUpsertTest {
 
     @RegisterExtension
-    final CentralDogmaExtension dogma = new CentralDogmaExtension() {
+    static final CentralDogmaExtension dogma = new CentralDogmaExtension() {
         @Override
         protected void scaffold(CentralDogma client) {
             client.createProject("testProject").join();
             client.createRepository("testProject", "testRepo").join();
-        }
-
-        @Override
-        protected boolean runForEachTest() {
-            return true;
         }
     };
 
