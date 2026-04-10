@@ -131,9 +131,17 @@ final class RepositoryUtil {
                                               " (query: " + query + ')');
         }
 
-        if (queryType == IDENTITY || queryType == IDENTITY_TEXT || queryType == IDENTITY_JSON ||
-            queryType == IDENTITY_YAML) {
+        if (queryType == IDENTITY || queryType == IDENTITY_JSON || queryType == IDENTITY_YAML) {
             return entry;
+        } else if (queryType == IDENTITY_TEXT) {
+            if (entryType == EntryType.TEXT) {
+                return entry;
+            }
+            // Convert JSON/YAML content to text.
+            @SuppressWarnings("unchecked")
+            final Entry<T> textEntry = (Entry<T>) Entry.ofText(
+                    entry.revision(), query.path(), entry.contentAsText());
+            return textEntry;
         } else if (queryType == JSON_PATH) {
             return Entry.of(entry.revision(), query.path(), entryType, query.apply(entry.content()),
                             entry.templateRevision());

@@ -18,15 +18,10 @@ package com.linecorp.centraldogma.common;
 
 import static com.linecorp.centraldogma.testing.internal.TestUtil.assertJsonConversion;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import java.util.List;
-
-import org.assertj.core.api.ThrowableAssert.ThrowingCallable;
 import org.junit.jupiter.api.Test;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.google.common.collect.ImmutableList;
 
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.Util;
@@ -126,17 +121,24 @@ class ChangeTest {
     }
 
     @Test
-    void shouldNotAllowJsonFileWith_OfText() {
+    void shouldAllowJsonFileWith_OfText() {
+        // Text operations should accept any file type including JSON and JSON5.
+        final Change<String> textUpsertJson = Change.ofTextUpsert("/foo.json", "{\"a\":\"b\"}");
+        assertThat(textUpsertJson.type()).isEqualTo(ChangeType.UPSERT_TEXT);
 
-        final List<ThrowingCallable> changes =
-                ImmutableList.of(() -> Change.ofTextUpsert("/foo.json", "abc"),
-                                 () -> Change.ofTextPatch("/foo.json", "abc"),
-                                 () -> Change.ofTextPatch("/foo.json", "foo", "bar"));
+        final Change<String> textUpsertJson5 = Change.ofTextUpsert("/foo.json5", "{\"a\":\"b\"}");
+        assertThat(textUpsertJson5.type()).isEqualTo(ChangeType.UPSERT_TEXT);
 
-        for (final ThrowingCallable change : changes) {
-            assertThatThrownBy(change)
-                    .isInstanceOf(ChangeFormatException.class)
-                    .hasMessageContaining("invalid file type: /foo.json (expected: a non-JSON file)");
-        }
+        final Change<String> textPatchJson = Change.ofTextPatch("/foo.json", "abc");
+        assertThat(textPatchJson.type()).isEqualTo(ChangeType.APPLY_TEXT_PATCH);
+
+        final Change<String> textPatchJson5 = Change.ofTextPatch("/foo.json5", "abc");
+        assertThat(textPatchJson5.type()).isEqualTo(ChangeType.APPLY_TEXT_PATCH);
+
+        final Change<String> textPatchJson2 = Change.ofTextPatch("/foo.json", "foo", "bar");
+        assertThat(textPatchJson2.type()).isEqualTo(ChangeType.APPLY_TEXT_PATCH);
+
+        final Change<String> textPatchJson52 = Change.ofTextPatch("/foo.json5", "foo", "bar");
+        assertThat(textPatchJson52.type()).isEqualTo(ChangeType.APPLY_TEXT_PATCH);
     }
 }

@@ -45,7 +45,23 @@ public interface Query<T> extends Function<T, T> {
     }
 
     /**
-     * Returns a newly-created {@link Query} that retrieves the textual content as it is.
+     * Returns a newly-created {@link Query} that retrieves the content as a {@link String},
+     * regardless of the {@link EntryType}. This can be used with any file type including
+     * JSON, JSON5, YAML, and plain text files.
+     *
+     * <p>For structured files (JSON, JSON5, YAML), this returns the raw text representation
+     * rather than the parsed structure. This is useful when you need to preserve comments,
+     * formatting, or other non-semantic content.
+     *
+     * <p>Example:
+     * <pre>{@code
+     * // Read a JSON5 file as raw text (comments preserved)
+     * Entry<String> entry = repo.file(Query.ofText("/config.json5")).get().join();
+     * String rawText = entry.content(); // "{ // comment\n  key: 'value' }\n"
+     *
+     * // Compare with Query.ofJson which returns parsed JsonNode (comments stripped)
+     * Entry<JsonNode> jsonEntry = repo.file(Query.ofJson("/config.json5")).get().join();
+     * }</pre>
      *
      * @param path the path of a file being queried on
      */
@@ -54,7 +70,7 @@ public interface Query<T> extends Function<T, T> {
     }
 
     /**
-     * Returns a newly-created {@link Query} that retrieves the JSON content as it is.
+     * Returns a newly-created {@link Query} that retrieves the JSON content as a {@link JsonNode}.
      *
      * @param path the path of a file being queried on
      */
@@ -63,7 +79,7 @@ public interface Query<T> extends Function<T, T> {
     }
 
     /**
-     * Returns a newly-created {@link Query} that retrieves the YAML content as {@link JsonNode}.
+     * Returns a newly-created {@link Query} that retrieves the YAML content as a {@link JsonNode}.
      *
      * @param path the path of a file being queried on
      */
