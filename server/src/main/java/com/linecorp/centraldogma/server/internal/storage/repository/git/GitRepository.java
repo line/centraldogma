@@ -834,7 +834,7 @@ class GitRepository implements Repository {
         }
         if (!oldText.equals(newText)) {
             if (diffResultType == DiffResultType.PATCH_TO_UPSERT) {
-                putChange(changeMap, newPath, Change.ofTextUpsert(newPath, newText));
+                putChange(changeMap, newPath, Change.ofUnsafeTextUpsert(newPath, newText));
             } else {
                 putChange(changeMap, newPath, Change.ofTextPatch(newPath, oldText, newText));
             }

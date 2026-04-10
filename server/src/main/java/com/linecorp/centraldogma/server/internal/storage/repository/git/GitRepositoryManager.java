@@ -66,6 +66,7 @@ import com.linecorp.centraldogma.server.internal.storage.repository.git.rocksdb.
 import com.linecorp.centraldogma.server.storage.StorageException;
 import com.linecorp.centraldogma.server.storage.encryption.EncryptionStorageManager;
 import com.linecorp.centraldogma.server.storage.project.Project;
+import com.linecorp.centraldogma.server.storage.repository.DiffResultType;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 import com.linecorp.centraldogma.server.storage.repository.RepositoryManager;
 
@@ -130,7 +131,7 @@ public final class GitRepositoryManager extends DirectoryBasedStorageManager<Rep
                 final CompletableFuture<List<Commit>> historyFuture =
                         oldRepository.history(revision, revision, "/**");
                 final CompletableFuture<Map<String, Change<?>>> changesFuture =
-                        oldRepository.diff(baseRevision, revision, "/**");
+                        oldRepository.diff(baseRevision, revision, "/**", DiffResultType.PATCH_TO_UPSERT);
                 CompletableFuture.allOf(historyFuture, changesFuture).join();
                 final List<Commit> commits = historyFuture.join();
                 assert commits.size() == 1;

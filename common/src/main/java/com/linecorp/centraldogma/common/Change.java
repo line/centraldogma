@@ -81,6 +81,19 @@ public interface Change<T> {
     }
 
     /**
+     * Returns a newly-created {@link Change} whose type is {@link ChangeType#UPSERT_TEXT}.
+     *
+     * @deprecated Use {@link #ofTextUpsert(String, String)} instead,
+     *             which validates the content against the file type.
+     */
+    @Deprecated
+    static Change<String> ofUnsafeTextUpsert(String path, String text) {
+        requireNonNull(text, "text");
+        validateFilePath(path, "path");
+        return new TextChange(path, ChangeType.UPSERT_TEXT, text);
+    }
+
+    /**
      * Returns a newly-created {@link Change} whose type is {@link ChangeType#UPSERT_JSON}.
      *
      * @param path the path of the file
