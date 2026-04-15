@@ -1055,6 +1055,83 @@ class GitRepositoryTest {
     }
 
     @Test
+    void testDiff_patchToTextUpsert_add() {
+        testDiffPatchToTextUpsertAdd(fileRepo);
+        testDiffPatchToTextUpsertAdd(encryptedRepo);
+    }
+
+    private void testDiffPatchToTextUpsertAdd(GitRepository repo) {
+        final String jsonPath = jsonUpserts[0].path();
+        final String textPath = textUpserts[0].path();
+
+        Revision prevRevision = repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY,
+                                            jsonUpserts[0], textUpserts[0]).join().revision();
+
+        for (int i = 1; i < NUM_ITERATIONS; i++) {
+            final Change<JsonNode> jsonUpsert = Change.ofJsonUpsert(jsonPath, jsonUpserts[i].content());
+            final Change<String> textUpsert = Change.ofTextUpsert(
+                    textPath, textUpserts[i].content() + '\n');
+            final Revision currRevision = repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY,
+                                                      jsonUpsert, textUpsert).join().revision();
+
+            // PATCH_TO_TEXT_UPSERT should produce text upserts for all file types.
+            final Map<String, Change<?>> diffTextUpsert = repo.diff(
+                    prevRevision, currRevision,
+                    Repository.ALL_PATH,
+                    DiffResultType.PATCH_TO_TEXT_UPSERT).join();
+            assertThat(diffTextUpsert).hasSize(2);
+            assertThat(diffTextUpsert.get(jsonPath).type()).isEqualTo(ChangeType.UPSERT_TEXT);
+            assertThat(diffTextUpsert.get(textPath).type()).isEqualTo(ChangeType.UPSERT_TEXT);
+
+            prevRevision = currRevision;
+        }
+    }
+
+    @Test
+    void testDiff_patchToTextUpsert_addYaml() {
+        testDiffPatchToTextUpsertAddYaml(fileRepo);
+        testDiffPatchToTextUpsertAddYaml(encryptedRepo);
+    }
+
+    private void testDiffPatchToTextUpsertAddYaml(GitRepository repo) {
+        final String yamlPath = prefix + "test.yaml";
+        final String yamlContent1 = "key: value1\n";
+        final String yamlContent2 = "key: value2\n";
+
+        final Revision rev1 = repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY,
+                                           Change.ofYamlUpsert(yamlPath, yamlContent1)).join().revision();
+        final Revision rev2 = repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY,
+                                           Change.ofYamlUpsert(yamlPath, yamlContent2)).join().revision();
+
+        // PATCH_TO_TEXT_UPSERT should produce a text upsert even for YAML files.
+        final Map<String, Change<?>> diffTextUpsert = repo.diff(rev1, rev2, prefix + "**",
+                                                                 DiffResultType.PATCH_TO_TEXT_UPSERT).join();
+        assertThat(diffTextUpsert).hasSize(1);
+        assertThat(diffTextUpsert.get(yamlPath).type()).isEqualTo(ChangeType.UPSERT_TEXT);
+        assertThat(diffTextUpsert.get(yamlPath).content()).isEqualTo(yamlContent2);
+    }
+
+    @Test
+    void testDiff_patchToTextUpsert_remove() {
+        testDiffPatchToTextUpsertRemove(fileRepo);
+        testDiffPatchToTextUpsertRemove(encryptedRepo);
+    }
+
+    private void testDiffPatchToTextUpsertRemove(GitRepository repo) {
+        final String jsonPath = prefix + "remove_test.json";
+        final Revision rev1 = repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY,
+                                           Change.ofJsonUpsert(jsonPath, "{\"a\":1}")).join().revision();
+        final Revision rev2 = repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY,
+                                           Change.ofRemoval(jsonPath)).join().revision();
+
+        // PATCH_TO_TEXT_UPSERT should still produce removal for deleted files.
+        final Map<String, Change<?>> diff = repo.diff(rev1, rev2, prefix + "**",
+                                                       DiffResultType.PATCH_TO_TEXT_UPSERT).join();
+        assertThat(diff).hasSize(1)
+                         .containsEntry(jsonPath, Change.ofRemoval(jsonPath));
+    }
+
+    @Test
     void testDiff_removeYaml() {
         testDiffRemoveYaml(fileRepo);
         testDiffRemoveYaml(encryptedRepo);

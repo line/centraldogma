@@ -131,7 +131,7 @@ public final class GitRepositoryManager extends DirectoryBasedStorageManager<Rep
                 final CompletableFuture<List<Commit>> historyFuture =
                         oldRepository.history(revision, revision, "/**");
                 final CompletableFuture<Map<String, Change<?>>> changesFuture =
-                        oldRepository.diff(baseRevision, revision, "/**", DiffResultType.PATCH_TO_UPSERT);
+                        oldRepository.diff(baseRevision, revision, "/**", DiffResultType.PATCH_TO_TEXT_UPSERT);
                 CompletableFuture.allOf(historyFuture, changesFuture).join();
                 final List<Commit> commits = historyFuture.join();
                 assert commits.size() == 1;

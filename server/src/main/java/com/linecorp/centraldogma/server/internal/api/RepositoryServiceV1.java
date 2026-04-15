@@ -333,7 +333,7 @@ public class RepositoryServiceV1 extends AbstractService {
         validateFallbackPrerequisites(ctx, project, repository);
         ctx.setRequestTimeoutMillis(Long.MAX_VALUE); // Disable the request timeout for migration.
 
-        return setRepositoryStatus(author, project, repository, RepositoryStatus.READ_ONLY)
+        return setRepositoryStatus(author, project, repository.name(), RepositoryStatus.READ_ONLY)
                 .thenCompose(unused -> fallback(author, project, repository));
     }
 
@@ -376,13 +376,14 @@ public class RepositoryServiceV1 extends AbstractService {
                              if (cause != null) {
                                  logger.warn("failed to fallback repository to a file-based repository: " +
                                              "project={}, repository={}", projectName, repoName, cause);
-                                 return setRepositoryStatus(author, project, repository,
+                                 return setRepositoryStatus(author, project, repository.name(),
                                                             RepositoryStatus.ACTIVE)
                                          .thenApply(unused1 -> (RepositoryDto) Exceptions.throwUnsafely(cause));
                              }
                              logger.info("Successfully fallback repository to a file-based repository: " +
                                          "project={}, repository={}", projectName, repoName);
-                             return setRepositoryStatus(author, project, repository, RepositoryStatus.ACTIVE)
+                             return setRepositoryStatus(author, project, repository.name(),
+                                                        RepositoryStatus.ACTIVE)
                                      .thenApply(unused1 -> {
                                          final Repository updatedRepository =
                                                  project.repos().get(repository.name());
@@ -408,7 +409,7 @@ public class RepositoryServiceV1 extends AbstractService {
 
         return encryptionStorageManager
                 .generateWdek()
-                .thenCompose(wdek -> setRepositoryStatus(author, project, repository,
+                .thenCompose(wdek -> setRepositoryStatus(author, project, repository.name(),
                                                          RepositoryStatus.READ_ONLY)
                         .thenCompose(unused -> {
                             final WrappedDekDetails wdekDetails = new WrappedDekDetails(
@@ -425,12 +426,11 @@ public class RepositoryServiceV1 extends AbstractService {
                     "Encryption is not enabled in the server. Cannot migrate to an encrypted repository.");
         }
 
-        // TODO(minwoox): Dogma project and dogma repository will be migrated one day later by a plugin.
-        if (InternalProjectInitializer.INTERNAL_PROJECT_DOGMA.equals(project.name()) ||
-            project.name().startsWith("@") || Project.REPO_DOGMA.equals(repository.name())) {
+        // TODO(minwoox): Dogma project will be migrated one day later by a plugin.
+        if (InternalProjectInitializer.INTERNAL_PROJECT_DOGMA.equals(project.name())) {
             throw new IllegalArgumentException(
-                    "Cannot migrate the internal project or repository to an encrypted repository. project: " +
-                    project.name() + ", repository: " + repository.name());
+                    "Cannot migrate the internal project to an encrypted repository. project: " +
+                    project.name());
         }
 
         final RepositoryStatus currentStatus = repositoryStatus(repository);
@@ -457,10 +457,9 @@ public class RepositoryServiceV1 extends AbstractService {
         }
     }
 
-    private CompletableFuture<Void> setRepositoryStatus(Author author, Project project, Repository repository,
+    private CompletableFuture<Void> setRepositoryStatus(Author author, Project project, String repoName,
                                                         RepositoryStatus status) {
         final String projectName = project.name();
-        final String repoName = repository.name();
         logger.info("Changing repository status: project={}, repository={}, status={}",
                     projectName, repoName, status);
         return mds.updateRepositoryStatus(author, projectName, repoName, status)
@@ -492,13 +491,14 @@ public class RepositoryServiceV1 extends AbstractService {
                              if (cause != null) {
                                  logger.warn("failed to migrate repository to an encrypted repository: " +
                                              "project={}, repository={}", projectName, repoName, cause);
-                                 return setRepositoryStatus(author, project, repository,
+                                 return setRepositoryStatus(author, project, repository.name(),
                                                             RepositoryStatus.ACTIVE)
                                          .thenApply(unused1 -> (RepositoryDto) Exceptions.throwUnsafely(cause));
                              }
                              logger.info("Successfully migrated repository to an encrypted repository: " +
                                          "project={}, repository={}", projectName, repoName);
-                             return setRepositoryStatus(author, project, repository, RepositoryStatus.ACTIVE)
+                             return setRepositoryStatus(author, project, repository.name(),
+                                                        RepositoryStatus.ACTIVE)
                                      .thenApply(unused1 -> {
                                          final Repository updatedRepository =
                                                  project.repos().get(repository.name());

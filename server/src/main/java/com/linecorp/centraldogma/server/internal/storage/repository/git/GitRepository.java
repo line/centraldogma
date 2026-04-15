@@ -680,6 +680,17 @@ class GitRepository implements Repository {
 
                 switch (diffEntry.getChangeType()) {
                     case MODIFY:
+                        if (diffResultType == DiffResultType.PATCH_TO_TEXT_UPSERT) {
+                            putTextDiff(changeMap, oldPath, newPath,
+                                        sanitizeText(new String(
+                                                reader.open(diffEntry.getOldId().toObjectId())
+                                                      .getBytes(), UTF_8)),
+                                        sanitizeText(new String(
+                                                reader.open(diffEntry.getNewId().toObjectId())
+                                                      .getBytes(), UTF_8)),
+                                        DiffResultType.PATCH_TO_TEXT_UPSERT);
+                            break;
+                        }
                         final EntryType oldEntryType = EntryType.guessFromPath(oldPath);
                         switch (oldEntryType) {
                             case JSON:
@@ -778,6 +789,12 @@ class GitRepository implements Repository {
                         }
                         break;
                     case ADD:
+                        if (diffResultType == DiffResultType.PATCH_TO_TEXT_UPSERT) {
+                            final String addedText = sanitizeText(new String(
+                                    reader.open(diffEntry.getNewId().toObjectId()).getBytes(), UTF_8));
+                            putChange(changeMap, newPath, Change.ofTextUpsert(newPath, addedText));
+                            break;
+                        }
                         final EntryType newEntryType = EntryType.guessFromPath(newPath);
                         switch (newEntryType) {
                             case JSON: {
@@ -833,8 +850,9 @@ class GitRepository implements Repository {
             putChange(changeMap, oldPath, Change.ofRename(oldPath, newPath));
         }
         if (!oldText.equals(newText)) {
-            if (diffResultType == DiffResultType.PATCH_TO_UPSERT) {
-                putChange(changeMap, newPath, Change.ofUnsafeTextUpsert(newPath, newText));
+            if (diffResultType == DiffResultType.PATCH_TO_UPSERT ||
+                diffResultType == DiffResultType.PATCH_TO_TEXT_UPSERT) {
+                putChange(changeMap, newPath, Change.ofTextUpsert(newPath, newText));
             } else {
                 putChange(changeMap, newPath, Change.ofTextPatch(newPath, oldText, newText));
             }

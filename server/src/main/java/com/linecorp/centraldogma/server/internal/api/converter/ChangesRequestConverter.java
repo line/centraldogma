@@ -16,12 +16,16 @@
 
 package com.linecorp.centraldogma.server.internal.api.converter;
 
+import static com.linecorp.centraldogma.internal.Json5.isJsonCompatible;
+import static com.linecorp.centraldogma.internal.Yaml.isYaml;
+
 import java.lang.reflect.ParameterizedType;
 import java.util.List;
 
 import org.jspecify.annotations.Nullable;
 
 import com.fasterxml.jackson.core.JsonParseException;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
@@ -33,6 +37,8 @@ import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.annotation.JacksonRequestConverterFunction;
 import com.linecorp.armeria.server.annotation.RequestConverterFunction;
 import com.linecorp.centraldogma.common.Change;
+import com.linecorp.centraldogma.common.ChangeFormatException;
+import com.linecorp.centraldogma.common.ChangeType;
 import com.linecorp.centraldogma.internal.Jackson;
 
 /**
@@ -71,7 +77,21 @@ public final class ChangesRequestConverter implements RequestConverterFunction {
 
         final ImmutableList.Builder<Change<?>> builder = ImmutableList.builder();
         for (JsonNode change : changesNode) {
-            builder.add(readChange(change));
+            final Change<?> change1 = readChange(change);
+            final String path = change1.path();
+            if (change1.type() == ChangeType.UPSERT_TEXT && (isJsonCompatible(path) || isYaml(path))) {
+                try {
+                    final String content = change1.contentAsText();
+                    assert content != null;
+                    Jackson.readTree(path, content);
+                } catch (JsonProcessingException e) {
+                    throw new ChangeFormatException(
+                            "failed to read a value as a " +
+                            (isYaml(path) ? "YAML" : "JSON") + " tree. file: " + path, e);
+                }
+            }
+
+            builder.add(change1);
         }
         return builder.build();
     }

@@ -246,6 +246,53 @@ class FallbackToFileRepositoryTest {
         assertThat(allData.get("encrypted_object")).isNotEmpty();
     }
 
+    @Test
+    void migrateDogmaRepository() throws Exception {
+        // Create a repository named "dogma" (the internal project config repository)
+        // and verify it can be migrated to an encrypted repository.
+        final String dogmaRepoName = Project.REPO_DOGMA;
+        final Repository dogmaRepo = gitRepositoryManager.create(dogmaRepoName, 0, Author.SYSTEM, false);
+        assertThat(dogmaRepo.isEncrypted()).isFalse();
+
+        // Add typical dogma repository content.
+        dogmaRepo.commit(Revision.INIT, 0, Author.SYSTEM, "Add tokens",
+                         ImmutableList.of(Change.ofJsonUpsert("/tokens.json",
+                                                              "{\"appIds\":[],\"secrets\":[]}")))
+                 .join();
+        dogmaRepo.commit(new Revision(2), 0, Author.SYSTEM, "Add credentials",
+                         ImmutableList.of(Change.ofJsonUpsert("/credentials.json",
+                                                              "{\"credentials\":[]}")))
+                 .join();
+
+        final Revision headBeforeMigration = dogmaRepo.normalizeNow(Revision.HEAD);
+        assertThat(headBeforeMigration.major()).isEqualTo(3);
+
+        // Migrate the dogma repository to an encrypted repository.
+        storeWdekAndMigrate(dogmaRepoName);
+
+        final Repository encryptedDogmaRepo = gitRepositoryManager.get(dogmaRepoName);
+        assertThat(encryptedDogmaRepo.isEncrypted()).isTrue();
+        assertThat(encryptedDogmaRepo.normalizeNow(Revision.HEAD)).isEqualTo(headBeforeMigration);
+
+        // Verify that the content is preserved after migration.
+        final Entry<?> tokensEntry =
+                encryptedDogmaRepo.get(Revision.HEAD, Query.ofJson("/tokens.json")).join();
+        final JsonNode tokensJson = Jackson.readTree(tokensEntry.contentAsText());
+        assertThat(tokensJson.has("appIds")).isTrue();
+
+        final Entry<?> credentialsEntry =
+                encryptedDogmaRepo.get(Revision.HEAD, Query.ofJson("/credentials.json")).join();
+        final JsonNode credentialsJson = Jackson.readTree(credentialsEntry.contentAsText());
+        assertThat(credentialsJson.has("credentials")).isTrue();
+
+        // Verify that the commit history is preserved.
+        final List<Commit> history =
+                encryptedDogmaRepo.history(new Revision(2), Revision.HEAD, "/**").join();
+        assertThat(history).hasSize(2);
+        assertThat(history.get(0).summary()).isEqualTo("Add tokens");
+        assertThat(history.get(1).summary()).isEqualTo("Add credentials");
+    }
+
     private void storeWdekAndMigrate(String repoName) {
         final String wdek = encryptionStorageManager.generateWdek().join();
         encryptionStorageManager.storeWdek(

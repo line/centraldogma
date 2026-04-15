@@ -17,10 +17,8 @@
 package com.linecorp.centraldogma.common;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.linecorp.centraldogma.internal.Json5.isJsonCompatible;
 import static com.linecorp.centraldogma.internal.Util.validateDirPath;
 import static com.linecorp.centraldogma.internal.Util.validateFilePath;
-import static com.linecorp.centraldogma.internal.Yaml.isYaml;
 import static java.util.Objects.requireNonNull;
 
 import java.io.File;
@@ -36,7 +34,6 @@ import java.util.stream.Stream;
 
 import org.jspecify.annotations.Nullable;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
@@ -66,28 +63,6 @@ public interface Change<T> {
      * @param text the content of the file
      */
     static Change<String> ofTextUpsert(String path, String text) {
-        requireNonNull(text, "text");
-        validateFilePath(path, "path");
-        if (isJsonCompatible(path) || isYaml(path)) {
-            try {
-                Jackson.readTree(path, text);
-            } catch (JsonProcessingException e) {
-                throw new ChangeFormatException(
-                        "failed to read a value as a " +
-                        (isYaml(path) ? "YAML" : "JSON") + " tree. file: " + path, e);
-            }
-        }
-        return new TextChange(path, ChangeType.UPSERT_TEXT, text);
-    }
-
-    /**
-     * Returns a newly-created {@link Change} whose type is {@link ChangeType#UPSERT_TEXT}.
-     *
-     * @deprecated Use {@link #ofTextUpsert(String, String)} instead,
-     *             which validates the content against the file type.
-     */
-    @Deprecated
-    static Change<String> ofUnsafeTextUpsert(String path, String text) {
         requireNonNull(text, "text");
         validateFilePath(path, "path");
         return new TextChange(path, ChangeType.UPSERT_TEXT, text);
