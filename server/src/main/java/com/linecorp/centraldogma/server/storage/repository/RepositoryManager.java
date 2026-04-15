@@ -16,6 +16,10 @@
 
 package com.linecorp.centraldogma.server.storage.repository;
 
+import java.util.function.BiConsumer;
+
+import org.jspecify.annotations.Nullable;
+
 import com.linecorp.centraldogma.server.storage.StorageManager;
 import com.linecorp.centraldogma.server.storage.project.Project;
 
@@ -37,4 +41,10 @@ public interface RepositoryManager extends StorageManager<Repository> {
      * Falls back the specified encrypted repository to a file-based repository.
      */
     void fallbackToFileRepository(String repositoryName);
+
+    /**
+     * Sets a callback that is invoked after a repository is migrated or fallen back.
+     * The callback receives the repository name and the new {@link Repository} instance.
+     */
+    void setPostMigrationCallback(@Nullable BiConsumer<String, Repository> callback);
 }

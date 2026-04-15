@@ -112,7 +112,7 @@ public abstract class XdsResourceWatchingService {
                                     groupName + path, t);
                     }
                 }
-                watchRepository(repository, normalizedRevision);
+                watchRepository(groupName, normalizedRevision);
                 return null;
             }, executor()));
         }
@@ -144,13 +144,21 @@ public abstract class XdsResourceWatchingService {
                         continue;
                     }
                     logger.info("Start watching {}.", groupName);
-                    watchRepository(repo, Revision.INIT);
+                    watchRepository(groupName, Revision.INIT);
                 }
             });
         }));
     }
 
-    private void watchRepository(Repository repository, Revision lastKnownRevision) {
+    private void watchRepository(String groupName, Revision lastKnownRevision) {
+        final Repository repository;
+        try {
+            repository = xdsProject.repos().get(groupName);
+        } catch (RepositoryNotFoundException e) {
+            watchingGroups.remove(groupName);
+            onGroupRemoved(groupName);
+            return;
+        }
         final CompletableFuture<Revision> watchFuture = repository.watch(lastKnownRevision, pathPattern());
         watchFuture.handleAsync((BiFunction<Revision, Throwable, Void>) (newRevision, cause) -> {
             if (isStopped()) {
@@ -159,8 +167,8 @@ public abstract class XdsResourceWatchingService {
             if (cause != null) {
                 if (cause instanceof RepositoryNotFoundException) {
                     // Repository is removed.
-                    watchingGroups.remove(repository.name());
-                    onGroupRemoved(repository.name());
+                    watchingGroups.remove(groupName);
+                    onGroupRemoved(groupName);
                     return null;
                 }
                 if (cause instanceof ShuttingDownException) {
@@ -169,30 +177,29 @@ public abstract class XdsResourceWatchingService {
                 }
 
                 logger.warn("Unexpected exception while watching {} at {}. Try watching after {} seconds.",
-                            repository.name(), lastKnownRevision, BACKOFF_SECONDS, cause);
-                executor().schedule(() -> watchRepository(repository, lastKnownRevision),
+                            groupName, lastKnownRevision, BACKOFF_SECONDS, cause);
+                executor().schedule(() -> watchRepository(groupName, lastKnownRevision),
                                     BACKOFF_SECONDS, TimeUnit.SECONDS);
                 return null;
             }
             final CompletableFuture<Map<String, Change<?>>> diffFuture =
                     repository.diff(lastKnownRevision, newRevision,
                                     pathPattern(), DiffResultType.PATCH_TO_UPSERT);
-            handleDiff(repository, newRevision, diffFuture, lastKnownRevision);
+            handleDiff(groupName, newRevision, diffFuture, lastKnownRevision);
             return null;
         }, executor());
     }
 
-    private void handleDiff(Repository repository, Revision newRevision,
+    private void handleDiff(String groupName, Revision newRevision,
                             CompletableFuture<Map<String, Change<?>>> diffFuture, Revision lastKnownRevision) {
         diffFuture.handleAsync((BiFunction<Map<String, Change<?>>, Throwable, Void>) (changes, cause) -> {
             if (isStopped()) {
                 return null;
             }
-            final String groupName = repository.name();
             if (cause != null) {
                 logger.warn("Unexpected exception while diffing {} from {} to {}. Watching again.",
                             groupName, lastKnownRevision, newRevision, cause);
-                watchRepository(repository, Revision.INIT);
+                watchRepository(groupName, Revision.INIT);
                 return null;
             }
 
@@ -225,7 +232,7 @@ public abstract class XdsResourceWatchingService {
                 }
             }
             onDiffHandled();
-            watchRepository(repository, newRevision);
+            watchRepository(groupName, newRevision);
             return null;
         }, executor());
     }

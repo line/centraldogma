@@ -35,6 +35,7 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
+import java.util.function.BiConsumer;
 import java.util.function.Supplier;
 
 import org.eclipse.jgit.lib.Constants;
@@ -68,6 +69,7 @@ import com.linecorp.centraldogma.server.storage.encryption.EncryptionStorageMana
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.repository.DiffResultType;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
+import com.linecorp.centraldogma.server.storage.repository.RepositoryListener;
 import com.linecorp.centraldogma.server.storage.repository.RepositoryManager;
 
 public final class GitRepositoryManager extends DirectoryBasedStorageManager<Repository>
@@ -82,6 +84,8 @@ public final class GitRepositoryManager extends DirectoryBasedStorageManager<Rep
 
     @Nullable
     private final RepositoryCache cache;
+    @Nullable
+    private volatile BiConsumer<String, Repository> postMigrationCallback;
 
     public GitRepositoryManager(Project parent, File rootDir, Executor repositoryWorker,
                                 Executor purgeWorker, @Nullable RepositoryCache cache,
@@ -96,6 +100,11 @@ public final class GitRepositoryManager extends DirectoryBasedStorageManager<Rep
     @Override
     public Project parent() {
         return parent;
+    }
+
+    @Override
+    public void setPostMigrationCallback(@Nullable BiConsumer<String, Repository> callback) {
+        postMigrationCallback = callback;
     }
 
     private String projectRepositoryName(String name) {
@@ -173,7 +182,14 @@ public final class GitRepositoryManager extends DirectoryBasedStorageManager<Rep
         logger.info("Migrated the repository '{}' to an encrypted repository in {} seconds.",
                     projectRepositoryName(repositoryName),
                     TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startTime));
-        // We didn't add repository listeners to the repository so don't have to add the listener here.
+        // Transfer listeners from the old repository to the new encrypted repository.
+        for (RepositoryListener listener : ((GitRepository) oldRepository).listeners()) {
+            encryptedRepository.addListener(listener);
+        }
+        final BiConsumer<String, Repository> callback = postMigrationCallback;
+        if (callback != null) {
+            callback.accept(repositoryName, encryptedRepository);
+        }
         ((GitRepository) oldRepository).close(() -> new CentralDogmaException(
                 projectRepositoryName(repositoryName) + " is migrated to an encrypted repository. Try again."));
     }
@@ -234,6 +250,14 @@ public final class GitRepositoryManager extends DirectoryBasedStorageManager<Rep
         logger.info("Fallback the repository '{}' to a file-based repository in {} seconds.",
                     projectRepositoryName(repositoryName),
                     TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startTime));
+        // Transfer listeners from the encrypted repository to the file-based repository.
+        for (RepositoryListener listener : ((GitRepository) encryptedRepository).listeners()) {
+            fileRepository.addListener(listener);
+        }
+        final BiConsumer<String, Repository> callback = postMigrationCallback;
+        if (callback != null) {
+            callback.accept(repositoryName, fileRepository);
+        }
         ((GitRepository) encryptedRepository).close(() -> new CentralDogmaException(
                 projectRepositoryName(repositoryName) +
                 " is fallback to a file-based repository. Try again."));
