@@ -175,7 +175,8 @@ class Json5CrudTest {
                                             .join();
 
         assertThat(textEntry.content()).isNotNull();
-        assertThat(textEntry.content()).isEqualTo("{\"key\":\"value\",\"number\":123}");
+        // Query.ofText returns the raw text stored in git, preserving JSON5 syntax.
+        assertThat(textEntry.content()).isEqualTo(json5Text + '\n');
     }
 
     @Test

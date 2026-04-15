@@ -89,6 +89,7 @@ import com.linecorp.centraldogma.common.RevisionNotFoundException;
 import com.linecorp.centraldogma.common.RevisionRange;
 import com.linecorp.centraldogma.common.ShuttingDownException;
 import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.internal.Json5;
 import com.linecorp.centraldogma.internal.Util;
 import com.linecorp.centraldogma.internal.jsonpatch.JsonPatch;
 import com.linecorp.centraldogma.internal.jsonpatch.ReplaceMode;
@@ -679,6 +680,17 @@ class GitRepository implements Repository {
 
                 switch (diffEntry.getChangeType()) {
                     case MODIFY:
+                        if (diffResultType == DiffResultType.PATCH_TO_TEXT_UPSERT) {
+                            putTextDiff(changeMap, oldPath, newPath,
+                                        sanitizeText(new String(
+                                                reader.open(diffEntry.getOldId().toObjectId())
+                                                      .getBytes(), UTF_8)),
+                                        sanitizeText(new String(
+                                                reader.open(diffEntry.getNewId().toObjectId())
+                                                      .getBytes(), UTF_8)),
+                                        DiffResultType.PATCH_TO_TEXT_UPSERT);
+                            break;
+                        }
                         final EntryType oldEntryType = EntryType.guessFromPath(oldPath);
                         switch (oldEntryType) {
                             case JSON:
@@ -686,12 +698,14 @@ class GitRepository implements Repository {
                                     putChange(changeMap, oldPath, Change.ofRename(oldPath, newPath));
                                 }
 
+                                final byte[] oldJsonBytes =
+                                        reader.open(diffEntry.getOldId().toObjectId()).getBytes();
+                                final byte[] newJsonBytes =
+                                        reader.open(diffEntry.getNewId().toObjectId()).getBytes();
                                 final JsonNode oldJsonNode =
-                                        Jackson.readTree(oldPath,
-                                                reader.open(diffEntry.getOldId().toObjectId()).getBytes());
+                                        Jackson.readTree(oldPath, oldJsonBytes);
                                 final JsonNode newJsonNode =
-                                        Jackson.readTree(newPath,
-                                                reader.open(diffEntry.getNewId().toObjectId()).getBytes());
+                                        Jackson.readTree(newPath, newJsonBytes);
                                 final JsonPatch patch =
                                         JsonPatch.generate(oldJsonNode, newJsonNode, ReplaceMode.SAFE);
 
@@ -703,6 +717,13 @@ class GitRepository implements Repository {
                                         putChange(changeMap, newPath,
                                                   Change.ofJsonPatch(newPath, Jackson.valueToTree(patch)));
                                     }
+                                } else if (Json5.isJson5(newPath)) {
+                                    // The raw text differs but JSON nodes are semantically equal
+                                    // (e.g., JSON5 trailing commas). Fall back to text diff.
+                                    putTextDiff(changeMap, oldPath, newPath,
+                                                sanitizeText(new String(oldJsonBytes, UTF_8)),
+                                                sanitizeText(new String(newJsonBytes, UTF_8)),
+                                                diffResultType);
                                 }
                                 break;
                             case YAML:
@@ -737,6 +758,13 @@ class GitRepository implements Repository {
                                                       Change.ofJsonPatch(newPath,
                                                                          Jackson.valueToTree(yamlPatch)));
                                         }
+                                    } else {
+                                        // The raw text differs but YAML nodes are semantically equal
+                                        // (e.g., comments, quoting style). Fall back to text diff.
+                                        putTextDiff(changeMap, oldPath, newPath,
+                                                    sanitizeText(new String(oldYamlBytes, UTF_8)),
+                                                    sanitizeText(new String(newYamlBytes, UTF_8)),
+                                                    diffResultType);
                                     }
                                 } else {
                                     // Malformed YAML: fall back to text diff.
@@ -761,6 +789,12 @@ class GitRepository implements Repository {
                         }
                         break;
                     case ADD:
+                        if (diffResultType == DiffResultType.PATCH_TO_TEXT_UPSERT) {
+                            final String addedText = sanitizeText(new String(
+                                    reader.open(diffEntry.getNewId().toObjectId()).getBytes(), UTF_8));
+                            putChange(changeMap, newPath, Change.ofTextUpsert(newPath, addedText));
+                            break;
+                        }
                         final EntryType newEntryType = EntryType.guessFromPath(newPath);
                         switch (newEntryType) {
                             case JSON: {
@@ -816,7 +850,8 @@ class GitRepository implements Repository {
             putChange(changeMap, oldPath, Change.ofRename(oldPath, newPath));
         }
         if (!oldText.equals(newText)) {
-            if (diffResultType == DiffResultType.PATCH_TO_UPSERT) {
+            if (diffResultType == DiffResultType.PATCH_TO_UPSERT ||
+                diffResultType == DiffResultType.PATCH_TO_TEXT_UPSERT) {
                 putChange(changeMap, newPath, Change.ofTextUpsert(newPath, newText));
             } else {
                 putChange(changeMap, newPath, Change.ofTextPatch(newPath, oldText, newText));

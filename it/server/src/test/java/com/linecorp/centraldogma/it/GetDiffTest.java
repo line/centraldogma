@@ -231,6 +231,84 @@ class GetDiffTest {
 
     @ParameterizedTest
     @EnumSource(ClientType.class)
+    void diff_json5TrailingCommaInJsonFile(ClientType clientType) {
+        final CentralDogma client = clientType.client(dogma);
+        final String jsonPath = "/a.json5";
+
+        final Revision rev1 = client.forRepo(dogma.project(), dogma.repo1())
+                                    .commit("Add JSON5",
+                                            Change.ofJsonUpsert(jsonPath, "{ \"a\": \"b\" }"))
+                                    .push().join().revision();
+
+        final Revision rev2 = client.forRepo(dogma.project(), dogma.repo1())
+                                    .commit("Update JSON5 with trailing comma",
+                                            Change.ofJsonUpsert(jsonPath, "{ \"a\": \"b\", }"))
+                                    .push().join().revision();
+
+        // Path-pattern diff: The JSON nodes are semantically identical, but the raw text
+        // differs due to the trailing comma. A text diff should be produced.
+        final List<Change<?>> diffs = client.forRepo(dogma.project(), dogma.repo1())
+                                            .diff(PathPattern.of(jsonPath))
+                                            .get(rev1, rev2).join();
+        assertThat(diffs).hasSize(1);
+        assertThat(diffs.get(0).path()).isEqualTo(jsonPath);
+        assertThat(diffs.get(0).type()).isEqualTo(ChangeType.APPLY_TEXT_PATCH);
+
+        // Query-based diff with Query.ofJson: compares parsed JsonNodes, which are
+        // semantically identical, so an empty JSON patch is produced.
+        final Change<JsonNode> jsonDiff = client.getDiff(dogma.project(), dogma.repo1(), rev1, rev2,
+                                                          Query.ofJson(jsonPath)).join();
+        assertThat(jsonDiff.type()).isEqualTo(ChangeType.APPLY_JSON_PATCH);
+        assertThatJson(jsonDiff.content()).isArray().ofLength(0);
+
+        // Query-based diff with Query.ofText: compares raw text, so a text patch is produced.
+        final Change<String> textDiff = client.getDiff(dogma.project(), dogma.repo1(), rev1, rev2,
+                                                        Query.ofText(jsonPath)).join();
+        assertThat(textDiff.type()).isEqualTo(ChangeType.APPLY_TEXT_PATCH);
+        assertThat(textDiff.content()).isNotEmpty();
+    }
+
+    @ParameterizedTest
+    @EnumSource(ClientType.class)
+    void diff_yamlCommentChange(ClientType clientType) {
+        final CentralDogma client = clientType.client(dogma);
+        final String yamlPath = "/test_yaml_comment.yaml";
+
+        final Revision rev1 = client.forRepo(dogma.project(), dogma.repo1())
+                                    .commit("Add YAML",
+                                            Change.ofYamlUpsert(yamlPath, "a: b\n"))
+                                    .push().join().revision();
+
+        final Revision rev2 = client.forRepo(dogma.project(), dogma.repo1())
+                                    .commit("Add comment to YAML",
+                                            Change.ofYamlUpsert(yamlPath, "a: b # comment\n"))
+                                    .push().join().revision();
+
+        // Path-pattern diff: The YAML nodes are semantically identical, but the raw text
+        // differs due to the comment. A text diff should be produced.
+        final List<Change<?>> diffs = client.forRepo(dogma.project(), dogma.repo1())
+                                            .diff(PathPattern.of(yamlPath))
+                                            .get(rev1, rev2).join();
+        assertThat(diffs).hasSize(1);
+        assertThat(diffs.get(0).path()).isEqualTo(yamlPath);
+        assertThat(diffs.get(0).type()).isEqualTo(ChangeType.APPLY_TEXT_PATCH);
+
+        // Query-based diff with Query.ofYaml: compares parsed YAML nodes, which are
+        // semantically identical, so an empty JSON patch is produced.
+        final Change<JsonNode> yamlDiff = client.getDiff(dogma.project(), dogma.repo1(), rev1, rev2,
+                                                          Query.ofYaml(yamlPath)).join();
+        assertThat(yamlDiff.type()).isEqualTo(ChangeType.APPLY_JSON_PATCH);
+        assertThatJson(yamlDiff.content()).isArray().ofLength(0);
+
+        // Query-based diff with Query.ofText: compares raw text, so a text patch is produced.
+        final Change<String> textDiff = client.getDiff(dogma.project(), dogma.repo1(), rev1, rev2,
+                                                        Query.ofText(yamlPath)).join();
+        assertThat(textDiff.type()).isEqualTo(ChangeType.APPLY_TEXT_PATCH);
+        assertThat(textDiff.content()).isNotEmpty();
+    }
+
+    @ParameterizedTest
+    @EnumSource(ClientType.class)
     void diff_rename(ClientType clientType) {
         final CentralDogma client = clientType.client(dogma);
 

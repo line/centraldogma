@@ -32,5 +32,12 @@ public enum DiffResultType {
      * {@link Change#ofTextUpsert(String, String)} with the new content instead of creating
      * {@link Change#ofJsonPatch(String, String)} and {@link Change#ofTextPatch(String, String)}.
      */
-    PATCH_TO_UPSERT
+    PATCH_TO_UPSERT,
+
+    /**
+     * The option for creating {@link Change#ofTextUpsert(String, String)} with the new content
+     * regardless of the file type. This avoids JSON/YAML parsing errors (e.g., empty content to
+     * {@code null}) by always producing text-based upserts.
+     */
+    PATCH_TO_TEXT_UPSERT
 }

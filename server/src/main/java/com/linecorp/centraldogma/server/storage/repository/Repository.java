@@ -57,6 +57,7 @@ import com.linecorp.centraldogma.common.MergeSource;
 import com.linecorp.centraldogma.common.MergedEntry;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.QueryExecutionException;
+import com.linecorp.centraldogma.common.QueryType;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.RevisionNotFoundException;
 import com.linecorp.centraldogma.common.RevisionRange;
@@ -351,6 +352,10 @@ public interface Repository {
                             throw new QueryExecutionException("unsupported entry type: " + toEntryType);
                         }
 
+                        if (query.type() == QueryType.IDENTITY_TEXT) {
+                            return Change.ofTextUpsert(path, toEntry.contentAsText());
+                        }
+
                         final Object toContent = castQuery.apply(toEntry.content());
 
                         switch (toEntryType) {
@@ -376,6 +381,15 @@ public interface Repository {
                     if (entryType != toEntry.type()) {
                         throw new QueryExecutionException(
                                 "mismatching entry type: " + entryType + " != " + toEntry.type());
+                    }
+
+                    if (query.type() == QueryType.IDENTITY_TEXT) {
+                        final String fromText = fromEntry.contentAsText();
+                        final String toText = toEntry.contentAsText();
+                        if (diffResultType == DiffResultType.PATCH_TO_UPSERT) {
+                            return Change.ofTextUpsert(path, toText);
+                        }
+                        return Change.ofTextPatch(path, fromText, toText);
                     }
 
                     final Object fromContent = castQuery.apply(fromEntry.content());

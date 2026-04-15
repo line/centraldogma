@@ -75,7 +75,7 @@ final class IdentityQuery<T> implements Query<T> {
 
     @Override
     public int hashCode() {
-        return path.hashCode();
+        return path.hashCode() * 31 + queryType.hashCode();
     }
 
     @Override
@@ -90,7 +90,7 @@ final class IdentityQuery<T> implements Query<T> {
 
         final IdentityQuery<?> that = (IdentityQuery<?>) obj;
 
-        return path().equals(that.path());
+        return queryType == that.queryType && path().equals(that.path());
     }
 
     @Override

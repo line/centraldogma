@@ -16,6 +16,7 @@
 package com.linecorp.centraldogma.server.internal.storage.repository.git;
 
 import static com.google.common.base.MoreObjects.firstNonNull;
+import static com.linecorp.centraldogma.internal.Json5.isJsonCompatible;
 import static com.linecorp.centraldogma.internal.Yaml.isYaml;
 import static com.linecorp.centraldogma.server.internal.storage.repository.git.GitRepository.sanitizeText;
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -247,6 +248,23 @@ final class DefaultChangesApplier extends AbstractChangesApplier {
                             message += " (reason: " + e.getMessage() + ')';
                         }
                         throw new TextPatchConflictException(message, e);
+                    }
+
+                    // Validate that the patched content is still valid for structured file types.
+                    if (isJsonCompatible(changePath)) {
+                        try {
+                            Jackson.readTree(changePath, newText);
+                        } catch (JsonProcessingException e) {
+                            throw new ChangeConflictException(
+                                    "text patch would produce invalid JSON: " + changePath, e);
+                        }
+                    } else if (isYaml(changePath)) {
+                        try {
+                            Jackson.readTree(changePath, newText);
+                        } catch (JsonProcessingException e) {
+                            throw new ChangeConflictException(
+                                    "text patch would produce invalid YAML: " + changePath, e);
+                        }
                     }
 
                     // Apply only when the contents are really different.

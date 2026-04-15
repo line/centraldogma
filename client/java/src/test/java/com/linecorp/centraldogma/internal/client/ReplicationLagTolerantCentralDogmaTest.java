@@ -52,6 +52,7 @@ import com.linecorp.centraldogma.common.PathPattern;
 import com.linecorp.centraldogma.common.ProjectNotFoundException;
 import com.linecorp.centraldogma.common.PushResult;
 import com.linecorp.centraldogma.common.Query;
+import com.linecorp.centraldogma.common.QueryType;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.RevisionNotFoundException;
 
@@ -399,7 +400,8 @@ class ReplicationLagTolerantCentralDogmaTest {
 
         verify(delegate).normalizeRevision("foo", "bar", Revision.HEAD);
         verify(delegate, times(2)).getFile("foo", "bar",
-                                           latestRevision, Query.ofText("/a.txt"), false, false, null);
+                                           latestRevision, Query.of(QueryType.IDENTITY, "/a.txt"),
+                                           false, false, null);
         verifyNoMoreInteractions(delegate);
     }
 }
