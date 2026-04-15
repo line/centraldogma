@@ -336,14 +336,6 @@ public class CentralDogmaBeanFactory {
 
         final ProxyFactory factory = new ProxyFactory();
         factory.setSuperclass(beanType);
-        factory.setFilter(method -> {
-            // Allow all non-parameter methods (getter/closeWatcher..)
-            if (method.getParameterCount() == 0) {
-                return true;
-            }
-            // Allow methods have bidirectional property and looks like setter
-            return centralDogmaBean.bidirectional() && method.getParameterCount() == 1;
-        });
 
         try {
             return (T) factory.create(EMPTY_TYPES, EMPTY_ARGS,
