@@ -103,7 +103,7 @@ public final class GitRepositoryManager extends DirectoryBasedStorageManager<Rep
     }
 
     @Override
-    public void setPostMigrationCallback(@Nullable BiConsumer<String, Repository> callback) {
+    public void setPostMigrationCallback(BiConsumer<String, Repository> callback) {
         postMigrationCallback = callback;
     }
 

@@ -46,5 +46,5 @@ public interface RepositoryManager extends StorageManager<Repository> {
      * Sets a callback that is invoked after a repository is migrated or fallen back.
      * The callback receives the repository name and the new {@link Repository} instance.
      */
-    void setPostMigrationCallback(@Nullable BiConsumer<String, Repository> callback);
+    void setPostMigrationCallback(BiConsumer<String, Repository> callback);
 }
