@@ -70,6 +70,10 @@ public @interface CentralDogmaBean {
     /**
      * If {@code true}, the change of each bean property will be pushed to Central Dogma.
      * Use this property with caution because it can result in unnecessarily large number of commits.
+     *
+     * @deprecated This property is no longer used. All methods are now intercepted by the proxy
+     *             regardless of this setting.
      */
+    @Deprecated
     boolean bidirectional() default false;
 }
