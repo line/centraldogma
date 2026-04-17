@@ -217,6 +217,31 @@ class CentralDogmaBeanTest {
         assertThat(property.getRevision()).isNotNull();
     }
 
+    @Test
+    void methodWithParameterShouldBeIntercepted() {
+        final CentralDogma client = dogma.client();
+        final TestProperty property = factory.get(new TestProperty(), TestProperty.class);
+
+        client.forRepo("a", "b")
+              .commit("Add c.json",
+                      Change.ofJsonUpsert("/c.json",
+                                          '{' +
+                                          "  \"foo\": 30," +
+                                          "  \"bar\": \"UPDATED\"," +
+                                          "  \"qux\": [\"a\", \"b\"]" +
+                                          '}'))
+              .push().join();
+
+        // Verify that a method with parameters is also intercepted and uses the latest watched value.
+        await().atMost(5, TimeUnit.SECONDS)
+               .until(() -> "prefix-UPDATED".equals(property.getBarWithPrefix("prefix-")));
+
+        // Non-arg methods
+        assertThat(property.getFoo()).isEqualTo(30);
+        assertThat(property.getBar()).isEqualTo("UPDATED");
+        assertThat(property.getQux()).containsExactly("a", "b");
+    }
+
     @CentralDogmaBean(project = "a", repository = "b", path = "/c.json")
     static class TestProperty {
         int foo = 10;
@@ -238,6 +263,10 @@ class CentralDogmaBeanTest {
 
         public List<String> getQux() {
             return qux;
+        }
+
+        public String getBarWithPrefix(String prefix) {
+            return prefix + bar;
         }
 
         public void closeWatcher() {}
