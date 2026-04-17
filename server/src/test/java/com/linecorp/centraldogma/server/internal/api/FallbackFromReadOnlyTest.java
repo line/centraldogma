@@ -33,6 +33,7 @@ import com.linecorp.armeria.common.HttpMethod;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.MediaType;
 import com.linecorp.armeria.common.RequestHeaders;
+import com.linecorp.armeria.common.SessionProtocol;
 import com.linecorp.armeria.common.auth.AuthToken;
 import com.linecorp.centraldogma.server.CentralDogma;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
@@ -52,7 +53,7 @@ class FallbackFromReadOnlyTest {
     void fallbackFromReadOnlyState() throws Exception {
         // 1. Start the server WITHOUT encryption and create a project/repo.
         CentralDogma dogma = new CentralDogmaBuilder(dataDir)
-                .port(0, com.linecorp.armeria.common.SessionProtocol.HTTP)
+                .port(0, SessionProtocol.HTTP)
                 .webAppEnabled(false)
                 .gracefulShutdownTimeout(new GracefulShutdownTimeout(0, 0))
                 .systemAdministrators(USERNAME)
@@ -71,7 +72,7 @@ class FallbackFromReadOnlyTest {
 
         // 2. Restart the server WITH encryption enabled and migrate the repo.
         dogma = new CentralDogmaBuilder(dataDir)
-                .port(0, com.linecorp.armeria.common.SessionProtocol.HTTP)
+                .port(0, SessionProtocol.HTTP)
                 .webAppEnabled(false)
                 .gracefulShutdownTimeout(new GracefulShutdownTimeout(0, 0))
                 .encryption(new EncryptionConfig(true, false, "kekId"))

@@ -468,7 +468,7 @@ public class RepositoryServiceV1 extends AbstractService {
 
         final Revision normalizeNow = repository.normalizeNow(Revision.HEAD);
         if (normalizeNow.major() > 2000) {
-            // Prohibit migration to an encrypted repository if the repository has more than 1000 revisions.
+            // Prohibit migration to an encrypted repository if the repository has more than 2000 revisions.
             // After we implement the repository history rollover feature,
             // the repository can be migrated to an encrypted repository.
             throw new IllegalArgumentException(

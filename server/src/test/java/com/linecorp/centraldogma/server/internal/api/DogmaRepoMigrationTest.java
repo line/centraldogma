@@ -75,7 +75,7 @@ class DogmaRepoMigrationTest {
         // Migrate the dogma/dogma repository via the API.
         // This should succeed without setting the repository to read-only.
         final AggregatedHttpResponse response = postApi(dogma.httpClient(),
-                                                         DOGMA_PROJECT, DOGMA_REPO, "/migrate/encrypted");
+                                                        DOGMA_PROJECT, DOGMA_REPO, "/migrate/encrypted");
         assertThat(response.status()).isEqualTo(HttpStatus.OK);
 
         // Verify that the dogma repo is now encrypted.
@@ -86,7 +86,7 @@ class DogmaRepoMigrationTest {
 
     @Test
     @Order(2)
-    void fallbackDogmaRepoFromReadOnlyState() {
+    void fallbackDogmaRepo() {
         // After the migration test, the dogma repo is encrypted.
         assertThat(dogma.projectManager().get(DOGMA_PROJECT).repos().get(DOGMA_REPO).isEncrypted()).isTrue();
 
@@ -105,8 +105,8 @@ class DogmaRepoMigrationTest {
     void migrateNonDogmaRepoInDogmaProjectShouldFail() {
         // The meta repository is no longer created, so attempting to migrate it should return 404.
         final AggregatedHttpResponse response = postApi(dogma.httpClient(),
-                                                         DOGMA_PROJECT, Project.REPO_META,
-                                                         "/migrate/encrypted");
+                                                        DOGMA_PROJECT, Project.REPO_META,
+                                                        "/migrate/encrypted");
         assertThat(response.status()).isEqualTo(HttpStatus.NOT_FOUND);
     }
 
