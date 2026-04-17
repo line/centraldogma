@@ -18,8 +18,6 @@ package com.linecorp.centraldogma.server.storage.repository;
 
 import java.util.function.BiConsumer;
 
-import org.jspecify.annotations.Nullable;
-
 import com.linecorp.centraldogma.server.storage.StorageManager;
 import com.linecorp.centraldogma.server.storage.project.Project;
 
