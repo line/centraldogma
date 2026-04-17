@@ -167,7 +167,7 @@ public final class InternalProjectInitializer {
 
         // These repositories might be created when creating an internal project, but we try to create them
         // again here in order to make sure them exist because sometimes their names are changed.
-        initializeInternalRepos(projectName, Project.internalRepos(), creationTimeMillis);
+        initializeInternalRepos(projectName, ImmutableList.of(Project.REPO_DOGMA), creationTimeMillis);
     }
 
     private void initializeAppIdentityRegistry() {
