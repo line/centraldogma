@@ -20,7 +20,10 @@ import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUti
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.getAccessToken;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import org.junit.jupiter.api.MethodOrderer;
+import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
 import com.linecorp.armeria.client.WebClient;
@@ -38,7 +41,11 @@ import com.linecorp.centraldogma.server.storage.repository.Repository;
 import com.linecorp.centraldogma.testing.internal.auth.TestAuthProviderFactory;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
+@TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class DogmaRepoMigrationTest {
+
+    private static final String DOGMA_PROJECT = InternalProjectInitializer.INTERNAL_PROJECT_DOGMA;
+    private static final String DOGMA_REPO = Project.REPO_DOGMA;
 
     @RegisterExtension
     static final CentralDogmaExtension dogma = new CentralDogmaExtension() {
@@ -58,42 +65,56 @@ class DogmaRepoMigrationTest {
     };
 
     @Test
+    @Order(1)
     void migrateDogmaProjectDogmaRepository() {
-        final String projectName = InternalProjectInitializer.INTERNAL_PROJECT_DOGMA;
-        final String repoName = Project.REPO_DOGMA;
-
         // The dogma repo should not be encrypted initially.
         final Repository dogmaRepo =
-                dogma.projectManager().get(projectName).repos().get(repoName);
+                dogma.projectManager().get(DOGMA_PROJECT).repos().get(DOGMA_REPO);
         assertThat(dogmaRepo.isEncrypted()).isFalse();
 
         // Migrate the dogma/dogma repository via the API.
         // This should succeed without setting the repository to read-only.
-        final AggregatedHttpResponse response = migrateRepository(dogma.httpClient(),
-                                                                   projectName, repoName);
+        final AggregatedHttpResponse response = postApi(dogma.httpClient(),
+                                                         DOGMA_PROJECT, DOGMA_REPO, "/migrate/encrypted");
         assertThat(response.status()).isEqualTo(HttpStatus.OK);
 
         // Verify that the dogma repo is now encrypted.
         final Repository encryptedDogmaRepo =
-                dogma.projectManager().get(projectName).repos().get(repoName);
+                dogma.projectManager().get(DOGMA_PROJECT).repos().get(DOGMA_REPO);
         assertThat(encryptedDogmaRepo.isEncrypted()).isTrue();
     }
 
     @Test
-    void migrateNonDogmaRepoInDogmaProjectShouldFail() {
-        final String projectName = InternalProjectInitializer.INTERNAL_PROJECT_DOGMA;
+    @Order(2)
+    void fallbackDogmaRepoFromReadOnlyState() {
+        // After the migration test, the dogma repo is encrypted.
+        assertThat(dogma.projectManager().get(DOGMA_PROJECT).repos().get(DOGMA_REPO).isEncrypted()).isTrue();
 
+        // Fallback should succeed without changing the status because
+        // the dogma project does not have project metadata.
+        final AggregatedHttpResponse response = postApi(dogma.httpClient(),
+                                                        DOGMA_PROJECT, DOGMA_REPO, "/migrate/file");
+        assertThat(response.status()).isEqualTo(HttpStatus.OK);
+
+        final Repository fallbackRepo =
+                dogma.projectManager().get(DOGMA_PROJECT).repos().get(DOGMA_REPO);
+        assertThat(fallbackRepo.isEncrypted()).isFalse();
+    }
+
+    @Test
+    void migrateNonDogmaRepoInDogmaProjectShouldFail() {
         // The meta repository is no longer created, so attempting to migrate it should return 404.
-        final AggregatedHttpResponse response = migrateRepository(dogma.httpClient(),
-                                                                  projectName, Project.REPO_META);
+        final AggregatedHttpResponse response = postApi(dogma.httpClient(),
+                                                         DOGMA_PROJECT, Project.REPO_META,
+                                                         "/migrate/encrypted");
         assertThat(response.status()).isEqualTo(HttpStatus.NOT_FOUND);
     }
 
-    private static AggregatedHttpResponse migrateRepository(WebClient client,
-                                                             String projectName, String repoName) {
+    private static AggregatedHttpResponse postApi(WebClient client,
+                                                   String projectName, String repoName, String action) {
         final RequestHeaders headers = RequestHeaders.of(
                 HttpMethod.POST,
-                "/api/v1/projects/" + projectName + "/repos/" + repoName + "/migrate/encrypted",
+                "/api/v1/projects/" + projectName + "/repos/" + repoName + action,
                 HttpHeaderNames.CONTENT_TYPE, MediaType.JSON);
         return client.execute(headers).aggregate().join();
     }
