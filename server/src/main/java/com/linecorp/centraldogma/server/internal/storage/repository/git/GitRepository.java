@@ -172,6 +172,10 @@ class GitRepository implements Repository {
     private final CompletableFuture<Void> closeFuture = new CompletableFuture<>();
     private final List<RepositoryListener> listeners = new CopyOnWriteArrayList<>();
 
+    List<RepositoryListener> listeners() {
+        return listeners;
+    }
+
     /**
      * The current head revision. Initialized by the constructor and updated by commit().
      */

@@ -111,6 +111,7 @@ public class DefaultProject implements Project {
                 author = Author.ofEmail(creation.user());
                 attachMetadataListener();
                 metaRepo = new DefaultMetaRepository(repos.get(REPO_DOGMA));
+                registerMigrationCallback();
             } else {
                 creationTimeMillis = repos.get(REPO_DOGMA).creationTimeMillis();
                 author = repos.get(REPO_DOGMA).author();
@@ -150,6 +151,7 @@ public class DefaultProject implements Project {
                 initializeMetadata(creationTimeMillis, author);
                 attachMetadataListener();
                 metaRepo = new DefaultMetaRepository(repos.get(REPO_DOGMA));
+                registerMigrationCallback();
             }
             this.creationTimeMillis = creationTimeMillis;
             this.author = author;
@@ -170,6 +172,14 @@ public class DefaultProject implements Project {
                 new GitRepositoryManager(this, rootDir, repositoryWorker, purgeWorker, cache,
                                          encryptionStorageManager);
         return cache == null ? gitRepos : new CachingRepositoryManager(gitRepos, cache);
+    }
+
+    private void registerMigrationCallback() {
+        repos.setPostMigrationCallback((repoName, newRepo) -> {
+            if (REPO_DOGMA.equals(repoName)) {
+                metaRepo = new DefaultMetaRepository(newRepo);
+            }
+        });
     }
 
     private void createReservedRepos(long creationTimeMillis, boolean encryptDogmaRepo) {

@@ -26,6 +26,9 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -49,6 +52,7 @@ import com.linecorp.centraldogma.server.storage.encryption.EncryptionStorageMana
 import com.linecorp.centraldogma.server.storage.encryption.WrappedDekDetails;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
+import com.linecorp.centraldogma.server.storage.repository.RepositoryListener;
 
 class FallbackToFileRepositoryTest {
 
@@ -291,6 +295,80 @@ class FallbackToFileRepositoryTest {
         assertThat(history).hasSize(2);
         assertThat(history.get(0).summary()).isEqualTo("Add tokens");
         assertThat(history.get(1).summary()).isEqualTo("Add credentials");
+    }
+
+    @Test
+    void migrateTransfersListeners() throws Exception {
+        final Repository fileRepo = gitRepositoryManager.create(REPO_NAME, 0, Author.SYSTEM, false);
+        final BlockingQueue<String> updates = new LinkedBlockingQueue<>();
+        fileRepo.addListener(RepositoryListener.of("/foo.json",
+                                                   entries -> updates.add("updated")));
+
+        // Commit before migration to verify listener works.
+        fileRepo.commit(Revision.INIT, 0, Author.SYSTEM, "Add foo",
+                        ImmutableList.of(Change.ofJsonUpsert("/foo.json", "{\"a\":\"b\"}"))).join();
+        assertThat(updates.poll(5, TimeUnit.SECONDS)).isEqualTo("updated");
+
+        // Migrate to encrypted.
+        storeWdekAndMigrate(REPO_NAME);
+        final Repository encryptedRepo = gitRepositoryManager.get(REPO_NAME);
+        assertThat(encryptedRepo.isEncrypted()).isTrue();
+
+        // Commit after migration and verify the listener still receives updates.
+        encryptedRepo.commit(encryptedRepo.normalizeNow(Revision.HEAD), 0, Author.SYSTEM, "Update foo",
+                             ImmutableList.of(Change.ofJsonUpsert("/foo.json", "{\"a\":\"c\"}"))).join();
+        assertThat(updates.poll(5, TimeUnit.SECONDS)).isEqualTo("updated");
+    }
+
+    @Test
+    void fallbackTransfersListeners() throws Exception {
+        final Repository fileRepo = gitRepositoryManager.create(REPO_NAME, 0, Author.SYSTEM, false);
+        storeWdekAndMigrate(REPO_NAME);
+
+        final Repository encryptedRepo = gitRepositoryManager.get(REPO_NAME);
+        final BlockingQueue<String> updates = new LinkedBlockingQueue<>();
+        encryptedRepo.addListener(RepositoryListener.of("/bar.json",
+                                                        entries -> updates.add("updated")));
+
+        encryptedRepo.commit(encryptedRepo.normalizeNow(Revision.HEAD), 0, Author.SYSTEM, "Add bar",
+                             ImmutableList.of(Change.ofJsonUpsert("/bar.json", "{\"x\":1}"))).join();
+        assertThat(updates.poll(5, TimeUnit.SECONDS)).isEqualTo("updated");
+
+        // Fallback to file-based.
+        gitRepositoryManager.fallbackToFileRepository(REPO_NAME);
+        final Repository restoredRepo = gitRepositoryManager.get(REPO_NAME);
+        assertThat(restoredRepo.isEncrypted()).isFalse();
+
+        // Commit after fallback and verify the listener still receives updates.
+        restoredRepo.commit(restoredRepo.normalizeNow(Revision.HEAD), 0, Author.SYSTEM, "Update bar",
+                            ImmutableList.of(Change.ofJsonUpsert("/bar.json", "{\"x\":2}"))).join();
+        assertThat(updates.poll(5, TimeUnit.SECONDS)).isEqualTo("updated");
+    }
+
+    @Test
+    void migrateInvokesPostMigrationCallback() {
+        final Repository fileRepo = gitRepositoryManager.create(REPO_NAME, 0, Author.SYSTEM, false);
+        final BlockingQueue<String> callbackResults = new LinkedBlockingQueue<>();
+        gitRepositoryManager.setPostMigrationCallback((repoName, newRepo) -> {
+            callbackResults.add(repoName + ":" + newRepo.isEncrypted());
+        });
+
+        storeWdekAndMigrate(REPO_NAME);
+        assertThat(callbackResults.poll()).isEqualTo(REPO_NAME + ":true");
+    }
+
+    @Test
+    void fallbackInvokesPostMigrationCallback() {
+        gitRepositoryManager.create(REPO_NAME, 0, Author.SYSTEM, false);
+        storeWdekAndMigrate(REPO_NAME);
+
+        final BlockingQueue<String> callbackResults = new LinkedBlockingQueue<>();
+        gitRepositoryManager.setPostMigrationCallback((repoName, newRepo) -> {
+            callbackResults.add(repoName + ":" + newRepo.isEncrypted());
+        });
+
+        gitRepositoryManager.fallbackToFileRepository(REPO_NAME);
+        assertThat(callbackResults.poll()).isEqualTo(REPO_NAME + ":false");
     }
 
     private void storeWdekAndMigrate(String repoName) {

@@ -26,8 +26,11 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
+
+import org.jspecify.annotations.Nullable;
 
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.CentralDogmaException;
@@ -41,6 +44,8 @@ public class RepositoryManagerWrapper implements RepositoryManager {
     private final RepositoryManager delegate;
     private final Function<Repository, Repository> repoWrapper;
     private final ConcurrentMap<String, Repository> repos = new ConcurrentHashMap<>();
+    @Nullable
+    private volatile BiConsumer<String, Repository> postMigrationCallback;
 
     public RepositoryManagerWrapper(RepositoryManager repoManager,
                                     Function<Repository, Repository> repoWrapper) {
@@ -53,6 +58,11 @@ public class RepositoryManagerWrapper implements RepositoryManager {
     }
 
     @Override
+    public void setPostMigrationCallback(BiConsumer<String, Repository> callback) {
+        postMigrationCallback = callback;
+    }
+
+    @Override
     public Project parent() {
         return delegate.parent();
     }
@@ -61,12 +71,20 @@ public class RepositoryManagerWrapper implements RepositoryManager {
     public void migrateToEncryptedRepository(String repositoryName) {
         delegate.migrateToEncryptedRepository(repositoryName);
         repos.replace(repositoryName, repoWrapper.apply(delegate.get(repositoryName)));
+        final BiConsumer<String, Repository> callback = postMigrationCallback;
+        if (callback != null) {
+            callback.accept(repositoryName, repos.get(repositoryName));
+        }
     }
 
     @Override
     public void fallbackToFileRepository(String repositoryName) {
         delegate.fallbackToFileRepository(repositoryName);
         repos.replace(repositoryName, repoWrapper.apply(delegate.get(repositoryName)));
+        final BiConsumer<String, Repository> callback = postMigrationCallback;
+        if (callback != null) {
+            callback.accept(repositoryName, repos.get(repositoryName));
+        }
     }
 
     @Override
