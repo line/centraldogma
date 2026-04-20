@@ -333,17 +333,28 @@ public class RepositoryServiceV1 extends AbstractService {
         validateFallbackPrerequisites(ctx, project, repository);
         ctx.setRequestTimeoutMillis(Long.MAX_VALUE); // Disable the request timeout for migration.
 
+        final boolean isDogmaProject =
+                InternalProjectInitializer.INTERNAL_PROJECT_DOGMA.equals(project.name());
+        if (isDogmaProject) {
+            return fallback(author, project, repository, true).toCompletableFuture();
+        }
+
+        final RepositoryStatus currentStatus = repositoryStatus(repository);
+        if (currentStatus == RepositoryStatus.READ_ONLY) {
+            // Already read-only, skip the redundant status change.
+            return fallback(author, project, repository, false).toCompletableFuture();
+        }
         return setRepositoryStatus(author, project, repository.name(), RepositoryStatus.READ_ONLY)
-                .thenCompose(unused -> fallback(author, project, repository));
+                .thenCompose(unused -> fallback(author, project, repository, false));
     }
 
     private static void validateFallbackPrerequisites(ServiceRequestContext ctx, Project project,
                                                       Repository repository) {
-        if (InternalProjectInitializer.INTERNAL_PROJECT_DOGMA.equals(project.name()) ||
-            project.name().startsWith("@") || Project.REPO_DOGMA.equals(repository.name())) {
+        if (InternalProjectInitializer.INTERNAL_PROJECT_DOGMA.equals(project.name()) &&
+            !Project.REPO_DOGMA.equals(repository.name())) {
             throw new IllegalArgumentException(
-                    "Cannot fallback the internal project or repository to a file-based repository. project: " +
-                    project.name() + ", repository: " + repository.name());
+                    "Only the dogma repository can be fallen back in the dogma project." +
+                    " repository: " + repository.name());
         }
 
         if (!repository.isEncrypted()) {
@@ -352,17 +363,12 @@ public class RepositoryServiceV1 extends AbstractService {
                     " project: " + project.name() + ", repository: " + repository.name());
         }
 
-        final RepositoryStatus currentStatus = repositoryStatus(repository);
-        if (currentStatus == RepositoryStatus.READ_ONLY) {
-            HttpApiUtil.throwResponse(
-                    ctx, HttpStatus.CONFLICT,
-                    "Cannot fallback a read-only repository to a file-based repository. " +
-                    "Please change the status to ACTIVE first.");
-        }
+        // Allow fallback even when the repository is in read-only mode.
     }
 
     private CompletionStage<RepositoryDto> fallback(Author author, Project project,
-                                                    Repository repository) {
+                                                    Repository repository,
+                                                    boolean skipStatusChange) {
         final String projectName = project.name();
         final String repoName = repository.name();
         logger.info("Starting repository fallback to file-based: project={}, repository={}",
@@ -376,12 +382,24 @@ public class RepositoryServiceV1 extends AbstractService {
                              if (cause != null) {
                                  logger.warn("failed to fallback repository to a file-based repository: " +
                                              "project={}, repository={}", projectName, repoName, cause);
+                                 if (skipStatusChange) {
+                                     return CompletableFuture.<RepositoryDto>completedFuture(null)
+                                             .thenApply(unused1 ->
+                                                                Exceptions.<RepositoryDto>throwUnsafely(cause));
+                                 }
                                  return setRepositoryStatus(author, project, repository.name(),
                                                             RepositoryStatus.ACTIVE)
-                                         .thenApply(unused1 -> (RepositoryDto) Exceptions.throwUnsafely(cause));
+                                         .thenApply(unused1 ->
+                                                            Exceptions.<RepositoryDto>throwUnsafely(cause));
                              }
                              logger.info("Successfully fallback repository to a file-based repository: " +
                                          "project={}, repository={}", projectName, repoName);
+                             if (skipStatusChange) {
+                                 final Repository updatedRepository =
+                                         project.repos().get(repository.name());
+                                 return CompletableFuture.completedFuture(
+                                         newRepositoryDto(updatedRepository, RepositoryStatus.ACTIVE));
+                             }
                              return setRepositoryStatus(author, project, repository.name(),
                                                         RepositoryStatus.ACTIVE)
                                      .thenApply(unused1 -> {
@@ -407,16 +425,25 @@ public class RepositoryServiceV1 extends AbstractService {
         validateMigrationPrerequisites(ctx, project, repository);
         ctx.setRequestTimeoutMillis(Long.MAX_VALUE); // Disable the request timeout for migration.
 
+        final boolean isDogmaProject =
+                InternalProjectInitializer.INTERNAL_PROJECT_DOGMA.equals(project.name());
+
         return encryptionStorageManager
                 .generateWdek()
-                .thenCompose(wdek -> setRepositoryStatus(author, project, repository.name(),
-                                                         RepositoryStatus.READ_ONLY)
-                        .thenCompose(unused -> {
-                            final WrappedDekDetails wdekDetails = new WrappedDekDetails(
-                                    wdek, 1, encryptionStorageManager.kekId(),
-                                    project.name(), repository.name());
-                            return migrate(author, project, repository, wdekDetails);
-                        }));
+                .thenCompose(wdek -> {
+                    final WrappedDekDetails wdekDetails = new WrappedDekDetails(
+                            wdek, 1, encryptionStorageManager.kekId(),
+                            project.name(), repository.name());
+                    if (isDogmaProject) {
+                        // The dogma project does not have project metadata, so the repository
+                        // status cannot be changed. Migrate directly without changing the status.
+                        return migrate(author, project, repository, wdekDetails, true);
+                    }
+                    return setRepositoryStatus(author, project, repository.name(),
+                                               RepositoryStatus.READ_ONLY)
+                            .thenCompose(unused -> migrate(author, project, repository,
+                                                           wdekDetails, false));
+                });
     }
 
     private void validateMigrationPrerequisites(ServiceRequestContext ctx, Project project,
@@ -426,14 +453,13 @@ public class RepositoryServiceV1 extends AbstractService {
                     "Encryption is not enabled in the server. Cannot migrate to an encrypted repository.");
         }
 
-        // TODO(minwoox): Dogma project will be migrated one day later by a plugin.
-        if (InternalProjectInitializer.INTERNAL_PROJECT_DOGMA.equals(project.name())) {
+        if (InternalProjectInitializer.INTERNAL_PROJECT_DOGMA.equals(project.name()) &&
+            !Project.REPO_DOGMA.equals(repository.name())) {
             throw new IllegalArgumentException(
-                    "Cannot migrate the internal project to an encrypted repository. project: " +
-                    project.name());
+                    "Only the dogma repository can be migrated in the dogma project." +
+                    " repository: " + repository.name());
         }
 
-        final RepositoryStatus currentStatus = repositoryStatus(repository);
         if (repository.isEncrypted()) {
             throw new IllegalArgumentException(
                     "The repository is already encrypted. Cannot migrate to an encrypted repository again." +
@@ -441,19 +467,23 @@ public class RepositoryServiceV1 extends AbstractService {
         }
 
         final Revision normalizeNow = repository.normalizeNow(Revision.HEAD);
-        if (normalizeNow.major() > 1000) {
-            // Prohibit migration to an encrypted repository if the repository has more than 1000 revisions.
+        if (normalizeNow.major() > 2000) {
+            // Prohibit migration to an encrypted repository if the repository has more than 2000 revisions.
             // After we implement the repository history rollover feature,
             // the repository can be migrated to an encrypted repository.
             throw new IllegalArgumentException(
                     "Cannot migrate a repository with more than 1000 revisions to an encrypted repository.");
         }
 
-        if (currentStatus == RepositoryStatus.READ_ONLY) {
-            HttpApiUtil.throwResponse(
-                    ctx, HttpStatus.CONFLICT,
-                    "Cannot migrate a read-only repository to an encrypted repository. " +
-                    "Please change the status to ACTIVE first.");
+        // The dogma project does not have project metadata, so skip the status check.
+        if (!InternalProjectInitializer.INTERNAL_PROJECT_DOGMA.equals(project.name())) {
+            final RepositoryStatus currentStatus = repositoryStatus(repository);
+            if (currentStatus == RepositoryStatus.READ_ONLY) {
+                HttpApiUtil.throwResponse(
+                        ctx, HttpStatus.CONFLICT,
+                        "Cannot migrate a read-only repository to an encrypted repository. " +
+                        "Please change the status to ACTIVE first.");
+            }
         }
     }
 
@@ -477,7 +507,9 @@ public class RepositoryServiceV1 extends AbstractService {
     }
 
     private CompletionStage<RepositoryDto> migrate(Author author, Project project,
-                                                   Repository repository, WrappedDekDetails wdekDetails) {
+                                                   Repository repository,
+                                                   WrappedDekDetails wdekDetails,
+                                                   boolean skipStatusChange) {
         final String projectName = project.name();
         final String repoName = repository.name();
         logger.info("Starting repository encryption migration: project={}, repository={}",
@@ -491,12 +523,24 @@ public class RepositoryServiceV1 extends AbstractService {
                              if (cause != null) {
                                  logger.warn("failed to migrate repository to an encrypted repository: " +
                                              "project={}, repository={}", projectName, repoName, cause);
+                                 if (skipStatusChange) {
+                                     return CompletableFuture.<RepositoryDto>completedFuture(null)
+                                             .thenApply(unused1 ->
+                                                                Exceptions.<RepositoryDto>throwUnsafely(cause));
+                                 }
                                  return setRepositoryStatus(author, project, repository.name(),
                                                             RepositoryStatus.ACTIVE)
-                                         .thenApply(unused1 -> (RepositoryDto) Exceptions.throwUnsafely(cause));
+                                         .thenApply(unused1 ->
+                                                            Exceptions.<RepositoryDto>throwUnsafely(cause));
                              }
                              logger.info("Successfully migrated repository to an encrypted repository: " +
                                          "project={}, repository={}", projectName, repoName);
+                             if (skipStatusChange) {
+                                 final Repository updatedRepository =
+                                         project.repos().get(repository.name());
+                                 return CompletableFuture.completedFuture(
+                                         newRepositoryDto(updatedRepository, RepositoryStatus.ACTIVE));
+                             }
                              return setRepositoryStatus(author, project, repository.name(),
                                                         RepositoryStatus.ACTIVE)
                                      .thenApply(unused1 -> {
