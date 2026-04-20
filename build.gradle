@@ -116,7 +116,7 @@ configure(projectsWithFlags('java')) {
     // Add common JVM options such as max memory and leak detection.
     tasks.withType(JavaForkOptions) {
         // Use larger heap when test coverage is enabled.
-        maxHeapSize = hasFlags('coverage') ? '512m' : '384m'
+        maxHeapSize = hasFlags('coverage') ? '768m' : '512m'
 
         // Enable leak detection when '-Pleak' option is specified.
         if (project.hasProperty('leak')) {
