@@ -388,6 +388,26 @@ class GitRepositoryTest {
     }
 
     @Test
+    void testRenameTextFileToJsonFile() {
+        testRenameTextFileToJsonFile(fileRepo);
+        testRenameTextFileToJsonFile(encryptedRepo);
+    }
+
+    private void testRenameTextFileToJsonFile(GitRepository repo) {
+        // Create a text file with content that is not valid JSON.
+        final String textPath = prefix + "file.txt";
+        final String jsonPath = prefix + "file.json";
+        repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY,
+                    Change.ofTextUpsert(textPath, "not a valid JSON")).join();
+
+        // Rename the text file to a JSON file.
+        assertThatThrownBy(() -> repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY,
+                                             Change.ofRename(textPath, jsonPath)).join())
+                .isInstanceOf(CompletionException.class)
+                .hasCauseInstanceOf(ChangeConflictException.class);
+    }
+
+    @Test
     void testRecursiveRename() {
         testRecursiveRename(fileRepo);
         testRecursiveRename(encryptedRepo);
