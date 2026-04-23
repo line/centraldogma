@@ -2,6 +2,14 @@ import { render } from '@testing-library/react';
 import { RepoDto } from 'dogma/features/repo/RepoDto';
 import RepoList, { RepoListProps } from 'dogma/features/repo/RepoList';
 
+jest.mock('next/router', () => ({
+  useRouter: () => ({
+    query: {},
+    pathname: '/app/projects/[projectName]',
+    push: jest.fn(),
+  }),
+}));
+
 describe('RepoList', () => {
   let expectedProps: JSX.IntrinsicAttributes & RepoListProps<object>;
 

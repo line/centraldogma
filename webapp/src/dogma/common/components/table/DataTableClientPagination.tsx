@@ -6,13 +6,15 @@ import {
   getFilteredRowModel,
   getPaginationRowModel,
   getSortedRowModel,
+  PaginationState,
   SortingState,
   useReactTable,
 } from '@tanstack/react-table';
 import { DataTable } from 'dogma/common/components/table/DataTable';
 import { Filter } from 'dogma/common/components/table/Filter';
 import { PaginationBar } from 'dogma/common/components/table/PaginationBar';
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { useRouter } from 'next/router';
 
 export type DataTableClientPaginationProps<Data extends object> = {
   data: Data[];
@@ -23,8 +25,50 @@ export const DataTableClientPagination = <Data extends object>({
   data,
   columns,
 }: DataTableClientPaginationProps<Data>) => {
+  const router = useRouter();
+  const queryPage = Number(router.query?.page);
+  const queryPageSize = Number(router.query?.pageSize);
+  const initialPageIndex = queryPage > 0 ? queryPage - 1 : 0;
+  const initialPageSize = queryPageSize > 0 ? queryPageSize : 10;
+
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
+  const [pagination, setPaginationState] = useState<PaginationState>({
+    pageIndex: initialPageIndex,
+    pageSize: initialPageSize,
+  });
+
+  const setPagination = useCallback(
+    (updater: PaginationState | ((old: PaginationState) => PaginationState)) => {
+      setPaginationState((old) => {
+        const newState = typeof updater === 'function' ? updater(old) : updater;
+        const query = { ...router.query };
+        if (newState.pageIndex === 0) {
+          delete query.page;
+        } else {
+          query.page = String(newState.pageIndex + 1);
+        }
+        if (newState.pageSize === 10) {
+          delete query.pageSize;
+        } else {
+          query.pageSize = String(newState.pageSize);
+        }
+        router.push({ pathname: router.pathname, query }, undefined, { shallow: true });
+        return newState;
+      });
+    },
+    [router],
+  );
+
+  useEffect(() => {
+    const page = Number(router.query?.page);
+    const pageSize = Number(router.query?.pageSize);
+    setPaginationState({
+      pageIndex: page > 0 ? page - 1 : 0,
+      pageSize: pageSize > 0 ? pageSize : 10,
+    });
+  }, [router.query?.page, router.query?.pageSize]);
+
   const table = useReactTable({
     columns: columns || [],
     data: data || [],
@@ -34,11 +78,13 @@ export const DataTableClientPagination = <Data extends object>({
     onColumnFiltersChange: setColumnFilters,
     getFilteredRowModel: getFilteredRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
+    onPaginationChange: setPagination,
     manualPagination: false,
     autoResetPageIndex: false,
     state: {
       sorting,
       columnFilters,
+      pagination,
     },
   });
 
