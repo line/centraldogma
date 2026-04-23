@@ -78,7 +78,7 @@ const FileEditor = ({
     setTabIndex(index);
   };
   let displayContent = originalContent;
-  if (path.endsWith('.json') && originalContent.indexOf('\n') === -1) {
+  if (path.endsWith('.json') && originalContent.trim().indexOf('\n') === -1) {
     // Pretty print JSON content if it's a single line which is hard to read.
     // If the file is not created from a raw JSON, the server will normalize it and write a compact JSON.
     displayContent = JSON.stringify(JSON.parse(originalContent), null, 2);
