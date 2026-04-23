@@ -12,9 +12,21 @@ import {
 } from '@tanstack/react-table';
 import { DataTable } from 'dogma/common/components/table/DataTable';
 import { Filter } from 'dogma/common/components/table/Filter';
-import { PaginationBar } from 'dogma/common/components/table/PaginationBar';
+import { PAGE_SIZES, PaginationBar } from 'dogma/common/components/table/PaginationBar';
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
+
+const VALID_PAGE_SIZES: Set<number> = new Set(PAGE_SIZES);
+
+function parsePageIndex(value: string | string[] | undefined): number {
+  const n = Number(value);
+  return Number.isInteger(n) && n > 0 ? n - 1 : 0;
+}
+
+function parsePageSize(value: string | string[] | undefined): number {
+  const n = Number(value);
+  return VALID_PAGE_SIZES.has(n) ? n : 10;
+}
 
 export type DataTableClientPaginationProps<Data extends object> = {
   data: Data[];
@@ -58,11 +70,9 @@ export const DataTableClientPagination = <Data extends object>({
     if (!router.isReady) {
       return;
     }
-    const page = Number(router.query?.page);
-    const pageSize = Number(router.query?.pageSize);
     setPaginationState({
-      pageIndex: page > 0 ? page - 1 : 0,
-      pageSize: pageSize > 0 ? pageSize : 10,
+      pageIndex: parsePageIndex(router.query?.page),
+      pageSize: parsePageSize(router.query?.pageSize),
     });
   }, [router.isReady, router.query?.page, router.query?.pageSize]);
 
