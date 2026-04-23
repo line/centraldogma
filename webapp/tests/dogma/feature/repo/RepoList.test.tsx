@@ -4,6 +4,7 @@ import RepoList, { RepoListProps } from 'dogma/features/repo/RepoList';
 
 jest.mock('next/router', () => ({
   useRouter: () => ({
+    isReady: true,
     query: {},
     pathname: '/app/projects/[projectName]',
     push: jest.fn(),

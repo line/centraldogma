@@ -6,6 +6,7 @@ import '@testing-library/jest-dom';
 
 jest.mock('next/router', () => ({
   useRouter: () => ({
+    isReady: true,
     query: {},
     pathname: '/app/projects/[projectName]/settings',
     push: jest.fn(),

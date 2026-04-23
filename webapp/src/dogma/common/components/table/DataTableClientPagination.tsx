@@ -26,48 +26,45 @@ export const DataTableClientPagination = <Data extends object>({
   columns,
 }: DataTableClientPaginationProps<Data>) => {
   const router = useRouter();
-  const queryPage = Number(router.query?.page);
-  const queryPageSize = Number(router.query?.pageSize);
-  const initialPageIndex = queryPage > 0 ? queryPage - 1 : 0;
-  const initialPageSize = queryPageSize > 0 ? queryPageSize : 10;
 
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [pagination, setPaginationState] = useState<PaginationState>({
-    pageIndex: initialPageIndex,
-    pageSize: initialPageSize,
+    pageIndex: 0,
+    pageSize: 10,
   });
 
   const setPagination = useCallback(
     (updater: PaginationState | ((old: PaginationState) => PaginationState)) => {
-      setPaginationState((old) => {
-        const newState = typeof updater === 'function' ? updater(old) : updater;
-        const query = { ...router.query };
-        if (newState.pageIndex === 0) {
-          delete query.page;
-        } else {
-          query.page = String(newState.pageIndex + 1);
-        }
-        if (newState.pageSize === 10) {
-          delete query.pageSize;
-        } else {
-          query.pageSize = String(newState.pageSize);
-        }
-        router.push({ pathname: router.pathname, query }, undefined, { shallow: true });
-        return newState;
-      });
+      const newState = typeof updater === 'function' ? updater(pagination) : updater;
+      setPaginationState(newState);
+      const query = { ...router.query };
+      if (newState.pageIndex === 0) {
+        delete query.page;
+      } else {
+        query.page = String(newState.pageIndex + 1);
+      }
+      if (newState.pageSize === 10) {
+        delete query.pageSize;
+      } else {
+        query.pageSize = String(newState.pageSize);
+      }
+      router.push({ pathname: router.pathname, query }, undefined, { shallow: true });
     },
-    [router],
+    [pagination, router],
   );
 
   useEffect(() => {
+    if (!router.isReady) {
+      return;
+    }
     const page = Number(router.query?.page);
     const pageSize = Number(router.query?.pageSize);
     setPaginationState({
       pageIndex: page > 0 ? page - 1 : 0,
       pageSize: pageSize > 0 ? pageSize : 10,
     });
-  }, [router.query?.page, router.query?.pageSize]);
+  }, [router.isReady, router.query?.page, router.query?.pageSize]);
 
   const table = useReactTable({
     columns: columns || [],
@@ -87,6 +84,10 @@ export const DataTableClientPagination = <Data extends object>({
       pagination,
     },
   });
+
+  if (!router.isReady) {
+    return null;
+  }
 
   return (
     <>
