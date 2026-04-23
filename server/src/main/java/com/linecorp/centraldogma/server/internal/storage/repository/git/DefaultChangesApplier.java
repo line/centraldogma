@@ -44,6 +44,7 @@ import com.google.common.base.MoreObjects;
 
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.ChangeConflictException;
+import com.linecorp.centraldogma.common.EntryType;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.TextPatchConflictException;
 import com.linecorp.centraldogma.common.jsonpatch.JsonPatchConflictException;
@@ -172,6 +173,11 @@ final class DefaultChangesApplier extends AbstractChangesApplier {
                             break;
                         }
 
+                        // Validate that the old content is compatible with the new path's entry type.
+                        if (oldContent != null) {
+                            validateRenameContent(changePath, newPath, oldContent);
+                        }
+
                         final DirCacheEditor editor = dirCache.editor();
                         editor.add(new DeletePath(changePath));
                         editor.add(new CopyOldEntry(newPath, oldEntry));
@@ -276,6 +282,24 @@ final class DefaultChangesApplier extends AbstractChangesApplier {
             }
         }
         return numEdits;
+    }
+
+    private static void validateRenameContent(String oldPath, String newPath, byte[] content) {
+        final EntryType oldEntryType = EntryType.guessFromPath(oldPath);
+        final EntryType newEntryType = EntryType.guessFromPath(newPath);
+        if (oldEntryType == newEntryType) {
+            return;
+        }
+
+        if (newEntryType == EntryType.JSON || newEntryType == EntryType.YAML) {
+            try {
+                Jackson.readTree(newPath, content);
+            } catch (JsonProcessingException e) {
+                throw new ChangeConflictException(
+                        "rename would produce an invalid " + newEntryType + " file: /" + oldPath +
+                        " -> /" + newPath, e);
+            }
+        }
     }
 
     private static JsonNode toJsonNode(String path, byte @Nullable [] content) throws JsonProcessingException {
