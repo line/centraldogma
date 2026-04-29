@@ -23,7 +23,13 @@ public final class MirrorSchemes {
     /**
      * {@code "dogma"}.
      */
+    //todo(minwoox): Should we rename this to dogma+http?
     public static final String SCHEME_DOGMA = "dogma";
+
+    /**
+     * {@code "dogma+https"}.
+     */
+    public static final String SCHEME_DOGMA_HTTPS = "dogma+https";
 
     /**
      * {@code "git"}.

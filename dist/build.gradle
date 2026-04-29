@@ -24,6 +24,7 @@ dependencies {
     implementation project(':server')
     implementation project(':server-auth:saml')
     implementation project(':server-auth:shiro')
+    implementation project(':server-mirror-dogma')
     implementation project(':server-mirror-git')
     implementation project(':xds')
     // Add the optionalImplementation in the server module to copy the JAR into the distribution directory.

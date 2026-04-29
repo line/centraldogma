@@ -1,7 +1,9 @@
 dependencies {
     testImplementation project(':server-auth:shiro')
+    testImplementation project(':server-mirror-dogma')
     testImplementation project(':server-mirror-git')
 
+    testImplementation libs.armeria.junit5
     testImplementation libs.jgit6
     testImplementation libs.jgit.ssh.jsch6
     testImplementation libs.jsch
