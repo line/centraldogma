@@ -19,10 +19,8 @@ package com.linecorp.centraldogma.server.internal.mirror;
 import static com.linecorp.centraldogma.server.mirror.MirrorSchemes.SCHEME_DOGMA_HTTPS;
 import static com.linecorp.centraldogma.server.storage.repository.FindOptions.FIND_ALL_WITHOUT_CONTENT;
 import static com.linecorp.centraldogma.server.storage.repository.FindOptions.FIND_ALL_WITH_CONTENT;
-import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.requireNonNull;
 
-import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.net.URI;
 import java.net.UnknownHostException;
@@ -40,9 +38,6 @@ import com.cronutils.model.Cron;
 import com.cronutils.utils.VisibleForTesting;
 import com.fasterxml.jackson.core.TreeNode;
 
-import com.linecorp.armeria.client.ClientFactory;
-import com.linecorp.armeria.common.TlsKeyPair;
-import com.linecorp.armeria.common.TlsProvider;
 import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.client.CentralDogmaRepository;
@@ -62,7 +57,6 @@ import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.credential.Credential;
 import com.linecorp.centraldogma.server.internal.credential.AccessTokenCredential;
-import com.linecorp.centraldogma.server.internal.credential.SshKeyCredential;
 import com.linecorp.centraldogma.server.mirror.MirrorDirection;
 import com.linecorp.centraldogma.server.mirror.MirrorResult;
 import com.linecorp.centraldogma.server.mirror.MirrorStatus;
@@ -98,7 +92,7 @@ public final class CentralDogmaMirror extends AbstractMirror {
         return remoteRepo;
     }
 
-    private RemoteClient createRemoteClient() throws UnknownHostException {
+    private CentralDogma createRemoteClient() throws UnknownHostException {
         final URI uri = remoteUri().uri();
         final ArmeriaCentralDogmaBuilder builder = new ArmeriaCentralDogmaBuilder();
         final int port = uri.getPort();
@@ -110,25 +104,12 @@ public final class CentralDogmaMirror extends AbstractMirror {
         if (SCHEME_DOGMA_HTTPS.equals(uri.getScheme())) {
             builder.useTls(true);
         }
-        ClientFactory clientFactory = null;
         final Credential cred = credential();
         if (cred instanceof AccessTokenCredential) {
             builder.accessToken(((AccessTokenCredential) cred).accessToken());
-        } else if (cred instanceof SshKeyCredential) {
-            clientFactory = createMtlsClientFactory((SshKeyCredential) cred);
-            builder.clientFactory(clientFactory);
         }
-        return new RemoteClient(builder.build(), clientFactory);
-    }
-
-    private static ClientFactory createMtlsClientFactory(SshKeyCredential cred) {
-        final TlsKeyPair tlsKeyPair = TlsKeyPair.of(
-                new ByteArrayInputStream(cred.rawPrivateKey().getBytes(UTF_8)),
-                cred.passphrase(),
-                new ByteArrayInputStream(cred.publicKey().getBytes(UTF_8)));
-        return ClientFactory.builder()
-                            .tlsProvider(TlsProvider.of(tlsKeyPair))
-                            .build();
+        // Support mTLS authentication as well.
+        return builder.build();
     }
 
     @Override
@@ -136,8 +117,8 @@ public final class CentralDogmaMirror extends AbstractMirror {
                                                Instant triggeredTime) throws Exception {
         final Revision localHead = localRepo().normalizeNow(Revision.HEAD);
 
-        try (RemoteClient remote = createRemoteClient()) {
-            final CentralDogmaRepository repo = remote.client().forRepo(remoteProject, remoteRepo);
+        try (CentralDogma remote = createRemoteClient()) {
+            final CentralDogmaRepository repo = remote.forRepo(remoteProject, remoteRepo);
             // Get remote HEAD revision.
             final Revision remoteHead = repo.normalize(Revision.HEAD).join();
 
@@ -267,8 +248,8 @@ public final class CentralDogmaMirror extends AbstractMirror {
         final Revision localRev = localRepo().normalizeNow(Revision.HEAD);
         final String mirrorStatePath = localPath() + MIRROR_STATE_FILE_NAME;
 
-        try (RemoteClient remote = createRemoteClient()) {
-            final CentralDogmaRepository repo = remote.client().forRepo(remoteProject, remoteRepo);
+        try (CentralDogma remote = createRemoteClient()) {
+            final CentralDogmaRepository repo = remote.forRepo(remoteProject, remoteRepo);
             // Get remote HEAD revision.
             final Revision remoteHead = repo.normalize(Revision.HEAD).join();
 
@@ -546,28 +527,5 @@ public final class CentralDogmaMirror extends AbstractMirror {
             }
         }
         return false;
-    }
-
-    private static final class RemoteClient implements AutoCloseable {
-        private final CentralDogma client;
-        @Nullable
-        private final ClientFactory clientFactory;
-
-        RemoteClient(CentralDogma client, @Nullable ClientFactory clientFactory) {
-            this.client = client;
-            this.clientFactory = clientFactory;
-        }
-
-        CentralDogma client() {
-            return client;
-        }
-
-        @Override
-        public void close() throws Exception {
-            client.close();
-            if (clientFactory != null) {
-                clientFactory.close();
-            }
-        }
     }
 }
