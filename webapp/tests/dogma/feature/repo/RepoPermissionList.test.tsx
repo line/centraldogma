@@ -4,6 +4,15 @@ import RepoRoleList, { RepoRoleListProps } from 'dogma/features/repo/RepoRoleLis
 import { RepositoryMetadataDto } from 'dogma/features/repo/RepositoriesMetadataDto';
 import '@testing-library/jest-dom';
 
+jest.mock('next/router', () => ({
+  useRouter: () => ({
+    isReady: true,
+    query: {},
+    pathname: '/app/projects/[projectName]/settings',
+    push: jest.fn(),
+  }),
+}));
+
 describe('RepoRoleList', () => {
   let expectedProps: JSX.IntrinsicAttributes & RepoRoleListProps<object>;
 

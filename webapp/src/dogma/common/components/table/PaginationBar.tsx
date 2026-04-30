@@ -2,6 +2,8 @@ import { Flex, IconButton, Input, Select, Spacer, Text } from '@chakra-ui/react'
 import { Table as ReactTable } from '@tanstack/react-table';
 import { MdNavigateBefore, MdNavigateNext, MdSkipNext, MdSkipPrevious } from 'react-icons/md';
 
+export const PAGE_SIZES = [10, 20, 30, 40, 50, 100, 200, 400] as const;
+
 type PaginationBarProps<Data extends object> = {
   table: ReactTable<Data>;
   disableGotoButton?: boolean;
@@ -59,7 +61,7 @@ export const PaginationBar = <Data extends object>({ table, disableGotoButton }:
             }}
             width="auto"
           >
-            {[10, 20, 30, 40, 50, 100, 200, 400].map((pageSize) => (
+            {PAGE_SIZES.map((pageSize) => (
               <option key={pageSize} value={pageSize}>
                 Show {pageSize}
               </option>

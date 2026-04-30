@@ -10,7 +10,7 @@ jest.mock('dogma/features/api/apiSlice', () => ({
 }));
 
 jest.mock('next/router', () => ({
-  useRouter: () => ({ asPath: '/app/settings/app-identities' }),
+  useRouter: () => ({ asPath: '/app/settings/app-identities', isReady: true, query: {} }),
 }));
 
 const mockIdentities: AppIdentityDto[] = [
