@@ -444,18 +444,24 @@ public final class CentralDogmaMirror extends AbstractMirror {
     @Nullable
     private static MirrorState loadRemoteMirrorState(CentralDogmaRepository repo, String mirrorStatePath,
                                                      Revision remoteHead) {
+        final Entry<?> entry;
         try {
-            final Entry<?> entry = repo.file(mirrorStatePath).get(remoteHead).join();
+            entry = repo.file(mirrorStatePath).get(remoteHead).join();
             if (entry.type() != EntryType.JSON) {
                 return null;
             }
-            return Jackson.treeToValue((TreeNode) entry.content(), MirrorState.class);
-        } catch (Throwable t) {
-            final Throwable peeled = Exceptions.peel(t);
+        } catch (Exception e) {
+            final Throwable peeled = Exceptions.peel(e);
             if (peeled instanceof EntryNotFoundException) {
                 return null;
             }
             return Exceptions.throwUnsafely(peeled);
+        }
+        try {
+            return Jackson.treeToValue((TreeNode) entry.content(), MirrorState.class);
+        } catch (Exception e) {
+            logger.warn("Failed to load mirror state from remote: {}", mirrorStatePath, e);
+            return null;
         }
     }
 
