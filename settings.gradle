@@ -46,6 +46,7 @@ includeWithFlags ':it:mirror-listener',                     'java', 'relocate'
 includeWithFlags ':it:server-healthy-plugin',               'java', 'relocate'
 includeWithFlags ':it:zone-leader-plugin',                  'java', 'relocate'
 includeWithFlags ':it:xds-member-permission',               'java', 'relocate'
+includeWithFlags ':it:xds-k8s-node-ip-extractor',           'java', 'relocate'
 includeWithFlags ':testing-internal',                       'java', 'relocate'
 
 // Unpublished projects
