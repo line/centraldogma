@@ -43,6 +43,7 @@ import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.client.CentralDogmaRepository;
 import com.linecorp.centraldogma.client.armeria.ArmeriaCentralDogmaBuilder;
 import com.linecorp.centraldogma.common.Change;
+import com.linecorp.centraldogma.common.ChangeType;
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.EntryNotFoundException;
 import com.linecorp.centraldogma.common.EntryType;
@@ -216,7 +217,8 @@ public final class CentralDogmaMirror extends AbstractMirror {
             changes.add(Change.ofJsonUpsert(mirrorStatePath,
                                             Jackson.valueToTree(newMirrorState)));
 
-            if (decision == MirrorDecision.COMPARE_AND_RUN && !hasRealChanges(changes)) {
+            if (decision == MirrorDecision.COMPARE_AND_RUN &&
+                !hasLocalToRemoteChanges(changes, remoteEntries)) {
                 final String description = String.format(
                         "The remote repository '%s' already at %s. Local repository: '%s/%s'",
                         remoteUri(), localHead, localRepo().parent().name(), localRepo().name());
@@ -328,7 +330,7 @@ public final class CentralDogmaMirror extends AbstractMirror {
                     localRepo().find(localRev, localPath() + "**", findOptions).join();
 
             if (decision == MirrorDecision.COMPARE_AND_RUN) {
-                if (!hasChanges(changes, oldEntries)) {
+                if (!hasRemoteToLocalChanges(changes, oldEntries)) {
                     final String description = String.format(
                             "Repository '%s/%s' already at %s, %s",
                             localRepo().parent().name(), localRepo().name(),
@@ -479,17 +481,33 @@ public final class CentralDogmaMirror extends AbstractMirror {
                 ") contains more than " + limit + ' ' + filesOrBytes);
     }
 
-    private static boolean hasRealChanges(List<Change<?>> changes) {
+    private static boolean hasLocalToRemoteChanges(List<Change<?>> changes,
+                                                   Map<String, Entry<?>> remoteEntries) {
         for (Change<?> change : changes) {
-            if (!change.path().endsWith(LOCAL_TO_REMOTE_MIRROR_STATE_FILE_NAME)) {
+            final String path = change.path();
+            if (path.endsWith(LOCAL_TO_REMOTE_MIRROR_STATE_FILE_NAME)) {
+                continue;
+            }
+            // A removal is always a real change.
+            if (change.type() == ChangeType.REMOVE) {
+                return true;
+            }
+            final Entry<?> remoteEntry = remoteEntries.get(path);
+            if (remoteEntry == null) {
+                // New file added.
+                return true;
+            }
+            final String newContent = change.contentAsText();
+            final String oldContent = remoteEntry.contentAsText();
+            if (newContent != null && !newContent.equals(oldContent)) {
                 return true;
             }
         }
         return false;
     }
 
-    private static boolean hasChanges(Map<String, Change<?>> newChanges,
-                                      Map<String, Entry<?>> oldEntries) {
+    private static boolean hasRemoteToLocalChanges(Map<String, Change<?>> newChanges,
+                                                   Map<String, Entry<?>> oldEntries) {
         for (Change<?> change : newChanges.values()) {
             final String path = change.path();
             if (path.endsWith(MIRROR_STATE_FILE_NAME)) {
