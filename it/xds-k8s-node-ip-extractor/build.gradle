@@ -1,0 +1,11 @@
+// Need a dedicated module for testing the KubernetesNodeIpExtractor SPI loaded by XdsKubernetesService.
+
+dependencies {
+    testImplementation project(':server')
+    testImplementation project(':xds')
+    testImplementation libs.armeria.junit5
+    testImplementation libs.kubernetes.client.api
+    testImplementation libs.kubernetes.client.impl
+    testImplementation libs.kubernetes.server.mock
+    testImplementation libs.kubernetes.junit.jupiter
+}

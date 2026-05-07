@@ -26,6 +26,7 @@ import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.removePr
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.ServiceLoader;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -33,9 +34,11 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.collect.ImmutableList;
 import com.google.protobuf.Empty;
 
 import com.linecorp.armeria.client.Endpoint;
@@ -63,6 +66,27 @@ import io.grpc.stub.StreamObserver;
 public final class XdsKubernetesService extends XdsKubernetesServiceImplBase {
 
     private static final Logger logger = LoggerFactory.getLogger(XdsKubernetesService.class);
+
+    @Nullable
+    private static final KubernetesNodeIpExtractor nodeIpExtractor;
+
+    static {
+        final List<KubernetesNodeIpExtractor> extractors =
+                ImmutableList.copyOf(ServiceLoader.load(KubernetesNodeIpExtractor.class,
+                                                        XdsKubernetesService.class.getClassLoader()));
+        if (!extractors.isEmpty()) {
+            final KubernetesNodeIpExtractor extractor = extractors.get(0);
+            if (extractors.size() > 1) {
+                logger.warn("Found {} {}s. The first Node IP extractor found will be using among {}",
+                            extractors.size(), KubernetesNodeIpExtractor.class.getSimpleName(), extractors);
+            } else {
+                logger.info("Using {} as a {}", extractor, KubernetesNodeIpExtractor.class.getSimpleName());
+            }
+            nodeIpExtractor = extractor;
+        } else {
+            nodeIpExtractor = null;
+        }
+    }
 
     static final String K8S_ENDPOINT_AGGREGATORS_DIRECTORY = "/k8s/endpointAggregators/";
     public static final Pattern AGGREGATORS_REPLCACE_PATTERN =
@@ -215,6 +239,10 @@ public final class XdsKubernetesService extends XdsKubernetesServiceImplBase {
                     }
                     if (!isNullOrEmpty(watcher.getPortName())) {
                         kubernetesEndpointGroupBuilder.portName(watcher.getPortName());
+                    }
+                    if (nodeIpExtractor != null) {
+                        kubernetesEndpointGroupBuilder.nodeIpExtractor(
+                                node -> nodeIpExtractor.extract(watcher, node));
                     }
                     return kubernetesEndpointGroupBuilder.build();
                 });
