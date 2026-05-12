@@ -221,9 +221,6 @@ task docker(group: 'Build',
                 '--push',
                 "--tag", "${imageName}:${imageVersion}"
         ])
-        if (!(project.version =~ /-SNAPSHOT$/)) {
-            buildArgs.addAll(["--tag", "${imageName}:latest"])
-        }
     }
 
     buildArgs.add('.')
