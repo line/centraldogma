@@ -93,7 +93,7 @@ public final class CentralDogmaMirror extends AbstractMirror {
         return remoteRepo;
     }
 
-    private CentralDogma createRemoteClient() throws UnknownHostException {
+    private CentralDogma createRemoteClient(long maxNumBytes) throws UnknownHostException {
         final URI uri = remoteUri().uri();
         final ArmeriaCentralDogmaBuilder builder = new ArmeriaCentralDogmaBuilder();
         final int port = uri.getPort();
@@ -109,7 +109,9 @@ public final class CentralDogmaMirror extends AbstractMirror {
         if (cred instanceof AccessTokenCredential) {
             builder.accessToken(((AccessTokenCredential) cred).accessToken());
         }
-        // Support mTLS authentication as well.
+        // TODO(minwoox) Support mTLS authentication as well.
+
+        builder.clientConfigurator(cb -> cb.maxResponseLength(maxNumBytes));
         return builder.build();
     }
 
@@ -118,7 +120,7 @@ public final class CentralDogmaMirror extends AbstractMirror {
                                                Instant triggeredTime) throws Exception {
         final Revision localHead = localRepo().normalizeNow(Revision.HEAD);
 
-        try (CentralDogma remote = createRemoteClient()) {
+        try (CentralDogma remote = createRemoteClient(maxNumBytes)) {
             final CentralDogmaRepository repo = remote.forRepo(remoteProject, remoteRepo);
             // Get remote HEAD revision.
             final Revision remoteHead = repo.normalize(Revision.HEAD).join();
@@ -240,6 +242,14 @@ public final class CentralDogmaMirror extends AbstractMirror {
                 }
                 return Exceptions.throwUnsafely(peeled);
             }
+        } catch (Throwable t) {
+            final Throwable peeled = Exceptions.peel(t);
+            if (peeled instanceof MirrorException) {
+                return Exceptions.throwUnsafely(peeled);
+            }
+            throw new MirrorException("unexpected exception while mirror local to remote repository. " +
+                                      "local: " + localRepo().parent().name() + '/' + localRepo().name() +
+                                      ", remote: " + remoteProject + '/' + remoteRepo, t);
         }
     }
 
@@ -250,7 +260,7 @@ public final class CentralDogmaMirror extends AbstractMirror {
         final Revision localRev = localRepo().normalizeNow(Revision.HEAD);
         final String mirrorStatePath = localPath() + MIRROR_STATE_FILE_NAME;
 
-        try (CentralDogma remote = createRemoteClient()) {
+        try (CentralDogma remote = createRemoteClient(maxNumBytes)) {
             final CentralDogmaRepository repo = remote.forRepo(remoteProject, remoteRepo);
             // Get remote HEAD revision.
             final Revision remoteHead = repo.normalize(Revision.HEAD).join();
@@ -363,6 +373,14 @@ public final class CentralDogmaMirror extends AbstractMirror {
                 }
                 return Exceptions.throwUnsafely(peeled);
             }
+        } catch (Throwable t) {
+            final Throwable peeled = Exceptions.peel(t);
+            if (peeled instanceof MirrorException) {
+                return Exceptions.throwUnsafely(peeled);
+            }
+            throw new MirrorException("unexpected exception while mirror remote to local repository. " +
+                                      "local: " + localRepo().parent().name() + '/' + localRepo().name() +
+                                      ", remote: " + remoteProject + '/' + remoteRepo, t);
         }
     }
 
