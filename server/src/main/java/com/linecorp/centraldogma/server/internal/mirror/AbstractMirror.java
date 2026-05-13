@@ -54,6 +54,15 @@ public abstract class AbstractMirror implements Mirror {
 
     protected static final Author MIRROR_AUTHOR = new Author("Mirror", "mirror@localhost.localdomain");
 
+    protected static final String MIRROR_STATE_FILE_NAME = "mirror_state.json";
+    protected static final String LOCAL_TO_REMOTE_MIRROR_STATE_FILE_NAME = '.' + MIRROR_STATE_FILE_NAME;
+
+    protected enum MirrorDecision {
+        RUN,
+        SKIP,
+        COMPARE_AND_RUN
+    }
+
     private final String id;
     private final boolean enabled;
     private final MirrorDirection direction;

@@ -15,16 +15,16 @@
  *
  */
 
-package com.linecorp.centraldogma.server.internal.storage.repository;
+package com.linecorp.centraldogma.server.internal.mirror;
 
 import static com.linecorp.centraldogma.server.mirror.MirrorSchemes.SCHEME_DOGMA;
+import static com.linecorp.centraldogma.server.mirror.MirrorSchemes.SCHEME_DOGMA_HTTPS;
 import static java.util.Objects.requireNonNull;
 
 import java.net.URI;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import com.linecorp.centraldogma.server.internal.mirror.CentralDogmaMirror;
 import com.linecorp.centraldogma.server.mirror.Mirror;
 import com.linecorp.centraldogma.server.mirror.MirrorContext;
 import com.linecorp.centraldogma.server.mirror.MirrorProvider;
@@ -44,17 +44,16 @@ public final class CentralDogmaMirrorProvider implements MirrorProvider {
             return null;
         }
 
-        if (!SCHEME_DOGMA.equals(scheme)) {
+        if (!SCHEME_DOGMA.equals(scheme) && !SCHEME_DOGMA_HTTPS.equals(scheme)) {
             return null;
         }
         final RepositoryUri repositoryUri = RepositoryUri.parse(remoteUri, "dogma");
         final Matcher pathMatcher = DOGMA_PATH_PATTERN.matcher(repositoryUri.uri().getPath());
         if (!pathMatcher.find()) {
-            // TODO(ikhoon): Should we use the same resource URI format with Git?
-            //               e.g. dogma://<host>[:<port>].dogma/<project>/<repository>[/<remotePath>]
             throw new IllegalArgumentException(
                     "cannot determine project name and repository name: " + remoteUri +
-                    " (expected: dogma://<host>[:<port>]/<project>/<repository>.dogma[<remotePath>])");
+                    " (expected: dogma://<host>[:<port>]/<project>/<repository>.dogma[<remotePath>] or " +
+                    "dogma+https://<host>[:<port>]/<project>/<repository>.dogma[<remotePath>])");
         }
 
         final String remoteProject = pathMatcher.group(1);

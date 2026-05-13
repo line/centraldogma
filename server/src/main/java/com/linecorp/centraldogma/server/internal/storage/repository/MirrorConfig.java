@@ -19,6 +19,7 @@ package com.linecorp.centraldogma.server.internal.storage.repository;
 
 import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.linecorp.centraldogma.server.mirror.MirrorSchemes.SCHEME_DOGMA;
+import static com.linecorp.centraldogma.server.mirror.MirrorSchemes.SCHEME_DOGMA_HTTPS;
 import static java.util.Objects.requireNonNull;
 
 import java.net.URI;
@@ -96,7 +97,9 @@ public final class MirrorConfig {
         this.remoteUri = requireNonNull(remoteUri, "remoteUri");
 
         // Validate the remote URI.
-        final String suffix = remoteUri.getScheme().equals(SCHEME_DOGMA) ? "dogma" : "git";
+        final String scheme = remoteUri.getScheme();
+        final String suffix = SCHEME_DOGMA.equals(scheme) || SCHEME_DOGMA_HTTPS.equals(scheme) ? "dogma"
+                                                                                               : "git";
         RepositoryUri.parse(remoteUri, suffix);
 
         if (gitignore != null) {
