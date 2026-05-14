@@ -16,23 +16,35 @@
 
 package com.linecorp.centraldogma.server.internal.replication;
 
+import org.jspecify.annotations.Nullable;
+
 public class ReplicationException extends RuntimeException {
     private static final long serialVersionUID = -2762076998967744044L;
 
-    public ReplicationException(String message) {
+    @Nullable
+    private final ReplicationLogContext logContext;
+
+    ReplicationException(String message, ReplicationLogContext logContext) {
         super(message);
+        this.logContext = logContext;
     }
 
     public ReplicationException(Throwable cause) {
         super(cause);
+        logContext = null;
     }
 
     public ReplicationException(String message, Throwable cause) {
-        super(message, cause);
+        this(message, cause, null);
     }
 
-    protected ReplicationException(String message, Throwable cause, boolean enableSuppression,
-            boolean writableStackTrace) {
-        super(message, cause, enableSuppression, writableStackTrace);
+    ReplicationException(String message, Throwable cause, @Nullable ReplicationLogContext logContext) {
+        super(message, cause);
+        this.logContext = logContext;
+    }
+
+    @Nullable
+    ReplicationLogContext logContext() {
+        return logContext;
     }
 }

@@ -1,7 +1,7 @@
 /*
- * Copyright 2025 LINE Corporation
+ * Copyright 2026 LY Corporation
  *
- * LINE Corporation licenses this file to you under the Apache License,
+ * LY Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
  * with the License. You may obtain a copy of the License at:
  *
@@ -13,24 +13,14 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
-package com.linecorp.centraldogma.common;
 
-/**
- * The status of a repository.
- *
- * @deprecated Use {@link ReplicationStatus} instead.
- */
-// TODO(ikhoon): Remove this enum in the future.
-@Deprecated
-public enum RepositoryStatus {
+package com.linecorp.centraldogma.server.internal.replication;
 
-    /**
-     * The repository is active and writable.
-     */
-    ACTIVE,
+final class ScopedReadOnlyAppliedException extends RuntimeException {
 
-    /**
-     * The repository is in read-only mode and cannot be modified.
-     */
-    READ_ONLY
+    private static final long serialVersionUID = -8652319825149778572L;
+
+    ScopedReadOnlyAppliedException(ReplicationException cause) {
+        super(cause);
+    }
 }

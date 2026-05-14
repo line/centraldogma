@@ -28,12 +28,10 @@ import org.slf4j.LoggerFactory;
 
 import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.centraldogma.common.ReadOnlyException;
-import com.linecorp.centraldogma.common.RepositoryStatus;
 import com.linecorp.centraldogma.server.auth.Session;
 import com.linecorp.centraldogma.server.auth.SessionManager;
-import com.linecorp.centraldogma.server.management.ServerStatusManager;
-import com.linecorp.centraldogma.server.metadata.ProjectMetadata;
-import com.linecorp.centraldogma.server.metadata.RepositoryMetadata;
+import com.linecorp.centraldogma.server.internal.management.RepoStatusManager;
+import com.linecorp.centraldogma.server.internal.management.ServerStatusManager;
 import com.linecorp.centraldogma.server.storage.encryption.EncryptionStorageManager;
 import com.linecorp.centraldogma.server.storage.encryption.WrappedDekDetails;
 import com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer;
@@ -55,12 +53,15 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
     private final SessionManager sessionManager;
     private final EncryptionStorageManager encryptionStorageManager;
     private final ServerStatusManager serverStatusManager;
+    private final RepoStatusManager repoStatusManager;
 
     /**
      * Creates a new instance.
      *
      * @param projectManager the project manager for accessing the storage
      * @param repositoryWorker the executor which is used for performing storage operations
+     * @param serverStatusManager the server status manager for updating the server status
+     * @param repoStatusManager the repository status manager for updating the project and repository status
      * @param sessionManager the session manager for creating/removing a session
      * @param onTakeLeadership the callback to be invoked after the replica has taken the leadership
      * @param onReleaseLeadership the callback to be invoked before the replica releases the leadership
@@ -70,6 +71,7 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
     public StandaloneCommandExecutor(ProjectManager projectManager,
                                      Executor repositoryWorker,
                                      ServerStatusManager serverStatusManager,
+                                     RepoStatusManager repoStatusManager,
                                      @Nullable SessionManager sessionManager,
                                      EncryptionStorageManager encryptionStorageManager,
                                      @Nullable Consumer<CommandExecutor> onTakeLeadership,
@@ -80,6 +82,7 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
         this.projectManager = requireNonNull(projectManager, "projectManager");
         this.repositoryWorker = requireNonNull(repositoryWorker, "repositoryWorker");
         this.serverStatusManager = requireNonNull(serverStatusManager, "serverStatusManager");
+        this.repoStatusManager = requireNonNull(repoStatusManager, "repoStatusManager");
         this.sessionManager = sessionManager;
         this.encryptionStorageManager = requireNonNull(encryptionStorageManager, "encryptionStorageManager");
     }
@@ -132,16 +135,9 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
                 repoName = Project.REPO_DOGMA;
             }
 
-            final ProjectMetadata metadata = projectManager.get(repositoryCommand.projectName()).metadata();
-            assert metadata != null;
-            final RepositoryMetadata repositoryMetadata = metadata.repos().get(repoName);
-            if (repositoryMetadata == null) {
-                // The repository metadata is not found, so it is writable.
-                return;
-            }
-            if (repositoryMetadata.status() == RepositoryStatus.READ_ONLY) {
-                throw new ReadOnlyException(
-                        "The repository is in read-only. command: " + repositoryCommand);
+            final boolean writable = repoStatusManager.isWritable(repositoryCommand.projectName(), repoName);
+            if (!writable) {
+                throw new ReadOnlyException("The repository is in read-only. command: " + repositoryCommand);
             }
         }
     }
@@ -232,6 +228,14 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
 
         if (command instanceof UpdateServerStatusCommand) {
             return (CompletableFuture<T>) updateServerStatus((UpdateServerStatusCommand) command);
+        }
+
+        if (command instanceof UpdateProjectStatusCommand) {
+            return (CompletableFuture<T>) updateProjectStatus((UpdateProjectStatusCommand) command);
+        }
+
+        if (command instanceof UpdateRepositoryStatusCommand) {
+            return (CompletableFuture<T>) updateRepositoryStatus((UpdateRepositoryStatusCommand) command);
         }
 
         if (command instanceof ForcePushCommand) {
@@ -518,5 +522,13 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
             statusManager().updateStatus(c);
             return null;
         }, serverStatusManager.sequentialExecutor());
+    }
+
+    private CompletableFuture<Void> updateProjectStatus(UpdateProjectStatusCommand c) {
+        return repoStatusManager.updateProjectStatus(c.projectName(), c.author(), c.projectStatus());
+    }
+
+    private CompletableFuture<Void> updateRepositoryStatus(UpdateRepositoryStatusCommand c) {
+        return repoStatusManager.updateRepoStatus(c.projectName(), c.repoName(), c.author(), c.repoStatus());
     }
 }

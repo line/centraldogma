@@ -29,8 +29,8 @@ import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.internal.api.AbstractService;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresSystemAdministrator;
 import com.linecorp.centraldogma.server.internal.api.sysadmin.UpdateServerStatusRequest.Scope;
+import com.linecorp.centraldogma.server.internal.management.ServerStatusManager;
 import com.linecorp.centraldogma.server.management.ServerStatus;
-import com.linecorp.centraldogma.server.management.ServerStatusManager;
 
 @ProducesJson
 @RequiresSystemAdministrator

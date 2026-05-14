@@ -56,8 +56,9 @@ import com.linecorp.centraldogma.server.command.StandaloneCommandExecutor;
 import com.linecorp.centraldogma.server.internal.api.HttpApiExceptionHandler;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresProjectRoleDecorator.RequiresProjectRoleDecoratorFactory;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresRepositoryRoleDecorator.RequiresRepositoryRoleDecoratorFactory;
+import com.linecorp.centraldogma.server.internal.management.RepoStatusManager;
+import com.linecorp.centraldogma.server.internal.management.ServerStatusManager;
 import com.linecorp.centraldogma.server.internal.storage.project.DefaultProjectManager;
-import com.linecorp.centraldogma.server.management.ServerStatusManager;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
 import com.linecorp.centraldogma.server.metadata.ProjectRoles;
 import com.linecorp.centraldogma.server.storage.encryption.NoopEncryptionStorageManager;
@@ -90,8 +91,10 @@ class RequiresRoleTest {
                     MoreExecutors.directExecutor(), NoopMeterRegistry.get(), null,
                     NoopEncryptionStorageManager.INSTANCE);
             final ServerStatusManager statusManager = new ServerStatusManager(dataDir);
+            final RepoStatusManager repoStatusManager = new RepoStatusManager(statusManager, pm);
             final CommandExecutor executor = new StandaloneCommandExecutor(
-                    pm, ForkJoinPool.commonPool(), statusManager, null, NoopEncryptionStorageManager.INSTANCE,
+                    pm, ForkJoinPool.commonPool(), statusManager, repoStatusManager, null,
+                    NoopEncryptionStorageManager.INSTANCE,
                     null, null, null, null);
             executor.start().join();
             final InternalProjectInitializer projectInitializer = new InternalProjectInitializer(

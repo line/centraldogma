@@ -20,7 +20,6 @@ import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.linecorp.centraldogma.server.internal.api.DtoConverter.newRepositoryDto;
 import static com.linecorp.centraldogma.server.internal.api.HttpApiUtil.checkUnremoveArgument;
-import static com.linecorp.centraldogma.server.internal.api.HttpApiUtil.returnOrThrow;
 import static java.util.Objects.requireNonNull;
 
 import java.util.List;
@@ -40,6 +39,7 @@ import com.google.common.collect.ImmutableMap;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.logging.RequestOnlyLog;
 import com.linecorp.armeria.common.util.Exceptions;
+import com.linecorp.armeria.common.util.UnmodifiableFuture;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.annotation.Consumes;
 import com.linecorp.armeria.server.annotation.Delete;
@@ -53,8 +53,8 @@ import com.linecorp.armeria.server.annotation.ResponseConverter;
 import com.linecorp.armeria.server.annotation.StatusCode;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.ProjectRole;
+import com.linecorp.centraldogma.common.ReplicationStatus;
 import com.linecorp.centraldogma.common.RepositoryRole;
-import com.linecorp.centraldogma.common.RepositoryStatus;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.api.v1.CreateRepositoryRequest;
 import com.linecorp.centraldogma.internal.api.v1.RepositoryDto;
@@ -64,9 +64,9 @@ import com.linecorp.centraldogma.server.internal.api.auth.RequiresProjectRole;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresRepositoryRole;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresSystemAdministrator;
 import com.linecorp.centraldogma.server.internal.api.converter.CreateApiResponseConverter;
+import com.linecorp.centraldogma.server.internal.management.RepoStatusManager;
+import com.linecorp.centraldogma.server.internal.management.RepositoryState;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
-import com.linecorp.centraldogma.server.metadata.ProjectMetadata;
-import com.linecorp.centraldogma.server.metadata.RepositoryMetadata;
 import com.linecorp.centraldogma.server.metadata.User;
 import com.linecorp.centraldogma.server.storage.encryption.EncryptionStorageManager;
 import com.linecorp.centraldogma.server.storage.encryption.WrappedDekDetails;
@@ -86,10 +86,13 @@ public class RepositoryServiceV1 extends AbstractService {
 
     private final MetadataService mds;
     private final EncryptionStorageManager encryptionStorageManager;
+    private final RepoStatusManager repoStatusManager;
 
     public RepositoryServiceV1(CommandExecutor executor, MetadataService mds,
-                               EncryptionStorageManager encryptionStorageManager) {
+                               EncryptionStorageManager encryptionStorageManager,
+                               RepoStatusManager repoStatusManager) {
         super(executor);
+        this.repoStatusManager = repoStatusManager;
         this.mds = requireNonNull(mds, "mds");
         this.encryptionStorageManager = requireNonNull(encryptionStorageManager, "encryptionStorageManager");
     }
@@ -105,31 +108,27 @@ public class RepositoryServiceV1 extends AbstractService {
         if (status != null) {
             HttpApiUtil.checkStatusArgument(status);
         }
+        final boolean removedOnly = status != null;
 
-        if (InternalProjectInitializer.INTERNAL_PROJECT_DOGMA.equals(project.name())) {
-            if (user.isSystemAdmin()) {
-                if (status != null) {
-                    return CompletableFuture.completedFuture(removedRepositories(project));
-                }
-                return CompletableFuture.completedFuture(
-                        project.repos().list().values().stream()
-                               .map(repository -> newRepositoryDto(repository, RepositoryStatus.ACTIVE))
-                               .collect(toImmutableList()));
-            }
+        if (InternalProjectInitializer.INTERNAL_PROJECT_DOGMA.equals(project.name()) && !user.isSystemAdmin()) {
             return HttpApiUtil.throwResponse(
                     ctx, HttpStatus.FORBIDDEN,
                     "You must be a system administrator to retrieve repositories of the dogma project.");
         }
 
-        if (status == null) {
-            final Map<String, RepositoryMetadata> repos = projectMetadata(project).repos();
+        if (!removedOnly) {
+            final Map<String, RepositoryState> stateMap = repoStatusManager.getAllRepoStatus(project.name());
             return CompletableFuture.completedFuture(
                     project.repos().list().values().stream()
                            .filter(r -> user.isSystemAdmin() || !Project.isInternalRepo(r.name()))
-                           .map(repository -> newRepositoryDto(repository, repos))
+                           .map(repository -> {
+                               final RepositoryState repositoryState = stateMap.get(repository.name());
+                               return newRepositoryDto(repository, getReplicationStatus(repositoryState));
+                           })
                            .collect(toImmutableList()));
         }
 
+        // Return removed repositories only if the user has the owner role.
         return mds.findProjectRole(project.name(), user).handle((role, throwable) -> {
             final boolean hasOwnerRole = role == ProjectRole.OWNER;
             if (hasOwnerRole) {
@@ -142,32 +141,21 @@ public class RepositoryServiceV1 extends AbstractService {
         });
     }
 
-    private static ProjectMetadata projectMetadata(Project project) {
-        assert !InternalProjectInitializer.INTERNAL_PROJECT_DOGMA.equals(project.name());
-        final ProjectMetadata metadata = project.metadata();
-        assert metadata != null; // not null because the project is not dogma project.
-        return metadata;
+    private static ReplicationStatus getReplicationStatus(@Nullable RepositoryState repoState) {
+        // If the repository state is not found, assume the repository is writable.
+        return repoState != null ? repoState.status() : ReplicationStatus.WRITABLE;
     }
 
-    private static RepositoryStatus repositoryStatus(Repository repository) {
-        final Map<String, RepositoryMetadata> repos = projectMetadata(repository.parent()).repos();
-        final String repoName = normalizeRepositoryName(repository);
-
-        final RepositoryMetadata metadata = repos.get(repoName);
-        if (metadata == null) {
-            return RepositoryStatus.ACTIVE;
-        } else {
-            return metadata.status();
-        }
+    private ReplicationStatus getReplicationStatus(Repository repository) {
+        return getReplicationStatus(repository.parent().name(), repository.name());
     }
 
-    private static String normalizeRepositoryName(Repository repository) {
-        final String repoName = repository.name();
-        if (!Project.REPO_META.equals(repoName)) {
-            return repoName;
+    private ReplicationStatus getReplicationStatus(String projectName, String repoName) {
+        if (repoName.equals(Project.REPO_META)) {
+            repoName = Project.REPO_DOGMA;
         }
-        // Use dogma repository for the meta repository because the meta repository will be removed.
-        return Project.REPO_DOGMA;
+        final RepositoryState repoStatus = repoStatusManager.getRepoStatus(projectName, repoName);
+        return getReplicationStatus(repoStatus);
     }
 
     private static ImmutableList<RepositoryDto> removedRepositories(Project project) {
@@ -204,10 +192,10 @@ public class RepositoryServiceV1 extends AbstractService {
         final CompletableFuture<Revision> future =
                 RepositoryServiceUtil.createRepository(commandExecutor, mds, author, project.name(), repoName,
                                                        encrypt, encryptionStorageManager);
-        return future.handle(returnOrThrow(() -> {
+        return future.thenApply(unused -> {
             final Repository repository = project.repos().get(repoName);
-            return newRepositoryDto(repository, repositoryStatus(repository));
-        }));
+            return newRepositoryDto(repository, getReplicationStatus(repository));
+        });
     }
 
     /**
@@ -261,10 +249,10 @@ public class RepositoryServiceV1 extends AbstractService {
         checkUnremoveArgument(node);
         return execute(Command.unremoveRepository(author, project.name(), repoName))
                 .thenCompose(unused -> mds.restoreRepo(author, project.name(), repoName))
-                .handle(returnOrThrow(() -> {
+                .thenApply(unused -> {
                     final Repository repository = project.repos().get(repoName);
-                    return newRepositoryDto(repository, repositoryStatus(repository));
-                }));
+                    return newRepositoryDto(repository, getReplicationStatus(repository));
+                });
     }
 
     /**
@@ -291,7 +279,7 @@ public class RepositoryServiceV1 extends AbstractService {
     @RequiresRepositoryRole(RepositoryRole.ADMIN)
     public RepositoryDto status(Project project, Repository repository) {
         rejectIfDogmaProject(project);
-        return newRepositoryDto(repository, repositoryStatus(repository));
+        return newRepositoryDto(repository, getReplicationStatus(repository));
     }
 
     /**
@@ -307,16 +295,9 @@ public class RepositoryServiceV1 extends AbstractService {
                                                          Author author,
                                                          UpdateRepositoryStatusRequest statusRequest) {
         rejectIfDogmaProject(project);
-        final RepositoryStatus oldStatus = repositoryStatus(repository);
-        final RepositoryStatus newStatus = statusRequest.status();
-        if (oldStatus == newStatus) {
-            // No need to update the status, just return the current status.
-            return CompletableFuture.completedFuture(newRepositoryDto(repository, oldStatus));
-        }
-
-        return mds.updateRepositoryStatus(author, project.name(),
-                                          normalizeRepositoryName(repository), newStatus)
-                  .thenApply(unused -> newRepositoryDto(repository, newStatus));
+        final ReplicationStatus newStatus = statusRequest.status();
+        return updateRepositoryStatus(author, project, repository, newStatus)
+                .thenApply(state -> newRepositoryDto(repository, newStatus));
     }
 
     /**
@@ -339,17 +320,17 @@ public class RepositoryServiceV1 extends AbstractService {
             return fallback(author, project, repository, true).toCompletableFuture();
         }
 
-        final RepositoryStatus currentStatus = repositoryStatus(repository);
-        if (currentStatus == RepositoryStatus.READ_ONLY) {
+        final ReplicationStatus currentStatus = getReplicationStatus(repository);
+        if (currentStatus == ReplicationStatus.READ_ONLY) {
             // Already read-only, skip the redundant status change.
             return fallback(author, project, repository, false).toCompletableFuture();
         }
-        return setRepositoryStatus(author, project, repository.name(), RepositoryStatus.READ_ONLY)
+        return updateRepositoryStatus(author, project, repository, ReplicationStatus.READ_ONLY)
                 .thenCompose(unused -> fallback(author, project, repository, false));
     }
 
-    private static void validateFallbackPrerequisites(ServiceRequestContext ctx, Project project,
-                                                      Repository repository) {
+    private void validateFallbackPrerequisites(ServiceRequestContext ctx, Project project,
+                                               Repository repository) {
         if (InternalProjectInitializer.INTERNAL_PROJECT_DOGMA.equals(project.name()) &&
             !Project.REPO_DOGMA.equals(repository.name())) {
             throw new IllegalArgumentException(
@@ -383,12 +364,11 @@ public class RepositoryServiceV1 extends AbstractService {
                                  logger.warn("failed to fallback repository to a file-based repository: " +
                                              "project={}, repository={}", projectName, repoName, cause);
                                  if (skipStatusChange) {
-                                     return CompletableFuture.<RepositoryDto>completedFuture(null)
-                                             .thenApply(unused1 ->
-                                                                Exceptions.<RepositoryDto>throwUnsafely(cause));
+                                     return UnmodifiableFuture
+                                             .<RepositoryDto>exceptionallyCompletedFuture(cause);
                                  }
-                                 return setRepositoryStatus(author, project, repository.name(),
-                                                            RepositoryStatus.ACTIVE)
+                                 return updateRepositoryStatus(author, project, repository,
+                                                               ReplicationStatus.WRITABLE)
                                          .thenApply(unused1 ->
                                                             Exceptions.<RepositoryDto>throwUnsafely(cause));
                              }
@@ -397,16 +377,15 @@ public class RepositoryServiceV1 extends AbstractService {
                              if (skipStatusChange) {
                                  final Repository updatedRepository =
                                          project.repos().get(repository.name());
-                                 return CompletableFuture.completedFuture(
-                                         newRepositoryDto(updatedRepository, RepositoryStatus.ACTIVE));
+                                 return UnmodifiableFuture.completedFuture(
+                                         newRepositoryDto(updatedRepository, ReplicationStatus.WRITABLE));
                              }
-                             return setRepositoryStatus(author, project, repository.name(),
-                                                        RepositoryStatus.ACTIVE)
+                             return updateRepositoryStatus(author, project, repository,
+                                                           ReplicationStatus.WRITABLE)
                                      .thenApply(unused1 -> {
                                          final Repository updatedRepository =
                                                  project.repos().get(repository.name());
-                                         return newRepositoryDto(updatedRepository,
-                                                                 RepositoryStatus.ACTIVE);
+                                         return newRepositoryDto(updatedRepository, ReplicationStatus.WRITABLE);
                                      });
                          }).thenCompose(Function.identity());
     }
@@ -439,8 +418,8 @@ public class RepositoryServiceV1 extends AbstractService {
                         // status cannot be changed. Migrate directly without changing the status.
                         return migrate(author, project, repository, wdekDetails, true);
                     }
-                    return setRepositoryStatus(author, project, repository.name(),
-                                               RepositoryStatus.READ_ONLY)
+                    return updateRepositoryStatus(author, project, repository,
+                                                  ReplicationStatus.READ_ONLY)
                             .thenCompose(unused -> migrate(author, project, repository,
                                                            wdekDetails, false));
                 });
@@ -477,33 +456,24 @@ public class RepositoryServiceV1 extends AbstractService {
 
         // The dogma project does not have project metadata, so skip the status check.
         if (!InternalProjectInitializer.INTERNAL_PROJECT_DOGMA.equals(project.name())) {
-            final RepositoryStatus currentStatus = repositoryStatus(repository);
-            if (currentStatus == RepositoryStatus.READ_ONLY) {
+            final ReplicationStatus currentStatus = getReplicationStatus(repository);
+            if (currentStatus == ReplicationStatus.READ_ONLY) {
                 HttpApiUtil.throwResponse(
                         ctx, HttpStatus.CONFLICT,
                         "Cannot migrate a read-only repository to an encrypted repository. " +
-                        "Please change the status to ACTIVE first.");
+                        "Please change the status to WRITABLE first.");
             }
         }
     }
 
-    private CompletableFuture<Void> setRepositoryStatus(Author author, Project project, String repoName,
-                                                        RepositoryStatus status) {
+    private CompletableFuture<Void> updateRepositoryStatus(Author author, Project project,
+                                                           Repository repository, ReplicationStatus newStatus) {
         final String projectName = project.name();
         logger.info("Changing repository status: project={}, repository={}, status={}",
-                    projectName, repoName, status);
-        return mds.updateRepositoryStatus(author, projectName, repoName, status)
-                  .handle((unused, cause) -> {
-                      if (cause != null) {
-                          logger.warn("Failed to change the repository status: project={}, repository={}, " +
-                                      "status={}", projectName, repoName, status, cause);
-                          Exceptions.throwUnsafely(cause);
-                      } else {
-                          logger.info("Changed repository status: project={}, repository={}, status={}",
-                                      projectName, repoName, status);
-                      }
-                      return null;
-                  });
+                    projectName, repository.name(), newStatus);
+        final Command<Void> command = Command.updateRepositoryStatus(project.name(), repository.name(), author,
+                                                                     newStatus);
+        return executor().execute(command);
     }
 
     private CompletionStage<RepositoryDto> migrate(Author author, Project project,
@@ -518,38 +488,33 @@ public class RepositoryServiceV1 extends AbstractService {
         final Command<Void> command = Command.migrateToEncryptedRepository(
                 null, author, projectName, repoName, wdekDetails);
 
-        return executor().execute(command)
-                         .handle((unused, cause) -> {
-                             if (cause != null) {
-                                 logger.warn("failed to migrate repository to an encrypted repository: " +
-                                             "project={}, repository={}", projectName, repoName, cause);
-                                 if (skipStatusChange) {
-                                     return CompletableFuture.<RepositoryDto>completedFuture(null)
-                                             .thenApply(unused1 ->
-                                                                Exceptions.<RepositoryDto>throwUnsafely(cause));
-                                 }
-                                 return setRepositoryStatus(author, project, repository.name(),
-                                                            RepositoryStatus.ACTIVE)
-                                         .thenApply(unused1 ->
-                                                            Exceptions.<RepositoryDto>throwUnsafely(cause));
-                             }
-                             logger.info("Successfully migrated repository to an encrypted repository: " +
-                                         "project={}, repository={}", projectName, repoName);
-                             if (skipStatusChange) {
-                                 final Repository updatedRepository =
-                                         project.repos().get(repository.name());
-                                 return CompletableFuture.completedFuture(
-                                         newRepositoryDto(updatedRepository, RepositoryStatus.ACTIVE));
-                             }
-                             return setRepositoryStatus(author, project, repository.name(),
-                                                        RepositoryStatus.ACTIVE)
-                                     .thenApply(unused1 -> {
-                                         final Repository updatedRepository =
-                                                 project.repos().get(repository.name());
-                                         return newRepositoryDto(updatedRepository,
-                                                                 RepositoryStatus.ACTIVE);
-                                     });
-                         }).thenCompose(Function.identity());
+        return executor().execute(command).handle((unused, cause) -> {
+            if (cause != null) {
+                logger.warn("failed to migrate repository to an encrypted repository: " +
+                            "project={}, repository={}", projectName, repoName, cause);
+                if (skipStatusChange) {
+                    return UnmodifiableFuture.<RepositoryDto>exceptionallyCompletedFuture(cause);
+                }
+                return updateRepositoryStatus(author, project, repository, ReplicationStatus.WRITABLE)
+                        .thenApply(unused1 -> Exceptions.<RepositoryDto>throwUnsafely(cause));
+            }
+            logger.info("Successfully migrated repository to an encrypted repository: " +
+                        "project={}, repository={}", projectName, repoName);
+            if (skipStatusChange) {
+                final Repository updatedRepository =
+                        project.repos().get(repository.name());
+                return UnmodifiableFuture.completedFuture(
+                        newRepositoryDto(updatedRepository, ReplicationStatus.WRITABLE));
+            }
+            return updateRepositoryStatus(author, project, repository,
+                                          ReplicationStatus.WRITABLE)
+                    .thenApply(unused1 -> {
+                        final Repository updatedRepository =
+                                project.repos().get(repository.name());
+                        return newRepositoryDto(updatedRepository,
+                                                ReplicationStatus.WRITABLE);
+                    });
+        }).thenCompose(Function.identity());
     }
 
     static void increaseCounterIfOldRevisionUsed(ServiceRequestContext ctx, Repository repository,

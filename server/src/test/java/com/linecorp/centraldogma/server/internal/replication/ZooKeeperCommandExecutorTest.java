@@ -33,7 +33,6 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
@@ -103,10 +102,11 @@ class ZooKeeperCommandExecutorTest {
             final Command<Void> command1 = Command.createRepository(Author.SYSTEM, "project", "repo1");
             replica1.commandExecutor().execute(command1).join();
 
-            final Optional<ReplicationLog<?>> commandResult2 = replica1.commandExecutor().loadLog(0, false);
-            assertThat(commandResult2).isPresent();
-            assertThat(commandResult2.get().command()).isEqualTo(command1);
-            assertThat(commandResult2.get().result()).isNull();
+            final ReplicationLogContext logContext = replica1.commandExecutor().loadLog(0, false);
+            final ReplicationLog<?> commandResult2 = logContext.log();
+            assertThat(commandResult2).isNotNull();
+            assertThat(commandResult2.command()).isEqualTo(command1);
+            assertThat(commandResult2.result()).isNull();
 
             await().untilAsserted(() -> verify(replica1.delegate()).apply(eq(command1)));
             await().untilAsserted(() -> verify(replica2.delegate()).apply(eq(command1)));
@@ -228,7 +228,7 @@ class ZooKeeperCommandExecutorTest {
                 for (int i = 0; i < COMMANDS_PER_REPLICA * cluster.size(); i++) {
                     @SuppressWarnings("unchecked")
                     final ReplicationLog<Revision> log =
-                            (ReplicationLog<Revision>) r.commandExecutor().loadLog(i, false).get();
+                            (ReplicationLog<Revision>) r.commandExecutor().loadLog(i, false).log();
 
                     assertThat(log.result().major()).isEqualTo(i + 1);
                 }
@@ -270,10 +270,10 @@ class ZooKeeperCommandExecutorTest {
             final Command<Void> command1 = Command.createRepository(Author.SYSTEM, "project", "repo1");
             replica1.commandExecutor().execute(command1).join();
 
-            final Optional<ReplicationLog<?>> commandResult2 = replica1.commandExecutor().loadLog(0, false);
-            assertThat(commandResult2).isPresent();
-            assertThat(commandResult2.get().command()).isEqualTo(command1);
-            assertThat(commandResult2.get().result()).isNull();
+            final ReplicationLog<?> commandResult2 = replica1.commandExecutor().loadLog(0, false).log();
+            assertThat(commandResult2).isNotNull();
+            assertThat(commandResult2.command()).isEqualTo(command1);
+            assertThat(commandResult2.result()).isNull();
 
             withReplica(cluster, replica -> {
                 await().untilAsserted(() -> verify(replica.delegate()).apply(eq(command1)));
@@ -305,7 +305,7 @@ class ZooKeeperCommandExecutorTest {
             final Command<Void> command1 = Command.createRepository(Author.SYSTEM, "project", "repo1");
             replica1.commandExecutor().execute(command1).join();
 
-            final ReplicationLog<?> commandResult1 = replica1.commandExecutor().loadLog(0, false).get();
+            final ReplicationLog<?> commandResult1 = replica1.commandExecutor().loadLog(0, false).log();
             assertThat(commandResult1.command()).isEqualTo(command1);
             assertThat(commandResult1.result()).isNull();
 
@@ -323,7 +323,7 @@ class ZooKeeperCommandExecutorTest {
             cluster.get(4).commandExecutor().stop().join();
 
             final PushAsIsCommand asIsCommand = executeCommand(replica1, normalizingPushCommand);
-            final ReplicationLog<?> commandResult2 = replica1.commandExecutor().loadLog(1, false).get();
+            final ReplicationLog<?> commandResult2 = replica1.commandExecutor().loadLog(1, false).log();
             assertThat(commandResult2.command()).isEqualTo(asIsCommand);
             assertThat(commandResult2.result()).isInstanceOf(Revision.class);
 
@@ -411,7 +411,7 @@ class ZooKeeperCommandExecutorTest {
             final Command<Void> command1 = Command.createRepository(Author.SYSTEM, "project", "repo1");
             replica1.commandExecutor().execute(command1).join();
 
-            final ReplicationLog<?> commandResult1 = replica1.commandExecutor().loadLog(0, false).get();
+            final ReplicationLog<?> commandResult1 = replica1.commandExecutor().loadLog(0, false).log();
             assertThat(commandResult1.command()).isEqualTo(command1);
             assertThat(commandResult1.result()).isNull();
 
@@ -433,7 +433,7 @@ class ZooKeeperCommandExecutorTest {
             final Command<Void> command1 = Command.createRepository(Author.SYSTEM, "project", "repo1");
             replica1.commandExecutor().execute(command1).join();
 
-            final ReplicationLog<?> commandResult1 = replica1.commandExecutor().loadLog(0, false).get();
+            final ReplicationLog<?> commandResult1 = replica1.commandExecutor().loadLog(0, false).log();
             assertThat(commandResult1.command()).isEqualTo(command1);
             assertThat(commandResult1.result()).isNull();
 
@@ -542,7 +542,7 @@ class ZooKeeperCommandExecutorTest {
             final Command<Void> command1 = Command.createRepository(Author.SYSTEM, "project", "repo1");
             replica1.commandExecutor().execute(command1).join();
 
-            final ReplicationLog<?> commandResult1 = replica1.commandExecutor().loadLog(0, false).get();
+            final ReplicationLog<?> commandResult1 = replica1.commandExecutor().loadLog(0, false).log();
             assertThat(commandResult1.command()).isEqualTo(command1);
             assertThat(commandResult1.result()).isNull();
             awaitUntilReplicated(cluster, command1);
@@ -551,7 +551,7 @@ class ZooKeeperCommandExecutorTest {
                     Command.updateServerStatus(ServerStatus.REPLICATION_ONLY);
             replica1.commandExecutor().execute(readOnlyCommand).join();
             assertThat(replica1.commandExecutor().isWritable()).isFalse();
-            final ReplicationLog<?> commandResult2 = replica1.commandExecutor().loadLog(1, false).get();
+            final ReplicationLog<?> commandResult2 = replica1.commandExecutor().loadLog(1, false).log();
             assertThat(commandResult2.command()).isEqualTo(readOnlyCommand);
             awaitUntilReplicated(cluster, readOnlyCommand);
 
@@ -570,7 +570,7 @@ class ZooKeeperCommandExecutorTest {
             final Command<Revision> forceNormalizingPush = Command.forcePush(pushCommand);
             assertThat(replica1.commandExecutor().execute(forceNormalizingPush).join())
                     .isEqualTo(new Revision(2));
-            final ReplicationLog<?> commandResult3 = replica1.commandExecutor().loadLog(2, false).get();
+            final ReplicationLog<?> commandResult3 = replica1.commandExecutor().loadLog(2, false).log();
             // The content of force push is changed to PushAsIsCommand.
             final Command<Revision> forceAsIsCommand = Command.forcePush(asIsCommand);
             assertThat(commandResult3.command()).isEqualTo(forceAsIsCommand);
@@ -586,7 +586,7 @@ class ZooKeeperCommandExecutorTest {
 
     @Test
     void testLogMetaSerde() throws JsonProcessingException {
-        final LogMeta logMeta = new LogMeta(1, 1L, 10, false, false);
+        final LogMeta logMeta = new LogMeta(1, 1L, 10, "PushAsIsCommand", "projectA", "repoB", false, false);
         logMeta.appendBlock(1);
         logMeta.appendBlock(2);
         logMeta.appendBlock(3);
@@ -594,11 +594,14 @@ class ZooKeeperCommandExecutorTest {
         final String jsonStr = Jackson.writeValueAsString(logMeta);
         final LogMeta deserialized = Jackson.readValue(jsonStr, LogMeta.class);
         assertThat(deserialized).isEqualTo(logMeta);
+        assertThat(deserialized.commandType()).isEqualTo("PushAsIsCommand");
+        assertThat(deserialized.projectName()).isEqualTo("projectA");
+        assertThat(deserialized.repoName()).isEqualTo("repoB");
     }
 
     @Test
     void testLogMetaSerde_excludeNull() throws JsonProcessingException {
-        final LogMeta logMeta = new LogMeta(1, 1L, 10, null, null);
+        final LogMeta logMeta = new LogMeta(1, 1L, 10, null, null, null, null, null);
         logMeta.appendBlock(1);
         logMeta.appendBlock(2);
         logMeta.appendBlock(3);
@@ -607,6 +610,9 @@ class ZooKeeperCommandExecutorTest {
         assertThatJson(jsonStr).isEqualTo("{\"replicaId\":1,\"timestamp\":1,\"size\":10,\"blocks\":[1,2,3]}");
         final LogMeta deserialized = Jackson.readValue(jsonStr, LogMeta.class);
         assertThat(deserialized).isEqualTo(logMeta);
+        assertThat(deserialized.commandType()).isNull();
+        assertThat(deserialized.projectName()).isNull();
+        assertThat(deserialized.repoName()).isNull();
     }
 
     private static <T> void awaitUntilReplicated(Cluster cluster, Command<T> command) {

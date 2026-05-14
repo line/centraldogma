@@ -3,6 +3,7 @@
 dependencies {
     testImplementation project(':server')
     testImplementation project(':xds')
+    testImplementation libs.armeria.grpc
     testImplementation libs.armeria.junit5
     testImplementation libs.kubernetes.client.api
     testImplementation libs.kubernetes.client.impl

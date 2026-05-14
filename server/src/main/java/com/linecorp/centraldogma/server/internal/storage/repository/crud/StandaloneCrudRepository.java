@@ -1,7 +1,7 @@
 /*
- * Copyright 2024 LINE Corporation
+ * Copyright 2026 LY Corporation
  *
- * LINE Corporation licenses this file to you under the Apache License,
+ * LY Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
  * with the License. You may obtain a copy of the License at:
  *
@@ -14,7 +14,7 @@
  * under the License.
  */
 
-package com.linecorp.centraldogma.server.internal.storage.repository.git;
+package com.linecorp.centraldogma.server.internal.storage.repository.crud;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -23,22 +23,20 @@ import com.google.common.base.MoreObjects;
 
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Revision;
-import com.linecorp.centraldogma.server.command.CommandExecutor;
-import com.linecorp.centraldogma.server.internal.storage.repository.CrudRepository;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 import com.linecorp.centraldogma.server.storage.repository.HasRevision;
 
 /**
  * A {@link CrudRepository} implementation which stores JSON objects in a Git repository.
  */
-public final class GitCrudRepository<T> implements CrudRepository<T> {
+public final class StandaloneCrudRepository<T> implements CrudRepository<T> {
 
     private final CrudOperation<T> crudOperation;
     private final CrudContext ctx;
 
-    public GitCrudRepository(Class<T> entityType, CommandExecutor executor, ProjectManager projectManager,
-                             String projectName, String repoName, String targetPath) {
-        crudOperation = new DefaultCrudOperation<>(entityType, executor, projectManager);
+    public StandaloneCrudRepository(Class<T> entityType, ProjectManager projectManager,
+                                    String projectName, String repoName, String targetPath) {
+        crudOperation = new StandaloneCrudOperation<>(entityType, projectManager);
         ctx = new CrudContext(projectName, repoName, targetPath, Revision.HEAD);
     }
 

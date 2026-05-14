@@ -32,7 +32,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects;
 
 import com.linecorp.centraldogma.common.Author;
-import com.linecorp.centraldogma.common.RepositoryStatus;
+import com.linecorp.centraldogma.common.ReplicationStatus;
 import com.linecorp.centraldogma.common.Revision;
 
 @JsonInclude(Include.NON_NULL)
@@ -58,7 +58,7 @@ public class RepositoryDto {
     private final String createdAt;
 
     @Nullable
-    private final RepositoryStatus status;
+    private final ReplicationStatus status;
 
     RepositoryDto(String name) {
         this.name = requireNonNull(name, "name");
@@ -70,7 +70,7 @@ public class RepositoryDto {
     }
 
     public RepositoryDto(String projectName, String repoName, Author creator, Revision headRevision,
-                         long creationTimeMillis, RepositoryStatus status) {
+                         long creationTimeMillis, ReplicationStatus status) {
         this(requireNonNull(repoName, "repoName"), requireNonNull(creator, "creator"),
              requireNonNull(headRevision, "headRevision"),
              PROJECTS_PREFIX + '/' + requireNonNull(projectName, "projectName") + REPOS + '/' + repoName,
@@ -83,7 +83,7 @@ public class RepositoryDto {
                          @JsonProperty("headRevision") @Nullable Revision headRevision,
                          @JsonProperty("url") @Nullable String url,
                          @JsonProperty("createdAt") @Nullable String createdAt,
-                         @JsonProperty("status") @Nullable RepositoryStatus status) {
+                         @JsonProperty("status") @Nullable ReplicationStatus status) {
         this.name = requireNonNull(name, "name");
         this.creator = creator;
         this.headRevision = headRevision;
@@ -123,7 +123,7 @@ public class RepositoryDto {
 
     @Nullable
     @JsonProperty("status")
-    public RepositoryStatus status() {
+    public ReplicationStatus status() {
         return status;
     }
 

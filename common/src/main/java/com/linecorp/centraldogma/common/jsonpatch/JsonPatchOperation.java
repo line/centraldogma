@@ -229,6 +229,9 @@ public abstract class JsonPatchOperation implements JsonSerializable {
     /**
      * Creates a new JSON Patch {@code safeReplace} operation.
      *
+     * <p>This operation is similar to {@link #replace(JsonPointer, JsonNode)}, but it throws an error if the
+     * path does not have the expected value.
+     *
      * @param path the JSON Pointer for this operation
      * @param oldValue the old value to replace
      * @param newValue the new value to replace the old value
@@ -239,6 +242,9 @@ public abstract class JsonPatchOperation implements JsonSerializable {
 
     /**
      * Creates a new JSON Patch {@code safeReplace} operation.
+     *
+     * <p>This operation is similar to {@link #replace(String, JsonNode)}, but it throws an error if the
+     * path does not have the expected value.
      *
      * @param path the JSON Pointer for this operation
      * @param oldValue the old value to replace

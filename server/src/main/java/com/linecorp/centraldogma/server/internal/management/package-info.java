@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 LINE Corporation
+ * Copyright 2026 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -13,24 +13,10 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
-package com.linecorp.centraldogma.common;
-
 /**
- * The status of a repository.
- *
- * @deprecated Use {@link ReplicationStatus} instead.
+ * Management for the Central Dogma server and its repositories.
  */
-// TODO(ikhoon): Remove this enum in the future.
-@Deprecated
-public enum RepositoryStatus {
+@NullMarked
+package com.linecorp.centraldogma.server.internal.management;
 
-    /**
-     * The repository is active and writable.
-     */
-    ACTIVE,
-
-    /**
-     * The repository is in read-only mode and cannot be modified.
-     */
-    READ_ONLY
-}
+import org.jspecify.annotations.NullMarked;

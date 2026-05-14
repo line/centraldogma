@@ -1,7 +1,7 @@
 /*
- * Copyright 2024 LINE Corporation
+ * Copyright 2024 LY Corporation
  *
- * LINE Corporation licenses this file to you under the Apache License,
+ * LY Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
  * with the License. You may obtain a copy of the License at:
  *
@@ -14,7 +14,7 @@
  * under the License.
  */
 
-package com.linecorp.centraldogma.server.internal.storage.repository;
+package com.linecorp.centraldogma.server.internal.storage.repository.crud;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -23,6 +23,7 @@ import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.EntryNotFoundException;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.server.internal.admin.auth.AuthUtil;
+import com.linecorp.centraldogma.server.internal.storage.repository.HasId;
 import com.linecorp.centraldogma.server.storage.repository.HasRevision;
 
 /**
