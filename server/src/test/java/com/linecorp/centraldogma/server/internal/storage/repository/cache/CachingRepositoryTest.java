@@ -25,6 +25,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyMap;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -98,15 +101,20 @@ class CachingRepositoryTest {
     void jsonPathQuery() throws JsonParseException {
         final CachingRepository repo = setMockNames(newCachingRepo());
         final Query<JsonNode> query = Query.ofJsonPath("/baz.json", "$.a");
-        final Entry<JsonNode> queryResult = Entry.ofJson(new Revision(10), query.path(), "{\"a\": \"b\"}");
+        final Entry<JsonNode> result = Entry.ofJson(new Revision(10), query.path(), "{\"a\": \"b\"}");
+        final Entry<JsonNode> unexpected = Entry.ofJson(new Revision(10), "/foo.json", "{\"bar\": 1}");
+        final Entry<JsonNode> queryResult = Entry.ofJson(new Revision(10), query.path(), "\"b\"");
+        final Map<String, Entry<?>> entries = ImmutableMap.of("/baz.json", result,
+                                                              "/foo.json", unexpected);
 
         doReturn(new Revision(10)).when(delegateRepo).normalizeNow(new Revision(10));
         doReturn(new Revision(10)).when(delegateRepo).normalizeNow(HEAD);
 
         // Uncached
-        when(delegateRepo.getOrNull(any(), any(Query.class))).thenReturn(completedFuture(queryResult));
+        when(delegateRepo.find(any(), eq(query.path()), eq(FIND_ONE_WITH_CONTENT)))
+                .thenReturn(completedFuture(entries));
         assertThat(repo.get(HEAD, query).join()).isEqualTo(queryResult);
-        verify(delegateRepo).getOrNull(new Revision(10), query);
+        verify(delegateRepo).find(new Revision(10), query.path(), FIND_ONE_WITH_CONTENT);
         verifyNoMoreInteractions(delegateRepo);
 
         // Cached
@@ -175,9 +183,9 @@ class CachingRepositoryTest {
         doReturn(new Revision(10)).when(delegateRepo).normalizeNow(HEAD);
 
         // Uncached
-        when(delegateRepo.getOrNull(any(), any(Query.class))).thenReturn(completedFuture(null));
+        when(delegateRepo.find(any(), anyString(), anyMap())).thenReturn(completedFuture(ImmutableMap.of()));
         assertThat(repo.getOrNull(HEAD, query).join()).isNull();
-        verify(delegateRepo).getOrNull(new Revision(10), query);
+        verify(delegateRepo).find(new Revision(10), query.path(), FIND_ONE_WITH_CONTENT);
         verifyNoMoreInteractions(delegateRepo);
 
         // Cached
