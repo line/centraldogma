@@ -19,7 +19,6 @@ package com.linecorp.centraldogma.server.internal.storage.repository.cache;
 import static com.google.common.base.MoreObjects.toStringHelper;
 import static com.linecorp.centraldogma.internal.Util.unsafeCast;
 import static com.linecorp.centraldogma.server.internal.api.HttpApiUtil.throwUnsafelyIfNonNull;
-import static com.linecorp.centraldogma.server.storage.repository.FindOptions.FIND_ONE_WITH_CONTENT;
 import static java.util.Objects.requireNonNull;
 
 import java.io.File;
@@ -41,7 +40,6 @@ import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.MergeQuery;
 import com.linecorp.centraldogma.common.MergedEntry;
 import com.linecorp.centraldogma.common.Query;
-import com.linecorp.centraldogma.common.QueryType;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.RevisionRange;
 import com.linecorp.centraldogma.server.command.CommitResult;
@@ -50,7 +48,6 @@ import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryCa
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.repository.CacheableCall;
 import com.linecorp.centraldogma.server.storage.repository.DiffResultType;
-import com.linecorp.centraldogma.server.storage.repository.EntryTransformer;
 import com.linecorp.centraldogma.server.storage.repository.FindOption;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 import com.linecorp.centraldogma.server.storage.repository.RepositoryListener;
@@ -81,43 +78,6 @@ final class CachingRepository implements Repository {
     @Override
     public Author author() {
         return repo.author();
-    }
-
-    @Override
-    public <T> CompletableFuture<Entry<T>> getOrNull(Revision revision, Query<T> query) {
-        requireNonNull(revision, "revision");
-        requireNonNull(query, "query");
-
-        final Revision normalizedRevision = normalizeNow(revision);
-        if (query.type() == QueryType.IDENTITY || query.type() == QueryType.IDENTITY_TEXT ||
-            query.type() == QueryType.IDENTITY_JSON || query.type() == QueryType.IDENTITY_YAML) {
-            // If the query is an IDENTITY type, call find() so that the caches are reused in one place when
-            // calls getOrNull(), find() and mergeFiles().
-            final String path = query.path();
-            final CompletableFuture<Entry<?>> future =
-                    find(revision, path, FIND_ONE_WITH_CONTENT).thenApply(findResult -> findResult.get(path));
-            return unsafeCast(future);
-        }
-
-        final CompletableFuture<Object> future =
-                cache.get(new CacheableQueryCall(repo, normalizedRevision, query))
-                     .handleAsync((result, cause) -> {
-                         throwUnsafelyIfNonNull(cause);
-                         return result != CacheableQueryCall.EMPTY ? result : null;
-                     }, executor());
-        return unsafeCast(future);
-    }
-
-    @Override
-    public <T> CompletableFuture<Entry<T>> getOrNull(Revision revision, Query<T> query,
-                                                     EntryTransformer<T> transformer) {
-        requireNonNull(revision, "revision");
-        requireNonNull(query, "query");
-        requireNonNull(transformer, "transformer");
-        if (transformer == EntryTransformer.identity()) {
-            return getOrNull(revision, query);
-        }
-        return Repository.super.getOrNull(revision, query, transformer);
     }
 
     @Override
