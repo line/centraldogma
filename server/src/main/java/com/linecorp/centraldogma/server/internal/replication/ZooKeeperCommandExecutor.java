@@ -666,7 +666,7 @@ public final class ZooKeeperCommandExecutor
             peer.start();
 
             // Wait until the ZooKeeper joins the cluster.
-            for (;;) {
+            for (; ; ) {
                 final ServerState state = peer.getPeerState();
                 if (state == ServerState.FOLLOWING || state == ServerState.LEADING) {
                     break;
@@ -866,17 +866,17 @@ public final class ZooKeeperCommandExecutor
         }
 
         long nextRevision = info.lastReplayedRevision + 1;
-        for (;;) {
+        for (; ; ) {
             if (!canReplicate) {
                 break;
             }
             ReplicationLog<?> l = null;
             try {
-                l = loadLog(nextRevision);
-                final Command<?> command = l.command();
                 // Skip when local data already has this revision's effect.
                 final boolean shouldExecute = nextRevision > info.localLastAppliedRevision;
                 if (shouldExecute) {
+                    l = loadLog(nextRevision);
+                    final Command<?> command = l.command();
                     final Object expectedResult = l.result();
                     final Object actualResult = delegate.execute(REPLAY_CONTEXT, command).get();
 
@@ -887,14 +887,14 @@ public final class ZooKeeperCommandExecutor
                                 ", command: " + command + ')');
                     }
                 } else {
-                    logger.debug("Skipping replay at revision {} (already applied locally): {}",
-                                 nextRevision, l);
+                    logger.debug("Skipping replay at revision {} (already applied locally)",
+                                 nextRevision);
                 }
 
                 updateLastReplayedRevision(nextRevision);
                 info.lastReplayedRevision = nextRevision;
-                if (shouldExecute && command instanceof UpdateServerStatusCommand) {
-                    updateZkCommandStatusLater((UpdateServerStatusCommand) command);
+                if (shouldExecute && l.command() instanceof UpdateServerStatusCommand) {
+                    updateZkCommandStatusLater((UpdateServerStatusCommand) l.command());
                 }
                 if (nextRevision == targetRevision) {
                     break;
@@ -970,7 +970,7 @@ public final class ZooKeeperCommandExecutor
             // Retry up to 1 minute, to minimize the chance of going read-only.
             long remainingTimeNanos = lockTimeoutNanos;
             final long deadlineNanos = startTime + remainingTimeNanos;
-            for (;;) {
+            for (; ; ) {
                 try {
                     if (mtx.acquire(remainingTimeNanos, TimeUnit.NANOSECONDS)) {
                         lockAcquired = true;
