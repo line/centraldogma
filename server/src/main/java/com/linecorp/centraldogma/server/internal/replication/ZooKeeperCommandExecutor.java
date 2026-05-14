@@ -26,6 +26,10 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.AtomicMoveNotSupportedException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -666,7 +670,7 @@ public final class ZooKeeperCommandExecutor
             peer.start();
 
             // Wait until the ZooKeeper joins the cluster.
-            for (; ; ) {
+            for (;;) {
                 final ServerState state = peer.getPeerState();
                 if (state == ServerState.FOLLOWING || state == ServerState.LEADING) {
                     break;
@@ -842,16 +846,25 @@ public final class ZooKeeperCommandExecutor
     }
 
     private static void writeRevisionFile(File file, long rev, String name) throws Exception {
-        boolean success = false;
-        try (FileOutputStream fos = new FileOutputStream(file)) {
-            fos.write(String.valueOf(rev).getBytes(StandardCharsets.UTF_8));
-            success = true;
-        } finally {
-            if (success) {
-                logger.info("Updated {} to: {}", name, rev);
-            } else {
-                logger.error("Failed to update {} to: {}", name, rev);
+        final Path target = file.toPath();
+        final Path tmp = target.resolveSibling(file.getName() + ".tmp");
+        try {
+            Files.write(tmp, String.valueOf(rev).getBytes(StandardCharsets.UTF_8));
+            try {
+                Files.move(tmp, target,
+                           StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+            } catch (AtomicMoveNotSupportedException e) {
+                Files.move(tmp, target, StandardCopyOption.REPLACE_EXISTING);
             }
+            logger.info("Updated {} to: {}", name, rev);
+        } catch (Exception e) {
+            logger.error("Failed to update {} to: {}", name, rev, e);
+            try {
+                Files.deleteIfExists(tmp);
+            } catch (Exception ignored) {
+                // best effort
+            }
+            throw e;
         }
     }
 
@@ -866,7 +879,7 @@ public final class ZooKeeperCommandExecutor
         }
 
         long nextRevision = info.lastReplayedRevision + 1;
-        for (; ; ) {
+        for (;;) {
             if (!canReplicate) {
                 break;
             }
@@ -970,7 +983,7 @@ public final class ZooKeeperCommandExecutor
             // Retry up to 1 minute, to minimize the chance of going read-only.
             long remainingTimeNanos = lockTimeoutNanos;
             final long deadlineNanos = startTime + remainingTimeNanos;
-            for (; ; ) {
+            for (;;) {
                 try {
                     if (mtx.acquire(remainingTimeNanos, TimeUnit.NANOSECONDS)) {
                         lockAcquired = true;
