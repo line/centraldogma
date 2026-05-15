@@ -26,6 +26,10 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.AtomicMoveNotSupportedException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -139,6 +143,7 @@ public final class ZooKeeperCommandExecutor
 
     private final ZooKeeperReplicationConfig cfg;
     private final File revisionFile;
+    private final File localRevisionFile;
     private final File zkConfFile;
     private final File zkDataDir;
     private final File zkLogDir;
@@ -351,7 +356,10 @@ public final class ZooKeeperCommandExecutor
     }
 
     private static final class ListenerInfo {
+        // Highest ZK revision processed by the replay loop.
         long lastReplayedRevision;
+        // Highest ZK revision applied to local data by storeLog.
+        long localLastAppliedRevision;
         @Nullable
         final Runnable onTakeLeadership;
         @Nullable
@@ -361,10 +369,11 @@ public final class ZooKeeperCommandExecutor
         @Nullable
         final Runnable onReleaseZoneLeadership;
 
-        ListenerInfo(long lastReplayedRevision,
+        ListenerInfo(long lastReplayedRevision, long localLastAppliedRevision,
                      @Nullable Runnable onTakeLeadership, @Nullable Runnable onReleaseLeadership,
                      @Nullable Runnable onTakeZoneLeadership, @Nullable Runnable onReleaseZoneLeadership) {
             this.lastReplayedRevision = lastReplayedRevision;
+            this.localLastAppliedRevision = localLastAppliedRevision;
             this.onReleaseLeadership = onReleaseLeadership;
             this.onTakeLeadership = onTakeLeadership;
             this.onTakeZoneLeadership = onTakeZoneLeadership;
@@ -387,6 +396,8 @@ public final class ZooKeeperCommandExecutor
         this.cfg = requireNonNull(cfg, "cfg");
         requireNonNull(dataDir, "dataDir");
         revisionFile = new File(dataDir.getAbsolutePath() + File.separatorChar + "last_revision");
+        localRevisionFile = new File(dataDir.getAbsolutePath() + File.separatorChar +
+                                     "local_last_revision");
         zkConfFile = new File(dataDir.getAbsolutePath() + File.separatorChar +
                               "_zookeeper" + File.separatorChar + "config.properties");
         zkDataDir = new File(dataDir.getAbsolutePath() + File.separatorChar +
@@ -430,6 +441,15 @@ public final class ZooKeeperCommandExecutor
                           return info.lastReplayedRevision;
                       })
              .register(meterRegistry);
+        Gauge.builder("replica.last.local.applied.revision", this,
+                      self -> {
+                          final ListenerInfo info = self.listenerInfo;
+                          if (info == null) {
+                              return 0;
+                          }
+                          return info.localLastAppliedRevision;
+                      })
+             .register(meterRegistry);
     }
 
     @Override
@@ -450,13 +470,22 @@ public final class ZooKeeperCommandExecutor
         try {
             // Get the last replayed revision.
             final long lastReplayedRevision;
+            long localLastAppliedRevision;
             try {
                 lastReplayedRevision = getLastReplayedRevision();
-                listenerInfo = new ListenerInfo(lastReplayedRevision, onTakeLeadership, onReleaseLeadership,
-                                                onTakeZoneLeadership, onReleaseZoneLeadership);
+                localLastAppliedRevision = getLocalLastAppliedRevision();
             } catch (Exception e) {
-                throw new ReplicationException("failed to read " + revisionFile, e);
+                throw new ReplicationException("failed to read " + revisionFile + " or " +
+                                               localRevisionFile, e);
             }
+            if (localLastAppliedRevision == -1 && lastReplayedRevision != -1) {
+                logger.info("local_last_revision missing; falling back to last_revision: {}",
+                            lastReplayedRevision);
+                localLastAppliedRevision = lastReplayedRevision;
+            }
+            listenerInfo = new ListenerInfo(lastReplayedRevision, localLastAppliedRevision,
+                                            onTakeLeadership, onReleaseLeadership,
+                                            onTakeZoneLeadership, onReleaseZoneLeadership);
 
             // Start the embedded ZooKeeper.
             quorumPeer = startZooKeeper();
@@ -791,9 +820,20 @@ public final class ZooKeeperCommandExecutor
     }
 
     private long getLastReplayedRevision() throws Exception {
+        return readRevisionFile(revisionFile);
+    }
+
+    private long getLocalLastAppliedRevision() throws Exception {
+        return readRevisionFile(localRevisionFile);
+    }
+
+    /**
+     * Returns -1 if the file does not exist or is empty.
+     **/
+    private static long readRevisionFile(File file) throws Exception {
         final FileInputStream fis;
         try {
-            fis = new FileInputStream(revisionFile);
+            fis = new FileInputStream(file);
         } catch (FileNotFoundException ignored) {
             return -1;
         }
@@ -807,17 +847,34 @@ public final class ZooKeeperCommandExecutor
         }
     }
 
-    private void updateLastReplayedRevision(long lastReplayedRevision) throws Exception {
-        boolean success = false;
-        try (FileOutputStream fos = new FileOutputStream(revisionFile)) {
-            fos.write(String.valueOf(lastReplayedRevision).getBytes(StandardCharsets.UTF_8));
-            success = true;
-        } finally {
-            if (success) {
-                logger.info("Updated lastReplayedRevision to: {}", lastReplayedRevision);
-            } else {
-                logger.error("Failed to update lastReplayedRevision to: {}", lastReplayedRevision);
+    private void updateLastReplayedRevision(long rev) throws Exception {
+        writeRevisionFile(revisionFile, rev, "lastReplayedRevision");
+    }
+
+    private void updateLocalLastAppliedRevision(long rev) throws Exception {
+        writeRevisionFile(localRevisionFile, rev, "localLastAppliedRevision");
+    }
+
+    private static void writeRevisionFile(File file, long rev, String name) throws Exception {
+        final Path target = file.toPath();
+        final Path tmp = target.resolveSibling(file.getName() + ".tmp");
+        try {
+            Files.write(tmp, String.valueOf(rev).getBytes(StandardCharsets.UTF_8));
+            try {
+                Files.move(tmp, target,
+                           StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+            } catch (AtomicMoveNotSupportedException e) {
+                Files.move(tmp, target, StandardCopyOption.REPLACE_EXISTING);
             }
+            logger.info("Updated {} to: {}", name, rev);
+        } catch (Exception e) {
+            logger.error("Failed to update {} to: {}", name, rev, e);
+            try {
+                Files.deleteIfExists(tmp);
+            } catch (Exception ignored) {
+                // best effort
+            }
+            throw e;
         }
     }
 
@@ -837,13 +894,15 @@ public final class ZooKeeperCommandExecutor
                 break;
             }
             ReplicationLogContext logContext = null;
+            ReplicationLog<?> l = null;
             try {
-                logContext = loadLog(nextRevision, true);
-                Command<?> command = null;
-                if (logContext != null) {
-                    final ReplicationLog<?> l = logContext.log();
+                // Skip when local data already has this revision's effect.
+                final boolean shouldExecute = nextRevision > info.localLastAppliedRevision;
+                if (shouldExecute) {
+                    logContext = loadLog(nextRevision);
+                    l = logContext.log();
                     assert l != null : "logContext: " + logContext;
-                    command = l.command();
+                    final Command<?> command = l.command();
                     final Object expectedResult = l.result();
                     final Object actualResult = delegate.execute(REPLAY_CONTEXT, command).get();
 
@@ -854,13 +913,14 @@ public final class ZooKeeperCommandExecutor
                                 ", command: " + command + ')', logContext);
                     }
                 } else {
-                    // same replicaId. skip
+                    logger.debug("Skipping replay at revision {} (already applied locally)",
+                                 nextRevision);
                 }
 
                 updateLastReplayedRevision(nextRevision);
                 info.lastReplayedRevision = nextRevision;
-                if (command instanceof UpdateServerStatusCommand) {
-                    updateZkCommandStatusLater((UpdateServerStatusCommand) command);
+                if (shouldExecute && l.command() instanceof UpdateServerStatusCommand) {
+                    updateZkCommandStatusLater((UpdateServerStatusCommand) l.command());
                 }
                 if (nextRevision == targetRevision) {
                     break;
@@ -1058,13 +1118,25 @@ public final class ZooKeeperCommandExecutor
                 logMeta.appendBlock(blockId);
             }
 
-            final String logPath =
-                    curator.create().withMode(CreateMode.PERSISTENT_SEQUENTIAL)
-                           .forPath(absolutePath(LOG_PATH) + '/', Jackson.writeValueAsBytes(logMeta));
+            final byte[] logMetaBytes = Jackson.writeValueAsBytes(logMeta);
+            final long revision;
+            // Hold replayLogs's monitor across the logMeta create and the state bump so a
+            // childEvent for this revision can't race in and re-execute it.
+            synchronized (this) {
+                final String logPath =
+                        curator.create().withMode(CreateMode.PERSISTENT_SEQUENTIAL)
+                               .forPath(absolutePath(LOG_PATH) + '/', logMetaBytes);
+                revision = revisionFromPath(logPath);
+                logContext.setReplayRevision(revision);
 
-            final long replayRevision = revisionFromPath(logPath);
-            logContext.setReplayRevision(replayRevision);
-            return replayRevision;
+                final ListenerInfo info = listenerInfo;
+                if (info != null && revision > info.localLastAppliedRevision) {
+                    updateLocalLastAppliedRevision(revision);
+                    info.localLastAppliedRevision = revision;
+                }
+            }
+
+            return revision;
         } catch (Exception e) {
             throw new ReplicationException("failed to store a log", e, logContext);
         }
@@ -1133,7 +1205,7 @@ public final class ZooKeeperCommandExecutor
 
     @Nullable
     @VisibleForTesting
-    ReplicationLogContext loadLog(long revision, boolean skipIfSameReplica) {
+    ReplicationLogContext loadLog(long revision) {
         final ReplicationLogContext logContext = new ReplicationLogContext();
         logContext.setReplayRevision(revision);
         try {
@@ -1143,9 +1215,6 @@ public final class ZooKeeperCommandExecutor
 
             final LogMeta logMeta = Jackson.readValue(curator.getData().forPath(logPath), LogMeta.class);
             logContext.setMeta(logMeta);
-            if (skipIfSameReplica && replicaId() == logMeta.replicaId()) {
-                return null;
-            }
 
             byte[] bytes = new byte[logMeta.size()];
             int offset = 0;

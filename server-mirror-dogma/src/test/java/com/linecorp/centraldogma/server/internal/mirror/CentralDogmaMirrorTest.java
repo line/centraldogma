@@ -30,7 +30,6 @@ import com.cronutils.model.definition.CronDefinitionBuilder;
 import com.cronutils.parser.CronParser;
 
 import com.linecorp.centraldogma.server.credential.Credential;
-import com.linecorp.centraldogma.server.internal.storage.repository.CentralDogmaMirrorProvider;
 import com.linecorp.centraldogma.server.mirror.Mirror;
 import com.linecorp.centraldogma.server.mirror.MirrorContext;
 import com.linecorp.centraldogma.server.mirror.MirrorDirection;
@@ -73,6 +72,12 @@ class CentralDogmaMirrorTest {
         // Non-default remotePath and remoteBranch
         m = assertMirror("dogma://a.com/b/c.dogma/d#develop", CentralDogmaMirror.class,
                          "dogma://a.com/b/c.dogma", "/d/", "");
+        assertThat(m.remoteProject()).isEqualTo("b");
+        assertThat(m.remoteRepo()).isEqualTo("c");
+
+        // dogma+https scheme
+        m = assertMirror("dogma+https://a.com/b/c.dogma", CentralDogmaMirror.class,
+                         "dogma+https://a.com/b/c.dogma", "/", "");
         assertThat(m.remoteProject()).isEqualTo("b");
         assertThat(m.remoteRepo()).isEqualTo("c");
 

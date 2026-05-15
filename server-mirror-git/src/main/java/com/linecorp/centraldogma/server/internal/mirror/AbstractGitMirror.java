@@ -101,12 +101,6 @@ abstract class AbstractGitMirror extends AbstractMirror {
 
     private static final Logger logger = LoggerFactory.getLogger(AbstractGitMirror.class);
 
-    // We are going to hide this file from CD UI after we implement UI for mirroring.
-    private static final String MIRROR_STATE_FILE_NAME = "mirror_state.json";
-
-    // Prepend '.' because this file is metadata.
-    private static final String LOCAL_TO_REMOTE_MIRROR_STATE_FILE_NAME = '.' + MIRROR_STATE_FILE_NAME;
-
     private static final Pattern CR = Pattern.compile("\r", Pattern.LITERAL);
 
     private static final byte[] EMPTY_BYTE = new byte[0];
@@ -917,12 +911,6 @@ abstract class AbstractGitMirror extends AbstractMirror {
             default:
                 throw new StorageException("unexpected refUpdate state: " + res);
         }
-    }
-
-    private enum MirrorDecision {
-        RUN,
-        SKIP,
-        COMPARE_AND_RUN
     }
 
     private static final class InsertText extends PathEdit {
