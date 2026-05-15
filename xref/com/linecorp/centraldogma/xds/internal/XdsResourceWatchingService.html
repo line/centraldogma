@@ -120,7 +120,7 @@
 <a class="jxr_linenumber" name="L112" href="#L112">112</a>                                     groupName + path, t);
 <a class="jxr_linenumber" name="L113" href="#L113">113</a>                     }
 <a class="jxr_linenumber" name="L114" href="#L114">114</a>                 }
-<a class="jxr_linenumber" name="L115" href="#L115">115</a>                 watchRepository(repository, normalizedRevision);
+<a class="jxr_linenumber" name="L115" href="#L115">115</a>                 watchRepository(groupName, normalizedRevision);
 <a class="jxr_linenumber" name="L116" href="#L116">116</a>                 <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">null</strong>;
 <a class="jxr_linenumber" name="L117" href="#L117">117</a>             }, executor()));
 <a class="jxr_linenumber" name="L118" href="#L118">118</a>         }
@@ -152,92 +152,99 @@
 <a class="jxr_linenumber" name="L144" href="#L144">144</a>                         <strong class="jxr_keyword">continue</strong>;
 <a class="jxr_linenumber" name="L145" href="#L145">145</a>                     }
 <a class="jxr_linenumber" name="L146" href="#L146">146</a>                     logger.info(<span class="jxr_string">"Start watching {}."</span>, groupName);
-<a class="jxr_linenumber" name="L147" href="#L147">147</a>                     watchRepository(repo, Revision.INIT);
+<a class="jxr_linenumber" name="L147" href="#L147">147</a>                     watchRepository(groupName, Revision.INIT);
 <a class="jxr_linenumber" name="L148" href="#L148">148</a>                 }
 <a class="jxr_linenumber" name="L149" href="#L149">149</a>             });
 <a class="jxr_linenumber" name="L150" href="#L150">150</a>         }));
 <a class="jxr_linenumber" name="L151" href="#L151">151</a>     }
 <a class="jxr_linenumber" name="L152" href="#L152">152</a> 
-<a class="jxr_linenumber" name="L153" href="#L153">153</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">void</strong> watchRepository(<a href="../../../../../com/linecorp/centraldogma/server/storage/repository/Repository.html">Repository</a> repository, <a href="../../../../../com/linecorp/centraldogma/common/Revision.html">Revision</a> lastKnownRevision) {
-<a class="jxr_linenumber" name="L154" href="#L154">154</a>         <strong class="jxr_keyword">final</strong> CompletableFuture&lt;Revision&gt; watchFuture = repository.watch(lastKnownRevision, pathPattern());
-<a class="jxr_linenumber" name="L155" href="#L155">155</a>         watchFuture.handleAsync((BiFunction&lt;Revision, Throwable, Void&gt;) (newRevision, cause) -&gt; {
-<a class="jxr_linenumber" name="L156" href="#L156">156</a>             <strong class="jxr_keyword">if</strong> (isStopped()) {
-<a class="jxr_linenumber" name="L157" href="#L157">157</a>                 <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">null</strong>;
-<a class="jxr_linenumber" name="L158" href="#L158">158</a>             }
-<a class="jxr_linenumber" name="L159" href="#L159">159</a>             <strong class="jxr_keyword">if</strong> (cause != <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="L160" href="#L160">160</a>                 <strong class="jxr_keyword">if</strong> (cause instanceof RepositoryNotFoundException) {
-<a class="jxr_linenumber" name="L161" href="#L161">161</a>                     <em class="jxr_comment">// Repository is removed.</em>
-<a class="jxr_linenumber" name="L162" href="#L162">162</a>                     watchingGroups.remove(repository.name());
-<a class="jxr_linenumber" name="L163" href="#L163">163</a>                     onGroupRemoved(repository.name());
-<a class="jxr_linenumber" name="L164" href="#L164">164</a>                     <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">null</strong>;
-<a class="jxr_linenumber" name="L165" href="#L165">165</a>                 }
-<a class="jxr_linenumber" name="L166" href="#L166">166</a>                 <strong class="jxr_keyword">if</strong> (cause instanceof ShuttingDownException) {
-<a class="jxr_linenumber" name="L167" href="#L167">167</a>                     <em class="jxr_comment">// Server is shutting down.</em>
-<a class="jxr_linenumber" name="L168" href="#L168">168</a>                     <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">null</strong>;
-<a class="jxr_linenumber" name="L169" href="#L169">169</a>                 }
-<a class="jxr_linenumber" name="L170" href="#L170">170</a> 
-<a class="jxr_linenumber" name="L171" href="#L171">171</a>                 logger.warn(<span class="jxr_string">"Unexpected exception while watching {} at {}. Try watching after {} seconds."</span>,
-<a class="jxr_linenumber" name="L172" href="#L172">172</a>                             repository.name(), lastKnownRevision, BACKOFF_SECONDS, cause);
-<a class="jxr_linenumber" name="L173" href="#L173">173</a>                 executor().schedule(() -&gt; watchRepository(repository, lastKnownRevision),
-<a class="jxr_linenumber" name="L174" href="#L174">174</a>                                     BACKOFF_SECONDS, TimeUnit.SECONDS);
-<a class="jxr_linenumber" name="L175" href="#L175">175</a>                 <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">null</strong>;
-<a class="jxr_linenumber" name="L176" href="#L176">176</a>             }
-<a class="jxr_linenumber" name="L177" href="#L177">177</a>             <strong class="jxr_keyword">final</strong> CompletableFuture&lt;Map&lt;String, Change&lt;?&gt;&gt;&gt; diffFuture =
-<a class="jxr_linenumber" name="L178" href="#L178">178</a>                     repository.diff(lastKnownRevision, newRevision,
-<a class="jxr_linenumber" name="L179" href="#L179">179</a>                                     pathPattern(), DiffResultType.PATCH_TO_UPSERT);
-<a class="jxr_linenumber" name="L180" href="#L180">180</a>             handleDiff(repository, newRevision, diffFuture, lastKnownRevision);
-<a class="jxr_linenumber" name="L181" href="#L181">181</a>             <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">null</strong>;
-<a class="jxr_linenumber" name="L182" href="#L182">182</a>         }, executor());
-<a class="jxr_linenumber" name="L183" href="#L183">183</a>     }
-<a class="jxr_linenumber" name="L184" href="#L184">184</a> 
-<a class="jxr_linenumber" name="L185" href="#L185">185</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">void</strong> handleDiff(<a href="../../../../../com/linecorp/centraldogma/server/storage/repository/Repository.html">Repository</a> repository, <a href="../../../../../com/linecorp/centraldogma/common/Revision.html">Revision</a> newRevision,
-<a class="jxr_linenumber" name="L186" href="#L186">186</a>                             CompletableFuture&lt;Map&lt;String, Change&lt;?&gt;&gt;&gt; diffFuture, <a href="../../../../../com/linecorp/centraldogma/common/Revision.html">Revision</a> lastKnownRevision) {
-<a class="jxr_linenumber" name="L187" href="#L187">187</a>         diffFuture.handleAsync((BiFunction&lt;Map&lt;String, Change&lt;?&gt;&gt;, Throwable, Void&gt;) (changes, cause) -&gt; {
-<a class="jxr_linenumber" name="L188" href="#L188">188</a>             <strong class="jxr_keyword">if</strong> (isStopped()) {
-<a class="jxr_linenumber" name="L189" href="#L189">189</a>                 <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">null</strong>;
-<a class="jxr_linenumber" name="L190" href="#L190">190</a>             }
-<a class="jxr_linenumber" name="L191" href="#L191">191</a>             <strong class="jxr_keyword">final</strong> String groupName = repository.name();
-<a class="jxr_linenumber" name="L192" href="#L192">192</a>             <strong class="jxr_keyword">if</strong> (cause != <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="L193" href="#L193">193</a>                 logger.warn(<span class="jxr_string">"Unexpected exception while diffing {} from {} to {}. Watching again."</span>,
-<a class="jxr_linenumber" name="L194" href="#L194">194</a>                             groupName, lastKnownRevision, newRevision, cause);
-<a class="jxr_linenumber" name="L195" href="#L195">195</a>                 watchRepository(repository, Revision.INIT);
-<a class="jxr_linenumber" name="L196" href="#L196">196</a>                 <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">null</strong>;
-<a class="jxr_linenumber" name="L197" href="#L197">197</a>             }
-<a class="jxr_linenumber" name="L198" href="#L198">198</a> 
-<a class="jxr_linenumber" name="L199" href="#L199">199</a>             logger.info(<span class="jxr_string">"Found {} changes in {} from {} to {}."</span>,
-<a class="jxr_linenumber" name="L200" href="#L200">200</a>                         changes.size(), groupName, lastKnownRevision, newRevision);
-<a class="jxr_linenumber" name="L201" href="#L201">201</a>             <strong class="jxr_keyword">for</strong> (Change&lt;?&gt; change : changes.values()) {
-<a class="jxr_linenumber" name="L202" href="#L202">202</a>                 <strong class="jxr_keyword">final</strong> String path = change.path();
-<a class="jxr_linenumber" name="L203" href="#L203">203</a>                 <strong class="jxr_keyword">switch</strong> (change.type()) {
-<a class="jxr_linenumber" name="L204" href="#L204">204</a>                     <strong class="jxr_keyword">case</strong> UPSERT_JSON:
-<a class="jxr_linenumber" name="L205" href="#L205">205</a>                         <strong class="jxr_keyword">try</strong> {
-<a class="jxr_linenumber" name="L206" href="#L206">206</a>                             handleXdsResource(path, change.contentAsText(), groupName);
-<a class="jxr_linenumber" name="L207" href="#L207">207</a>                         } <strong class="jxr_keyword">catch</strong> (Throwable t) {
-<a class="jxr_linenumber" name="L208" href="#L208">208</a>                             logger.warn(<span class="jxr_string">"Unexpected exception while handling an xDS resource from {}."</span>,
-<a class="jxr_linenumber" name="L209" href="#L209">209</a>                                         groupName + path, t);
-<a class="jxr_linenumber" name="L210" href="#L210">210</a>                         }
-<a class="jxr_linenumber" name="L211" href="#L211">211</a>                         <strong class="jxr_keyword">break</strong>;
-<a class="jxr_linenumber" name="L212" href="#L212">212</a>                     <strong class="jxr_keyword">case</strong> REMOVE:
-<a class="jxr_linenumber" name="L213" href="#L213">213</a>                         onFileRemoved(groupName, path);
-<a class="jxr_linenumber" name="L214" href="#L214">214</a>                         <strong class="jxr_keyword">break</strong>;
-<a class="jxr_linenumber" name="L215" href="#L215">215</a>                     <strong class="jxr_keyword">default</strong>:
-<a class="jxr_linenumber" name="L216" href="#L216">216</a>                         <em class="jxr_comment">// Ignore other types of changes.</em>
-<a class="jxr_linenumber" name="L217" href="#L217">217</a>                         <em class="jxr_comment">// No APPLY_JSON_PATCH because the diff option.</em>
-<a class="jxr_linenumber" name="L218" href="#L218">218</a>                         <em class="jxr_comment">// No RENAME because the resource name in the content always have to be</em>
-<a class="jxr_linenumber" name="L219" href="#L219">219</a>                         <em class="jxr_comment">// changed if the file is renamed.</em>
-<a class="jxr_linenumber" name="L220" href="#L220">220</a>                         <strong class="jxr_keyword">if</strong> (lastKnownRevision.major() != 1) {
-<a class="jxr_linenumber" name="L221" href="#L221">221</a>                             logger.warn(<span class="jxr_string">"Unexpected change type: {} from {} to {} at {}."</span>,
-<a class="jxr_linenumber" name="L222" href="#L222">222</a>                                         change.type(), lastKnownRevision, newRevision, path);
-<a class="jxr_linenumber" name="L223" href="#L223">223</a>                         }
-<a class="jxr_linenumber" name="L224" href="#L224">224</a>                         <strong class="jxr_keyword">break</strong>;
-<a class="jxr_linenumber" name="L225" href="#L225">225</a>                 }
-<a class="jxr_linenumber" name="L226" href="#L226">226</a>             }
-<a class="jxr_linenumber" name="L227" href="#L227">227</a>             onDiffHandled();
-<a class="jxr_linenumber" name="L228" href="#L228">228</a>             watchRepository(repository, newRevision);
-<a class="jxr_linenumber" name="L229" href="#L229">229</a>             <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">null</strong>;
-<a class="jxr_linenumber" name="L230" href="#L230">230</a>         }, executor());
-<a class="jxr_linenumber" name="L231" href="#L231">231</a>     }
-<a class="jxr_linenumber" name="L232" href="#L232">232</a> }
+<a class="jxr_linenumber" name="L153" href="#L153">153</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">void</strong> watchRepository(String groupName, <a href="../../../../../com/linecorp/centraldogma/common/Revision.html">Revision</a> lastKnownRevision) {
+<a class="jxr_linenumber" name="L154" href="#L154">154</a>         <strong class="jxr_keyword">final</strong> <a href="../../../../../com/linecorp/centraldogma/server/storage/repository/Repository.html">Repository</a> repository;
+<a class="jxr_linenumber" name="L155" href="#L155">155</a>         <strong class="jxr_keyword">try</strong> {
+<a class="jxr_linenumber" name="L156" href="#L156">156</a>             repository = xdsProject.repos().get(groupName);
+<a class="jxr_linenumber" name="L157" href="#L157">157</a>         } <strong class="jxr_keyword">catch</strong> (RepositoryNotFoundException e) {
+<a class="jxr_linenumber" name="L158" href="#L158">158</a>             watchingGroups.remove(groupName);
+<a class="jxr_linenumber" name="L159" href="#L159">159</a>             onGroupRemoved(groupName);
+<a class="jxr_linenumber" name="L160" href="#L160">160</a>             <strong class="jxr_keyword">return</strong>;
+<a class="jxr_linenumber" name="L161" href="#L161">161</a>         }
+<a class="jxr_linenumber" name="L162" href="#L162">162</a>         <strong class="jxr_keyword">final</strong> CompletableFuture&lt;Revision&gt; watchFuture = repository.watch(lastKnownRevision, pathPattern());
+<a class="jxr_linenumber" name="L163" href="#L163">163</a>         watchFuture.handleAsync((BiFunction&lt;Revision, Throwable, Void&gt;) (newRevision, cause) -&gt; {
+<a class="jxr_linenumber" name="L164" href="#L164">164</a>             <strong class="jxr_keyword">if</strong> (isStopped()) {
+<a class="jxr_linenumber" name="L165" href="#L165">165</a>                 <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">null</strong>;
+<a class="jxr_linenumber" name="L166" href="#L166">166</a>             }
+<a class="jxr_linenumber" name="L167" href="#L167">167</a>             <strong class="jxr_keyword">if</strong> (cause != <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="L168" href="#L168">168</a>                 <strong class="jxr_keyword">if</strong> (cause instanceof RepositoryNotFoundException) {
+<a class="jxr_linenumber" name="L169" href="#L169">169</a>                     <em class="jxr_comment">// Repository is removed.</em>
+<a class="jxr_linenumber" name="L170" href="#L170">170</a>                     watchingGroups.remove(groupName);
+<a class="jxr_linenumber" name="L171" href="#L171">171</a>                     onGroupRemoved(groupName);
+<a class="jxr_linenumber" name="L172" href="#L172">172</a>                     <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">null</strong>;
+<a class="jxr_linenumber" name="L173" href="#L173">173</a>                 }
+<a class="jxr_linenumber" name="L174" href="#L174">174</a>                 <strong class="jxr_keyword">if</strong> (cause instanceof ShuttingDownException) {
+<a class="jxr_linenumber" name="L175" href="#L175">175</a>                     <em class="jxr_comment">// Server is shutting down.</em>
+<a class="jxr_linenumber" name="L176" href="#L176">176</a>                     <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">null</strong>;
+<a class="jxr_linenumber" name="L177" href="#L177">177</a>                 }
+<a class="jxr_linenumber" name="L178" href="#L178">178</a> 
+<a class="jxr_linenumber" name="L179" href="#L179">179</a>                 logger.warn(<span class="jxr_string">"Unexpected exception while watching {} at {}. Try watching after {} seconds."</span>,
+<a class="jxr_linenumber" name="L180" href="#L180">180</a>                             groupName, lastKnownRevision, BACKOFF_SECONDS, cause);
+<a class="jxr_linenumber" name="L181" href="#L181">181</a>                 executor().schedule(() -&gt; watchRepository(groupName, lastKnownRevision),
+<a class="jxr_linenumber" name="L182" href="#L182">182</a>                                     BACKOFF_SECONDS, TimeUnit.SECONDS);
+<a class="jxr_linenumber" name="L183" href="#L183">183</a>                 <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">null</strong>;
+<a class="jxr_linenumber" name="L184" href="#L184">184</a>             }
+<a class="jxr_linenumber" name="L185" href="#L185">185</a>             <strong class="jxr_keyword">final</strong> CompletableFuture&lt;Map&lt;String, Change&lt;?&gt;&gt;&gt; diffFuture =
+<a class="jxr_linenumber" name="L186" href="#L186">186</a>                     repository.diff(lastKnownRevision, newRevision,
+<a class="jxr_linenumber" name="L187" href="#L187">187</a>                                     pathPattern(), DiffResultType.PATCH_TO_UPSERT);
+<a class="jxr_linenumber" name="L188" href="#L188">188</a>             handleDiff(groupName, newRevision, diffFuture, lastKnownRevision);
+<a class="jxr_linenumber" name="L189" href="#L189">189</a>             <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">null</strong>;
+<a class="jxr_linenumber" name="L190" href="#L190">190</a>         }, executor());
+<a class="jxr_linenumber" name="L191" href="#L191">191</a>     }
+<a class="jxr_linenumber" name="L192" href="#L192">192</a> 
+<a class="jxr_linenumber" name="L193" href="#L193">193</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">void</strong> handleDiff(String groupName, <a href="../../../../../com/linecorp/centraldogma/common/Revision.html">Revision</a> newRevision,
+<a class="jxr_linenumber" name="L194" href="#L194">194</a>                             CompletableFuture&lt;Map&lt;String, Change&lt;?&gt;&gt;&gt; diffFuture, <a href="../../../../../com/linecorp/centraldogma/common/Revision.html">Revision</a> lastKnownRevision) {
+<a class="jxr_linenumber" name="L195" href="#L195">195</a>         diffFuture.handleAsync((BiFunction&lt;Map&lt;String, Change&lt;?&gt;&gt;, Throwable, Void&gt;) (changes, cause) -&gt; {
+<a class="jxr_linenumber" name="L196" href="#L196">196</a>             <strong class="jxr_keyword">if</strong> (isStopped()) {
+<a class="jxr_linenumber" name="L197" href="#L197">197</a>                 <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">null</strong>;
+<a class="jxr_linenumber" name="L198" href="#L198">198</a>             }
+<a class="jxr_linenumber" name="L199" href="#L199">199</a>             <strong class="jxr_keyword">if</strong> (cause != <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="L200" href="#L200">200</a>                 logger.warn(<span class="jxr_string">"Unexpected exception while diffing {} from {} to {}. Watching again."</span>,
+<a class="jxr_linenumber" name="L201" href="#L201">201</a>                             groupName, lastKnownRevision, newRevision, cause);
+<a class="jxr_linenumber" name="L202" href="#L202">202</a>                 watchRepository(groupName, Revision.INIT);
+<a class="jxr_linenumber" name="L203" href="#L203">203</a>                 <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">null</strong>;
+<a class="jxr_linenumber" name="L204" href="#L204">204</a>             }
+<a class="jxr_linenumber" name="L205" href="#L205">205</a> 
+<a class="jxr_linenumber" name="L206" href="#L206">206</a>             logger.info(<span class="jxr_string">"Found {} changes in {} from {} to {}."</span>,
+<a class="jxr_linenumber" name="L207" href="#L207">207</a>                         changes.size(), groupName, lastKnownRevision, newRevision);
+<a class="jxr_linenumber" name="L208" href="#L208">208</a>             <strong class="jxr_keyword">for</strong> (Change&lt;?&gt; change : changes.values()) {
+<a class="jxr_linenumber" name="L209" href="#L209">209</a>                 <strong class="jxr_keyword">final</strong> String path = change.path();
+<a class="jxr_linenumber" name="L210" href="#L210">210</a>                 <strong class="jxr_keyword">switch</strong> (change.type()) {
+<a class="jxr_linenumber" name="L211" href="#L211">211</a>                     <strong class="jxr_keyword">case</strong> UPSERT_JSON:
+<a class="jxr_linenumber" name="L212" href="#L212">212</a>                         <strong class="jxr_keyword">try</strong> {
+<a class="jxr_linenumber" name="L213" href="#L213">213</a>                             handleXdsResource(path, change.contentAsText(), groupName);
+<a class="jxr_linenumber" name="L214" href="#L214">214</a>                         } <strong class="jxr_keyword">catch</strong> (Throwable t) {
+<a class="jxr_linenumber" name="L215" href="#L215">215</a>                             logger.warn(<span class="jxr_string">"Unexpected exception while handling an xDS resource from {}."</span>,
+<a class="jxr_linenumber" name="L216" href="#L216">216</a>                                         groupName + path, t);
+<a class="jxr_linenumber" name="L217" href="#L217">217</a>                         }
+<a class="jxr_linenumber" name="L218" href="#L218">218</a>                         <strong class="jxr_keyword">break</strong>;
+<a class="jxr_linenumber" name="L219" href="#L219">219</a>                     <strong class="jxr_keyword">case</strong> REMOVE:
+<a class="jxr_linenumber" name="L220" href="#L220">220</a>                         onFileRemoved(groupName, path);
+<a class="jxr_linenumber" name="L221" href="#L221">221</a>                         <strong class="jxr_keyword">break</strong>;
+<a class="jxr_linenumber" name="L222" href="#L222">222</a>                     <strong class="jxr_keyword">default</strong>:
+<a class="jxr_linenumber" name="L223" href="#L223">223</a>                         <em class="jxr_comment">// Ignore other types of changes.</em>
+<a class="jxr_linenumber" name="L224" href="#L224">224</a>                         <em class="jxr_comment">// No APPLY_JSON_PATCH because the diff option.</em>
+<a class="jxr_linenumber" name="L225" href="#L225">225</a>                         <em class="jxr_comment">// No RENAME because the resource name in the content always have to be</em>
+<a class="jxr_linenumber" name="L226" href="#L226">226</a>                         <em class="jxr_comment">// changed if the file is renamed.</em>
+<a class="jxr_linenumber" name="L227" href="#L227">227</a>                         <strong class="jxr_keyword">if</strong> (lastKnownRevision.major() != 1) {
+<a class="jxr_linenumber" name="L228" href="#L228">228</a>                             logger.warn(<span class="jxr_string">"Unexpected change type: {} from {} to {} at {}."</span>,
+<a class="jxr_linenumber" name="L229" href="#L229">229</a>                                         change.type(), lastKnownRevision, newRevision, path);
+<a class="jxr_linenumber" name="L230" href="#L230">230</a>                         }
+<a class="jxr_linenumber" name="L231" href="#L231">231</a>                         <strong class="jxr_keyword">break</strong>;
+<a class="jxr_linenumber" name="L232" href="#L232">232</a>                 }
+<a class="jxr_linenumber" name="L233" href="#L233">233</a>             }
+<a class="jxr_linenumber" name="L234" href="#L234">234</a>             onDiffHandled();
+<a class="jxr_linenumber" name="L235" href="#L235">235</a>             watchRepository(groupName, newRevision);
+<a class="jxr_linenumber" name="L236" href="#L236">236</a>             <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">null</strong>;
+<a class="jxr_linenumber" name="L237" href="#L237">237</a>         }, executor());
+<a class="jxr_linenumber" name="L238" href="#L238">238</a>     }
+<a class="jxr_linenumber" name="L239" href="#L239">239</a> }
 </pre>
 <hr/>
 <div id="footer">&copy; Copyright 2017&ndash;2026 <a href="https://engineering.linecorp.com/en/">LINE Corporation</a>. All rights reserved.</div>
