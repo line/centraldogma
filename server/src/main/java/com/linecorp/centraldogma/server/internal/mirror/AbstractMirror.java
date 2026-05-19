@@ -20,13 +20,19 @@ import static com.linecorp.centraldogma.server.mirror.MirrorUtil.normalizePath;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.requireNonNull;
 
+import java.io.ByteArrayInputStream;
 import java.io.File;
+import java.io.IOException;
 import java.time.Instant;
 import java.time.ZonedDateTime;
 import java.time.temporal.ChronoUnit;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 
+import org.eclipse.jgit.ignore.IgnoreNode;
+import org.eclipse.jgit.ignore.IgnoreNode.MatchResult;
 import org.jspecify.annotations.Nullable;
 
 import com.cronutils.descriptor.CronDescriptor;
@@ -38,6 +44,8 @@ import com.google.common.base.MoreObjects.ToStringHelper;
 import com.google.common.hash.Hashing;
 
 import com.linecorp.centraldogma.common.Author;
+import com.linecorp.centraldogma.common.Entry;
+import com.linecorp.centraldogma.common.EntryType;
 import com.linecorp.centraldogma.common.MirrorException;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.credential.Credential;
@@ -81,6 +89,9 @@ public abstract class AbstractMirror implements Mirror {
     private final long jitterMillis;
 
     @Nullable
+    private final IgnoreNode ignoreNode;
+
+    @Nullable
     private String hashString;
 
     protected AbstractMirror(String id, boolean enabled, @Nullable Cron schedule, MirrorDirection direction,
@@ -96,6 +107,17 @@ public abstract class AbstractMirror implements Mirror {
         this.remoteUri = remoteUri;
         this.gitignore = gitignore;
         this.zone = zone;
+
+        if (gitignore != null) {
+            ignoreNode = new IgnoreNode();
+            try {
+                ignoreNode.parse(new ByteArrayInputStream(gitignore.getBytes()));
+            } catch (IOException e) {
+                throw new IllegalArgumentException("Failed to read gitignore: " + gitignore, e);
+            }
+        } else {
+            ignoreNode = null;
+        }
 
         if (schedule != null) {
             this.schedule = requireNonNull(schedule, "schedule");
@@ -223,6 +245,42 @@ public abstract class AbstractMirror implements Mirror {
                                                  Instant triggeredTime) {
         return new MirrorResult(id, localRepo.parent().name(), localRepo.name(), mirrorStatus, description,
                                 triggeredTime, Instant.now(), zone);
+    }
+
+    @Nullable
+    protected final IgnoreNode ignoreNode() {
+        return ignoreNode;
+    }
+
+    /**
+     * Filters the entries using gitignore patterns. Returns the entries as-is if no gitignore is configured.
+     * The entries should be sorted by path so that directory entries come before their children.
+     */
+    protected final Map<String, Entry<?>> filterByGitignore(Map<String, Entry<?>> entries, String basePath) {
+        if (ignoreNode == null) {
+            return entries;
+        }
+        final Map<String, Entry<?>> result = new HashMap<>(entries.size());
+        String lastIgnoredDirectory = null;
+        for (Map.Entry<String, Entry<?>> entry : entries.entrySet()) {
+            final String path = entry.getKey();
+            final boolean isDirectory = entry.getValue().type() == EntryType.DIRECTORY;
+            final String relativePath = path.substring(basePath.length());
+            final MatchResult ignoreResult = ignoreNode.isIgnored(relativePath, isDirectory);
+            if (ignoreResult == MatchResult.IGNORED) {
+                if (isDirectory) {
+                    lastIgnoredDirectory = path;
+                }
+                continue;
+            }
+            if (ignoreResult == MatchResult.CHECK_PARENT) {
+                if (lastIgnoredDirectory != null && path.startsWith(lastIgnoredDirectory)) {
+                    continue;
+                }
+            }
+            result.put(path, entry.getValue());
+        }
+        return result;
     }
 
     String hashString() {
