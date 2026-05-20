@@ -19,20 +19,14 @@ package com.linecorp.centraldogma.server.internal.storage.repository.cache;
 import static com.google.common.base.MoreObjects.toStringHelper;
 import static com.linecorp.centraldogma.internal.Util.unsafeCast;
 import static com.linecorp.centraldogma.server.internal.api.HttpApiUtil.throwUnsafelyIfNonNull;
-import static com.linecorp.centraldogma.server.storage.repository.FindOptions.FIND_ALL_WITH_CONTENT;
 import static java.util.Objects.requireNonNull;
 
 import java.io.File;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-
-import com.google.common.collect.ImmutableMap;
 
 import com.linecorp.armeria.common.CommonPools;
 import com.linecorp.armeria.common.RequestContext;
@@ -51,7 +45,6 @@ import com.linecorp.centraldogma.common.RevisionRange;
 import com.linecorp.centraldogma.server.command.CommitResult;
 import com.linecorp.centraldogma.server.command.ContentTransformer;
 import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryCache;
-import com.linecorp.centraldogma.server.internal.storage.repository.git.PathPatternFilter;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.repository.CacheableCall;
 import com.linecorp.centraldogma.server.storage.repository.DiffResultType;
@@ -88,19 +81,6 @@ final class CachingRepository implements Repository {
     }
 
     @Override
-    public CompletableFuture<Entry<?>> getOrNull(Revision revision, String path) {
-        requireNonNull(revision, "revision");
-        requireNonNull(path, "path");
-
-        final Revision normalizedRevision = normalizeNow(revision);
-        // The size of the repositories in Central Dogma are relatively small. Therefore, caching the entire
-        // repo rather than caching each file separately would result in a higher cache hit rate. Additionally,
-        // when checking repository access patterns, it was found that a client tends to send multiple queries
-        // to fully scan repository files.
-        return find(normalizedRevision, ALL_PATH, FIND_ALL_WITH_CONTENT).thenApply(all -> all.get(path));
-    }
-
-    @Override
     public CompletableFuture<Map<String, Entry<?>>> find(Revision revision, String pathPattern,
                                                          Map<FindOption<?>, ?> options) {
         requireNonNull(revision, "revision");
@@ -108,39 +88,7 @@ final class CachingRepository implements Repository {
         requireNonNull(options, "options");
 
         final Revision normalizedRevision = normalizeNow(revision);
-
-        Map<FindOption<?>, ?> cacheableOptions = options;
-        final Integer maxEntries = (Integer) options.get(FindOption.MAX_ENTRIES);
-        if (maxEntries != null) {
-            final ImmutableMap.Builder<FindOption<?>, Object> newOptions = ImmutableMap.builder();
-            options.forEach((key, value) -> {
-                if (key != FindOption.MAX_ENTRIES) {
-                    newOptions.put(key, value);
-                }
-            });
-            cacheableOptions = newOptions.build();
-        }
-
-        return execute(new CacheableFindCall(repo, normalizedRevision, ALL_PATH, cacheableOptions))
-                    .thenApply((all) -> {
-                        if (all.isEmpty()) {
-                            return all;
-                        }
-
-                        Stream<Map.Entry<String, Entry<?>>> stream = all.entrySet().stream();
-                        if (!pathPattern.equals(ALL_PATH)) {
-                            final PathPatternFilter filter = PathPatternFilter.of(pathPattern);
-                            stream = stream.filter(entry -> filter.matches(entry.getKey()));
-                        }
-                        if (maxEntries != null) {
-                            stream = stream.limit(maxEntries);
-                        }
-
-                        // Use LinkedHashMap to 1) keep the order and 2) allow callers to mutate it.
-                        return stream.collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue,
-                                                               (oldV, newV) -> oldV,
-                                                               LinkedHashMap::new));
-                    });
+        return execute(new CacheableFindCall(repo, normalizedRevision, pathPattern, options));
     }
 
     @Override
