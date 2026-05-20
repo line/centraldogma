@@ -126,7 +126,9 @@ const MirrorView = ({ projectName, repoName, mirror }: MirrorViewProps) => {
                   <Code fontSize="md" padding="2px 10px 2px 10px">
                     {mirror.remoteScheme}://{mirror.remoteUrl}
                     {mirror.remotePath}
-                    {mirror.remoteBranch ? `#${mirror.remoteBranch}` : ''}
+                    {!['dogma', 'dogma+https'].includes(mirror.remoteScheme) && mirror.remoteBranch
+                      ? `#${mirror.remoteBranch}`
+                      : ''}
                   </Code>
                 </Td>
               </Tr>

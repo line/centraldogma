@@ -111,7 +111,7 @@ public abstract class AbstractMirror implements Mirror {
         if (gitignore != null) {
             ignoreNode = new IgnoreNode();
             try {
-                ignoreNode.parse(new ByteArrayInputStream(gitignore.getBytes()));
+                ignoreNode.parse(new ByteArrayInputStream(gitignore.getBytes(UTF_8)));
             } catch (IOException e) {
                 throw new IllegalArgumentException("Failed to read gitignore: " + gitignore, e);
             }
@@ -269,7 +269,7 @@ public abstract class AbstractMirror implements Mirror {
             final MatchResult ignoreResult = ignoreNode.isIgnored(relativePath, isDirectory);
             if (ignoreResult == MatchResult.IGNORED) {
                 if (isDirectory) {
-                    lastIgnoredDirectory = path;
+                    lastIgnoredDirectory = path.endsWith("/") ? path : path + '/';
                 }
                 continue;
             }
