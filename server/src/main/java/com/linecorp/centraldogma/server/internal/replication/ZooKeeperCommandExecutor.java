@@ -1203,7 +1203,6 @@ public final class ZooKeeperCommandExecutor
         }
     }
 
-    @Nullable
     @VisibleForTesting
     ReplicationLogContext loadLog(long revision) {
         final ReplicationLogContext logContext = new ReplicationLogContext();
