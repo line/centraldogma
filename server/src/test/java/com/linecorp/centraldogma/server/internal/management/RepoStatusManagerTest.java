@@ -55,7 +55,8 @@ class RepoStatusManagerTest {
         statusManager.updateRepoStatus("test_prj", "test_repo", Author.DEFAULT, ReplicationStatus.WRITABLE)
                      .join();
         entity = statusManager.getRepoStatus("test_prj", "test_repo");
-        assertThat(entity.status()).isEqualTo(ReplicationStatus.WRITABLE);
+        // The cached status will be removed when the status becomes writable.
+        assertThat(entity).isNull();
     }
 
     @Test
@@ -71,6 +72,7 @@ class RepoStatusManagerTest {
 
         statusManager.updateProjectStatus("test_prj", Author.DEFAULT, ReplicationStatus.WRITABLE).join();
         entity = statusManager.getRepoStatus("test_prj", "dogma");
-        assertThat(entity.status()).isEqualTo(ReplicationStatus.WRITABLE);
+        // The cached status will be removed when the status becomes writable.
+        assertThat(entity).isNull();
     }
 }
