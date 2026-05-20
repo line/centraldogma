@@ -258,7 +258,8 @@ public abstract class AbstractMirror implements Mirror {
      */
     protected final Map<String, Entry<?>> filterByGitignore(Map<String, Entry<?>> entries, String basePath) {
         if (ignoreNode == null) {
-            return entries;
+            // Return a mutable copy because callers may modify the returned map.
+            return new HashMap<>(entries);
         }
         final Map<String, Entry<?>> result = new HashMap<>(entries.size());
         String lastIgnoredDirectory = null;
