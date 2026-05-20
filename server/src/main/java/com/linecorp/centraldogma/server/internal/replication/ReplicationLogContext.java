@@ -16,6 +16,7 @@
 
 package com.linecorp.centraldogma.server.internal.replication;
 
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.Objects;
 
@@ -77,7 +78,9 @@ final class ReplicationLogContext {
 
     @Override
     public int hashCode() {
-        return Objects.hash(replayRevision, meta, log, bytes);
+        int result = Objects.hash(replayRevision, meta, log);
+        result = 31 * result + Arrays.hashCode(bytes);
+        return result;
     }
 
     @Override

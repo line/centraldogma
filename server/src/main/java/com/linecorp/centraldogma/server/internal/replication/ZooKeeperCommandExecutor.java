@@ -1147,7 +1147,7 @@ public final class ZooKeeperCommandExecutor
         if (logContext == null) {
             // No log context, so we can't determine which project/repo failed;
             // fall back to a global read-only mode.
-            logger.error("Fail to replicate a log; entering read-only mode.", exception);
+            logger.error("Failed to replicate a log; entering read-only mode.", exception);
             stopLater();
             return;
         }
@@ -1175,13 +1175,13 @@ public final class ZooKeeperCommandExecutor
             }
         }
 
-        logger.error("Failed to replicate a log; attemping to switch to read-only mode." +
+        logger.error("Failed to replicate a log; attemping to switch to read-only mode. " +
                      "scope: {}, logContext: {}", scope, logContext, exception);
         if (directExecution) {
             // When a replication failure occurs during command execution, the replication should enter
             // read-only mode while holding the lock for the original command.
             try {
-                delegate.execute(ExecutionContext.empty(), command).get();
+                delegate.execute(ExecutionContext.empty(), command).get(30, TimeUnit.SECONDS);
                 final ReplicationLog<?> log = new ReplicationLog<>(replicaId(), command, null);
                 final long revision = storeLog(log);
                 logger.info("Successfully applied read-only mode to {}. revision: {}", scope, revision);

@@ -80,13 +80,13 @@ public class ProjectManagerExtension extends AbstractAllOrEachExtension {
         purgeWorker = Executors.newSingleThreadScheduledExecutor(
                 new DefaultThreadFactory("purge-worker", true));
         projectManager = newProjectManager(repositoryWorker, purgeWorker);
+        serverStatusManager = new ServerStatusManager(dataDir);
         executor = newCommandExecutor(projectManager, repositoryWorker, dataDir);
 
         executor.start().get();
         internalProjectInitializer =
                 new InternalProjectInitializer(executor, projectManager, NoopEncryptionStorageManager.INSTANCE);
         internalProjectInitializer.initialize();
-        serverStatusManager = new ServerStatusManager(dataDir);
         afterExecutorStarted();
     }
 
@@ -169,7 +169,6 @@ public class ProjectManagerExtension extends AbstractAllOrEachExtension {
      * Override this method to customize a {@link CommandExecutor}.
      */
     protected CommandExecutor newCommandExecutor(ProjectManager projectManager, Executor worker, File dataDir) {
-        final ServerStatusManager serverStatusManager = new ServerStatusManager(dataDir);
         return new StandaloneCommandExecutor(projectManager, worker, serverStatusManager,
                                              new RepoStatusManager(serverStatusManager, projectManager), null,
                                              NoopEncryptionStorageManager.INSTANCE, null, null, null,
