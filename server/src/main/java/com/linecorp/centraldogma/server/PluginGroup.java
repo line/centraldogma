@@ -28,8 +28,10 @@ import java.util.ServiceLoader;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import org.jspecify.annotations.Nullable;
@@ -125,10 +127,12 @@ final class PluginGroup {
     }
 
     private final List<Plugin> plugins;
+    private final ExecutorService executor;
     private final PluginGroupStartStop startStop;
 
-    private PluginGroup(Iterable<Plugin> plugins, Executor executor) {
+    private PluginGroup(Iterable<Plugin> plugins, ExecutorService executor) {
         this.plugins = ImmutableList.copyOf(requireNonNull(plugins, "plugins"));
+        this.executor = requireNonNull(executor, "executor");
         startStop = new PluginGroupStartStop(requireNonNull(executor, "executor"));
     }
 
@@ -173,6 +177,26 @@ final class PluginGroup {
         return startStop.stop(
                 new PluginContext(config, projectManager, commandExecutor, meterRegistry, purgeWorker,
                                   internalProjectInitializer, mirrorAccessController));
+    }
+
+    void close() {
+        executor.shutdown();
+        boolean interrupted = false;
+        try {
+            while (!executor.isTerminated()) {
+                try {
+                    executor.awaitTermination(1, TimeUnit.SECONDS);
+                } catch (InterruptedException ignore) {
+                    interrupted = true;
+                }
+            }
+        } catch (Exception cause) {
+            logger.warn("Failed to shutdown the {}:", executor, cause);
+        } finally {
+            if (interrupted) {
+                Thread.currentThread().interrupt();
+            }
+        }
     }
 
     private class PluginGroupStartStop extends StartStopSupport<PluginContext, PluginContext, Void, Void> {

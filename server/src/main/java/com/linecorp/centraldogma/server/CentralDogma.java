@@ -1431,6 +1431,13 @@ public class CentralDogma implements AutoCloseable {
                         pluginsForAllReplicas.stop(cfg, pm, executor, meterRegistry, purgeWorker,
                                                    projectInitializer, mirrorAccessController).join();
                     }
+                    pluginsForAllReplicas.close();
+                }
+                if (pluginsForLeaderOnly != null) {
+                    pluginsForLeaderOnly.close();
+                }
+                if (pluginsForZoneLeaderOnly != null) {
+                    pluginsForZoneLeaderOnly.close();
                 }
                 CentralDogma.this.doStop();
             });
