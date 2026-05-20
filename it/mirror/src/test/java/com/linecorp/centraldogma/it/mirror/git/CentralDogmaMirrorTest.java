@@ -27,6 +27,7 @@ import java.net.InetSocketAddress;
 import java.util.Map;
 import java.util.concurrent.CompletionException;
 
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -281,11 +282,66 @@ class CentralDogmaMirrorTest {
                 .hasMessageContaining("file");
     }
 
+    @Test
+    void localToRemote_gitignore() throws Exception {
+        pushMirrorSettings("/", "/", MirrorDirection.LOCAL_TO_REMOTE, "*.log\n/build/");
+
+        // Add files - some match gitignore patterns.
+        localClient.forRepo(projName, REPO_FOO)
+                   .commit("Add files",
+                           Change.ofTextUpsert("/app.txt", "app content"),
+                           Change.ofTextUpsert("/error.log", "log content"),
+                           Change.ofTextUpsert("/build/output.txt", "build output"),
+                           Change.ofJsonUpsert("/config.json", "{\"key\":\"value\"}"))
+                   .push().join();
+
+        mirroringService.mirror().join();
+
+        final Map<String, Entry<?>> remoteEntries =
+                remoteClient.getFiles(projName, REPO_FOO, Revision.HEAD, PathPattern.all()).join();
+        // Non-ignored files should be mirrored.
+        assertThat(remoteEntries).containsKey("/app.txt");
+        assertThat(remoteEntries).containsKey("/config.json");
+        // Ignored files should NOT be mirrored.
+        assertThat(remoteEntries).doesNotContainKey("/error.log");
+        assertThat(remoteEntries).doesNotContainKey("/build/output.txt");
+    }
+
+    @Test
+    void remoteToLocal_gitignore() throws Exception {
+        pushMirrorSettings("/", "/", MirrorDirection.REMOTE_TO_LOCAL, "*.log\n/build/");
+
+        // Add files to remote - some match gitignore patterns.
+        remoteClient.forRepo(projName, REPO_FOO)
+                    .commit("Add files",
+                            Change.ofTextUpsert("/app.txt", "app content"),
+                            Change.ofTextUpsert("/error.log", "log content"),
+                            Change.ofTextUpsert("/build/output.txt", "build output"),
+                            Change.ofJsonUpsert("/config.json", "{\"key\":\"value\"}"))
+                    .push().join();
+
+        mirroringService.mirror().join();
+
+        final Map<String, Entry<?>> localEntries =
+                localClient.getFiles(projName, REPO_FOO, Revision.HEAD, PathPattern.all()).join();
+        // Non-ignored files should be mirrored.
+        assertThat(localEntries).containsKey("/app.txt");
+        assertThat(localEntries).containsKey("/config.json");
+        // Ignored files should NOT be mirrored.
+        assertThat(localEntries).doesNotContainKey("/error.log");
+        assertThat(localEntries).doesNotContainKey("/build/output.txt");
+    }
+
     private void pushMirrorSettings(String localPath, String remotePath) {
-        pushMirrorSettings(localPath, remotePath, MirrorDirection.LOCAL_TO_REMOTE);
+        pushMirrorSettings(localPath, remotePath, MirrorDirection.LOCAL_TO_REMOTE, null);
     }
 
     private void pushMirrorSettings(String localPath, String remotePath, MirrorDirection direction) {
+        pushMirrorSettings(localPath, remotePath, direction, null);
+    }
+
+    private void pushMirrorSettings(String localPath, String remotePath,
+                                    MirrorDirection direction, @Nullable String gitignore) {
         final InetSocketAddress remoteAddr = remoteDogma.serverAddress();
         final String remoteUri = "dogma://" + remoteAddr.getHostString() + ':' + remoteAddr.getPort() +
                                  '/' + projName + '/' + REPO_FOO + ".dogma" + remotePath;
@@ -306,20 +362,26 @@ class CentralDogmaMirrorTest {
             }
         }
 
+        final StringBuilder config = new StringBuilder();
+        config.append('{')
+              .append("  \"id\": \"foo\",")
+              .append("  \"enabled\": true,")
+              .append("  \"direction\": \"").append(direction).append("\",")
+              .append("  \"localRepo\": \"").append(REPO_FOO).append("\",")
+              .append("  \"localPath\": \"").append(localPath).append("\",")
+              .append("  \"remoteUri\": \"").append(remoteUri).append("\",")
+              .append("  \"schedule\": \"0 0 0 1 1 ? 2099\",")
+              .append("  \"credentialName\": \"").append(credName).append('"');
+        if (gitignore != null) {
+            config.append(",  \"gitignore\": \"").append(gitignore.replace("\n", "\\n")).append('"');
+        }
+        config.append('}');
+
         localClient.forRepo(projName, Project.REPO_DOGMA)
                    .commit("Add mirror config",
                            Change.ofJsonUpsert(
                                    "/repos/" + REPO_FOO + "/mirrors/foo.json",
-                                   '{' +
-                                   "  \"id\": \"foo\"," +
-                                   "  \"enabled\": true," +
-                                   "  \"direction\": \"" + direction + "\"," +
-                                   "  \"localRepo\": \"" + REPO_FOO + "\"," +
-                                   "  \"localPath\": \"" + localPath + "\"," +
-                                   "  \"remoteUri\": \"" + remoteUri + "\"," +
-                                   "  \"schedule\": \"0 0 0 1 1 ? 2099\"," +
-                                   "  \"credentialName\": \"" + credName + '"' +
-                                   '}'))
+                                   config.toString()))
                    .push().join();
     }
 }

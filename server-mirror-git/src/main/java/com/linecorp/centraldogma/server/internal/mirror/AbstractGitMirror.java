@@ -21,20 +21,16 @@ import static com.linecorp.centraldogma.server.storage.repository.FindOptions.FI
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.eclipse.jgit.lib.Constants.OBJECT_ID_ABBREV_STRING_LENGTH;
 
-import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletionException;
 import java.util.function.Consumer;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import org.eclipse.jgit.api.RemoteSetUrlCommand;
 import org.eclipse.jgit.api.RemoteSetUrlCommand.UriType;
@@ -46,7 +42,6 @@ import org.eclipse.jgit.dircache.DirCacheEditor;
 import org.eclipse.jgit.dircache.DirCacheEditor.DeletePath;
 import org.eclipse.jgit.dircache.DirCacheEditor.PathEdit;
 import org.eclipse.jgit.dircache.DirCacheEntry;
-import org.eclipse.jgit.ignore.IgnoreNode;
 import org.eclipse.jgit.ignore.IgnoreNode.MatchResult;
 import org.eclipse.jgit.lib.CommitBuilder;
 import org.eclipse.jgit.lib.Constants;
@@ -109,22 +104,10 @@ abstract class AbstractGitMirror extends AbstractMirror {
 
     private static final String HEAD_REF_MASTER = Constants.R_HEADS + Constants.MASTER;
 
-    @Nullable
-    private IgnoreNode ignoreNode;
-
     AbstractGitMirror(String id, boolean enabled, @Nullable Cron schedule, MirrorDirection direction,
                       Credential credential, Repository localRepo, String localPath,
                       RepositoryUri remoteUri, @Nullable String gitignore, @Nullable String zone) {
         super(id, enabled, schedule, direction, credential, localRepo, localPath, remoteUri, gitignore, zone);
-
-        if (gitignore != null) {
-            ignoreNode = new IgnoreNode();
-            try {
-                ignoreNode.parse(new ByteArrayInputStream(gitignore.getBytes()));
-            } catch (IOException e) {
-                throw new IllegalArgumentException("Failed to read gitignore: " + gitignore, e);
-            }
-        }
     }
 
     GitWithAuth openGit(File workDir,
@@ -388,10 +371,9 @@ abstract class AbstractGitMirror extends AbstractMirror {
                 final FileMode fileMode = treeWalk.getFileMode();
                 final String path = '/' + treeWalk.getPathString();
 
-                if (ignoreNode != null && path.startsWith(remotePath())) {
-                    assert ignoreNode != null;
-                    if (ignoreNode.isIgnored('/' + path.substring(remotePath().length()),
-                                             fileMode == FileMode.TREE) == MatchResult.IGNORED) {
+                if (ignoreNode() != null && path.startsWith(remotePath())) {
+                    if (ignoreNode().isIgnored('/' + path.substring(remotePath().length()),
+                                               fileMode == FileMode.TREE) == MatchResult.IGNORED) {
                         continue;
                     }
                 }
@@ -656,42 +638,7 @@ abstract class AbstractGitMirror extends AbstractMirror {
     private Map<String, Entry<?>> localHeadEntries(Revision localHead) {
         final Map<String, Entry<?>> localRawHeadEntries = localRepo().find(localHead, localPath() + "**")
                                                                      .join();
-
-        final Stream<Map.Entry<String, Entry<?>>> entryStream =
-                localRawHeadEntries.entrySet()
-                                   .stream();
-        if (ignoreNode == null) {
-            // Use HashMap to manipulate it.
-            return entryStream.collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
-        }
-
-        final Map<String, Entry<?>> sortedMap =
-                entryStream.collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue,
-                                                     (v1, v2) -> v1, LinkedHashMap::new));
-        // Use HashMap to manipulate it.
-        final HashMap<String, Entry<?>> result = new HashMap<>(sortedMap.size());
-        String lastIgnoredDirectory = null;
-        for (Map.Entry<String, ? extends Entry<?>> entry : sortedMap.entrySet()) {
-            final String path = entry.getKey();
-            final boolean isDirectory = entry.getValue().type() == EntryType.DIRECTORY;
-            assert ignoreNode != null;
-            final MatchResult ignoreResult = ignoreNode.isIgnored(
-                    path.substring(localPath().length()), isDirectory);
-            if (ignoreResult == MatchResult.IGNORED) {
-                if (isDirectory) {
-                    lastIgnoredDirectory = path;
-                }
-                continue;
-            }
-            if (ignoreResult == MatchResult.CHECK_PARENT) {
-                if (lastIgnoredDirectory != null && path.startsWith(lastIgnoredDirectory)) {
-                    continue;
-                }
-            }
-            result.put(path, entry.getValue());
-        }
-
-        return result;
+        return filterByGitignore(localRawHeadEntries, localPath());
     }
 
     private boolean addModifiedEntryToCache(Revision localHead, DirCache dirCache, ObjectReader reader,

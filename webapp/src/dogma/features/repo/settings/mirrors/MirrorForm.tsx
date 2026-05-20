@@ -73,10 +73,16 @@ interface OptionType {
   label: string;
 }
 
-const MIRROR_SCHEMES: OptionType[] = ['git+ssh', 'git+http', 'git+https'].map((scheme) => ({
-  value: scheme,
-  label: scheme,
-}));
+const MIRROR_SCHEMES: OptionType[] = ['git+ssh', 'git+http', 'git+https', 'dogma', 'dogma+https'].map(
+  (scheme) => ({
+    value: scheme,
+    label: scheme,
+  }),
+);
+
+function isDogmaScheme(scheme: string): boolean {
+  return scheme === 'dogma' || scheme === 'dogma+https';
+}
 
 function repoMirrorCredentialName(project: string, repo: string, id: string): string {
   return `projects/${project}/repos/${repo}/credentials/${id}`;
@@ -109,6 +115,8 @@ const MirrorForm = ({ projectName, repoName, defaultValue, onSubmit, isWaitingRe
 
   const [isScheduleEnabled, setScheduleEnabled] = useState<boolean>(defaultValue.schedule != null);
   const schedule = watch('schedule');
+  const remoteScheme = watch('remoteScheme');
+  const isDogma = isDogmaScheme(remoteScheme);
 
   const repoCredentialOptions: OptionType[] = (repoCredentials || [])
     .filter((credential: CredentialDto) => credential.id)
@@ -175,6 +183,9 @@ const MirrorForm = ({ projectName, repoName, defaultValue, onSubmit, isWaitingRe
   return (
     <form
       onSubmit={handleSubmit((mirror) => {
+        if (isDogmaScheme(mirror.remoteScheme)) {
+          mirror.remoteBranch = '';
+        }
         return onSubmit(mirror, () => {}, setError);
       })}
     >
@@ -353,27 +364,38 @@ const MirrorForm = ({ projectName, repoName, defaultValue, onSubmit, isWaitingRe
                 name="remoteUrl"
                 type="text"
                 defaultValue={defaultValue.remoteUrl}
-                placeholder="my.git.com/org/myrepo.git"
-                {...register('remoteUrl', { required: true, pattern: /^[\w.\-]+(:[0-9]+)?\/[\w.\-\/]+.git$/ })}
+                placeholder={isDogma ? 'my-cd.com/myproject/myrepo.dogma' : 'my.git.com/org/myrepo.git'}
+                {...register('remoteUrl', {
+                  required: true,
+                  pattern: isDogma
+                    ? /^[\w.\-]+(:[0-9]+)?\/[\w.\-\/]+\.dogma$/
+                    : /^[\w.\-]+(:[0-9]+)?\/[\w.\-\/]+\.git$/,
+                })}
               />
               <FieldErrorMessage
                 error={errors.remoteUrl}
                 fieldName="remote URL"
-                errorMessage="Invalid remote URL. (expected format: 'my.git.com/org/myrepo.git')"
+                errorMessage={
+                  isDogma
+                    ? "Invalid remote URL. (expected format: 'my-cd.com/myproject/myrepo.dogma')"
+                    : "Invalid remote URL. (expected format: 'my.git.com/org/myrepo.git')"
+                }
               />
             </FormControl>
-            <FormControl width="50%" isRequired isInvalid={errors.remoteBranch != null}>
-              <FormLabel>branch</FormLabel>
-              <Input
-                id="remoteBranch"
-                name="remoteBranch"
-                type="text"
-                defaultValue={defaultValue.remoteBranch}
-                placeholder="main"
-                {...register('remoteBranch', { required: true })}
-              />
-              <FieldErrorMessage error={errors.remoteBranch} fieldName="remote branch" />
-            </FormControl>
+            {!isDogma && (
+              <FormControl width="50%" isRequired isInvalid={errors.remoteBranch != null}>
+                <FormLabel>branch</FormLabel>
+                <Input
+                  id="remoteBranch"
+                  name="remoteBranch"
+                  type="text"
+                  defaultValue={defaultValue.remoteBranch}
+                  placeholder="main"
+                  {...register('remoteBranch', { required: !isDogma })}
+                />
+                <FieldErrorMessage error={errors.remoteBranch} fieldName="remote branch" />
+              </FormControl>
+            )}
             <FormControl width="50%" isRequired isInvalid={errors.remotePath != null}>
               <FormLabel>path</FormLabel>
               <Input
