@@ -449,6 +449,15 @@ public class CentralDogma implements AutoCloseable {
     @Override
     public void close() {
         startStop.close();
+        if (pluginsForAllReplicas != null) {
+            pluginsForAllReplicas.close();
+        }
+        if (pluginsForLeaderOnly != null) {
+            pluginsForLeaderOnly.close();
+        }
+        if (pluginsForZoneLeaderOnly != null) {
+            pluginsForZoneLeaderOnly.close();
+        }
     }
 
     private boolean doStart() throws Exception {
@@ -1431,13 +1440,6 @@ public class CentralDogma implements AutoCloseable {
                         pluginsForAllReplicas.stop(cfg, pm, executor, meterRegistry, purgeWorker,
                                                    projectInitializer, mirrorAccessController).join();
                     }
-                    pluginsForAllReplicas.close();
-                }
-                if (pluginsForLeaderOnly != null) {
-                    pluginsForLeaderOnly.close();
-                }
-                if (pluginsForZoneLeaderOnly != null) {
-                    pluginsForZoneLeaderOnly.close();
                 }
                 CentralDogma.this.doStop();
             });
