@@ -40,12 +40,8 @@ const RepositoryUserPage = () => {
             <NewUserRepositoryRole
               projectName={projectName}
               repoName={repoName}
-              members={metadata ? Array.from(Object.values(metadata.members)) : []}
               addUserRepositoryRole={addUserRepositoryRole}
               isLoading={isAddUserLoading}
-              userRepositoryRole={
-                metadata?.repos[repoName]?.roles?.users ?? ({} as UserOrAppIdentityRepositoryRoleDto)
-              }
             />
           </Flex>
           <UserOrAppIdentityRepositoryRoleList
@@ -57,6 +53,8 @@ const RepositoryUserPage = () => {
             }
             deleteUserOrAppIdentity={deleteUserRepositoryRole}
             isLoading={isDeleteUserLoading}
+            projectRoles={metadata?.repos[repoName]?.roles?.projects}
+            members={metadata?.members}
           />
         </>
       )}
