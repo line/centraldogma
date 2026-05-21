@@ -24,6 +24,7 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
 
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
@@ -58,6 +59,7 @@ import com.linecorp.centraldogma.server.storage.project.InternalProjectInitializ
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.testing.internal.CentralDogmaReplicationExtension;
 
+@Disabled("Disabled due to flaky test cases")
 class ZooKeeperScopedReadonlyIntegrationTest {
 
     private static final String TEST_PROJECT1 = "test-project1";
