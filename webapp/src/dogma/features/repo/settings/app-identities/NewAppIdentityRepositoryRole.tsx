@@ -49,7 +49,7 @@ export const NewAppIdentityRepositoryRole = ({
   isLoading: boolean;
   appIdentityRepositoryRole: UserOrAppIdentityRepositoryRoleDto;
 }) => {
-  const { data: allAppIdentities } = useGetAppIdentitiesQuery();
+  const { data: allAppIdentities, isLoading: isAppIdentitiesLoading } = useGetAppIdentitiesQuery();
   const appIdentityOptions: AppIdentityOptionType[] = (allAppIdentities || [])
     .filter((appIdentity) => !(appIdentity.appId in appIdentityRepositoryRole))
     .map((appIdentity) => ({
@@ -90,7 +90,9 @@ export const NewAppIdentityRepositoryRole = ({
         <form onSubmit={handleSubmit(onSubmit)}>
           <PopoverBody minWidth="max-content">
             <FormControl isInvalid={errors.appId ? true : false} isRequired>
-              {appIdentityOptions.length ? (
+              {isAppIdentitiesLoading ? (
+                <FormHelperText>Loading app identities...</FormHelperText>
+              ) : appIdentityOptions.length ? (
                 <Controller
                   control={control}
                   name="appId"
@@ -118,7 +120,7 @@ export const NewAppIdentityRepositoryRole = ({
               {errors.appId && <FormErrorMessage>App ID is required</FormErrorMessage>}
             </FormControl>
             <RadioGroup defaultValue="none" mt={3} colorScheme="teal" onChange={setRole} value={role}>
-              {appIdentityOptions.length ? (
+              {!isAppIdentitiesLoading && appIdentityOptions.length ? (
                 <Stack spacing={5} direction="row">
                   <Radio value="ADMIN">Admin</Radio>
                   <Radio value="WRITE">Write</Radio>
@@ -131,7 +133,7 @@ export const NewAppIdentityRepositoryRole = ({
           </PopoverBody>
           <PopoverFooter border="0" display="flex" alignItems="center" justifyContent="space-between" pb={4}>
             <Spacer />
-            {appIdentityOptions.length ? (
+            {!isAppIdentitiesLoading && appIdentityOptions.length ? (
               <ConfirmAddUserOrAppIdentityRepositoryRole
                 projectName={projectName}
                 repoName={repoName}
