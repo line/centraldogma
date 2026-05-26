@@ -412,8 +412,7 @@ public class RepositoryServiceV1 extends AbstractService {
                         // status cannot be changed. Migrate directly without changing the status.
                         return migrate(author, project, repository, wdekDetails, true);
                     }
-                    return updateRepositoryStatus(author, project, repository,
-                                                  ReplicationStatus.READ_ONLY)
+                    return updateRepositoryStatus(author, project, repository, ReplicationStatus.READ_ONLY)
                             .thenCompose(unused -> migrate(author, project, repository,
                                                            wdekDetails, false));
                 });
@@ -463,11 +462,23 @@ public class RepositoryServiceV1 extends AbstractService {
     private CompletableFuture<Void> updateRepositoryStatus(Author author, Project project,
                                                            Repository repository, ReplicationStatus newStatus) {
         final String projectName = project.name();
+        final String repoName = repository.name();
         logger.info("Changing repository status: project={}, repository={}, status={}",
-                    projectName, repository.name(), newStatus);
-        final Command<Void> command = Command.updateRepositoryStatus(project.name(), repository.name(), author,
+                    projectName, repoName, newStatus);
+        final Command<Void> command = Command.updateRepositoryStatus(project.name(), repoName, author,
                                                                      newStatus);
-        return executor().execute(command);
+        return executor().execute(command)
+                         .handle((unused, cause) -> {
+                             if (cause != null) {
+                                 logger.warn("Failed to change the repository status: project={}, repository={}, " +
+                                             "status={}", projectName, repoName, newStatus, cause);
+                                 Exceptions.throwUnsafely(cause);
+                             } else {
+                                 logger.info("Changed repository status: project={}, repository={}, status={}",
+                                             projectName, repoName, newStatus);
+                             }
+                             return null;
+                         });
     }
 
     private CompletionStage<RepositoryDto> migrate(Author author, Project project,
@@ -500,13 +511,11 @@ public class RepositoryServiceV1 extends AbstractService {
                 return UnmodifiableFuture.completedFuture(
                         newRepositoryDto(updatedRepository, ReplicationStatus.WRITABLE));
             }
-            return updateRepositoryStatus(author, project, repository,
-                                          ReplicationStatus.WRITABLE)
+            return updateRepositoryStatus(author, project, repository, ReplicationStatus.WRITABLE)
                     .thenApply(unused1 -> {
                         final Repository updatedRepository =
                                 project.repos().get(repository.name());
-                        return newRepositoryDto(updatedRepository,
-                                                ReplicationStatus.WRITABLE);
+                        return newRepositoryDto(updatedRepository, ReplicationStatus.WRITABLE);
                     });
         }).thenCompose(Function.identity());
     }

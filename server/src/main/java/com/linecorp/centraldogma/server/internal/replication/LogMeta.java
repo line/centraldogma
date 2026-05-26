@@ -95,20 +95,20 @@ class LogMeta {
         return size;
     }
 
-    @JsonProperty("commandType")
     @Nullable
+    @JsonProperty("commandType")
     String commandType() {
         return commandType;
     }
 
-    @JsonProperty("projectName")
     @Nullable
+    @JsonProperty("projectName")
     String projectName() {
         return projectName;
     }
 
-    @JsonProperty("repoName")
     @Nullable
+    @JsonProperty("repoName")
     String repoName() {
         return repoName;
     }

@@ -449,15 +449,6 @@ public class CentralDogma implements AutoCloseable {
     @Override
     public void close() {
         startStop.close();
-        if (pluginsForAllReplicas != null) {
-            pluginsForAllReplicas.close();
-        }
-        if (pluginsForLeaderOnly != null) {
-            pluginsForLeaderOnly.close();
-        }
-        if (pluginsForZoneLeaderOnly != null) {
-            pluginsForZoneLeaderOnly.close();
-        }
     }
 
     private boolean doStart() throws Exception {

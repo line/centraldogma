@@ -930,8 +930,7 @@ public final class ZooKeeperCommandExecutor
             } catch (Throwable t) {
                 try {
                     // Skip past the failed log so subsequent logs can still be replayed;
-                    // the affected scope will be marked as read-only by handleReplicationFailure()
-                    // using the log context attached to the thrown ReplicationException.
+                    // the affected scope will be marked as read-only by handleReplicationFailure().
                     updateLastReplayedRevision(nextRevision);
                     info.lastReplayedRevision = nextRevision;
                 } catch (Exception e) {
@@ -1084,10 +1083,7 @@ public final class ZooKeeperCommandExecutor
 
             final Command<?> command = log.command();
             final String commandType = command.type().toString();
-            // Unwrap ForcePushCommand so its delegate's project/repo determines the scope.
-            // UpdateRepositoryStatusCommand / UpdateProjectStatusCommand are intentionally NOT
-            // unwrapped here: they write to dogma/dogma, so a replay failure correctly escalates
-            // to the server scope via the null-projectName branch below.
+            // Unwrap ForcePushCommand to determine the delegate's scope.
             final Command<?> scopeCommand = unwrapForcePush(command);
             final String projectName;
             final String repoName;
@@ -1406,5 +1402,18 @@ public final class ZooKeeperCommandExecutor
     @VisibleForTesting
     public void setLockTimeoutMillis(long lockTimeoutMillis) {
         lockTimeoutNanos = TimeUnit.MILLISECONDS.toNanos(lockTimeoutMillis);
+    }
+
+    /**
+     * A marker exception to indicate that a ReplicationException has been handled by marking the scope as
+     * read-only.
+     */
+    private static final class ScopedReadOnlyAppliedException extends RuntimeException {
+
+        private static final long serialVersionUID = -8652319825149778572L;
+
+        ScopedReadOnlyAppliedException(ReplicationException cause) {
+            super(cause);
+        }
     }
 }
