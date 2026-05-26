@@ -68,6 +68,7 @@ public final class RepositoryState {
         return status;
     }
 
+    @Nullable
     @JsonProperty("updatedAt")
     public Instant updatedAt() {
         return updatedAt;

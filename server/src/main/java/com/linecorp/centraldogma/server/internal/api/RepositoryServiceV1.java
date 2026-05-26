@@ -117,13 +117,13 @@ public class RepositoryServiceV1 extends AbstractService {
         }
 
         if (!removedOnly) {
-            final Map<String, RepositoryState> stateMap = repoStatusManager.getAllRepoStatus(project.name());
             return CompletableFuture.completedFuture(
                     project.repos().list().values().stream()
                            .filter(r -> user.isSystemAdmin() || !Project.isInternalRepo(r.name()))
                            .map(repository -> {
-                               final RepositoryState repositoryState = stateMap.get(repository.name());
-                               return newRepositoryDto(repository, getReplicationStatus(repositoryState));
+                               final RepositoryState repositoryState =
+                                       repoStatusManager.getRepoStatus(project.name(), repository.name());
+                               return newRepositoryDto(repository, repositoryState.status());
                            })
                            .collect(toImmutableList()));
         }
@@ -141,11 +141,6 @@ public class RepositoryServiceV1 extends AbstractService {
         });
     }
 
-    private static ReplicationStatus getReplicationStatus(@Nullable RepositoryState repoState) {
-        // If the repository state is not found, assume the repository is writable.
-        return repoState != null ? repoState.status() : ReplicationStatus.WRITABLE;
-    }
-
     private ReplicationStatus getReplicationStatus(Repository repository) {
         return getReplicationStatus(repository.parent().name(), repository.name());
     }
@@ -154,8 +149,7 @@ public class RepositoryServiceV1 extends AbstractService {
         if (repoName.equals(Project.REPO_META)) {
             repoName = Project.REPO_DOGMA;
         }
-        final RepositoryState repoStatus = repoStatusManager.getRepoStatus(projectName, repoName);
-        return getReplicationStatus(repoStatus);
+        return repoStatusManager.getRepoStatus(projectName, repoName).status();
     }
 
     private static ImmutableList<RepositoryDto> removedRepositories(Project project) {

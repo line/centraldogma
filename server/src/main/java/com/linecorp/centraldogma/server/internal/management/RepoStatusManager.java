@@ -16,13 +16,10 @@
 
 package com.linecorp.centraldogma.server.internal.management;
 
-import static com.google.common.collect.ImmutableMap.toImmutableMap;
-
 import java.time.Instant;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Function;
 
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
@@ -128,8 +125,16 @@ public final class RepoStatusManager {
                               });
     }
 
-    @Nullable
     public RepositoryState getRepoStatus(String projectName, String repoName) {
+        final RepositoryState repoStatus = getRepoStatus0(projectName, repoName);
+        if (repoStatus != null) {
+            return repoStatus;
+        }
+        return new RepositoryState(projectName, repoName, ReplicationStatus.WRITABLE, null);
+    }
+
+    @Nullable
+    private RepositoryState getRepoStatus0(String projectName, String repoName) {
         if (!statusManager.serverStatus().writable()) {
             // The server is read-only.
             return new RepositoryState(projectName, repoName, ReplicationStatus.READ_ONLY, null);
@@ -159,13 +164,13 @@ public final class RepoStatusManager {
             return false;
         }
 
-        final RepositoryState projectState = getRepoStatus(projectName, Project.REPO_DOGMA);
+        final RepositoryState projectState = getRepoStatus0(projectName, Project.REPO_DOGMA);
         if (projectState != null && projectState.status() == ReplicationStatus.READ_ONLY) {
             return false;
         }
 
         if (!repoName.equals(Project.REPO_DOGMA)) {
-            final RepositoryState repoState = getRepoStatus(projectName, repoName);
+            final RepositoryState repoState = getRepoStatus0(projectName, repoName);
             //noinspection RedundantIfStatement
             if (repoState != null && repoState.status() == ReplicationStatus.READ_ONLY) {
                 return false;
@@ -174,12 +179,6 @@ public final class RepoStatusManager {
 
         // Both the project and the repository are writable.
         return true;
-    }
-
-    public Map<String, RepositoryState> getAllRepoStatus(String projectName) {
-        return statusMap.values().stream()
-                        .filter(s -> s.projectName().equals(projectName))
-                        .collect(toImmutableMap(RepositoryState::repoName, Function.identity()));
     }
 
     public CompletableFuture<Void> updateProjectStatus(String projectName, Author author,
