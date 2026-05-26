@@ -22,9 +22,9 @@ import static org.awaitility.Awaitility.await;
 
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
@@ -51,6 +51,8 @@ import com.linecorp.centraldogma.server.CentralDogmaConfig;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.command.StandaloneCommandExecutor;
+import com.linecorp.centraldogma.server.internal.api.sysadmin.UpdateServerStatusRequest;
+import com.linecorp.centraldogma.server.internal.api.sysadmin.UpdateServerStatusRequest.Scope;
 import com.linecorp.centraldogma.server.management.ServerStatus;
 import com.linecorp.centraldogma.server.plugin.Plugin;
 import com.linecorp.centraldogma.server.plugin.PluginContext;
@@ -59,13 +61,11 @@ import com.linecorp.centraldogma.server.storage.project.InternalProjectInitializ
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.testing.internal.CentralDogmaReplicationExtension;
 
-@Disabled("Disabled due to flaky test cases")
 class ZooKeeperScopedReadonlyIntegrationTest {
 
-    private static final String TEST_PROJECT1 = "test-project1";
     private static final String TEST_REPO1 = "test-repo1";
     private static final String TEST_REPO2 = "test-repo2";
-    private static final String TEST_PROJECT2 = "test-project2";
+    private static final AtomicInteger testCounter = new AtomicInteger();
     private static final FaultInjector faultInjector = new FaultInjector();
 
     @RegisterExtension
@@ -76,35 +76,54 @@ class ZooKeeperScopedReadonlyIntegrationTest {
                 builder.plugins(faultInjector);
             }
         }
-
-        @Override
-        protected boolean runForEachTest() {
-            return true;
-        }
     };
 
     private static CentralDogma client0;
 
+    private String testProject1;
+    private String testProject2;
+
     @BeforeEach
     void beforeEach() {
         client0 = replica.servers().get(0).client();
-        client0.createProject(TEST_PROJECT1).join();
-        client0.createRepository(TEST_PROJECT1, TEST_REPO1).join();
-        client0.createRepository(TEST_PROJECT1, TEST_REPO2).join();
-        client0.createProject(TEST_PROJECT2).join();
-        client0.createRepository(TEST_PROJECT2, TEST_REPO1).join();
-        client0.createRepository(TEST_PROJECT2, TEST_REPO2).join();
+
+        // Restore the server status to WRITABLE so that a previous test that escalated to
+        // REPLICATION_ONLY does not block project/repository creation below.
+        final BlockingWebClient adminClient = replica.servers().get(0).blockingHttpClient();
+        if (getServerStatus(adminClient) != ServerStatus.WRITABLE) {
+            adminClient.prepare()
+                       .put("/api/v1/status")
+                       .contentJson(new UpdateServerStatusRequest(ServerStatus.WRITABLE, Scope.ALL))
+                       .asJson(ServerStatus.class)
+                       .execute();
+            await().untilAsserted(() -> {
+                for (int i = 0; i < 3; i++) {
+                    assertThat(getServerStatus(replica.servers().get(i).blockingHttpClient()))
+                            .isEqualTo(ServerStatus.WRITABLE);
+                }
+            });
+        }
+
+        final int index = testCounter.incrementAndGet();
+        testProject1 = "test-project1-" + index;
+        testProject2 = "test-project2-" + index;
+        client0.createProject(testProject1).join();
+        client0.createRepository(testProject1, TEST_REPO1).join();
+        client0.createRepository(testProject1, TEST_REPO2).join();
+        client0.createProject(testProject2).join();
+        client0.createRepository(testProject2, TEST_REPO1).join();
+        client0.createRepository(testProject2, TEST_REPO2).join();
     }
 
     @Test
     void repositoryReadonly() {
-        final CentralDogmaRepository repo1 = client0.forRepo(TEST_PROJECT1, TEST_REPO1);
+        final CentralDogmaRepository repo1 = client0.forRepo(testProject1, TEST_REPO1);
         repo1.commit("first", Change.ofJsonUpsert("/a.json", "{ \"a\": 1 }"))
             .push()
             .join();
 
         final Change<JsonNode> unknownChange = Change.ofJsonUpsert("/a.json", "{ \"a\": 3 }");
-        final Command<Revision> unknownCommand = Command.push(Author.DEFAULT, TEST_PROJECT1, TEST_REPO1,
+        final Command<Revision> unknownCommand = Command.push(Author.DEFAULT, testProject1, TEST_REPO1,
                                                               Revision.HEAD, "inject fault", "",
                                                               Markup.PLAINTEXT,
                                                               ImmutableList.of(unknownChange));
@@ -121,7 +140,7 @@ class ZooKeeperScopedReadonlyIntegrationTest {
         final BlockingWebClient client1 = replica.servers().get(1).blockingHttpClient();
 
         await().untilAsserted(() -> {
-            final RepositoryDto repoDto = getRepoStatus(client1, TEST_PROJECT1, TEST_REPO1);
+            final RepositoryDto repoDto = getRepoStatus(client1, testProject1, TEST_REPO1);
             assertThat(repoDto.status()).isEqualTo(ReplicationStatus.READ_ONLY);
         });
 
@@ -129,20 +148,20 @@ class ZooKeeperScopedReadonlyIntegrationTest {
         await().untilAsserted(() -> {
             for (int i = 0; i < 3; i++) {
                 final BlockingWebClient webClient = replica.servers().get(0).blockingHttpClient();
-                final RepositoryDto readonlyRepo = getRepoStatus(webClient, TEST_PROJECT1, TEST_REPO1);
+                final RepositoryDto readonlyRepo = getRepoStatus(webClient, testProject1, TEST_REPO1);
                 assertThat(readonlyRepo.status()).isEqualTo(ReplicationStatus.READ_ONLY);
             }
         });
 
         // Make sure that other repositories are still writable.
-        RepositoryDto repoDto = getRepoStatus(client1, TEST_PROJECT1, TEST_REPO2);
+        RepositoryDto repoDto = getRepoStatus(client1, testProject1, TEST_REPO2);
         assertThat(repoDto.status()).isEqualTo(ReplicationStatus.WRITABLE);
-        repoDto = getRepoStatus(client1, TEST_PROJECT1, "dogma");
+        repoDto = getRepoStatus(client1, testProject1, "dogma");
         assertThat(repoDto.status()).isEqualTo(ReplicationStatus.WRITABLE);
         assertThat(getServerStatus(client1)).isEqualTo(ServerStatus.WRITABLE);
-        repoDto = getRepoStatus(client1, TEST_PROJECT2, TEST_REPO1);
+        repoDto = getRepoStatus(client1, testProject2, TEST_REPO1);
         assertThat(repoDto.status()).isEqualTo(ReplicationStatus.WRITABLE);
-        repoDto = getRepoStatus(client1, TEST_PROJECT2, TEST_REPO2);
+        repoDto = getRepoStatus(client1, testProject2, TEST_REPO2);
         assertThat(repoDto.status()).isEqualTo(ReplicationStatus.WRITABLE);
 
         // Pushing to the read-only repository should fail.
@@ -154,7 +173,7 @@ class ZooKeeperScopedReadonlyIntegrationTest {
           .hasCauseInstanceOf(ReadOnlyException.class);
 
         // Other repositories should be writable.
-        final CentralDogmaRepository repo2 = client0.forRepo(TEST_PROJECT1, TEST_REPO2);
+        final CentralDogmaRepository repo2 = client0.forRepo(testProject1, TEST_REPO2);
         repo2.commit("third", Change.ofJsonUpsert("/a.json", "{ \"a\": 4 }"))
              .push()
              .join();
@@ -163,13 +182,13 @@ class ZooKeeperScopedReadonlyIntegrationTest {
     @Test
     void projectReadonly() {
         final String path = "/repos/test-project1/mirrors/a.json";
-        final CentralDogmaRepository dogmaRepo = client0.forRepo(TEST_PROJECT1, "dogma");
+        final CentralDogmaRepository dogmaRepo = client0.forRepo(testProject1, "dogma");
         dogmaRepo.commit("first", Change.ofJsonUpsert(path, "{ \"a\": 1 }"))
                  .push()
                  .join();
 
         final Change<JsonNode> invalidChange = Change.ofJsonUpsert(path, "{ \"a\": 3 }");
-        final Command<Revision> invalidCommand = Command.push(Author.DEFAULT, TEST_PROJECT1, "dogma",
+        final Command<Revision> invalidCommand = Command.push(Author.DEFAULT, testProject1, "dogma",
                                                               Revision.HEAD, "inject fault", "",
                                                               Markup.PLAINTEXT,
                                                               ImmutableList.of(invalidChange));
@@ -186,7 +205,7 @@ class ZooKeeperScopedReadonlyIntegrationTest {
         final BlockingWebClient client1 = replica.servers().get(1).blockingHttpClient();
 
         await().untilAsserted(() -> {
-            final RepositoryDto repoDto = getRepoStatus(client1, TEST_PROJECT1, "dogma");
+            final RepositoryDto repoDto = getRepoStatus(client1, testProject1, "dogma");
             assertThat(repoDto.status()).isEqualTo(ReplicationStatus.READ_ONLY);
         });
 
@@ -194,24 +213,24 @@ class ZooKeeperScopedReadonlyIntegrationTest {
         await().untilAsserted(() -> {
             for (int i = 0; i < 3; i++) {
                 final BlockingWebClient webClient = replica.servers().get(0).blockingHttpClient();
-                final RepositoryDto readonlyRepo = getRepoStatus(webClient, TEST_PROJECT1, "dogma");
+                final RepositoryDto readonlyRepo = getRepoStatus(webClient, testProject1, "dogma");
                 assertThat(readonlyRepo.status()).isEqualTo(ReplicationStatus.READ_ONLY);
             }
         });
 
         // Make sure that all repositories in the test_project1 are readonly.
-        RepositoryDto repoDto = getRepoStatus(client1, TEST_PROJECT1, TEST_REPO2);
+        RepositoryDto repoDto = getRepoStatus(client1, testProject1, TEST_REPO2);
         assertThat(repoDto.status()).isEqualTo(ReplicationStatus.READ_ONLY);
-        repoDto = getRepoStatus(client1, TEST_PROJECT1, "dogma");
+        repoDto = getRepoStatus(client1, testProject1, "dogma");
         assertThat(repoDto.status()).isEqualTo(ReplicationStatus.READ_ONLY);
 
         // The server should be writable.
         assertThat(getServerStatus(client1)).isEqualTo(ServerStatus.WRITABLE);
 
         // Other projects should be writable.
-        repoDto = getRepoStatus(client1, TEST_PROJECT2, TEST_REPO1);
+        repoDto = getRepoStatus(client1, testProject2, TEST_REPO1);
         assertThat(repoDto.status()).isEqualTo(ReplicationStatus.WRITABLE);
-        repoDto = getRepoStatus(client1, TEST_PROJECT2, TEST_REPO2);
+        repoDto = getRepoStatus(client1, testProject2, TEST_REPO2);
         assertThat(repoDto.status()).isEqualTo(ReplicationStatus.WRITABLE);
     }
 
@@ -254,7 +273,7 @@ class ZooKeeperScopedReadonlyIntegrationTest {
 
         // Every repository in every project should now report READ_ONLY.
         final BlockingWebClient client1 = replica.servers().get(1).blockingHttpClient();
-        for (String projectName : ImmutableList.of(TEST_PROJECT1, TEST_PROJECT2)) {
+        for (String projectName : ImmutableList.of(testProject1, testProject2)) {
             for (String repoName : ImmutableList.of(TEST_REPO1, TEST_REPO2, Project.REPO_DOGMA)) {
                 final RepositoryDto repoDto = getRepoStatus(client1, projectName, repoName);
                 assertThat(repoDto.status())
@@ -266,7 +285,7 @@ class ZooKeeperScopedReadonlyIntegrationTest {
         // Pushes are blocked everywhere, including dogma/dogma — the per-repo
         // writability check exempts dogma/dogma, but the executor-level
         // !writable guard does not.
-        final CentralDogmaRepository repo1 = client0.forRepo(TEST_PROJECT1, TEST_REPO1);
+        final CentralDogmaRepository repo1 = client0.forRepo(testProject1, TEST_REPO1);
         assertThatThrownBy(() -> {
             repo1.commit("after-readonly",
                          Change.ofJsonUpsert("/after-readonly.json", "{ \"x\": 1 }"))
@@ -275,7 +294,7 @@ class ZooKeeperScopedReadonlyIntegrationTest {
         }).isInstanceOf(CompletionException.class)
           .hasCauseInstanceOf(ReadOnlyException.class);
 
-        final CentralDogmaRepository project2Repo = client0.forRepo(TEST_PROJECT2, TEST_REPO1);
+        final CentralDogmaRepository project2Repo = client0.forRepo(testProject2, TEST_REPO1);
         assertThatThrownBy(() -> {
             project2Repo.commit("after-readonly",
                                 Change.ofJsonUpsert("/after-readonly.json", "{ \"x\": 1 }"))
@@ -295,23 +314,23 @@ class ZooKeeperScopedReadonlyIntegrationTest {
           .hasCauseInstanceOf(ReadOnlyException.class);
 
         // Reads must still succeed in REPLICATION_ONLY mode.
-        final RepositoryDto readDto = getRepoStatus(client1, TEST_PROJECT1, TEST_REPO1);
+        final RepositoryDto readDto = getRepoStatus(client1, testProject1, TEST_REPO1);
         assertThat(readDto.name()).isEqualTo(TEST_REPO1);
     }
 
     @Test
     void serverReadonlySupersedesRepositoryReadonly() {
-        final CentralDogmaRepository victimRepo = client0.forRepo(TEST_PROJECT1, TEST_REPO1);
+        final CentralDogmaRepository victimRepo = client0.forRepo(testProject1, TEST_REPO1);
         victimRepo.commit("seed-victim", Change.ofJsonUpsert("/v.json", "{ \"v\": 1 }"))
                   .push()
                   .join();
 
         faultInjector.injectFault(Command.push(
-                Author.DEFAULT, TEST_PROJECT1, TEST_REPO1, Revision.HEAD,
+                Author.DEFAULT, testProject1, TEST_REPO1, Revision.HEAD,
                 "inject fault (repo)", "", Markup.PLAINTEXT,
                 ImmutableList.of(Change.ofJsonUpsert("/v.json", "{ \"v\": 3 }"))));
 
-        // Drive TEST_PROJECT1/TEST_REPO1 into repo-scope read-only first.
+        // Drive testProject1/TEST_REPO1 into repo-scope read-only first.
         victimRepo.commit("victim-divergence",
                           Change.ofJsonPatch("/v.json",
                                              JsonPatchOperation.safeReplace(
@@ -321,14 +340,14 @@ class ZooKeeperScopedReadonlyIntegrationTest {
 
         final BlockingWebClient client1 = replica.servers().get(1).blockingHttpClient();
         await().untilAsserted(() -> assertThat(
-                getRepoStatus(client1, TEST_PROJECT1, TEST_REPO1).status())
+                getRepoStatus(client1, testProject1, TEST_REPO1).status())
                         .isEqualTo(ReplicationStatus.READ_ONLY));
 
         // The server itself and sibling repos are still writable.
         assertThat(getServerStatus(client1)).isEqualTo(ServerStatus.WRITABLE);
-        assertThat(getRepoStatus(client1, TEST_PROJECT1, TEST_REPO2).status())
+        assertThat(getRepoStatus(client1, testProject1, TEST_REPO2).status())
                 .isEqualTo(ReplicationStatus.WRITABLE);
-        assertThat(getRepoStatus(client1, TEST_PROJECT2, TEST_REPO1).status())
+        assertThat(getRepoStatus(client1, testProject2, TEST_REPO1).status())
                 .isEqualTo(ReplicationStatus.WRITABLE);
 
         // Escalate by triggering a server-scope failure on dogma/dogma.
@@ -363,11 +382,11 @@ class ZooKeeperScopedReadonlyIntegrationTest {
         });
 
         // Server scope wins: previously-writable siblings now report READ_ONLY too.
-        assertThat(getRepoStatus(client1, TEST_PROJECT1, TEST_REPO2).status())
+        assertThat(getRepoStatus(client1, testProject1, TEST_REPO2).status())
                 .isEqualTo(ReplicationStatus.READ_ONLY);
-        assertThat(getRepoStatus(client1, TEST_PROJECT2, TEST_REPO1).status())
+        assertThat(getRepoStatus(client1, testProject2, TEST_REPO1).status())
                 .isEqualTo(ReplicationStatus.READ_ONLY);
-        assertThat(getRepoStatus(client1, TEST_PROJECT1, TEST_REPO1).status())
+        assertThat(getRepoStatus(client1, testProject1, TEST_REPO1).status())
                 .isEqualTo(ReplicationStatus.READ_ONLY);
     }
 
@@ -408,20 +427,20 @@ class ZooKeeperScopedReadonlyIntegrationTest {
                 .isInstanceOf(CompletionException.class)
                 .hasCauseInstanceOf(ReadOnlyException.class);
 
-        assertThatThrownBy(() -> client0.createRepository(TEST_PROJECT1, "new-repo").join())
+        assertThatThrownBy(() -> client0.createRepository(testProject1, "new-repo").join())
                 .isInstanceOf(CompletionException.class)
                 .hasCauseInstanceOf(ReadOnlyException.class);
     }
 
     @Test
     void forcePushBypassesRepositoryReadonly() {
-        final CentralDogmaRepository repo1 = client0.forRepo(TEST_PROJECT1, TEST_REPO1);
+        final CentralDogmaRepository repo1 = client0.forRepo(testProject1, TEST_REPO1);
         repo1.commit("first", Change.ofJsonUpsert("/a.json", "{ \"a\": 1 }"))
              .push()
              .join();
 
         faultInjector.injectFault(Command.push(
-                Author.DEFAULT, TEST_PROJECT1, TEST_REPO1, Revision.HEAD,
+                Author.DEFAULT, testProject1, TEST_REPO1, Revision.HEAD,
                 "inject fault", "", Markup.PLAINTEXT,
                 ImmutableList.of(Change.ofJsonUpsert("/a.json", "{ \"a\": 3 }"))));
 
@@ -434,7 +453,7 @@ class ZooKeeperScopedReadonlyIntegrationTest {
 
         final BlockingWebClient client1 = replica.servers().get(1).blockingHttpClient();
         await().untilAsserted(() -> assertThat(
-                getRepoStatus(client1, TEST_PROJECT1, TEST_REPO1).status())
+                getRepoStatus(client1, testProject1, TEST_REPO1).status())
                         .isEqualTo(ReplicationStatus.READ_ONLY));
 
         // A regular push is rejected.
@@ -447,17 +466,17 @@ class ZooKeeperScopedReadonlyIntegrationTest {
 
         // Force-push bypasses the per-repo writability check.
         final Revision rev = faultInjector.forcePush(Command.push(
-                Author.SYSTEM, TEST_PROJECT1, TEST_REPO1, Revision.HEAD,
+                Author.SYSTEM, testProject1, TEST_REPO1, Revision.HEAD,
                 "force-push", "", Markup.PLAINTEXT,
                 ImmutableList.of(Change.ofJsonUpsert("/forced.json", "{ \"forced\": true }"))));
         assertThat(rev).isNotNull();
 
         // The repository is still marked READ_ONLY — force-push didn't lift the scope.
-        assertThat(getRepoStatus(client1, TEST_PROJECT1, TEST_REPO1).status())
+        assertThat(getRepoStatus(client1, testProject1, TEST_REPO1).status())
                 .isEqualTo(ReplicationStatus.READ_ONLY);
 
         // Sibling repos remain writable.
-        client0.forRepo(TEST_PROJECT1, TEST_REPO2)
+        client0.forRepo(testProject1, TEST_REPO2)
                .commit("sibling-after-force-push",
                        Change.ofJsonUpsert("/sibling.json", "{}"))
                .push()
@@ -467,13 +486,13 @@ class ZooKeeperScopedReadonlyIntegrationTest {
     @Test
     void forcePushBypassesProjectReadonly() {
         final String path = "/repos/test-project1/mirrors/force.json";
-        final CentralDogmaRepository dogmaRepo = client0.forRepo(TEST_PROJECT1, "dogma");
+        final CentralDogmaRepository dogmaRepo = client0.forRepo(testProject1, "dogma");
         dogmaRepo.commit("first", Change.ofJsonUpsert(path, "{ \"a\": 1 }"))
                  .push()
                  .join();
 
         faultInjector.injectFault(Command.push(
-                Author.DEFAULT, TEST_PROJECT1, "dogma", Revision.HEAD,
+                Author.DEFAULT, testProject1, "dogma", Revision.HEAD,
                 "inject fault", "", Markup.PLAINTEXT,
                 ImmutableList.of(Change.ofJsonUpsert(path, "{ \"a\": 3 }"))));
 
@@ -487,11 +506,11 @@ class ZooKeeperScopedReadonlyIntegrationTest {
 
         final BlockingWebClient client1 = replica.servers().get(1).blockingHttpClient();
         await().untilAsserted(() -> assertThat(
-                getRepoStatus(client1, TEST_PROJECT1, TEST_REPO1).status())
+                getRepoStatus(client1, testProject1, TEST_REPO1).status())
                         .isEqualTo(ReplicationStatus.READ_ONLY));
 
         // A regular push to any repo in the read-only project is rejected.
-        final CentralDogmaRepository repo1 = client0.forRepo(TEST_PROJECT1, TEST_REPO1);
+        final CentralDogmaRepository repo1 = client0.forRepo(testProject1, TEST_REPO1);
         assertThatThrownBy(() -> {
             repo1.commit("blocked", Change.ofJsonUpsert("/blocked.json", "{}"))
                  .push()
@@ -501,13 +520,13 @@ class ZooKeeperScopedReadonlyIntegrationTest {
 
         // Force-push bypasses the project-scope check.
         final Revision rev = faultInjector.forcePush(Command.push(
-                Author.SYSTEM, TEST_PROJECT1, TEST_REPO1, Revision.HEAD,
+                Author.SYSTEM, testProject1, TEST_REPO1, Revision.HEAD,
                 "force-push", "", Markup.PLAINTEXT,
                 ImmutableList.of(Change.ofJsonUpsert("/forced.json", "{ \"forced\": true }"))));
         assertThat(rev).isNotNull();
 
         // Other projects remain writable as before.
-        client0.forRepo(TEST_PROJECT2, TEST_REPO1)
+        client0.forRepo(testProject2, TEST_REPO1)
                .commit("other-project-after-force-push",
                        Change.ofJsonUpsert("/other.json", "{}"))
                .push()
@@ -546,7 +565,7 @@ class ZooKeeperScopedReadonlyIntegrationTest {
         });
 
         // A regular push is rejected by the executor-level !writable guard.
-        final CentralDogmaRepository repo1 = client0.forRepo(TEST_PROJECT1, TEST_REPO1);
+        final CentralDogmaRepository repo1 = client0.forRepo(testProject1, TEST_REPO1);
         assertThatThrownBy(() -> {
             repo1.commit("blocked", Change.ofJsonUpsert("/blocked.json", "{}"))
                  .push()
@@ -556,7 +575,7 @@ class ZooKeeperScopedReadonlyIntegrationTest {
 
         // Force-push is a SystemAdministrativeCommand and bypasses the guard.
         final Revision rev = faultInjector.forcePush(Command.push(
-                Author.SYSTEM, TEST_PROJECT1, TEST_REPO1, Revision.HEAD,
+                Author.SYSTEM, testProject1, TEST_REPO1, Revision.HEAD,
                 "force-push", "", Markup.PLAINTEXT,
                 ImmutableList.of(Change.ofJsonUpsert("/forced.json", "{ \"forced\": true }"))));
         assertThat(rev).isNotNull();
