@@ -467,18 +467,17 @@ public class RepositoryServiceV1 extends AbstractService {
                     projectName, repoName, newStatus);
         final Command<Void> command = Command.updateRepositoryStatus(project.name(), repoName, author,
                                                                      newStatus);
-        return executor().execute(command)
-                         .handle((unused, cause) -> {
-                             if (cause != null) {
-                                 logger.warn("Failed to change the repository status: project={}, repository={}, " +
-                                             "status={}", projectName, repoName, newStatus, cause);
-                                 Exceptions.throwUnsafely(cause);
-                             } else {
-                                 logger.info("Changed repository status: project={}, repository={}, status={}",
-                                             projectName, repoName, newStatus);
-                             }
-                             return null;
-                         });
+        return executor().execute(command).handle((unused, cause) -> {
+            if (cause != null) {
+                logger.warn("Failed to change the repository status: project={}, repository={}, " +
+                            "status={}", projectName, repoName, newStatus, cause);
+                Exceptions.throwUnsafely(cause);
+            } else {
+                logger.info("Changed repository status: project={}, repository={}, status={}",
+                            projectName, repoName, newStatus);
+            }
+            return null;
+        });
     }
 
     private CompletionStage<RepositoryDto> migrate(Author author, Project project,
