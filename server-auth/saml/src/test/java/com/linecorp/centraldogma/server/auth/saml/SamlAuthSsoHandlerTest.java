@@ -92,6 +92,39 @@ class SamlAuthSsoHandlerTest {
         assertCookie(tlsEnabled, aggregated.headers(), "3");
     }
 
+    @ValueSource(strings = {
+            // Absolute URLs and dangerous schemes.
+            "https://evil.example/phish",
+            "javascript:alert(document.domain)",
+            // Protocol-relative URL.
+            "//evil.example/",
+            // Backslash is normalized to '/' by browsers, so this resolves to '//evil.example'.
+            "/\\evil.example",
+            "/\\/evil.example",
+            // Control characters (TAB, CR, LF) are stripped by browsers, so this resolves to
+            // '//evil.example'.
+            "/\t/evil.example",
+            "/\r/evil.example",
+            "/\n/evil.example",
+            // Not a path at all.
+            "evil.example",
+    })
+    @ParameterizedTest
+    void unsafeRelayStateIsRejected(String relayState) {
+        assertThat(SamlAuthSsoHandler.isSafeRelayState(relayState)).isFalse();
+    }
+
+    @ValueSource(strings = {
+            "/",
+            "/dashboard",
+            "/dashboard?next=/home",
+            "/a/b/c",
+    })
+    @ParameterizedTest
+    void relativePathRelayStateIsAccepted(String relayState) {
+        assertThat(SamlAuthSsoHandler.isSafeRelayState(relayState)).isTrue();
+    }
+
     private static void assertCookie(boolean tlsEnabled, ResponseHeaders responseHeaders, String value) {
         final String setCookieValue = responseHeaders.get(HttpHeaderNames.SET_COOKIE);
         final Cookie setCookie = Cookie.fromSetCookieHeader(setCookieValue);
