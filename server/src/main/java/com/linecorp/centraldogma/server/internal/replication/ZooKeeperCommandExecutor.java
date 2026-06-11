@@ -376,6 +376,7 @@ public final class ZooKeeperCommandExecutor
         }
     }
 
+    @Nullable
     private volatile ListenerInfo listenerInfo;
 
     public ZooKeeperCommandExecutor(ZooKeeperReplicationConfig cfg,
@@ -1095,9 +1096,12 @@ public final class ZooKeeperCommandExecutor
                                .forPath(absolutePath(LOG_PATH) + '/', logMetaBytes);
                 revision = revisionFromPath(logPath);
 
+                // The command has already been applied to the local data by blockingExecute before this
+                // method is called, so the new revision must be persisted to local_last_revision regardless
+                // of listenerInfo.
+                updateLocalLastAppliedRevision(revision);
                 final ListenerInfo info = listenerInfo;
                 if (info != null && revision > info.localLastAppliedRevision) {
-                    updateLocalLastAppliedRevision(revision);
                     info.localLastAppliedRevision = revision;
                 }
             }
