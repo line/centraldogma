@@ -42,7 +42,6 @@ const RepositoryAppIdentityPage = () => {
             <NewAppIdentityRepositoryRole
               projectName={projectName}
               repoName={repoName}
-              appIds={metadata ? Array.from(Object.values(metadata.appIds)) : []}
               addAppIdentityRepositoryRole={addAppIdentityRepositoryRole}
               isLoading={isAddAppIdentityLoading}
               appIdentityRepositoryRole={
@@ -59,6 +58,8 @@ const RepositoryAppIdentityPage = () => {
             }
             deleteUserOrAppIdentity={deleteAppIdentityRepositoryRole}
             isLoading={isDeleteAppIdentityLoading}
+            projectRoles={metadata?.repos[repoName]?.roles?.projects}
+            appIds={metadata?.appIds}
           />
         </>
       )}

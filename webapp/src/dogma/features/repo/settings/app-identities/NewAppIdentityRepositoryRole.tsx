@@ -22,11 +22,9 @@ import { IoMdArrowDropdown } from 'react-icons/io';
 import { useState } from 'react';
 import { OptionBase, Select } from 'chakra-react-select';
 import { ConfirmAddUserOrAppIdentityRepositoryRole } from 'dogma/features/repo/settings/ConfirmAddUserOrAppIdentityRepositoryRole';
-import { ChakraLink } from 'dogma/common/components/ChakraLink';
 import { UserOrAppIdentityRepositoryRoleDto } from 'dogma/features/repo/RepositoriesMetadataDto';
 import { AddUserOrAppIdentityRepositoryRoleDto } from 'dogma/features/repo/settings/AddUserOrAppIdentityRepositoryRoleDto';
-import { ApiAction } from 'dogma/features/api/apiSlice';
-import { AppIdDetailDto } from 'dogma/features/project/settings/app-identities/AppIdDto';
+import { ApiAction, useGetAppIdentitiesQuery } from 'dogma/features/api/apiSlice';
 
 interface AppIdentityOptionType extends OptionBase {
   value: string;
@@ -41,19 +39,18 @@ type FormData = {
 export const NewAppIdentityRepositoryRole = ({
   projectName,
   repoName,
-  appIds,
   addAppIdentityRepositoryRole,
   isLoading,
   appIdentityRepositoryRole,
 }: {
   projectName: string;
   repoName: string;
-  appIds: AppIdDetailDto[];
   addAppIdentityRepositoryRole: ApiAction<AddUserOrAppIdentityRepositoryRoleDto, void>;
   isLoading: boolean;
   appIdentityRepositoryRole: UserOrAppIdentityRepositoryRoleDto;
 }) => {
-  const appIdentityOptions: AppIdentityOptionType[] = appIds
+  const { data: allAppIdentities, isLoading: isAppIdentitiesLoading } = useGetAppIdentitiesQuery();
+  const appIdentityOptions: AppIdentityOptionType[] = (allAppIdentities || [])
     .filter((appIdentity) => !(appIdentity.appId in appIdentityRepositoryRole))
     .map((appIdentity) => ({
       value: appIdentity.appId,
@@ -93,7 +90,9 @@ export const NewAppIdentityRepositoryRole = ({
         <form onSubmit={handleSubmit(onSubmit)}>
           <PopoverBody minWidth="max-content">
             <FormControl isInvalid={errors.appId ? true : false} isRequired>
-              {appIdentityOptions.length ? (
+              {isAppIdentitiesLoading ? (
+                <FormHelperText>Loading app identities...</FormHelperText>
+              ) : appIdentityOptions.length ? (
                 <Controller
                   control={control}
                   name="appId"
@@ -121,7 +120,7 @@ export const NewAppIdentityRepositoryRole = ({
               {errors.appId && <FormErrorMessage>App ID is required</FormErrorMessage>}
             </FormControl>
             <RadioGroup defaultValue="none" mt={3} colorScheme="teal" onChange={setRole} value={role}>
-              {appIdentityOptions.length ? (
+              {!isAppIdentitiesLoading && appIdentityOptions.length ? (
                 <Stack spacing={5} direction="row">
                   <Radio value="ADMIN">Admin</Radio>
                   <Radio value="WRITE">Write</Radio>
@@ -134,7 +133,7 @@ export const NewAppIdentityRepositoryRole = ({
           </PopoverBody>
           <PopoverFooter border="0" display="flex" alignItems="center" justifyContent="space-between" pb={4}>
             <Spacer />
-            {appIdentityOptions.length ? (
+            {!isAppIdentitiesLoading && appIdentityOptions.length ? (
               <ConfirmAddUserOrAppIdentityRepositoryRole
                 projectName={projectName}
                 repoName={repoName}
@@ -148,9 +147,7 @@ export const NewAppIdentityRepositoryRole = ({
                 isLoading={isLoading}
               />
             ) : (
-              <ChakraLink href={`/app/projects/${projectName}/settings/app-identities`} color="teal">
-                Go to project {projectName}&apos;s app identity page
-              </ChakraLink>
+              ''
             )}
           </PopoverFooter>
         </form>
