@@ -40,6 +40,7 @@ import org.opensaml.saml.saml2.core.NameIDType;
 import org.opensaml.saml.saml2.core.Response;
 import org.owasp.encoder.Encode;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 
 import com.linecorp.armeria.common.AggregatedHttpRequest;
@@ -145,10 +146,10 @@ final class SamlAuthSsoHandler implements SamlSingleSignOnHandler {
         final String redirectionScript;
         if (!Strings.isNullOrEmpty(relayState)) {
             final String trimmed = relayState.trim();
-            if (!trimmed.startsWith("/") || trimmed.startsWith("//")) {
-                redirectionScript = "window.location.href='/'";
-            } else {
+            if (isSafeRelayState(trimmed)) {
                 redirectionScript = "window.location.href='" + Encode.forJavaScript(trimmed) + '\'';
+            } else {
+                redirectionScript = "window.location.href='/'";
             }
         } else {
             redirectionScript = "window.location.href='/'";
@@ -171,6 +172,30 @@ final class SamlAuthSsoHandler implements SamlSingleSignOnHandler {
             }
             return httpResponse(loginResult, redirectionScript);
         }));
+    }
+
+    /**
+     * Returns whether the specified {@code relayState} is safe to be used as a redirect target. Only a
+     * relative path that starts with exactly one {@code '/'} is allowed in order to prevent an open
+     * redirect. Note that validating the raw string is not enough: a browser normalizes a backslash to
+     * {@code '/'} and strips control characters such as TAB, CR and LF from a URL before navigating, so a
+     * value like {@code "/\evil.example"} or {@code "/\t/evil.example"} would otherwise be resolved to a
+     * protocol-relative URL pointing at an attacker host. Therefore backslashes and control characters are
+     * rejected as well.
+     */
+    @VisibleForTesting
+    static boolean isSafeRelayState(String relayState) {
+        if (!relayState.startsWith("/") || relayState.startsWith("//")) {
+            // Not a relative path, or a protocol-relative URL such as '//evil.example/'.
+            return false;
+        }
+        for (int i = 0; i < relayState.length(); i++) {
+            final char c = relayState.charAt(i);
+            if (c == '\\' || Character.isISOControl(c)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private HttpResponse httpResponse(LoginResult loginResult, String redirectionScript) {

@@ -228,27 +228,15 @@ class MetadataServiceTest {
         mds.addRepo(author, project1, repo1, repositoryMetadata).join();
         await().until(() -> getRepo1(mds) != null);
 
-        // Not a member yet.
-        assertThatThrownBy(() -> mds.addUserRepositoryRole(author, project1, repo1, user1, RepositoryRole.READ)
-                                    .join())
-                .hasCauseInstanceOf(MemberNotFoundException.class);
-
-        // Be a member of the project.
-        mds.addMember(author, project1, user1, ProjectRole.MEMBER).join();
-        // Try once more.
-        assertThatThrownBy(() -> mds.addMember(author, project1, user1, ProjectRole.MEMBER).join())
-                // TODO(minwoox): Consider removing JSON path operation from MetadataService completely.
-                .hasCauseInstanceOf(ChangeConflictException.class);
-
         // invalid repo.
         assertThatThrownBy(() -> mds.addUserRepositoryRole(
                 author, project1, "invalid-repo", user1, RepositoryRole.READ).join())
                 .hasCauseInstanceOf(RepositoryNotFoundException.class);
 
-        // A member of the project has no role.
+        // Not a member of the project yet, so the role should be null.
         assertThat(mds.findRepositoryRole(project1, repo1, user1).join()).isNull();
 
-        // Add 'user1' to user repository role.
+        // Add user repository role without registering to the project first.
         final Revision revision = mds.addUserRepositoryRole(author, project1, repo1, user1, RepositoryRole.READ)
                                      .join();
         await().untilAsserted(() -> assertThat(mds.findRepositoryRole(project1, repo1, user1).join())
@@ -294,25 +282,20 @@ class MetadataServiceTest {
         assertThatThrownBy(() -> mds.addAppIdentity(author, project1, app2, ProjectRole.MEMBER).join())
                 .isInstanceOf(AppIdentityNotFoundException.class);
 
-        // Token is not registered to the project yet.
-        assertThatThrownBy(() -> mds.addAppIdentityRepositoryRole(author, project1,
-                                                                  repo1, app1, RepositoryRole.READ)
-                                    .join())
-                .hasCauseInstanceOf(AppIdentityNotFoundException.class);
-
         assertThat(mds.findRepositoryRole(project1, repo1, appToken1).join()).isNull();
 
-        // Be a token of the project.
-        mds.addAppIdentity(author, project1, app1, ProjectRole.MEMBER).join();
-        await().until(() -> mds.findAppIdentity(app1) != null);
+        // Token 'app2' is not registered in the system, so it cannot be added to the repository.
+        assertThatThrownBy(() -> mds.addAppIdentityRepositoryRole(author, project1,
+                                                                  repo1, app2, RepositoryRole.READ))
+                .isInstanceOf(AppIdentityNotFoundException.class);
+
+        // Add token repository role without registering to the project first.
         mds.addAppIdentityRepositoryRole(author, project1, repo1, app1, RepositoryRole.READ).join();
 
         await().untilAsserted(() -> assertThat(mds.findRepositoryRole(project1, repo1, appToken1).join())
                 .isSameAs(RepositoryRole.READ));
 
-        // Try once more
-        assertThatThrownBy(() -> mds.addAppIdentity(author, project1, app1, ProjectRole.MEMBER).join())
-                .hasCauseInstanceOf(ChangeConflictException.class);
+        // Try once more - should fail due to duplication
         assertThatThrownBy(() -> mds.addAppIdentityRepositoryRole(author, project1,
                                                                   repo1, app1, RepositoryRole.READ)
                                     .join())
@@ -350,24 +333,20 @@ class MetadataServiceTest {
         assertThatThrownBy(() -> mds.addAppIdentity(author, project1, cert2, ProjectRole.MEMBER).join())
                 .isInstanceOf(AppIdentityNotFoundException.class);
 
-        // Certificate is not registered to the project yet.
-        assertThatThrownBy(() -> mds.addAppIdentityRepositoryRole(author, project1, repo1, cert1,
-                                                                  RepositoryRole.READ).join())
-                .hasCauseInstanceOf(AppIdentityNotFoundException.class);
-
         assertThat(mds.findRepositoryRole(project1, repo1, certificate1).join()).isNull();
 
-        // Register certificate to the project.
-        mds.addAppIdentity(author, project1, cert1, ProjectRole.MEMBER).join();
-        await().until(() -> mds.findAppIdentity(cert1) != null);
+        // Certificate 'cert2' is not registered in the system, so it cannot be added to the repository.
+        assertThatThrownBy(() -> mds.addAppIdentityRepositoryRole(author, project1,
+                                                                  repo1, cert2, RepositoryRole.READ))
+                .isInstanceOf(AppIdentityNotFoundException.class);
+
+        // Add certificate repository role without registering to the project first.
         mds.addAppIdentityRepositoryRole(author, project1, repo1, cert1, RepositoryRole.READ).join();
 
         await().untilAsserted(() -> assertThat(mds.findRepositoryRole(project1, repo1, certificate1).join())
                 .isSameAs(RepositoryRole.READ));
 
         // Try once more - should fail due to duplication
-        assertThatThrownBy(() -> mds.addAppIdentity(author, project1, cert1, ProjectRole.MEMBER).join())
-                .hasCauseInstanceOf(ChangeConflictException.class);
         assertThatThrownBy(() -> mds.addAppIdentityRepositoryRole(author, project1, repo1, cert1,
                                                                   RepositoryRole.READ).join())
                 .hasCauseInstanceOf(ChangeConflictException.class);
@@ -620,6 +599,120 @@ class MetadataServiceTest {
         await().untilAsserted(() -> assertThat(mds.getAppIdentityRegistry().get(app1)
                                                   .isSystemAdmin()).isFalse());
         assertThat(mds.updateAppIdentityLevel(author, app1, false).join()).isEqualTo(revision.forward(1));
+    }
+
+    @Test
+    void effectiveRepositoryRole_userWithProjectMembership() {
+        // When a user is both a project member and has an explicit repository role,
+        // the effective role should be the max of the two.
+        final MetadataService mds = newMetadataService(manager);
+
+        // Create a repo with member default = WRITE.
+        mds.addRepo(author, project1, repo1,
+                     ProjectRoles.of(RepositoryRole.WRITE, RepositoryRole.READ)).join();
+        await().until(() -> getRepo1(mds) != null);
+
+        // Register user1 as a project member.
+        mds.addMember(author, project1, user1, ProjectRole.MEMBER).join();
+
+        // Assign an explicit READ repository role.
+        mds.addUserRepositoryRole(author, project1, repo1, user1, RepositoryRole.READ).join();
+
+        // Effective role should be WRITE (max of explicit READ and member default WRITE).
+        await().untilAsserted(() -> assertThat(mds.findRepositoryRole(project1, repo1, user1).join())
+                .isSameAs(RepositoryRole.WRITE));
+    }
+
+    @Test
+    void effectiveRepositoryRole_userWithoutProjectMembership() {
+        // When a user is NOT a project member but has an explicit repository role,
+        // the effective role should be the max of the explicit role and the guest default.
+        final MetadataService mds = newMetadataService(manager);
+
+        // Create a repo with member default = WRITE, guest default = READ.
+        mds.addRepo(author, project1, repo1,
+                     ProjectRoles.of(RepositoryRole.WRITE, RepositoryRole.READ)).join();
+        await().until(() -> getRepo1(mds) != null);
+
+        // user1 is NOT a project member. Assign an explicit WRITE repository role.
+        mds.addUserRepositoryRole(author, project1, repo1, user1, RepositoryRole.WRITE).join();
+
+        // Effective role should be WRITE (max of explicit WRITE and guest default READ).
+        await().untilAsserted(() -> assertThat(mds.findRepositoryRole(project1, repo1, user1).join())
+                .isSameAs(RepositoryRole.WRITE));
+
+        // user2 has no explicit role and is not a project member. Should get the guest default READ.
+        assertThat(mds.findRepositoryRole(project1, repo1, user2).join())
+                .isSameAs(RepositoryRole.READ);
+    }
+
+    @Test
+    void effectiveRepositoryRole_appIdentityWithProjectRegistration() {
+        // When an app identity is registered at the project level and has an explicit repository role,
+        // the effective role should be the max of the two.
+        final MetadataService mds = newMetadataService(manager);
+
+        // Create a repo with member default = WRITE.
+        mds.addRepo(author, project1, repo1,
+                     ProjectRoles.of(RepositoryRole.WRITE, RepositoryRole.READ)).join();
+        mds.createToken(author, app1).join();
+        await().untilAsserted(() -> assertThat(mds.findAppIdentity(app1)).isNotNull());
+
+        // Register to the project as MEMBER.
+        mds.addAppIdentity(author, project1, app1, ProjectRole.MEMBER).join();
+
+        // Assign an explicit READ repository role.
+        mds.addAppIdentityRepositoryRole(author, project1, repo1, app1, RepositoryRole.READ).join();
+
+        // Effective role should be WRITE (max of explicit READ and member default WRITE).
+        await().untilAsserted(() -> assertThat(mds.findRepositoryRole(project1, repo1, appToken1).join())
+                .isSameAs(RepositoryRole.WRITE));
+    }
+
+    @Test
+    void effectiveRepositoryRole_appIdentityWithoutProjectRegistration() {
+        // When an app identity is NOT registered at the project level but has an explicit repository role,
+        // the effective role should be the max of the explicit role and the guest default.
+        final MetadataService mds = newMetadataService(manager);
+
+        // Create a repo with member default = WRITE, guest default = READ.
+        mds.addRepo(author, project1, repo1,
+                     ProjectRoles.of(RepositoryRole.WRITE, RepositoryRole.READ)).join();
+        mds.createToken(author, app1).join();
+        await().untilAsserted(() -> assertThat(mds.findAppIdentity(app1)).isNotNull());
+
+        // Do NOT register to the project. Assign an explicit WRITE repository role.
+        mds.addAppIdentityRepositoryRole(author, project1, repo1, app1, RepositoryRole.WRITE).join();
+
+        // Effective role should be WRITE (max of explicit WRITE and guest default READ).
+        await().untilAsserted(() -> assertThat(mds.findRepositoryRole(project1, repo1, appToken1).join())
+                .isSameAs(RepositoryRole.WRITE));
+    }
+
+    @Test
+    void effectiveRepositoryRole_appIdentityWithoutGuestAccess() {
+        // When an app identity has allowGuestAccess=false, is NOT registered at the project level,
+        // but has an explicit repository role, it should still be accessible.
+        final MetadataService mds = newMetadataService(manager);
+
+        final Token noGuestToken = new Token(app1, "secret", false, false, UserAndTimestamp.of(author));
+
+        mds.addRepo(author, project1, repo1,
+                     ProjectRoles.of(RepositoryRole.WRITE, RepositoryRole.READ)).join();
+        mds.createToken(author, app1).join();
+        await().untilAsserted(() -> assertThat(mds.findAppIdentity(app1)).isNotNull());
+
+        // Assign an explicit READ repository role without project registration.
+        mds.addAppIdentityRepositoryRole(author, project1, repo1, app1, RepositoryRole.READ).join();
+
+        // Should be accessible with the explicit repository role despite allowGuestAccess=false.
+        await().untilAsserted(() -> assertThat(mds.findRepositoryRole(project1, repo1, noGuestToken).join())
+                .isSameAs(RepositoryRole.READ));
+
+        // Without an explicit repository role, allowGuestAccess=false should deny access.
+        assertThat(mds.findRepositoryRole(project1, repo1,
+                new Token(app2, "secret2", false, false, UserAndTimestamp.of(author))).join())
+                .isNull();
     }
 
     private static RepositoryMetadata getRepo1(MetadataService mds) {

@@ -36,6 +36,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -704,6 +705,79 @@ class ZooKeeperCommandExecutorTest {
             // Start should fail with a parse-related cause.
             assertThatThrownBy(() -> replica.commandExecutor().start().join())
                     .hasCauseInstanceOf(ReplicationException.class);
+        }
+    }
+
+    /**
+     * Regression test for the shutdown race that left {@code local_last_revision} behind the local data
+     * (the bug introduced by #1303 and observed as a {@code RedundantChangeException} replay failure).
+     *
+     * <p>{@code doStop()} sets {@code listenerInfo} to {@code null} before draining the in-flight
+     * {@code blockingExecute}. If a command is being originated at that moment, its storage side effect has
+     * already been applied and {@code storeLog} still creates the ZooKeeper log node — but the
+     * {@code local_last_revision} update used to be gated on {@code listenerInfo != null} and was therefore
+     * silently skipped. On the next start-up the replica re-applied that already-applied revision and, for a
+     * mirror {@link PushAsIsCommand} (whose base revision is {@code HEAD}), failed with a
+     * {@code RedundantChangeException} and entered read-only mode.
+     *
+     * <p>This test parks an originating command inside the delegate, stops the executor so that
+     * {@code listenerInfo} becomes {@code null}, then lets the command reach {@code storeLog} and asserts
+     * that {@code local_last_revision} is still persisted.
+     */
+    @Test
+    void localLastRevisionPersistedWhenStoreLogRacesShutdown() throws Exception {
+        final CountDownLatch executeEntered = new CountDownLatch(1);
+        final CountDownLatch proceed = new CountDownLatch(1);
+
+        final Supplier<Function<Command<?>, CompletableFuture<?>>> delegateSupplier = () -> {
+            final Function<Command<?>, CompletableFuture<?>> base = newMockDelegate();
+            return command -> {
+                if (command != null && command.type() == CommandType.CREATE_REPOSITORY) {
+                    // Park the origination inside the delegate so that we can stop the executor while this
+                    // command is in flight (after delegate.execute() but before storeLog()).
+                    executeEntered.countDown();
+                    return CompletableFuture.supplyAsync(() -> {
+                        try {
+                            proceed.await();
+                        } catch (InterruptedException e) {
+                            throw new RuntimeException(e);
+                        }
+                        return null;
+                    }, CommonPools.blockingTaskExecutor());
+                }
+                return base.apply(command);
+            };
+        };
+
+        try (Cluster cluster = Cluster.of(delegateSupplier)) {
+            final Replica self = cluster.get(0); // replicaId=1, the originator we will stop mid-store.
+
+            // Warm up with two self-originated commands so local_last_revision advances to 1.
+            self.commandExecutor().execute(Command.createProject(Author.SYSTEM, "p1")).join();
+            self.commandExecutor().execute(Command.createProject(Author.SYSTEM, "p2")).join();
+            await().untilAsserted(() -> assertThat(self.localLastAppliedRevision()).isEqualTo(1L));
+
+            // Originate a third command (ZK revision 2). The delegate parks it before storeLog runs.
+            final CompletableFuture<Void> blocked =
+                    self.commandExecutor().execute(Command.createRepository(Author.SYSTEM, "p1", "r-block"));
+            assertThat(executeEntered.await(10, TimeUnit.SECONDS)).isTrue();
+
+            // Stop the executor. doStop() nulls listenerInfo first, then blocks in shutdown(executor)
+            // waiting for the parked command. The gauge reads 0 once listenerInfo is null, which is our
+            // sync point for "the store is now racing a shutdown".
+            final CompletableFuture<Void> stopFuture = self.commandExecutor().stop();
+            await().untilAsserted(() -> assertThat(MoreMeters.measureAll(self.meterRegistry()))
+                    .containsEntry("replica.last.local.applied.revision#value", 0.0));
+
+            // Let the parked command reach storeLog while listenerInfo is null.
+            proceed.countDown();
+            blocked.join();
+            stopFuture.join();
+
+            // storeLog must have persisted local_last_revision to the new revision (2) even though
+            // listenerInfo was null during the store. Before the fix it stayed at 1, so on the next
+            // start-up the replica would re-apply revision 2 and enter read-only mode.
+            assertThat(self.localLastAppliedRevision()).isEqualTo(2L);
         }
     }
 

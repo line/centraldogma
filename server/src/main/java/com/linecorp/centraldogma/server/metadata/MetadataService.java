@@ -705,7 +705,6 @@ public class MetadataService {
 
         return getProject(projectName).thenCompose(project -> {
             project.repo(repoName); // Raises an exception if the repository does not exist.
-            ensureProjectMember(project, member);
             final String commitSummary = "Add repository role of '" + member.id() +
                                          "' as '" + role + "' to '" + projectName + '/' + repoName + '\n';
             final RepositoryMetadataTransformer transformer = new RepositoryMetadataTransformer(
@@ -817,9 +816,9 @@ public class MetadataService {
         requireNonNull(appId, "appId");
         requireNonNull(role, "role");
 
+        appIdentityService.getAppIdentityRegistry().get(appId); // Will raise an exception if not found.
         return getProject(projectName).thenCompose(project -> {
             project.repo(repoName); // Raises an exception if the repository does not exist.
-            ensureProjectAppIdentity(project, appId);
             final String commitSummary = "Add repository role of the app identity '" + appId + "' as '" + role +
                                          "' to '" + projectName + '/' + repoName + "'\n";
             final RepositoryMetadataTransformer transformer = new RepositoryMetadataTransformer(
@@ -940,8 +939,8 @@ public class MetadataService {
     }
 
     /**
-     * Finds {@link RepositoryRole} of the specified {@link Token} from the specified
-     * {@code repoName} in the specified {@code projectName}. If the {@code appId} is not found,
+     * Finds {@link RepositoryRole} of the specified {@link AppIdentity} from the specified
+     * {@code repoName} in the specified {@code projectName}. If the {@code appIdentity} is not found,
      * it will return {@code null}.
      */
     public CompletableFuture<RepositoryRole> findRepositoryRole(String projectName, String repoName,
@@ -963,7 +962,7 @@ public class MetadataService {
             } else {
                 // System admin app identities were checked before this method.
                 assert !appIdentity.isSystemAdmin();
-                if (appIdentity.allowGuestAccess()) {
+                if (repositoryRole != null || appIdentity.allowGuestAccess()) {
                     projectRole = ProjectRole.GUEST;
                 } else {
                     // The app identity is not allowed with the GUEST permission.
@@ -1162,31 +1161,6 @@ public class MetadataService {
      */
     public Token findTokenBySecret(String secret) {
         return appIdentityService.findTokenBySecret(secret);
-    }
-
-    /**
-     * Ensures that the specified {@code user} is a member of the specified {@code project}.
-     */
-    private static void ensureProjectMember(ProjectMetadata project, User user) {
-        requireNonNull(project, "project");
-        requireNonNull(user, "user");
-
-        if (project.members().values().stream().noneMatch(member -> member.login().equals(user.id()))) {
-            throw new MemberNotFoundException(user.id(), project.name());
-        }
-    }
-
-    /**
-     * Ensures that the specified {@code appId} is an app identity of the specified {@code project}.
-     */
-    private static void ensureProjectAppIdentity(ProjectMetadata project, String appId) {
-        requireNonNull(project, "project");
-        requireNonNull(appId, "appId");
-
-        if (!project.appIds().containsKey(appId)) {
-            throw new AppIdentityNotFoundException(
-                    appId + " is not an app identity of the project '" + project.name() + '\'');
-        }
     }
 
     static <T> ImmutableMap<String, T> addToMap(Map<String, T> map, String key, T value) {

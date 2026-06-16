@@ -140,9 +140,10 @@ public final class CentralDogmaMirror extends AbstractMirror {
                 return newMirrorResult(MirrorStatus.UP_TO_DATE, description, triggeredTime);
             }
 
-            // Read local files under localPath.
-            final Map<String, Entry<?>> localEntries =
-                    localRepo().find(localHead, localPath() + "**", FIND_ALL_WITH_CONTENT).join();
+            // Read local files under localPath and apply gitignore filter.
+            final Map<String, Entry<?>> localEntries = filterByGitignore(
+                    localRepo().find(localHead, localPath() + "**", FIND_ALL_WITH_CONTENT).join(),
+                    localPath());
 
             // Fetch remote files for comparison/removal detection.
             final Map<String, Entry<?>> remoteEntries =
@@ -279,9 +280,10 @@ public final class CentralDogmaMirror extends AbstractMirror {
                 return newMirrorResult(MirrorStatus.UP_TO_DATE, description, triggeredTime);
             }
 
-            // Fetch all remote files under remotePath.
-            final Map<String, Entry<?>> remoteEntries =
-                    repo.file(PathPattern.of(remotePath() + "**")).viewRaw(true).get(remoteHead).join();
+            // Fetch all remote files under remotePath and apply gitignore filter.
+            final Map<String, Entry<?>> remoteEntries = filterByGitignore(
+                    repo.file(PathPattern.of(remotePath() + "**")).viewRaw(true).get(remoteHead).join(),
+                    remotePath());
 
             // Build Change objects.
             final Map<String, Change<?>> changes = new HashMap<>();
