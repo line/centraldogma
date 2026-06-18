@@ -376,7 +376,6 @@ public final class ZooKeeperCommandExecutor
         }
     }
 
-    @Nullable
     private volatile ListenerInfo listenerInfo;
 
     public ZooKeeperCommandExecutor(ZooKeeperReplicationConfig cfg,
@@ -1097,13 +1096,9 @@ public final class ZooKeeperCommandExecutor
                 revision = revisionFromPath(logPath);
 
                 final ListenerInfo info = listenerInfo;
-                if (info != null) {
-                    if (revision > info.localLastAppliedRevision) {
-                        updateLocalLastAppliedRevision(revision);
-                        info.localLastAppliedRevision = revision;
-                    }
-                } else if (revision > getLocalLastAppliedRevision()) {
+                if (info != null && revision > info.localLastAppliedRevision) {
                     updateLocalLastAppliedRevision(revision);
+                    info.localLastAppliedRevision = revision;
                 }
             }
 
