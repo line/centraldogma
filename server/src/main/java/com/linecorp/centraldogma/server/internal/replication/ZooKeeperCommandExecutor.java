@@ -802,10 +802,6 @@ public final class ZooKeeperCommandExecutor
         }
     }
 
-    private void replayLogs(long targetRevision) {
-        replayLogs(targetRevision, false);
-    }
-
     // force keeps origination-path replay running during shutdown; childEvent replay stops.
     private synchronized void replayLogs(long targetRevision, boolean force) {
         if (!force && listenerInfo == null) {
@@ -891,7 +887,7 @@ public final class ZooKeeperCommandExecutor
 
         final long lastKnownRevision = revisionFromPath(event.getData().getPath());
         try {
-            replayLogs(lastKnownRevision);
+            replayLogs(lastKnownRevision, false);
         } catch (ReplicationException ignored) {
             // replayLogs() logs and handles the exception already, so we just bail out here.
             return;
