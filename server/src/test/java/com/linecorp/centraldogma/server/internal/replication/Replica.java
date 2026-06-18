@@ -100,15 +100,6 @@ final class Replica {
         }, Objects::nonNull);
     }
 
-    long localLastAppliedRevision() {
-        return await().ignoreExceptions().until(() -> {
-            try (BufferedReader br = new BufferedReader(new InputStreamReader(
-                    new FileInputStream(new File(dataDir, "local_last_revision"))))) {
-                return Long.parseLong(br.readLine());
-            }
-        }, Objects::nonNull);
-    }
-
     boolean existsLocalRevision() {
         return Files.isReadable(new File(dataDir, "last_revision").toPath());
     }
