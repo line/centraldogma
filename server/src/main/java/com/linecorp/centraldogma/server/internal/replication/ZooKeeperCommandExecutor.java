@@ -33,7 +33,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -164,6 +163,8 @@ public final class ZooKeeperCommandExecutor
     private volatile LeaderSelector zoneLeaderSelector;
     private volatile boolean createdParentNodes;
     private volatile boolean canReplicate;
+    // Highest ZooKeeper revision whose effect is in local data
+    private volatile long lastReplayedRevision = -1;
 
     private class OldLogRemover implements LeaderSelectorListener {
         volatile boolean hasLeadership;
@@ -347,7 +348,6 @@ public final class ZooKeeperCommandExecutor
     }
 
     private static final class ListenerInfo {
-        long lastReplayedRevision;
         @Nullable
         final Runnable onTakeLeadership;
         @Nullable
@@ -357,10 +357,8 @@ public final class ZooKeeperCommandExecutor
         @Nullable
         final Runnable onReleaseZoneLeadership;
 
-        ListenerInfo(long lastReplayedRevision,
-                     @Nullable Runnable onTakeLeadership, @Nullable Runnable onReleaseLeadership,
+        ListenerInfo(@Nullable Runnable onTakeLeadership, @Nullable Runnable onReleaseLeadership,
                      @Nullable Runnable onTakeZoneLeadership, @Nullable Runnable onReleaseZoneLeadership) {
-            this.lastReplayedRevision = lastReplayedRevision;
             this.onReleaseLeadership = onReleaseLeadership;
             this.onTakeLeadership = onTakeLeadership;
             this.onTakeZoneLeadership = onTakeZoneLeadership;
@@ -417,14 +415,7 @@ public final class ZooKeeperCommandExecutor
                  .tag("zone", zone)
                  .register(meterRegistry);
         }
-        Gauge.builder("replica.last.replayed.revision", this,
-                      self -> {
-                          final ListenerInfo info = self.listenerInfo;
-                          if (info == null) {
-                              return 0;
-                          }
-                          return info.lastReplayedRevision;
-                      })
+        Gauge.builder("replica.last.replayed.revision", this, self -> self.lastReplayedRevision)
              .register(meterRegistry);
     }
 
@@ -440,14 +431,13 @@ public final class ZooKeeperCommandExecutor
                            @Nullable Runnable onReleaseZoneLeadership) throws Exception {
         try {
             // Get the last replayed revision.
-            final long lastReplayedRevision;
             try {
                 lastReplayedRevision = getLastReplayedRevision();
-                listenerInfo = new ListenerInfo(lastReplayedRevision, onTakeLeadership, onReleaseLeadership,
-                                                onTakeZoneLeadership, onReleaseZoneLeadership);
             } catch (Exception e) {
                 throw new ReplicationException("failed to read " + revisionFile, e);
             }
+            listenerInfo = new ListenerInfo(onTakeLeadership, onReleaseLeadership,
+                                            onTakeZoneLeadership, onReleaseZoneLeadership);
 
             // Start the embedded ZooKeeper.
             quorumPeer = startZooKeeper();
@@ -812,43 +802,41 @@ public final class ZooKeeperCommandExecutor
         }
     }
 
-    private synchronized void replayLogs(long targetRevision) {
-        final ListenerInfo info = listenerInfo;
-        if (info == null) {
+    private void replayLogs(long targetRevision) {
+        replayLogs(targetRevision, false);
+    }
+
+    // force keeps origination-path replay running during shutdown; childEvent replay stops.
+    private synchronized void replayLogs(long targetRevision, boolean force) {
+        if (!force && listenerInfo == null) {
             return;
         }
 
-        if (targetRevision <= info.lastReplayedRevision) {
+        if (targetRevision <= lastReplayedRevision) {
             return;
         }
 
-        long nextRevision = info.lastReplayedRevision + 1;
+        long nextRevision = lastReplayedRevision + 1;
         for (;;) {
-            if (!canReplicate) {
+            if (!force && !canReplicate) {
                 break;
             }
             ReplicationLog<?> l = null;
             try {
-                final Optional<ReplicationLog<?>> log = loadLog(nextRevision, true);
-                Command<?> command = null;
-                if (log.isPresent()) {
-                    l = log.get();
-                    command = l.command();
-                    final Object expectedResult = l.result();
-                    final Object actualResult = delegate.execute(REPLAY_CONTEXT, command).get();
+                l = loadLog(nextRevision);
+                final Command<?> command = l.command();
+                final Object expectedResult = l.result();
+                final Object actualResult = delegate.execute(REPLAY_CONTEXT, command).get();
 
-                    if (!Objects.equals(expectedResult, actualResult)) {
-                        throw new ReplicationException(
-                                "mismatching replay result at revision " + nextRevision +
-                                ": " + actualResult + " (expected: " + expectedResult +
-                                ", command: " + command + ')');
-                    }
-                } else {
-                    // same replicaId. skip
+                if (!Objects.equals(expectedResult, actualResult)) {
+                    throw new ReplicationException(
+                            "mismatching replay result at revision " + nextRevision +
+                            ": " + actualResult + " (expected: " + expectedResult +
+                            ", command: " + command + ')');
                 }
 
                 updateLastReplayedRevision(nextRevision);
-                info.lastReplayedRevision = nextRevision;
+                lastReplayedRevision = nextRevision;
                 if (command instanceof UpdateServerStatusCommand) {
                     updateZkCommandStatusLater((UpdateServerStatusCommand) command);
                 }
@@ -1028,11 +1016,20 @@ public final class ZooKeeperCommandExecutor
                 logMeta.appendBlock(blockId);
             }
 
-            final String logPath =
-                    curator.create().withMode(CreateMode.PERSISTENT_SEQUENTIAL)
-                           .forPath(absolutePath(LOG_PATH) + '/', Jackson.writeValueAsBytes(logMeta));
+            final byte[] logMetaBytes = Jackson.writeValueAsBytes(logMeta);
+            final long revision;
+            // Create the log, fill any lower-numbered gap, then mark it replayed, all under one monitor.
+            synchronized (this) {
+                final String logPath =
+                        curator.create().withMode(CreateMode.PERSISTENT_SEQUENTIAL)
+                               .forPath(absolutePath(LOG_PATH) + '/', logMetaBytes);
+                revision = revisionFromPath(logPath);
 
-            return revisionFromPath(logPath);
+                replayLogs(revision - 1, true);
+                updateLastReplayedRevision(revision);
+                lastReplayedRevision = revision;
+            }
+            return revision;
         } catch (Exception e) {
             logger.error("Failed to store a log; entering read-only mode: {}", log, e);
             stopLater();
@@ -1041,17 +1038,13 @@ public final class ZooKeeperCommandExecutor
     }
 
     @VisibleForTesting
-    Optional<ReplicationLog<?>> loadLog(long revision, boolean skipIfSameReplica) {
+    ReplicationLog<?> loadLog(long revision) {
         try {
             createParentNodes();
 
             final String logPath = absolutePath(LOG_PATH) + '/' + pathFromRevision(revision);
 
             final LogMeta logMeta = Jackson.readValue(curator.getData().forPath(logPath), LogMeta.class);
-
-            if (skipIfSameReplica && replicaId() == logMeta.replicaId()) {
-                return Optional.empty();
-            }
 
             byte[] bytes = new byte[logMeta.size()];
             int offset = 0;
@@ -1067,8 +1060,7 @@ public final class ZooKeeperCommandExecutor
             if (Boolean.TRUE.equals(compressed)) {
                 bytes = Zstd.decompress(bytes);
             }
-            final ReplicationLog<?> log = Jackson.readValue(bytes, ReplicationLog.class);
-            return Optional.of(log);
+            return Jackson.readValue(bytes, ReplicationLog.class);
         } catch (Exception e) {
             logger.error("Failed to load a log at revision {}; entering read-only mode", revision, e);
             stopLater();
@@ -1145,7 +1137,7 @@ public final class ZooKeeperCommandExecutor
                 if (!recentRevisions.isEmpty()) {
                     final long lastRevision = recentRevisions.stream().mapToLong(Long::parseLong).max()
                                                              .getAsLong();
-                    replayLogs(lastRevision);
+                    replayLogs(lastRevision, true);
                 }
             } finally {
                 timings.endLogReplay();

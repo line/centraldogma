@@ -33,9 +33,9 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -103,10 +103,9 @@ class ZooKeeperCommandExecutorTest {
             final Command<Void> command1 = Command.createRepository(Author.SYSTEM, "project", "repo1");
             replica1.commandExecutor().execute(command1).join();
 
-            final Optional<ReplicationLog<?>> commandResult2 = replica1.commandExecutor().loadLog(0, false);
-            assertThat(commandResult2).isPresent();
-            assertThat(commandResult2.get().command()).isEqualTo(command1);
-            assertThat(commandResult2.get().result()).isNull();
+            final ReplicationLog<?> commandResult2 = replica1.commandExecutor().loadLog(0);
+            assertThat(commandResult2.command()).isEqualTo(command1);
+            assertThat(commandResult2.result()).isNull();
 
             await().untilAsserted(() -> verify(replica1.delegate()).apply(eq(command1)));
             await().untilAsserted(() -> verify(replica2.delegate()).apply(eq(command1)));
@@ -228,7 +227,7 @@ class ZooKeeperCommandExecutorTest {
                 for (int i = 0; i < COMMANDS_PER_REPLICA * cluster.size(); i++) {
                     @SuppressWarnings("unchecked")
                     final ReplicationLog<Revision> log =
-                            (ReplicationLog<Revision>) r.commandExecutor().loadLog(i, false).get();
+                            (ReplicationLog<Revision>) r.commandExecutor().loadLog(i);
 
                     assertThat(log.result().major()).isEqualTo(i + 1);
                 }
@@ -270,10 +269,9 @@ class ZooKeeperCommandExecutorTest {
             final Command<Void> command1 = Command.createRepository(Author.SYSTEM, "project", "repo1");
             replica1.commandExecutor().execute(command1).join();
 
-            final Optional<ReplicationLog<?>> commandResult2 = replica1.commandExecutor().loadLog(0, false);
-            assertThat(commandResult2).isPresent();
-            assertThat(commandResult2.get().command()).isEqualTo(command1);
-            assertThat(commandResult2.get().result()).isNull();
+            final ReplicationLog<?> commandResult2 = replica1.commandExecutor().loadLog(0);
+            assertThat(commandResult2.command()).isEqualTo(command1);
+            assertThat(commandResult2.result()).isNull();
 
             withReplica(cluster, replica -> {
                 await().untilAsserted(() -> verify(replica.delegate()).apply(eq(command1)));
@@ -305,7 +303,7 @@ class ZooKeeperCommandExecutorTest {
             final Command<Void> command1 = Command.createRepository(Author.SYSTEM, "project", "repo1");
             replica1.commandExecutor().execute(command1).join();
 
-            final ReplicationLog<?> commandResult1 = replica1.commandExecutor().loadLog(0, false).get();
+            final ReplicationLog<?> commandResult1 = replica1.commandExecutor().loadLog(0);
             assertThat(commandResult1.command()).isEqualTo(command1);
             assertThat(commandResult1.result()).isNull();
 
@@ -323,7 +321,7 @@ class ZooKeeperCommandExecutorTest {
             cluster.get(4).commandExecutor().stop().join();
 
             final PushAsIsCommand asIsCommand = executeCommand(replica1, normalizingPushCommand);
-            final ReplicationLog<?> commandResult2 = replica1.commandExecutor().loadLog(1, false).get();
+            final ReplicationLog<?> commandResult2 = replica1.commandExecutor().loadLog(1);
             assertThat(commandResult2.command()).isEqualTo(asIsCommand);
             assertThat(commandResult2.result()).isInstanceOf(Revision.class);
 
@@ -411,7 +409,7 @@ class ZooKeeperCommandExecutorTest {
             final Command<Void> command1 = Command.createRepository(Author.SYSTEM, "project", "repo1");
             replica1.commandExecutor().execute(command1).join();
 
-            final ReplicationLog<?> commandResult1 = replica1.commandExecutor().loadLog(0, false).get();
+            final ReplicationLog<?> commandResult1 = replica1.commandExecutor().loadLog(0);
             assertThat(commandResult1.command()).isEqualTo(command1);
             assertThat(commandResult1.result()).isNull();
 
@@ -433,7 +431,7 @@ class ZooKeeperCommandExecutorTest {
             final Command<Void> command1 = Command.createRepository(Author.SYSTEM, "project", "repo1");
             replica1.commandExecutor().execute(command1).join();
 
-            final ReplicationLog<?> commandResult1 = replica1.commandExecutor().loadLog(0, false).get();
+            final ReplicationLog<?> commandResult1 = replica1.commandExecutor().loadLog(0);
             assertThat(commandResult1.command()).isEqualTo(command1);
             assertThat(commandResult1.result()).isNull();
 
@@ -542,7 +540,7 @@ class ZooKeeperCommandExecutorTest {
             final Command<Void> command1 = Command.createRepository(Author.SYSTEM, "project", "repo1");
             replica1.commandExecutor().execute(command1).join();
 
-            final ReplicationLog<?> commandResult1 = replica1.commandExecutor().loadLog(0, false).get();
+            final ReplicationLog<?> commandResult1 = replica1.commandExecutor().loadLog(0);
             assertThat(commandResult1.command()).isEqualTo(command1);
             assertThat(commandResult1.result()).isNull();
             awaitUntilReplicated(cluster, command1);
@@ -551,7 +549,7 @@ class ZooKeeperCommandExecutorTest {
                     Command.updateServerStatus(ServerStatus.REPLICATION_ONLY);
             replica1.commandExecutor().execute(readOnlyCommand).join();
             assertThat(replica1.commandExecutor().isWritable()).isFalse();
-            final ReplicationLog<?> commandResult2 = replica1.commandExecutor().loadLog(1, false).get();
+            final ReplicationLog<?> commandResult2 = replica1.commandExecutor().loadLog(1);
             assertThat(commandResult2.command()).isEqualTo(readOnlyCommand);
             awaitUntilReplicated(cluster, readOnlyCommand);
 
@@ -570,7 +568,7 @@ class ZooKeeperCommandExecutorTest {
             final Command<Revision> forceNormalizingPush = Command.forcePush(pushCommand);
             assertThat(replica1.commandExecutor().execute(forceNormalizingPush).join())
                     .isEqualTo(new Revision(2));
-            final ReplicationLog<?> commandResult3 = replica1.commandExecutor().loadLog(2, false).get();
+            final ReplicationLog<?> commandResult3 = replica1.commandExecutor().loadLog(2);
             // The content of force push is changed to PushAsIsCommand.
             final Command<Revision> forceAsIsCommand = Command.forcePush(asIsCommand);
             assertThat(commandResult3.command()).isEqualTo(forceAsIsCommand);
@@ -607,6 +605,147 @@ class ZooKeeperCommandExecutorTest {
         assertThatJson(jsonStr).isEqualTo("{\"replicaId\":1,\"timestamp\":1,\"size\":10,\"blocks\":[1,2,3]}");
         final LogMeta deserialized = Jackson.readValue(jsonStr, LogMeta.class);
         assertThat(deserialized).isEqualTo(logMeta);
+    }
+
+    /**
+     * A self-originated command is applied locally before its log is stored, so storeLog advances
+     * lastReplayedRevision past it. The replay loop must therefore never revisit (and re-execute) it.
+     */
+    @Test
+    @Timeout(60)
+    void replayDoesNotReExecuteSelfOriginatedCommands() throws Exception {
+        try (Cluster cluster = Cluster.of(ZooKeeperCommandExecutorTest::newMockDelegate)) {
+            final Replica replica = cluster.get(0);
+            final Command<Void> command1 = Command.createRepository(Author.SYSTEM, "p", "repo1");
+            final Command<Void> command2 = Command.createRepository(Author.SYSTEM, "p", "repo2");
+            final Command<Void> command3 = Command.createRepository(Author.SYSTEM, "p", "repo3");
+            replica.commandExecutor().execute(command1).join();
+            replica.commandExecutor().execute(command2).join();
+            replica.commandExecutor().execute(command3).join();
+
+            // Progress advances contiguously and each command is applied exactly once.
+            await().untilAsserted(() -> assertThat(replica.localRevision()).isEqualTo(2L));
+            verify(replica.delegate(), times(1)).apply(eq(command1));
+            verify(replica.delegate(), times(1)).apply(eq(command2));
+            verify(replica.delegate(), times(1)).apply(eq(command3));
+            assertThat(replica.commandExecutor().isWritable()).isTrue();
+        }
+    }
+
+    /**
+     * Restoring a replica by rewinding last_revision (e.g. rebuilding local data from the ZooKeeper
+     * log) must replay every revision, including the ones this replica originated, because the local
+     * data no longer reflects them.
+     */
+    @Test
+    @Timeout(60)
+    void replaysEveryRevisionAfterLastRevisionReset() throws Exception {
+        try (Cluster cluster = Cluster.of(ZooKeeperCommandExecutorTest::newMockDelegate)) {
+            final Replica replica = cluster.get(0);
+            final Command<Void> command1 = Command.createRepository(Author.SYSTEM, "p", "repo1");
+            final Command<Void> command2 = Command.createRepository(Author.SYSTEM, "p", "repo2");
+            replica.commandExecutor().execute(command1).join();
+            replica.commandExecutor().execute(command2).join();
+            await().untilAsserted(() -> verify(replica.delegate(), times(1)).apply(eq(command1)));
+            await().untilAsserted(() -> verify(replica.delegate(), times(1)).apply(eq(command2)));
+
+            // Keep the ZooKeeper log but rewind the local progress file, then restart.
+            replica.commandExecutor().stop().join();
+            java.nio.file.Files.writeString(
+                    new java.io.File(replica.dataDir(), "last_revision").toPath(), "-1");
+            replica.commandExecutor().start().join();
+
+            // Both revisions are replayed again instead of being skipped.
+            await().untilAsserted(() -> verify(replica.delegate(), times(2)).apply(eq(command1)));
+            await().untilAsserted(() -> verify(replica.delegate(), times(2)).apply(eq(command2)));
+            assertThat(replica.commandExecutor().isWritable()).isTrue();
+        }
+    }
+
+    /**
+     * Commands originated concurrently by different replicas must all converge on every replica:
+     * none may be skipped because a higher-numbered local revision raced ahead of a lower one.
+     */
+    @Test
+    @Timeout(120)
+    void crossReplicaCommandsConverge() throws Exception {
+        try (Cluster cluster = Cluster.of(ZooKeeperCommandExecutorTest::newMockDelegate)) {
+            final Replica replica1 = cluster.get(0);
+            final Replica replica2 = cluster.get(1);
+
+            final int pairs = 10;
+            final Command<?>[] commands = new Command<?>[pairs * 2];
+            final CompletableFuture<?>[] futures = new CompletableFuture<?>[pairs * 2];
+            for (int i = 0; i < pairs; i++) {
+                final Command<Void> a = Command.createRepository(Author.SYSTEM, "alpha", "r" + i);
+                final Command<Void> b = Command.createRepository(Author.SYSTEM, "beta", "r" + i);
+                commands[i * 2] = a;
+                commands[i * 2 + 1] = b;
+                // Originate from both replicas without awaiting so their stores interleave.
+                futures[i * 2] = replica1.commandExecutor().execute(a);
+                futures[i * 2 + 1] = replica2.commandExecutor().execute(b);
+            }
+            CompletableFuture.allOf(futures).join();
+
+            // Every command must be applied exactly once on every replica; none skipped, none doubled.
+            for (Command<?> command : commands) {
+                for (Replica replica : cluster) {
+                    await().untilAsserted(() -> verify(replica.delegate()).apply(eq(command)));
+                }
+            }
+            await().untilAsserted(() -> assertThat(replica1.localRevision()).isEqualTo(19L));
+            await().untilAsserted(() -> assertThat(replica2.localRevision()).isEqualTo(19L));
+        }
+    }
+
+    /**
+     * A command still in flight when the executor stops must finish its storeLog and record its
+     * progress durably, so the command is not replayed and re-executed on the next start-up.
+     */
+    @Test
+    @Timeout(60)
+    void inFlightCommandOnStopIsRecordedAndNotReplayed() throws Exception {
+        final CountDownLatch executeEntered = new CountDownLatch(1);
+        final CountDownLatch proceed = new CountDownLatch(1);
+        final Supplier<Function<Command<?>, CompletableFuture<?>>> delegateSupplier = () -> {
+            final Function<Command<?>, CompletableFuture<?>> base = newMockDelegate();
+            return command -> {
+                if (command != null && command.type() == CommandType.CREATE_REPOSITORY) {
+                    // Park after execute() but before storeLog() so we can stop while it is in flight.
+                    executeEntered.countDown();
+                    return CompletableFuture.supplyAsync(() -> {
+                        try {
+                            proceed.await();
+                        } catch (InterruptedException e) {
+                            throw new RuntimeException(e);
+                        }
+                        return null;
+                    }, CommonPools.blockingTaskExecutor());
+                }
+                return base.apply(command);
+            };
+        };
+
+        try (Cluster cluster = Cluster.builder().numReplicas(1).build(delegateSupplier)) {
+            final Replica self = cluster.get(0);
+            self.commandExecutor().execute(Command.createProject(Author.SYSTEM, "p")).join();
+            await().untilAsserted(() -> assertThat(self.localRevision()).isEqualTo(0L));
+
+            // Originate a command, park it before storeLog, then stop while it is in flight.
+            final CompletableFuture<Void> blocked =
+                    self.commandExecutor().execute(Command.createRepository(Author.SYSTEM, "p", "r"));
+            assertThat(executeEntered.await(10, TimeUnit.SECONDS)).isTrue();
+            final CompletableFuture<Void> stopFuture = self.commandExecutor().stop();
+            proceed.countDown();
+            blocked.join();
+            stopFuture.join();
+
+            // Its progress was recorded during shutdown, so the restart does not replay it again.
+            assertThat(self.localRevision()).isEqualTo(1L);
+            self.commandExecutor().start().join();
+            assertThat(self.commandExecutor().isWritable()).isTrue();
+            assertThat(self.localRevision()).isEqualTo(1L);
+        }
     }
 
     private static <T> void awaitUntilReplicated(Cluster cluster, Command<T> command) {

@@ -104,6 +104,10 @@ final class Replica {
         return Files.isReadable(new File(dataDir, "last_revision").toPath());
     }
 
+    File dataDir() {
+        return dataDir;
+    }
+
     ZooKeeperCommandExecutor commandExecutor() {
         return commandExecutor;
     }
