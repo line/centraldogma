@@ -8,7 +8,7 @@ assertj = "3.27.7"
 awaitility = "4.3.0"
 bouncycastle = "1.84"
 caffeine = "3.2.4"
-checkstyle = "13.6.0"
+checkstyle = "10.3.3"
 conscrypt = "2.5.2"
 controlplane = "1.0.53"
 # Ensure that we use the same ZooKeeper version as what Curator depends on.
