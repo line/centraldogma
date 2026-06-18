@@ -92,8 +92,9 @@ class XdsMemberPermissionTest {
                          .blocking();
 
         assertThat(adminClient.listProjects().join()).containsOnly("dogma", "foo", "@xds");
-        // Internal projects are not visible to the user by default.
-        assertThat(nonAdminClient.listProjects().join()).containsOnly("foo");
+        // The xDS project is a self-service project, so it is visible to any authenticated user even before
+        // being granted a role. Other internal projects (e.g. dogma) remain hidden.
+        assertThat(nonAdminClient.listProjects().join()).containsOnly("foo", "@xds");
 
         final CentralDogmaRepository adminRepo = adminClient.createRepository("@xds", "test").join();
         adminRepo.commit("Add test.txt", Change.ofTextUpsert("/text.txt", "foo"))

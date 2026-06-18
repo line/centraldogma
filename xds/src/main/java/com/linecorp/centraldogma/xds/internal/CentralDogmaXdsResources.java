@@ -17,9 +17,12 @@ package com.linecorp.centraldogma.xds.internal;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Pattern;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
+import com.google.protobuf.Message;
 
 import io.envoyproxy.controlplane.cache.Resources.ResourceType;
 import io.envoyproxy.controlplane.cache.SnapshotResources;
@@ -45,7 +48,17 @@ final class CentralDogmaXdsResources {
     private boolean listenerUpdated;
     private boolean routeUpdated;
 
-    private CentralDogmaSnapshot currentSnapshot;
+    // Accessed from gRPC threads and the control plane executor (via snapshot()).
+    private volatile CentralDogmaSnapshot currentSnapshot;
+
+    // Immutable per-group views of the access-controlled resources, kept in sync with currentSnapshot and
+    // rebuilt only on the control plane executor inside snapshot(). They are read from gRPC threads via
+    // snapshot(Set) to assemble a scoped snapshot without scanning every group's resources. Endpoints are not
+    // indexed because they are served unfiltered to every client.
+    private volatile Map<String, Map<String, VersionedResource<Cluster>>> clustersByGroup = ImmutableMap.of();
+    private volatile Map<String, Map<String, VersionedResource<Listener>>> listenersByGroup = ImmutableMap.of();
+    private volatile Map<String, Map<String, VersionedResource<RouteConfiguration>>> routesByGroup =
+            ImmutableMap.of();
 
     CentralDogmaXdsResources() {
         final SnapshotResources<?> emptyResources = SnapshotResources.create(ImmutableList.of(),
@@ -129,10 +142,15 @@ final class CentralDogmaXdsResources {
         routeUpdated |= groupRoutes.remove(getResourceName(groupName, path)) != null;
     }
 
+    boolean isEndpointUpdated() {
+        return endpointUpdated;
+    }
+
     CentralDogmaSnapshot snapshot() {
         final SnapshotResources<Cluster> clusters;
         if (clusterUpdated) {
             clusters = CentralDogmaSnapshotResources.create(clusterResources, ResourceType.CLUSTER);
+            clustersByGroup = immutableByGroup(clusterResources);
             clusterUpdated = false;
         } else {
             clusters = currentSnapshot.clusters();
@@ -149,6 +167,7 @@ final class CentralDogmaXdsResources {
         final SnapshotResources<Listener> listeners;
         if (listenerUpdated) {
             listeners = CentralDogmaSnapshotResources.create(listenerResources, ResourceType.LISTENER);
+            listenersByGroup = immutableByGroup(listenerResources);
             listenerUpdated = false;
         } else {
             listeners = currentSnapshot.listeners();
@@ -157,6 +176,7 @@ final class CentralDogmaXdsResources {
         final SnapshotResources<RouteConfiguration> routes;
         if (routeUpdated) {
             routes = CentralDogmaSnapshotResources.create(routeResources, ResourceType.ROUTE);
+            routesByGroup = immutableByGroup(routeResources);
             routeUpdated = false;
         } else {
             routes = currentSnapshot.routes();
@@ -164,6 +184,45 @@ final class CentralDogmaXdsResources {
 
         return currentSnapshot =
                 new CentralDogmaSnapshot(clusters, endpoints, listeners, routes, currentSnapshot.secrets());
+    }
+
+    /**
+     * Builds a snapshot containing only the resources of the specified {@code groups}. The cost is proportional
+     * to the number of resources in {@code groups}, not to the total number of resources, because the resources
+     * are assembled from the per-group index instead of scanning every group.
+     */
+    CentralDogmaSnapshot snapshot(Set<String> groups) {
+        final CentralDogmaSnapshot current = currentSnapshot;
+        return new CentralDogmaSnapshot(
+                collectByGroups(clustersByGroup, groups, ResourceType.CLUSTER),
+                // Endpoints (EDS) are not access-controlled: every client can read the endpoints of all groups
+                // regardless of its READ access, so they are reused unfiltered.
+                current.endpoints(),
+                collectByGroups(listenersByGroup, groups, ResourceType.LISTENER),
+                collectByGroups(routesByGroup, groups, ResourceType.ROUTE),
+                current.secrets());
+    }
+
+    private static <T extends Message> SnapshotResources<T> collectByGroups(
+            Map<String, Map<String, VersionedResource<T>>> resourcesByGroup, Set<String> groups,
+            ResourceType resourceType) {
+        final ImmutableMap.Builder<String, VersionedResource<T>> collected = ImmutableMap.builder();
+        for (String group : groups) {
+            final Map<String, VersionedResource<T>> groupResources = resourcesByGroup.get(group);
+            if (groupResources != null) {
+                // Resource names are namespaced as "groups/{group}/...", so there is no key collision across
+                // groups.
+                collected.putAll(groupResources);
+            }
+        }
+        return CentralDogmaSnapshotResources.createFlat(collected.build(), resourceType);
+    }
+
+    private static <T extends Message> Map<String, Map<String, VersionedResource<T>>> immutableByGroup(
+            Map<String, Map<String, VersionedResource<T>>> resourcesByGroup) {
+        final ImmutableMap.Builder<String, Map<String, VersionedResource<T>>> copy = ImmutableMap.builder();
+        resourcesByGroup.forEach((group, resources) -> copy.put(group, ImmutableMap.copyOf(resources)));
+        return copy.build();
     }
 
     void removeGroup(String groupName) {

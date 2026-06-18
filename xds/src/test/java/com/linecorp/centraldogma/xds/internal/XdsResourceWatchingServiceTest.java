@@ -103,7 +103,7 @@ class XdsResourceWatchingServiceTest {
         }
 
         @Override
-        protected void onDiffHandled() {}
+        protected void onDiffHandled(String groupName) {}
 
         @Override
         protected boolean isStopped() {

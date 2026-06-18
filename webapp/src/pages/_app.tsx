@@ -5,6 +5,7 @@ import { NextPage } from 'next';
 import { ReactElement, ReactNode } from 'react';
 import { useRouter } from 'next/router';
 import { Layout } from 'dogma/common/components/Layout';
+import { XdsLayout } from 'dogma/common/components/XdsLayout';
 import { NotificationWrapper } from 'dogma/common/components/NotificationWrapper';
 import dynamic from 'next/dynamic';
 import StoreProvider from 'dogma/StoreProvider';
@@ -52,7 +53,9 @@ const DogmaApp = ({ Component, pageProps }: AppPropsWithLayout) => {
   const getLayout =
     router.pathname === WEB_AUTH_LOGIN
       ? (page: ReactElement) => page
-      : (page: ReactElement) => <Layout>{page}</Layout>;
+      : router.pathname.startsWith('/app/xds')
+        ? (page: ReactElement) => <XdsLayout>{page}</XdsLayout>
+        : (page: ReactElement) => <Layout>{page}</Layout>;
 
   return (
     <StoreProvider>

@@ -18,4 +18,21 @@ dependencies {
     testImplementation libs.kubernetes.junit.jupiter
     testImplementation libs.logback15
     testImplementation libs.testcontainers.junit.jupiter
+
+    // The xDS web UI is bundled into and served by the main ':webapp' (under '/app/xds'); the control plane
+    // plugin only exposes the xDS APIs and the '/api/v1/xds/web' enabled flag.
+    testImplementation project(":server-auth:shiro")
+    testImplementation libs.shiro.core
+}
+
+// A manual test server: starts a Shiro-secured Central Dogma server with the xDS plugin, an in-process
+// Kubernetes mock and pre-created sample xDS resources, and serves the bundled web UI at '/app/xds'.
+// The ':webapp:copyWeb' output (the built web app, under 'com/linecorp/centraldogma/webapp') is added to
+// this task's classpath only, so a normal ':xds:test' run does not trigger a web build.
+tasks.register('runXdsTestServer', JavaExec) {
+    group = "Execution"
+    description = "Run a Shiro-secured Central Dogma xDS server with the bundled web UI and sample resources"
+    dependsOn(':webapp:copyWeb')
+    classpath = sourceSets.test.runtimeClasspath + rootProject.files('webapp/build/javaweb')
+    mainClass = "com.linecorp.centraldogma.xds.XdsTestServer"
 }

@@ -54,7 +54,7 @@ public final class XdsListenerService extends XdsListenerServiceImplBase {
     public void createListener(CreateListenerRequest request, StreamObserver<Listener> responseObserver) {
         final String parent = request.getParent();
         final String group = removePrefix("groups/", parent);
-        xdsResourceManager.checkGroup(group);
+        xdsResourceManager.checkWritePermission(group);
 
         final String listenerId = request.getListenerId();
         if (!RESOURCE_ID_PATTERN.matcher(listenerId).matches()) {
@@ -78,7 +78,7 @@ public final class XdsListenerService extends XdsListenerServiceImplBase {
         final Listener listener = request.getListener();
         final String listenerName = listener.getName();
         final String group = checkListenerName(listenerName).group(1);
-        xdsResourceManager.checkGroup(group);
+        xdsResourceManager.checkWritePermission(group);
         xdsResourceManager.update(responseObserver, group, listenerName,
                                   "Update listener: " + listenerName, listener, currentAuthor());
     }
@@ -97,7 +97,7 @@ public final class XdsListenerService extends XdsListenerServiceImplBase {
     public void deleteListener(DeleteListenerRequest request, StreamObserver<Empty> responseObserver) {
         final String listenerName = request.getName();
         final String group = checkListenerName(listenerName).group(1);
-        xdsResourceManager.checkGroup(group);
+        xdsResourceManager.checkWritePermission(group);
         xdsResourceManager.delete(responseObserver, group, listenerName, "Delete listener: " + listenerName,
                                   currentAuthor());
     }

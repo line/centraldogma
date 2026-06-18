@@ -1,7 +1,7 @@
 /*
- * Copyright 2025 LINE Corporation
+ * Copyright 2026 LY Corporation
  *
- * LINE Corporation licenses this file to you under the Apache License,
+ * LY Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
  * with the License. You may obtain a copy of the License at:
  *
@@ -14,6 +14,10 @@
  * under the License.
  */
 
+// Unauthenticated users are sent to the Central Dogma login endpoint at the server root. That endpoint lives
+// outside any web app's basePath (e.g. the xDS UI's '/xds'), so callers must navigate to it with an absolute
+// URL (e.g. window.location), not the Next.js router. `ref` carries the current location so the user returns
+// here after logging in.
 export const createLoginUrl = (): string => {
   if (typeof window === 'undefined') {
     return '/link/auth/login';

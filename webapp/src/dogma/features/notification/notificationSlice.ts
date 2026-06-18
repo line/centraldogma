@@ -1,6 +1,6 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { ReactNode } from 'react';
-import { StyleProps } from '@chakra-ui/system';
+import { StyleProps } from '@chakra-ui/react';
 
 type NotificationType = 'error' | 'info' | 'warning' | 'success' | 'loading';
 
@@ -9,7 +9,7 @@ export interface Notification {
   description: string | ReactNode;
   type: NotificationType;
   containerStyle?: StyleProps;
-  timestamp: number;
+  timestamp: number | null;
 }
 
 const initialState: Notification = {

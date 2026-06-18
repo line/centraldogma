@@ -51,6 +51,18 @@ final class CentralDogmaSnapshotResources<T extends Message> extends SnapshotRes
                 versionedResourcesMap.build(), resourcesMap.build(), resourceType);
     }
 
+    /**
+     * Creates {@link SnapshotResources} from an already flattened (resource name to {@link VersionedResource})
+     * map.
+     */
+    static <T extends Message> SnapshotResources<T> createFlat(
+            Map<String, VersionedResource<T>> versionedResources, ResourceType resourceType) {
+        final ImmutableMap.Builder<String, T> resourcesMap = ImmutableMap.builder();
+        versionedResources.forEach((name, versionedResource) ->
+                                           resourcesMap.put(name, versionedResource.resource()));
+        return new CentralDogmaSnapshotResources<>(versionedResources, resourcesMap.build(), resourceType);
+    }
+
     private final Map<String, VersionedResource<T>> versionedResources;
     private final Map<String, T> resources;
     private final ResourceVersionResolver resourceVersionResolver;

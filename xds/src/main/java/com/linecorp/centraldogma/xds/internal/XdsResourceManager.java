@@ -41,10 +41,15 @@ import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.ChangeConflictException;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.RedundantChangeException;
+import com.linecorp.centraldogma.common.RepositoryRole;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
+import com.linecorp.centraldogma.server.internal.admin.auth.AuthUtil;
+import com.linecorp.centraldogma.server.metadata.MetadataService;
+import com.linecorp.centraldogma.server.metadata.ProjectMetadata;
+import com.linecorp.centraldogma.server.metadata.User;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 import com.linecorp.centraldogma.xds.endpoint.v1.DeregisterLocalityLbEndpointRequest;
@@ -141,12 +146,34 @@ public final class XdsResourceManager {
         return commandExecutor;
     }
 
-    public void checkGroup(String group) {
+    public void checkWritePermission(String group) {
         checkGroupId(group);
-        // TODO(minwoox): check the write permission.
         if (!xdsProject.repos().exists(group)) {
             throw Status.NOT_FOUND.withDescription("Group not found: " + group).asRuntimeException();
         }
+        checkWritePermission0(group);
+    }
+
+    private void checkWritePermission0(String group) {
+        final User user = AuthUtil.currentUserOrNull();
+        if (user == null) {
+            throw Status.UNAUTHENTICATED.withDescription(
+                    "You must be authenticated to modify resources in the group: " + group)
+                                        .asRuntimeException();
+        }
+        if (user.isSystemAdmin()) {
+            return;
+        }
+        final ProjectMetadata metadata = xdsProject.metadata();
+        if (metadata != null) {
+            final RepositoryRole role = MetadataService.findRepositoryRole(metadata, group, user);
+            if (role != null && role.has(RepositoryRole.WRITE)) {
+                return;
+            }
+        }
+        throw Status.PERMISSION_DENIED.withDescription(
+                "You must have the WRITE repository role to modify resources in the group: " + group)
+                                      .asRuntimeException();
     }
 
     public <T extends Message> void push(
