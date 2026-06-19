@@ -113,7 +113,9 @@ public class CentralDogmaReplicationExtension extends AbstractAllOrEachExtension
                            .systemAdministrators(TestAuthMessageUtil.USERNAME)
                            .authProviderFactory(factory)
                            .gracefulShutdownTimeout(new GracefulShutdownTimeout(0, 0))
-                           .replication(new ZooKeeperReplicationConfig(serverId, zooKeeperServers));
+                           .replication(new ZooKeeperReplicationConfig(
+                                   serverId, zooKeeperServers,
+                                   "test-secret-for-replication-0123456789abcdef"));
                     configureEach(serverId, builder);
                     final boolean isMirrorConfigured =
                             builder.pluginConfigs()

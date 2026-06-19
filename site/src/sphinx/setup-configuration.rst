@@ -376,8 +376,16 @@ example shows the configuration of the first replica in a 3-replica cluster:
 - ``secret`` (string)
 
   - the secret string which is used for replicas to authenticate each other. The replicas in the same
-    cluster must have the same secret. If ``null`` or unspecified, the default value of ``ch4n63m3``
-    is used. You can secure this property by :ref:`hiding_sensitive_property_values`.
+    cluster must have the same secret. **This property is required** when ZooKeeper replication is enabled.
+    The secret must be at least 16 characters long. Use ``openssl rand -hex 32`` to generate a secure
+    random secret. You can secure this property by :ref:`hiding_sensitive_property_values`.
+
+- ``allowInsecureSecret`` (boolean)
+
+  - if ``true``, allows the use of an insecure or missing ``secret`` for backward compatibility.
+    When enabled with no ``secret`` set, the legacy default value is used with a warning.
+    **This property is deprecated and will be removed in a future release.** It is strongly
+    recommended to set a proper ``secret`` instead of relying on this flag.
 
 - ``additionalProperties`` (map of string key-value pairs)
 

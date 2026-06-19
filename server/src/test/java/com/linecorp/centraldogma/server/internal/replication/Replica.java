@@ -55,7 +55,8 @@ final class Replica {
         meterRegistry = PrometheusMeterRegistries.newRegistry();
 
         final int id = spec.getServerId();
-        final ZooKeeperReplicationConfig zkCfg = new ZooKeeperReplicationConfig(id, servers);
+        final ZooKeeperReplicationConfig zkCfg = new ZooKeeperReplicationConfig(
+                id, servers, "test-secret-for-replication-0123456789abcdef");
 
         commandExecutor = new ZooKeeperCommandExecutor(
                 zkCfg, dataDir, new AbstractCommandExecutor(null, null, null, null) {

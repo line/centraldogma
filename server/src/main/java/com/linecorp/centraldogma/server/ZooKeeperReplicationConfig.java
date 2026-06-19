@@ -31,6 +31,8 @@ import java.util.Map.Entry;
 import java.util.concurrent.TimeUnit;
 
 import org.jspecify.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -46,10 +48,13 @@ import io.netty.util.NetUtil;
  */
 public final class ZooKeeperReplicationConfig implements ReplicationConfig {
 
+    private static final Logger logger = LoggerFactory.getLogger(ZooKeeperReplicationConfig.class);
+
     private static final int DEFAULT_TIMEOUT_MILLIS = 10000;
     private static final int DEFAULT_NUM_WORKERS = 16;
     private static final int DEFAULT_MAX_LOG_COUNT = 1024;
     private static final long DEFAULT_MIN_LOG_AGE_MILLIS = TimeUnit.DAYS.toMillis(1);
+    static final int MINIMUM_SECRET_LENGTH = 16;
     private static final String DEFAULT_SECRET = "ch4n63m3";
 
     private final int serverId;
@@ -67,9 +72,12 @@ public final class ZooKeeperReplicationConfig implements ReplicationConfig {
      *
      * @param serverId the ID of this ZooKeeper server in {@code servers}
      * @param servers the ZooKeeper server addresses, keyed by their ZooKeeper server IDs
+     * @param secret the secret string used for authenticating the ZooKeeper peers.
+     *               Must be at least {@value #MINIMUM_SECRET_LENGTH} characters long.
      */
-    public ZooKeeperReplicationConfig(int serverId, Map<Integer, ZooKeeperServerConfig> servers) {
-        this(serverId, servers, null, null, null, null, null, null);
+    public ZooKeeperReplicationConfig(int serverId, Map<Integer, ZooKeeperServerConfig> servers,
+                                      String secret) {
+        this(serverId, servers, secret, null, null, null, null, null, null);
     }
 
     @VisibleForTesting
@@ -78,7 +86,18 @@ public final class ZooKeeperReplicationConfig implements ReplicationConfig {
             Map<String, String> additionalProperties,
             int timeoutMillis, int numWorkers, int maxLogCount, long minLogAgeMillis) {
         this(Integer.valueOf(serverId), servers, secret, additionalProperties, Integer.valueOf(timeoutMillis),
-             Integer.valueOf(numWorkers), Integer.valueOf(maxLogCount), Long.valueOf(minLogAgeMillis));
+             Integer.valueOf(numWorkers), Integer.valueOf(maxLogCount), Long.valueOf(minLogAgeMillis), null);
+    }
+
+    @VisibleForTesting
+    ZooKeeperReplicationConfig(
+            int serverId, Map<Integer, ZooKeeperServerConfig> servers, @Nullable String secret,
+            @Nullable Map<String, String> additionalProperties,
+            int timeoutMillis, int numWorkers, int maxLogCount, long minLogAgeMillis,
+            @Nullable Boolean allowInsecureSecret) {
+        this(Integer.valueOf(serverId), servers, secret, additionalProperties, Integer.valueOf(timeoutMillis),
+             Integer.valueOf(numWorkers), Integer.valueOf(maxLogCount), Long.valueOf(minLogAgeMillis),
+             allowInsecureSecret);
     }
 
     @JsonCreator
@@ -93,13 +112,34 @@ public final class ZooKeeperReplicationConfig implements ReplicationConfig {
                                @JsonProperty("timeoutMillis") @Nullable Integer timeoutMillis,
                                @JsonProperty("numWorkers") @Nullable Integer numWorkers,
                                @JsonProperty("maxLogCount") @Nullable Integer maxLogCount,
-                               @JsonProperty("minLogAgeMillis") @Nullable Long minLogAgeMillis) {
+                               @JsonProperty("minLogAgeMillis") @Nullable Long minLogAgeMillis,
+                               @JsonProperty("allowInsecureSecret") @Nullable Boolean allowInsecureSecret) {
 
         requireNonNull(servers, "servers");
         this.serverId = serverId != null ? serverId : findServerId(servers);
         checkArgument(this.serverId > 0, "serverId: %s (expected: > 0)", serverId);
+
+        final boolean allowInsecureSecret0 = Boolean.TRUE.equals(allowInsecureSecret);
         this.secret = secret;
-        checkArgument(!secret().isEmpty(), "secret is empty.");
+        // Validate eagerly so misconfiguration is caught at startup.
+        final String resolved = secret();
+        if (allowInsecureSecret0) {
+            if (resolved.length() < MINIMUM_SECRET_LENGTH) {
+                logger.warn("ZooKeeper replication secret is insecure. " +
+                            "This is allowed because 'allowInsecureSecret' is true, " +
+                            "but it is strongly recommended to set a secure secret " +
+                            "with at least {} characters. (e.g. `openssl rand -hex 32`) " +
+                            "'allowInsecureSecret' will be removed in a future release.",
+                            MINIMUM_SECRET_LENGTH);
+            } else {
+                logger.info("ZooKeeper replication secret loaded ({} characters).", resolved.length());
+            }
+        } else {
+            checkArgument(resolved.length() >= MINIMUM_SECRET_LENGTH,
+                          "'replication.secret' must be at least %s characters long. " +
+                          "Use `openssl rand -hex 32` to generate one.", MINIMUM_SECRET_LENGTH);
+            logger.info("ZooKeeper replication secret loaded ({} characters).", resolved.length());
+        }
 
         servers.forEach((id, server) -> {
             checkArgument(id > 0, "'servers' contains non-positive server ID: %s (expected: > 0)", id);
@@ -211,7 +251,12 @@ public final class ZooKeeperReplicationConfig implements ReplicationConfig {
      * Returns the secret string used for authenticating the ZooKeeper peers.
      */
     public String secret() {
-        return firstNonNull(convertValue(secret, "replication.secret"), DEFAULT_SECRET);
+        final String resolved = convertValue(secret, "replication.secret");
+        if (resolved != null) {
+            return resolved;
+        }
+        // Only reachable when allowInsecureSecret is true and secret is null.
+        return DEFAULT_SECRET;
     }
 
     /**
