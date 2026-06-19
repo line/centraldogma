@@ -18,6 +18,7 @@ package com.linecorp.centraldogma.server.internal.storage.repository;
 
 import java.net.URI;
 import java.util.List;
+import java.util.Map;
 import java.util.ServiceLoader;
 
 import org.jspecify.annotations.Nullable;
@@ -47,21 +48,24 @@ public final class MirrorConverter {
     }
 
     @Nullable
-    static Mirror convertToMirror(MirrorConfig mirrorConfig, Project parent, List<Credential> credentials) {
+    static Mirror convertToMirror(MirrorConfig mirrorConfig, Project parent, List<Credential> credentials,
+                                  Map<String, List<String>> trustedHostKeys) {
         if (!parent.repos().exists(mirrorConfig.localRepo())) {
             return null;
         }
 
         final Credential credential = findCredential(mirrorConfig, credentials);
-        return convertToMirror(mirrorConfig, parent, credential);
+        return convertToMirror(mirrorConfig, parent, credential, trustedHostKeys);
     }
 
-    static Mirror convertToMirror(MirrorConfig mirrorConfig, Project parent, Credential credential) {
+    static Mirror convertToMirror(MirrorConfig mirrorConfig, Project parent, Credential credential,
+                                  Map<String, List<String>> trustedHostKeys) {
         final MirrorContext mirrorContext = new MirrorContext(
                 mirrorConfig.id(), mirrorConfig.enabled(), mirrorConfig.cronSchedule(),
                 mirrorConfig.direction(),
                 credential, parent.repos().get(mirrorConfig.localRepo()), mirrorConfig.localPath(),
-                mirrorConfig.rawRemoteUri(), mirrorConfig.gitignore(), mirrorConfig.zone());
+                mirrorConfig.rawRemoteUri(), mirrorConfig.gitignore(), mirrorConfig.zone(),
+                trustedHostKeys);
         for (MirrorProvider mirrorProvider : MIRROR_PROVIDERS) {
             final Mirror mirror = mirrorProvider.newMirror(mirrorContext);
             if (mirror != null) {

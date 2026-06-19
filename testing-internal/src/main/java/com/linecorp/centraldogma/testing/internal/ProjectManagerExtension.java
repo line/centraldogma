@@ -25,6 +25,8 @@ import java.util.concurrent.ScheduledExecutorService;
 import org.junit.jupiter.api.extension.Extension;
 import org.junit.jupiter.api.extension.ExtensionContext;
 
+import com.google.common.collect.ImmutableMap;
+
 import com.linecorp.armeria.common.metric.NoopMeterRegistry;
 import com.linecorp.centraldogma.common.ShuttingDownException;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
@@ -146,7 +148,8 @@ public class ProjectManagerExtension extends AbstractAllOrEachExtension {
             return new DefaultProjectManager(dataDir, repositoryWorker,
                                              purgeWorker, NoopMeterRegistry.get(),
                                              CentralDogmaBuilder.DEFAULT_REPOSITORY_CACHE_SPEC,
-                                             NoopEncryptionStorageManager.INSTANCE);
+                                             NoopEncryptionStorageManager.INSTANCE,
+                                             ImmutableMap.of());
         } catch (Exception e) {
             // Should not reach here.
             throw new Error(e);

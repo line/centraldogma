@@ -17,12 +17,17 @@ package com.linecorp.centraldogma.server.mirror;
 
 import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.collect.ImmutableList.toImmutableList;
+
+import java.util.List;
+import java.util.Map;
 
 import org.jspecify.annotations.Nullable;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects;
+import com.google.common.collect.ImmutableMap;
 
 import com.linecorp.centraldogma.server.plugin.AbstractPluginConfig;
 
@@ -32,7 +37,7 @@ import com.linecorp.centraldogma.server.plugin.AbstractPluginConfig;
 public final class MirroringServicePluginConfig extends AbstractPluginConfig {
 
     public static final MirroringServicePluginConfig INSTANCE =
-            new MirroringServicePluginConfig(true, null, null, null, false);
+            new MirroringServicePluginConfig(true, null, null, null, false, null);
 
     static final int DEFAULT_NUM_MIRRORING_THREADS = 16;
     static final int DEFAULT_MAX_NUM_FILES_PER_MIRROR = 8192;
@@ -43,12 +48,24 @@ public final class MirroringServicePluginConfig extends AbstractPluginConfig {
     private final long maxNumBytesPerMirror;
     private final boolean zonePinned;
     private final boolean runMigration;
+    private final Map<String, List<String>> trustedHostKeys;
 
     /**
      * Creates a new instance.
      */
     public MirroringServicePluginConfig(boolean enabled) {
-        this(enabled, null, null, null, false);
+        this(enabled, null, null, null, false, null);
+    }
+
+    /**
+     * Creates a new instance.
+     */
+    public MirroringServicePluginConfig(@Nullable Boolean enabled,
+                                        @Nullable Integer numMirroringThreads,
+                                        @Nullable Integer maxNumFilesPerMirror,
+                                        @Nullable Long maxNumBytesPerMirror,
+                                        boolean zonePinned) {
+        this(enabled, numMirroringThreads, maxNumFilesPerMirror, maxNumBytesPerMirror, zonePinned, null);
     }
 
     /**
@@ -60,7 +77,8 @@ public final class MirroringServicePluginConfig extends AbstractPluginConfig {
             @JsonProperty("numMirroringThreads") @Nullable Integer numMirroringThreads,
             @JsonProperty("maxNumFilesPerMirror") @Nullable Integer maxNumFilesPerMirror,
             @JsonProperty("maxNumBytesPerMirror") @Nullable Long maxNumBytesPerMirror,
-            @JsonProperty("zonePinned") boolean zonePinned) {
+            @JsonProperty("zonePinned") boolean zonePinned,
+            @JsonProperty("trustedHostKeys") @Nullable Map<String, List<String>> trustedHostKeys) {
         super(enabled);
         this.numMirroringThreads = firstNonNull(numMirroringThreads, DEFAULT_NUM_MIRRORING_THREADS);
         checkArgument(this.numMirroringThreads > 0,
@@ -72,6 +90,17 @@ public final class MirroringServicePluginConfig extends AbstractPluginConfig {
         checkArgument(this.maxNumBytesPerMirror > 0,
                       "maxNumBytesPerMirror: %s (expected: > 0)", this.maxNumBytesPerMirror);
         this.zonePinned = zonePinned;
+        if (trustedHostKeys != null) {
+            final ImmutableMap.Builder<String, List<String>> builder = ImmutableMap.builder();
+            trustedHostKeys.forEach(
+                    (host, keys) ->
+                            builder.put(host.trim(), keys.stream()
+                                                         .map(String::trim)
+                                                         .collect(toImmutableList())));
+            this.trustedHostKeys = builder.build();
+        } else {
+            this.trustedHostKeys = ImmutableMap.of();
+        }
         runMigration = true;
     }
 
@@ -94,6 +123,7 @@ public final class MirroringServicePluginConfig extends AbstractPluginConfig {
         this.maxNumBytesPerMirror = firstNonNull(maxNumBytesPerMirror, DEFAULT_MAX_NUM_BYTES_PER_MIRROR);
         this.zonePinned = zonePinned;
         this.runMigration = runMigration;
+        this.trustedHostKeys = ImmutableMap.of();
     }
 
     /**
@@ -129,6 +159,14 @@ public final class MirroringServicePluginConfig extends AbstractPluginConfig {
     }
 
     /**
+     * Returns the globally trusted SSH host key fingerprints, keyed by hostname.
+     */
+    @JsonProperty("trustedHostKeys")
+    public Map<String, List<String>> trustedHostKeys() {
+        return trustedHostKeys;
+    }
+
+    /**
      * Returns whether the migration should be run.
      *
      * @deprecated Will be removed after the migration is done.
@@ -145,6 +183,7 @@ public final class MirroringServicePluginConfig extends AbstractPluginConfig {
                           .add("maxNumFilesPerMirror", maxNumFilesPerMirror)
                           .add("maxNumBytesPerMirror", maxNumBytesPerMirror)
                           .add("zonePinned", zonePinned)
+                          .add("trustedHostKeys", trustedHostKeys)
                           .toString();
     }
 }

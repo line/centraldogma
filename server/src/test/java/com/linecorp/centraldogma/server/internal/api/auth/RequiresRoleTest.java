@@ -88,7 +88,8 @@ class RequiresRoleTest {
             final ProjectManager pm = new DefaultProjectManager(
                     dataDir, ForkJoinPool.commonPool(),
                     MoreExecutors.directExecutor(), NoopMeterRegistry.get(), null,
-                    NoopEncryptionStorageManager.INSTANCE);
+                    NoopEncryptionStorageManager.INSTANCE,
+                    com.google.common.collect.ImmutableMap.of());
             final ServerStatusManager statusManager = new ServerStatusManager(dataDir);
             final CommandExecutor executor = new StandaloneCommandExecutor(
                     pm, ForkJoinPool.commonPool(), statusManager, null, NoopEncryptionStorageManager.INSTANCE,

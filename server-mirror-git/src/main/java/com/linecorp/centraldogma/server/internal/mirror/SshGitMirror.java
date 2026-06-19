@@ -17,14 +17,22 @@
 package com.linecorp.centraldogma.server.internal.mirror;
 
 import static com.linecorp.centraldogma.server.internal.credential.SshKeyCredential.publicKeyPreview;
+import static java.util.Objects.requireNonNull;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.SocketAddress;
 import java.net.URISyntaxException;
 import java.security.GeneralSecurityException;
 import java.security.KeyPair;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.sshd.client.ClientBuilder;
 import org.apache.sshd.client.SshClient;
@@ -32,9 +40,11 @@ import org.apache.sshd.client.config.hosts.HostConfigEntryResolver;
 import org.apache.sshd.client.session.ClientSession;
 import org.apache.sshd.common.NamedResource;
 import org.apache.sshd.common.config.keys.FilePasswordProvider;
+import org.apache.sshd.common.config.keys.KeyUtils;
 import org.apache.sshd.common.config.keys.loader.KeyPairResourceParser;
 import org.apache.sshd.common.config.keys.loader.openssh.OpenSSHKeyPairResourceParser;
 import org.apache.sshd.common.config.keys.loader.pem.PKCS8PEMResourceKeyPairParser;
+import org.apache.sshd.common.digest.BuiltinDigests;
 import org.apache.sshd.common.file.nonefs.NoneFileSystemFactory;
 import org.apache.sshd.common.keyprovider.KeyIdentityProvider;
 import org.apache.sshd.common.util.security.SecurityUtils;
@@ -53,11 +63,11 @@ import org.slf4j.LoggerFactory;
 
 import com.cronutils.model.Cron;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.ImmutableList;
 
 import com.linecorp.centraldogma.common.MirrorException;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.credential.Credential;
-import com.linecorp.centraldogma.server.internal.credential.PasswordCredential;
 import com.linecorp.centraldogma.server.internal.credential.SshKeyCredential;
 import com.linecorp.centraldogma.server.mirror.MirrorDirection;
 import com.linecorp.centraldogma.server.mirror.MirrorResult;
@@ -68,6 +78,7 @@ import com.linecorp.centraldogma.server.storage.repository.Repository;
 final class SshGitMirror extends AbstractGitMirror {
 
     private static final Logger logger = LoggerFactory.getLogger(SshGitMirror.class);
+    private static final Set<SocketAddress> warnedAddresses = ConcurrentHashMap.newKeySet();
 
     private static final KeyPairResourceParser keyPairResourceParser = KeyPairResourceParser.aggregate(
             // Use BouncyCastle resource parser to support non-standard formats as well.
@@ -81,11 +92,19 @@ final class SshGitMirror extends AbstractGitMirror {
     // We might create multiple BouncyCastleRandom later and poll them, if necessary.
     private static final BouncyCastleRandom bounceCastleRandom = new BouncyCastleRandom();
 
+    private final Map<String, List<String>> trustedHostKeys;
+
     SshGitMirror(String id, boolean enabled, @Nullable Cron schedule, MirrorDirection direction,
                  Credential credential, Repository localRepo, String localPath,
-                 RepositoryUri remoteUri, @Nullable String gitignore, @Nullable String zone) {
+                 RepositoryUri remoteUri, @Nullable String gitignore, @Nullable String zone,
+                 Map<String, List<String>> trustedHostKeys) {
         super(id, enabled, schedule, direction, credential, localRepo, localPath,
               remoteUri, gitignore, zone);
+        this.trustedHostKeys = requireNonNull(trustedHostKeys, "trustedHostKeys");
+        if (!(credential instanceof SshKeyCredential)) {
+            throw new MirrorException(
+                    "SSH mirror requires an SSH_KEY credential, but got: " + credential.type());
+        }
     }
 
     @Override
@@ -121,9 +140,7 @@ final class SshGitMirror extends AbstractGitMirror {
     private URIish sshRemoteUri() throws URISyntaxException {
         // Requires the username to be included in the URI.
         final String username;
-        if (credential() instanceof PasswordCredential) {
-            username = ((PasswordCredential) credential()).username();
-        } else if (credential() instanceof SshKeyCredential) {
+        if (credential() instanceof SshKeyCredential) {
             username = ((SshKeyCredential) credential()).username();
         } else {
             username = null;
@@ -145,8 +162,25 @@ final class SshGitMirror extends AbstractGitMirror {
         // Do not use local file system.
         builder.hostConfigEntryResolver(HostConfigEntryResolver.EMPTY);
         builder.fileSystemFactory(NoneFileSystemFactory.INSTANCE);
-        // Do not verify the server key.
-        builder.serverKeyVerifier((clientSession, remoteAddress, serverKey) -> true);
+
+        // TODO(minwoox): Throw a MirrorException when acceptedHostKeys is empty once all mirrors have
+        //                been migrated to configure host key fingerprints. For now, log a warning and
+        //                accept all host keys to avoid breaking existing mirrors.
+        final List<String> acceptedHostKeys = getAcceptedHostKeys();
+        builder.serverKeyVerifier((clientSession, remoteAddress, serverKey) -> {
+            final String fingerprint = KeyUtils.getFingerPrint(BuiltinDigests.sha256, serverKey);
+            for (String accepted : acceptedHostKeys) {
+                if (fingerprint.equals(accepted)) {
+                    return true;
+                }
+            }
+            if (!acceptedHostKeys.isEmpty() && warnedAddresses.add(remoteAddress)) {
+                logger.warn("Host key verification failed for {} (fingerprint: {}).",
+                            remoteAddress, fingerprint);
+            }
+            return acceptedHostKeys.isEmpty();
+        });
+
         builder.randomFactory(() -> bounceCastleRandom);
         final SshClient client = builder.build();
         try {
@@ -157,6 +191,30 @@ final class SshGitMirror extends AbstractGitMirror {
             client.stop();
             throw t;
         }
+    }
+
+    private List<String> getAcceptedHostKeys() {
+        if (trustedHostKeys.isEmpty()) {
+            return ImmutableList.of();
+        }
+
+        final List<String> merged = new ArrayList<>();
+        final String host = remoteRepoUri().getRawAuthority();
+        // Try exact match first (may include port, e.g. "git.example.com:2222")
+        final List<String> byAuthority = trustedHostKeys.get(host);
+        if (byAuthority != null) {
+            merged.addAll(byAuthority);
+        }
+        // Also try hostname-only if authority contains a port
+        if (host != null && host.contains(":")) {
+            final String hostOnly = host.substring(0, host.indexOf(':'));
+            final List<String> byHost = trustedHostKeys.get(hostOnly);
+            if (byHost != null) {
+                merged.addAll(byHost);
+            }
+        }
+
+        return Collections.unmodifiableList(merged);
     }
 
     @VisibleForTesting
@@ -189,10 +247,8 @@ final class SshGitMirror extends AbstractGitMirror {
 
     private void configureCredential(SshClient client) {
         final Credential c = credential();
-        if (c instanceof PasswordCredential) {
-            client.setFilePasswordProvider(passwordProvider(((PasswordCredential) c).password()));
-        } else if (c instanceof SshKeyCredential) {
-            final SshKeyCredential cred = (SshKeyCredential) credential();
+        if (c instanceof SshKeyCredential) {
+            final SshKeyCredential cred = (SshKeyCredential) c;
             final Collection<KeyPair> keyPairs;
             try {
                 keyPairs = keyPairResourceParser.loadKeyPairs(null, NamedResource.ofName(cred.username()),

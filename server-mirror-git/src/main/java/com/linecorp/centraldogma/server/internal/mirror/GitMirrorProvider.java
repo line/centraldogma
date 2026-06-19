@@ -49,7 +49,8 @@ public final class GitMirrorProvider implements MirrorProvider {
                                         context.direction(), context.credential(),
                                         context.localRepo(), context.localPath(),
                                         repositoryUri,
-                                        context.gitignore(), context.zone());
+                                        context.gitignore(), context.zone(),
+                                        context.trustedHostKeys());
             }
             case SCHEME_GIT_HTTP:
             case SCHEME_GIT_HTTPS:
