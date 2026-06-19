@@ -20,7 +20,6 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
 
 import java.time.Duration;
-import java.util.regex.Pattern;
 
 import javax.naming.AuthenticationException;
 import javax.naming.NamingEnumeration;
@@ -58,18 +57,16 @@ import org.jspecify.annotations.Nullable;
  */
 public class SearchFirstActiveDirectoryRealm extends ActiveDirectoryRealm {
 
-    private static final Pattern USERNAME_PLACEHOLDER = Pattern.compile("\\{0}");
+    private static final String USERNAME_PLACEHOLDER = "{0}";
     private static final String DEFAULT_SEARCH_FILTER = "cn={0}";
     private static final int DEFAULT_SEARCH_TIMEOUT_MILLIS = (int) Duration.ofSeconds(10).toMillis();
 
-    @Nullable
     private String searchFilter = DEFAULT_SEARCH_FILTER;
     private int searchTimeoutMillis = DEFAULT_SEARCH_TIMEOUT_MILLIS;
 
     /**
      * Returns a search filter string.
      */
-    @Nullable
     protected String getSearchFilter() {
         return searchFilter;
     }
@@ -78,7 +75,10 @@ public class SearchFirstActiveDirectoryRealm extends ActiveDirectoryRealm {
      * Sets a search filter string.
      */
     protected void setSearchFilter(String searchFilter) {
-        this.searchFilter = requireNonNull(searchFilter, "searchFilter");
+        requireNonNull(searchFilter, "searchFilter");
+        checkArgument(searchFilter.contains("{0}"),
+                      "searchFilter must contain '{0}' placeholder: %s", searchFilter);
+        this.searchFilter = searchFilter;
     }
 
     /**
@@ -157,11 +157,9 @@ public class SearchFirstActiveDirectoryRealm extends ActiveDirectoryRealm {
             ctrl.setSearchScope(SearchControls.SUBTREE_SCOPE);
             ctrl.setTimeLimit(searchTimeoutMillis);
 
-            final String filter =
-                    searchFilter != null ? USERNAME_PLACEHOLDER.matcher(searchFilter)
-                                                               .replaceAll(username)
-                                         : username;
-            final NamingEnumeration<SearchResult> result = ctx.search(searchBase, filter, ctrl);
+            final String escaped = encodeLdapFilter(username);
+            final String filtered = searchFilter.replace(USERNAME_PLACEHOLDER, escaped);
+            final NamingEnumeration<SearchResult> result = ctx.search(searchBase, filtered, ctrl);
             try {
                 if (!result.hasMore()) {
                     return null;
@@ -173,6 +171,40 @@ public class SearchFirstActiveDirectoryRealm extends ActiveDirectoryRealm {
         } finally {
             LdapUtils.closeContext(ctx);
         }
+    }
+
+    /**
+     * Escapes special characters in the given value for use in an LDAP search filter,
+     * as specified in <a href="https://datatracker.ietf.org/doc/html/rfc4515#section-3">RFC 4515 §3</a>.
+     */
+    static String encodeLdapFilter(String value) {
+        if (value == null) {
+            return "";
+        }
+        final StringBuilder sb = new StringBuilder(value.length());
+        for (int i = 0; i < value.length(); i++) {
+            final char c = value.charAt(i);
+            switch (c) {
+                case '\\':
+                    sb.append("\\5c");
+                    break;
+                case '*':
+                    sb.append("\\2a");
+                    break;
+                case '(':
+                    sb.append("\\28");
+                    break;
+                case ')':
+                    sb.append("\\29");
+                    break;
+                case '\0':
+                    sb.append("\\00");
+                    break;
+                default:
+                    sb.append(c);
+            }
+        }
+        return sb.toString();
     }
 
     private static UsernamePasswordToken ensureUsernamePasswordToken(AuthenticationToken token) {
