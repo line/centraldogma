@@ -7,7 +7,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   
-  <title>Configuration &mdash; Central Dogma 0.83.0 documentation</title>
+  <title>Configuration &mdash; Central Dogma 0.84.0 documentation</title>
   
 
   
@@ -72,7 +72,7 @@
             
             
               <div class="version">
-                0.83
+                0.84
               </div>
             
           
@@ -115,6 +115,7 @@
 <li class="toctree-l1"><a class="reference internal" href="client-java.html">Java client library</a></li>
 <li class="toctree-l1"><a class="reference internal" href="templates-variables.html">Templates and Variables</a></li>
 <li class="toctree-l1"><a class="reference internal" href="mirroring.html">Better configuration change workflow with Git-to-CD mirroring</a></li>
+<li class="toctree-l1"><a class="reference internal" href="mirroring.html#central-dogma-to-central-dogma-mirroring">Central Dogma to Central Dogma mirroring</a></li>
 <li class="toctree-l1"><a class="reference internal" href="auth.html">Authentication and Access Control</a></li>
 <li class="toctree-l1"><a class="reference internal" href="known-issues.html">Known issues</a></li>
 <li class="toctree-l1"><a class="reference external" href="https://github.com/line/centraldogma/releases">Release notes</a></li>
@@ -240,7 +241,8 @@ defaults:</p>
       &quot;enabled&quot;: true,
       &quot;numMirroringThreads&quot;: null,
       &quot;maxNumFilesPerMirror&quot;: null,
-      &quot;maxNumBytesPerMirror&quot;: null
+      &quot;maxNumBytesPerMirror&quot;: null,
+      &quot;trustedHostKeys&quot;: null
     }
   ],
   &quot;management&quot;: {
@@ -615,8 +617,17 @@ curious why odd number of replicas are preferred over even number of replicas.</
 <li><p><code class="docutils literal notranslate"><span class="pre">secret</span></code> (string)</p>
 <ul class="simple">
 <li><p>the secret string which is used for replicas to authenticate each other. The replicas in the same
-cluster must have the same secret. If <code class="docutils literal notranslate"><span class="pre">null</span></code> or unspecified, the default value of <code class="docutils literal notranslate"><span class="pre">ch4n63m3</span></code>
-is used. You can secure this property by <a class="reference internal" href="#hiding-sensitive-property-values"><span class="std std-ref">Hiding sensitive property values</span></a>.</p></li>
+cluster must have the same secret. <strong>This property is required</strong> when ZooKeeper replication is enabled.
+The secret must be at least 16 characters long. Use <code class="docutils literal notranslate"><span class="pre">openssl</span> <span class="pre">rand</span> <span class="pre">-hex</span> <span class="pre">32</span></code> to generate a secure
+random secret. You can secure this property by <a class="reference internal" href="#hiding-sensitive-property-values"><span class="std std-ref">Hiding sensitive property values</span></a>.</p></li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">allowInsecureSecret</span></code> (boolean)</p>
+<ul class="simple">
+<li><p>if <code class="docutils literal notranslate"><span class="pre">true</span></code>, allows the use of an insecure or missing <code class="docutils literal notranslate"><span class="pre">secret</span></code> for backward compatibility.
+When enabled with no <code class="docutils literal notranslate"><span class="pre">secret</span></code> set, the legacy default value is used with a warning.
+<strong>This property is deprecated and will be removed in a future release.</strong> It is strongly
+recommended to set a proper <code class="docutils literal notranslate"><span class="pre">secret</span></code> instead of relying on this flag.</p></li>
 </ul>
 </li>
 <li><p><code class="docutils literal notranslate"><span class="pre">additionalProperties</span></code> (map of string key-value pairs)</p>
@@ -759,7 +770,12 @@ with <code class="docutils literal notranslate"><span class="pre">pluginConfigs<
       &quot;numMirroringThreads&quot;: null,
       &quot;maxNumFilesPerMirror&quot;: null,
       &quot;maxNumBytesPerMirror&quot;: null,
-      &quot;zonePinned&quot;: false
+      &quot;zonePinned&quot;: false,
+      &quot;trustedHostKeys&quot;: {
+        &quot;github.com&quot;: [
+          &quot;SHA256:+DiY3wvvV6TuJJhbpZisF/zLDA0zPMSvHdkr4UvCOqU&quot;
+        ]
+      }
     }
   ]
 }</pre></div>
@@ -795,6 +811,32 @@ this, Central Dogma will reject to mirror the Git repository. If <code class="do
 <div><ul class="simple">
 <li><p>whether the mirroring plugin is pinned to a specific zone. If <code class="docutils literal notranslate"><span class="pre">true</span></code>, a mirroring task will be executed
 only in the specified zone. If <code class="docutils literal notranslate"><span class="pre">false</span></code>, the plugin will be executed in the leader replica.</p></li>
+</ul>
+</div></blockquote>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">trustedHostKeys</span></code> (object)</p>
+<blockquote>
+<div><ul>
+<li><p>a map of hostname to a list of trusted SSH host key fingerprints (SHA-256) for <code class="docutils literal notranslate"><span class="pre">git+ssh://</span></code> mirrors.
+When an SSH mirror connects to a remote server, the server’s host key fingerprint is verified against
+this list. If the fingerprint does not match any trusted key, the connection is rejected.</p>
+<p>If <code class="docutils literal notranslate"><span class="pre">null</span></code> or empty, SSH mirrors will accept any host key without verification and log a warning.
+It is strongly recommended to configure this property for all SSH mirror hosts.</p>
+<p>You can obtain a host’s fingerprint by running:</p>
+<div class="highlight-default notranslate"><pre class="literal-block">ssh-keyscan &lt;hostname&gt; 2&gt;/dev/null | ssh-keygen -lf - -E sha256</pre>
+</div>
+<p>Example:</p>
+<div class="highlight-json notranslate"><div class="highlight hljs"><pre class="json">&quot;trustedHostKeys&quot;: {
+  &quot;github.com&quot;: [
+    &quot;SHA256:+DiY3wvvV6TuJJhbpZisF/zLDA0zPMSvHdkr4UvCOqU&quot;,
+    &quot;SHA256:uNiVztksCsDhcc0u9e8BujQXVUpKZIDTMczCvj3tD2s&quot;
+  ],
+  &quot;git.example.com&quot;: [
+    &quot;SHA256:nThbg6kXUpJWGl7E1IGOCspRomTxdCARLviKw6E5SY8&quot;
+  ]
+}</pre></div>
+</div>
+</li>
 </ul>
 </div></blockquote>
 </li>

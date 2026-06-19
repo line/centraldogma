@@ -113,6 +113,53 @@ Here is the properties of the mirroring task:
 
   - whether the mirroring task is enabled.
 
+Central Dogma to Central Dogma mirroring
+=========================================
+In addition to Git-to-CD mirroring, Central Dogma supports mirroring between two Central Dogma servers.
+This is useful when you want to replicate configuration across multiple Central Dogma clusters, such as
+syncing configurations between different environments or regions.
+
+Setting up a CD-to-CD mirror
+-----------------------------
+The setup is similar to Git mirroring, with a few differences:
+
+- ``Remote``
+
+  - Supported schemes are:
+
+    - ``dogma`` - connects to a remote Central Dogma server via plain HTTP.
+    - ``dogma+https`` - connects to a remote Central Dogma server via HTTPS.
+
+  - ``repo``
+
+    - the URI of the remote Central Dogma repository.
+      The format is ``<host>[:<port>]/<project>/<repository>.dogma``.
+      e.g. ``my-cd.com:36462/myproject/myrepo.dogma``
+
+  - ``path``
+
+    - the path within the remote Central Dogma repository. If unspecified, the whole content of the remote
+      repository is mirrored.
+
+  - Unlike Git mirroring, the ``branch`` field is not used because Central Dogma has no notion of branches.
+
+- ``Credential``
+
+  - An access token credential must be used for authentication to the remote Central Dogma server.
+
+- ``Direction``
+
+  - ``REMOTE_TO_LOCAL``: Replicates files from a remote Central Dogma repository to the local repository.
+  - ``LOCAL_TO_REMOTE``: Pushes files from the local repository to a remote Central Dogma repository.
+
+- ``gitignore``
+
+  - gitignore patterns are also supported for CD-to-CD mirroring, allowing you to exclude specific files
+    from being mirrored.
+
+All other properties (``Mirror ID``, ``Schedule``, ``Local path``, ``Zone``, ``Enable mirror``) work the
+same way as in Git mirroring.
+
 Mirror limit settings
 ---------------------
 Central Dogma limits the number of files and the total size of the files in a mirror for its reliability.

@@ -7,7 +7,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   
-  <title>Better configuration change workflow with Git-to-CD mirroring &mdash; Central Dogma 0.83.0 documentation</title>
+  <title>Better configuration change workflow with Git-to-CD mirroring &mdash; Central Dogma 0.84.0 documentation</title>
   
 
   
@@ -72,7 +72,7 @@
             
             
               <div class="version">
-                0.83
+                0.84
               </div>
             
           
@@ -108,6 +108,10 @@
 <li class="toctree-l3"><a class="reference internal" href="#setting-up-a-mirroring-task">Setting up a mirroring task</a></li>
 </ul>
 </li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="#central-dogma-to-central-dogma-mirroring">Central Dogma to Central Dogma mirroring</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#setting-up-a-cd-to-cd-mirror">Setting up a CD-to-CD mirror</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#mirror-limit-settings">Mirror limit settings</a></li>
 </ul>
 </li>
@@ -316,6 +320,61 @@ of strings where each line represents a single pattern.</p></li>
 </li>
 </ul>
 </div>
+</div>
+</div>
+<div class="section" id="central-dogma-to-central-dogma-mirroring">
+<h1>Central Dogma to Central Dogma mirroring<a class="headerlink" href="#central-dogma-to-central-dogma-mirroring" title="Permalink to this headline">¶</a></h1>
+<p>In addition to Git-to-CD mirroring, Central Dogma supports mirroring between two Central Dogma servers.
+This is useful when you want to replicate configuration across multiple Central Dogma clusters, such as
+syncing configurations between different environments or regions.</p>
+<div class="section" id="setting-up-a-cd-to-cd-mirror">
+<h2>Setting up a CD-to-CD mirror<a class="headerlink" href="#setting-up-a-cd-to-cd-mirror" title="Permalink to this headline">¶</a></h2>
+<p>The setup is similar to Git mirroring, with a few differences:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">Remote</span></code></p>
+<ul>
+<li><p>Supported schemes are:</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">dogma</span></code> - connects to a remote Central Dogma server via plain HTTP.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">dogma+https</span></code> - connects to a remote Central Dogma server via HTTPS.</p></li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">repo</span></code></p>
+<ul>
+<li><p>the URI of the remote Central Dogma repository.
+The format is <code class="docutils literal notranslate"><span class="pre">&lt;host&gt;[:&lt;port&gt;]/&lt;project&gt;/&lt;repository&gt;.dogma</span></code>.
+e.g. <code class="docutils literal notranslate"><span class="pre">my-cd.com:36462/myproject/myrepo.dogma</span></code></p></li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">path</span></code></p>
+<ul>
+<li><p>the path within the remote Central Dogma repository. If unspecified, the whole content of the remote
+repository is mirrored.</p></li>
+</ul>
+</li>
+<li><p>Unlike Git mirroring, the <code class="docutils literal notranslate"><span class="pre">branch</span></code> field is not used because Central Dogma has no notion of branches.</p></li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Credential</span></code></p>
+<ul>
+<li><p>An access token credential must be used for authentication to the remote Central Dogma server.</p></li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Direction</span></code></p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">REMOTE_TO_LOCAL</span></code>: Replicates files from a remote Central Dogma repository to the local repository.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">LOCAL_TO_REMOTE</span></code>: Pushes files from the local repository to a remote Central Dogma repository.</p></li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">gitignore</span></code></p>
+<ul>
+<li><p>gitignore patterns are also supported for CD-to-CD mirroring, allowing you to exclude specific files
+from being mirrored.</p></li>
+</ul>
+</li>
+</ul>
+<p>All other properties (<code class="docutils literal notranslate"><span class="pre">Mirror</span> <span class="pre">ID</span></code>, <code class="docutils literal notranslate"><span class="pre">Schedule</span></code>, <code class="docutils literal notranslate"><span class="pre">Local</span> <span class="pre">path</span></code>, <code class="docutils literal notranslate"><span class="pre">Zone</span></code>, <code class="docutils literal notranslate"><span class="pre">Enable</span> <span class="pre">mirror</span></code>) work the
+same way as in Git mirroring.</p>
 </div>
 <div class="section" id="mirror-limit-settings">
 <h2>Mirror limit settings<a class="headerlink" href="#mirror-limit-settings" title="Permalink to this headline">¶</a></h2>
