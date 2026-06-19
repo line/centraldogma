@@ -29,6 +29,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.regex.Pattern;
 
 import org.jspecify.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.cronutils.model.Cron;
 import com.cronutils.model.field.CronField;
@@ -60,6 +62,8 @@ import com.linecorp.centraldogma.server.storage.repository.MetaRepository;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
 public final class DefaultMetaRepository extends RepositoryWrapper implements MetaRepository {
+
+    private static final Logger logger = LoggerFactory.getLogger(DefaultMetaRepository.class);
 
     private static final Pattern MIRROR_PATH_PATTERN = Pattern.compile("/repos/[^/]+/mirrors/[^/]+\\.json");
 
@@ -177,8 +181,19 @@ public final class DefaultMetaRepository extends RepositoryWrapper implements Me
         return future.thenApply(credentials -> {
             final List<MirrorConfig> mirrorConfigs = toMirrorConfigs(entries);
             return mirrorConfigs.stream()
-                                .map(mirrorConfig -> MirrorConverter.convertToMirror(
-                                        mirrorConfig, parent(), credentials, trustedHostKeys))
+                                .map(mirrorConfig -> {
+                                    try {
+                                        return MirrorConverter.convertToMirror(
+                                                mirrorConfig, parent(), credentials, trustedHostKeys);
+                                    } catch (Exception e) {
+                                        // Skip a malformed mirror so that a single bad mirror does not
+                                        // prevent the rest of the mirrors from being loaded.
+                                        logger.debug("Failed to convert a mirror configuration to a mirror. " +
+                                                     "project: {}, mirror: {}", parent().name(), mirrorConfig,
+                                                     e);
+                                        return null;
+                                    }
+                                })
                                 .filter(Objects::nonNull)
                                 .collect(toImmutableList());
         });

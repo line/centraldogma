@@ -184,6 +184,25 @@ class ZoneAwareMirrorTest {
         final CentralDogmaRepository repo = client.forRepo(FOO_PROJ, Project.REPO_DOGMA);
         final String mirrorId = TEST_MIRROR_ID + "-unknown-zone";
         final String unknownZone = "unknown-zone";
+
+        // Create a valid SSH credential so that the mirror can be loaded and reach the zone validation.
+        // Otherwise, the git+ssh mirror fails to be constructed and is skipped before the zone is checked.
+        final BlockingWebClient webClient = WebClient.builder("http://127.0.0.1:" + serverPort)
+                                                     .auth(AuthToken.ofOAuth2(accessToken))
+                                                     .build()
+                                                     .blocking();
+        final CreateCredentialRequest credential =
+                getCreateCredentialRequest(FOO_PROJ, "bar-unknown-zone");
+        final ResponseEntity<PushResultDto> credentialResponse =
+                webClient.prepare()
+                         .post("/api/v1/projects/{proj}/repos/{repo}/credentials")
+                         .pathParam("proj", FOO_PROJ)
+                         .pathParam("repo", "bar-unknown-zone")
+                         .contentJson(credential)
+                         .asJson(PushResultDto.class)
+                         .execute();
+        assertThat(credentialResponse.status()).isEqualTo(HttpStatus.CREATED);
+
         final MirrorConfig mirrorConfig =
                 new MirrorConfig(mirrorId,
                                  true,
@@ -194,7 +213,7 @@ class ZoneAwareMirrorTest {
                                  URI.create("git+ssh://github.com/line/centraldogma-authtest.git/#main"),
                                  null,
                                  null,
-                                 credentialName("foo", "bar-unknown-zone", "credential-id"),
+                                 credentialName(FOO_PROJ, "bar-unknown-zone", PRIVATE_KEY_FILE),
                                  unknownZone);
         final Change<JsonNode> change = Change.ofJsonUpsert(
                 "/repos/bar-unknown-zone/mirrors/" + mirrorId + ".json",
