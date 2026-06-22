@@ -392,6 +392,9 @@ version.ref = "owasp"
 module = "com.guardsquare:proguard-gradle"
 version.ref = "proguard"
 
+[libraries.protobuf-java]
+module = "com.google.protobuf:protobuf-java"
+version.ref = "protobuf"
 [libraries.protobuf-protoc]
 module = "com.google.protobuf:protoc"
 version.ref = "protobuf"

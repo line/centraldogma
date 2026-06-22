@@ -1,0 +1,8 @@
+dependencies {
+    testImplementation project(':client:java-armeria-xds')
+    testImplementation project(':server')
+    testImplementation project(':testing:junit')
+
+    testImplementation libs.armeria.junit5
+    testImplementation libs.jackson.dataformat.yaml
+}
