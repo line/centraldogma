@@ -140,7 +140,7 @@ public final class CentralDogmaEndpointGroup<T> extends DynamicEndpointGroup {
         instanceListWatcher.watch((revision, instances) -> {
             try {
                 final List<Endpoint> newEndpoints = endpointListDecoder.decode(instances);
-                if (newEndpoints.isEmpty()) {
+                if (newEndpoints.isEmpty() && !allowsEmptyEndpoints()) {
                     logger.info("Not refreshing the endpoint list of {} because it's empty. {}",
                                 instanceListWatcher, revision);
                     return;
