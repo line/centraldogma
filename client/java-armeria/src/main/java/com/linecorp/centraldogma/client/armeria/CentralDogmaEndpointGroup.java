@@ -73,7 +73,7 @@ public final class CentralDogmaEndpointGroup<T> extends DynamicEndpointGroup {
     public static <T> CentralDogmaEndpointGroup<T> ofWatcher(Watcher<T> watcher,
                                                              EndpointListDecoder<T> endpointListDecoder) {
         return new CentralDogmaEndpointGroup<>(EndpointSelectionStrategy.weightedRoundRobin(),
-                                               watcher, endpointListDecoder);
+                                               watcher, endpointListDecoder, false);
     }
 
     /**
@@ -107,13 +107,30 @@ public final class CentralDogmaEndpointGroup<T> extends DynamicEndpointGroup {
      */
     public static <T> CentralDogmaEndpointGroupBuilder<T> builder(Watcher<T> watcher,
                                                                   EndpointListDecoder<T> endpointListDecoder) {
-        return new CentralDogmaEndpointGroupBuilder<>(watcher, endpointListDecoder);
+        return new CentralDogmaEndpointGroupBuilder<>(watcher, endpointListDecoder, false);
+    }
+
+    /**
+     * Returns a new {@link CentralDogmaEndpointGroupBuilder} with the {@link Watcher}
+     * and {@link EndpointListDecoder}. You can create a {@link Watcher} using {@link CentralDogma}:
+     *
+     * <pre>{@code
+     * CentralDogma centralDogma = ...
+     * Query<T> query = ... // The query to the entry that contains the list of endpoints.
+     * Watcher watcher = centralDogma.fileWatcher(projectName, repositoryName, query);
+     * }</pre>
+     */
+    public static <T> CentralDogmaEndpointGroupBuilder<T> builder(Watcher<T> watcher,
+                                                                  EndpointListDecoder<T> endpointListDecoder,
+                                                                  boolean allowEmptyEndpoints) {
+        return new CentralDogmaEndpointGroupBuilder<>(watcher, endpointListDecoder, allowEmptyEndpoints);
     }
 
     CentralDogmaEndpointGroup(EndpointSelectionStrategy strategy,
                               Watcher<T> instanceListWatcher,
-                              EndpointListDecoder<T> endpointListDecoder) {
-        super(strategy);
+                              EndpointListDecoder<T> endpointListDecoder,
+                              boolean allowEmptyEndpoints) {
+        super(strategy, allowEmptyEndpoints);
         this.instanceListWatcher = requireNonNull(instanceListWatcher, "instanceListWatcher");
         this.endpointListDecoder = requireNonNull(endpointListDecoder, "endpointListDecoder");
         registerWatcher();

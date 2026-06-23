@@ -32,11 +32,13 @@ public final class CentralDogmaEndpointGroupBuilder<T> {
 
     private final Watcher<T> watcher;
     private final EndpointListDecoder<T> endpointListDecoder;
+    private final boolean allowEmptyEndpoints;
     private EndpointSelectionStrategy selectionStrategy = EndpointSelectionStrategy.weightedRoundRobin();
 
-    CentralDogmaEndpointGroupBuilder(Watcher<T> watcher, EndpointListDecoder<T> endpointListDecoder) {
+    CentralDogmaEndpointGroupBuilder(Watcher<T> watcher, EndpointListDecoder<T> endpointListDecoder, boolean allowEmptyEndpoints) {
         this.watcher = requireNonNull(watcher, "watcher");
         this.endpointListDecoder = requireNonNull(endpointListDecoder, "endpointListDecoder");
+        this.allowEmptyEndpoints = allowEmptyEndpoints;
     }
 
     /**
@@ -52,6 +54,6 @@ public final class CentralDogmaEndpointGroupBuilder<T> {
      * from an entry in Central Dogma.
      */
     public CentralDogmaEndpointGroup<T> build() {
-        return new CentralDogmaEndpointGroup<>(selectionStrategy, watcher, endpointListDecoder);
+        return new CentralDogmaEndpointGroup<>(selectionStrategy, watcher, endpointListDecoder, allowEmptyEndpoints);
     }
 }
