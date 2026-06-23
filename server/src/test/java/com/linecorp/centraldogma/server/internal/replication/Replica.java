@@ -55,7 +55,8 @@ final class Replica {
         meterRegistry = PrometheusMeterRegistries.newRegistry();
 
         final int id = spec.getServerId();
-        final ZooKeeperReplicationConfig zkCfg = new ZooKeeperReplicationConfig(id, servers);
+        final ZooKeeperReplicationConfig zkCfg = new ZooKeeperReplicationConfig(
+                id, servers, "test-secret-for-replication-0123456789abcdef");
 
         commandExecutor = new ZooKeeperCommandExecutor(
                 zkCfg, dataDir, new AbstractCommandExecutor(null, null, null, null) {
@@ -95,15 +96,6 @@ final class Replica {
         return await().ignoreExceptions().until(() -> {
             try (BufferedReader br = new BufferedReader(new InputStreamReader(
                     new FileInputStream(new File(dataDir, "last_revision"))))) {
-                return Long.parseLong(br.readLine());
-            }
-        }, Objects::nonNull);
-    }
-
-    long localLastAppliedRevision() {
-        return await().ignoreExceptions().until(() -> {
-            try (BufferedReader br = new BufferedReader(new InputStreamReader(
-                    new FileInputStream(new File(dataDir, "local_last_revision"))))) {
                 return Long.parseLong(br.readLine());
             }
         }, Objects::nonNull);

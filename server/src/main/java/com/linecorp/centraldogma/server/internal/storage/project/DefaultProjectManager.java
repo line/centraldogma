@@ -23,12 +23,16 @@ import static java.util.Objects.requireNonNull;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Executor;
 import java.util.function.Supplier;
 
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.google.common.collect.ImmutableMap;
 
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.CentralDogmaException;
@@ -50,16 +54,19 @@ public final class DefaultProjectManager extends DirectoryBasedStorageManager<Pr
     private final Executor repositoryWorker;
     @Nullable
     private final RepositoryCache cache;
+    private final Map<String, List<String>> trustedHostKeys;
 
     public DefaultProjectManager(File rootDir, Executor repositoryWorker, Executor purgeWorker,
                                  MeterRegistry meterRegistry, @Nullable String cacheSpec,
-                                 EncryptionStorageManager encryptionStorageManager) {
+                                 EncryptionStorageManager encryptionStorageManager,
+                                 Map<String, List<String>> trustedHostKeys) {
         super(rootDir, Project.class, purgeWorker, encryptionStorageManager);
 
         requireNonNull(meterRegistry, "meterRegistry");
         requireNonNull(repositoryWorker, "repositoryWorker");
 
         this.repositoryWorker = repositoryWorker;
+        this.trustedHostKeys = ImmutableMap.copyOf(requireNonNull(trustedHostKeys, "trustedHostKeys"));
         cache = cacheSpec != null ? new RepositoryCache(cacheSpec, meterRegistry) : null;
 
         init();
@@ -75,14 +82,16 @@ public final class DefaultProjectManager extends DirectoryBasedStorageManager<Pr
 
     @Override
     protected Project openChild(File childDir) throws Exception {
-        return new DefaultProject(childDir, repositoryWorker, purgeWorker(), cache, encryptionStorageManager());
+        return new DefaultProject(childDir, repositoryWorker, purgeWorker(), cache, encryptionStorageManager(),
+                                  trustedHostKeys);
     }
 
     @Override
     protected Project createChild(
             File childDir, Author author, long creationTimeMillis, boolean encrypt) throws Exception {
         return new DefaultProject(childDir, repositoryWorker, purgeWorker(),
-                                  creationTimeMillis, author, cache, encryptionStorageManager(), encrypt);
+                                  creationTimeMillis, author, cache, encryptionStorageManager(), encrypt,
+                                  trustedHostKeys);
     }
 
     @Override

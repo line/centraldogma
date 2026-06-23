@@ -101,7 +101,8 @@ class ReplicatedLoginAndLogoutTest {
                 .webAppEnabled(true)
                 .pluginConfigs(new MirroringServicePluginConfig(false))
                 .gracefulShutdownTimeout(new GracefulShutdownTimeout(0, 0))
-                .replication(new ZooKeeperReplicationConfig(1, servers))
+                .replication(new ZooKeeperReplicationConfig(1, servers,
+                                                            "test-secret-for-replication-0123456789abcdef"))
                 .build();
 
         replica2 = new CentralDogmaBuilder(tempDir.newFolder().toFile())
@@ -110,7 +111,8 @@ class ReplicatedLoginAndLogoutTest {
                 .webAppEnabled(true)
                 .pluginConfigs(new MirroringServicePluginConfig(false))
                 .gracefulShutdownTimeout(new GracefulShutdownTimeout(0, 0))
-                .replication(new ZooKeeperReplicationConfig(2, servers))
+                .replication(new ZooKeeperReplicationConfig(2, servers,
+                                                            "test-secret-for-replication-0123456789abcdef"))
                 .build();
 
         client1 = WebClient.of("http://127.0.0.1:" + port1);

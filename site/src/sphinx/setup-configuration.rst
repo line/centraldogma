@@ -52,7 +52,8 @@ defaults:
           "enabled": true,
           "numMirroringThreads": null,
           "maxNumFilesPerMirror": null,
-          "maxNumBytesPerMirror": null
+          "maxNumBytesPerMirror": null,
+          "trustedHostKeys": null
         }
       ],
       "management": {
@@ -376,8 +377,16 @@ example shows the configuration of the first replica in a 3-replica cluster:
 - ``secret`` (string)
 
   - the secret string which is used for replicas to authenticate each other. The replicas in the same
-    cluster must have the same secret. If ``null`` or unspecified, the default value of ``ch4n63m3``
-    is used. You can secure this property by :ref:`hiding_sensitive_property_values`.
+    cluster must have the same secret. **This property is required** when ZooKeeper replication is enabled.
+    The secret must be at least 16 characters long. Use ``openssl rand -hex 32`` to generate a secure
+    random secret. You can secure this property by :ref:`hiding_sensitive_property_values`.
+
+- ``allowInsecureSecret`` (boolean)
+
+  - if ``true``, allows the use of an insecure or missing ``secret`` for backward compatibility.
+    When enabled with no ``secret`` set, the legacy default value is used with a warning.
+    **This property is deprecated and will be removed in a future release.** It is strongly
+    recommended to set a proper ``secret`` instead of relying on this flag.
 
 - ``additionalProperties`` (map of string key-value pairs)
 
@@ -517,7 +526,12 @@ with ``pluginConfigs`` property in ``dogma.json`` as follows.
           "numMirroringThreads": null,
           "maxNumFilesPerMirror": null,
           "maxNumBytesPerMirror": null,
-          "zonePinned": false
+          "zonePinned": false,
+          "trustedHostKeys": {
+            "github.com": [
+              "SHA256:+DiY3wvvV6TuJJhbpZisF/zLDA0zPMSvHdkr4UvCOqU"
+            ]
+          }
         }
       ]
     }
@@ -549,6 +563,33 @@ properties that can be configured:
 
    - whether the mirroring plugin is pinned to a specific zone. If ``true``, a mirroring task will be executed
      only in the specified zone. If ``false``, the plugin will be executed in the leader replica.
+
+- ``trustedHostKeys`` (object)
+
+   - a map of hostname to a list of trusted SSH host key fingerprints (SHA-256) for ``git+ssh://`` mirrors.
+     When an SSH mirror connects to a remote server, the server's host key fingerprint is verified against
+     this list. If the fingerprint does not match any trusted key, the connection is rejected.
+
+     If ``null`` or empty, SSH mirrors will accept any host key without verification and log a warning.
+     It is strongly recommended to configure this property for all SSH mirror hosts.
+
+     You can obtain a host's fingerprint by running::
+
+       ssh-keyscan <hostname> 2>/dev/null | ssh-keygen -lf - -E sha256
+
+     Example:
+
+     .. code-block:: json
+
+         "trustedHostKeys": {
+           "github.com": [
+             "SHA256:+DiY3wvvV6TuJJhbpZisF/zLDA0zPMSvHdkr4UvCOqU",
+             "SHA256:uNiVztksCsDhcc0u9e8BujQXVUpKZIDTMczCvj3tD2s"
+           ],
+           "git.example.com": [
+             "SHA256:nThbg6kXUpJWGl7E1IGOCspRomTxdCARLviKw6E5SY8"
+           ]
+         }
 
 For more information about mirroring, refer to :ref:`mirroring`.
 

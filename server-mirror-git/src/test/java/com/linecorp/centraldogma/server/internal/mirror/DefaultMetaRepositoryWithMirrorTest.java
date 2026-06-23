@@ -46,7 +46,7 @@ import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.api.v1.MirrorRequest;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.credential.Credential;
-import com.linecorp.centraldogma.server.internal.credential.PasswordCredential;
+import com.linecorp.centraldogma.server.internal.credential.SshKeyCredential;
 import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryMetadataException;
 import com.linecorp.centraldogma.server.mirror.Mirror;
 import com.linecorp.centraldogma.server.mirror.MirrorDirection;
@@ -202,17 +202,15 @@ class DefaultMetaRepositoryWithMirrorTest {
         // Ensure the credentials are loaded correctly.
 
         //// Should be matched by 'alice' credential.
-        assertThat(foo.credential()).isInstanceOf(PasswordCredential.class);
+        assertThat(foo.credential()).isInstanceOf(SshKeyCredential.class);
         //// Should be matched by 'bob' credential.
-        assertThat(bar.credential()).isInstanceOf(PasswordCredential.class);
+        assertThat(bar.credential()).isInstanceOf(SshKeyCredential.class);
 
-        final PasswordCredential fooCredential = (PasswordCredential) foo.credential();
-        final PasswordCredential barCredential = (PasswordCredential) bar.credential();
+        final SshKeyCredential fooCredential = (SshKeyCredential) foo.credential();
+        final SshKeyCredential barCredential = (SshKeyCredential) bar.credential();
 
         assertThat(fooCredential.username()).isEqualTo("alice");
-        assertThat(fooCredential.password()).isEqualTo("secret_a");
         assertThat(barCredential.username()).isEqualTo("bob");
-        assertThat(barCredential.password()).isEqualTo("secret_b");
     }
 
     @Test
@@ -243,8 +241,8 @@ class DefaultMetaRepositoryWithMirrorTest {
 
         final Mirror m = mirrors.get(0);
         assertThat(m.localRepo().name()).isEqualTo("qux");
-        assertThat(m.credential()).isInstanceOf(PasswordCredential.class);
-        assertThat(((PasswordCredential) m.credential()).username()).isEqualTo("alice");
+        assertThat(m.credential()).isInstanceOf(SshKeyCredential.class);
+        assertThat(((SshKeyCredential) m.credential()).username()).isEqualTo("alice");
     }
 
     private List<Mirror> findMirrors() {
@@ -257,28 +255,34 @@ class DefaultMetaRepositoryWithMirrorTest {
     private static List<Change<?>> upsertRawCredentials(String projectName) {
         final String aliceCredential = credentialName(projectName, "alice");
         final String bobCredential = credentialName(projectName, "bob");
+        final String dummyKey = "-----BEGIN RSA PRIVATE KEY-----\\ntest\\n-----END RSA PRIVATE KEY-----";
         return ImmutableList.of(
                 Change.ofJsonUpsert(
                         credentialFile(aliceCredential),
                         '{' +
                         "  \"name\": \"" + aliceCredential + "\"," +
-                        "  \"type\": \"PASSWORD\"," +
+                        "  \"type\": \"SSH_KEY\"," +
                         "  \"username\": \"alice\"," +
-                        "  \"password\": \"secret_a\"" +
+                        "  \"publicKey\": \"ssh-rsa AAAA\"," +
+                        "  \"privateKey\": \"" + dummyKey + '"' +
                         '}'),
                 Change.ofJsonUpsert(
                         credentialFile(bobCredential),
                         '{' +
                         "  \"name\": \"" + bobCredential + "\"," +
-                        "  \"type\": \"PASSWORD\"," +
+                        "  \"type\": \"SSH_KEY\"," +
                         "  \"username\": \"bob\"," +
-                        "  \"password\": \"secret_b\"" +
+                        "  \"publicKey\": \"ssh-rsa BBBB\"," +
+                        "  \"privateKey\": \"" + dummyKey + '"' +
                         '}'));
     }
 
     private static List<Credential> credentials(String projectName) {
+        final String dummyKey = "-----BEGIN RSA PRIVATE KEY-----\ntest\n-----END RSA PRIVATE KEY-----";
         return ImmutableList.of(
-                new PasswordCredential(credentialName(projectName, "alice"), "alice", "secret_a"),
-                new PasswordCredential(credentialName(projectName, "bob"), "bob", "secret_b"));
+                new SshKeyCredential(credentialName(projectName, "alice"), "alice",
+                                     "ssh-rsa AAAA", dummyKey, null),
+                new SshKeyCredential(credentialName(projectName, "bob"), "bob",
+                                     "ssh-rsa BBBB", dummyKey, null));
     }
 }

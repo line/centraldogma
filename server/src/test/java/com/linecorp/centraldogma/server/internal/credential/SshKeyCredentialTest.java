@@ -76,7 +76,8 @@ public class SshKeyCredentialTest {
                 .isInstanceOf(NullPointerException.class);
 
         // null passphrase must be accepted.
-        assertThat(new SshKeyCredential(name, USERNAME, PUBLIC_KEY, PRIVATE_KEY, null).passphrase()).isNull();
+        assertThat(new SshKeyCredential(name, USERNAME, PUBLIC_KEY, PRIVATE_KEY, null).passphrase())
+                .isNull();
 
         // emptiness checks
         assertThatThrownBy(() -> new SshKeyCredential(name, "", PUBLIC_KEY, PRIVATE_KEY, PASSPHRASE))
@@ -87,10 +88,12 @@ public class SshKeyCredentialTest {
                 .isInstanceOf(IllegalArgumentException.class);
 
         // empty passphrase must be accepted, because an empty password is still a password.
-        assertThat(new SshKeyCredential(name, USERNAME, PUBLIC_KEY, PRIVATE_KEY, "").passphrase()).isEmpty();
+        assertThat(new SshKeyCredential(name, USERNAME, PUBLIC_KEY, PRIVATE_KEY, "").passphrase())
+                .isEmpty();
 
         // successful construction
-        final SshKeyCredential c = new SshKeyCredential(name, USERNAME, PUBLIC_KEY, PRIVATE_KEY, PASSPHRASE);
+        final SshKeyCredential c =
+                new SshKeyCredential(name, USERNAME, PUBLIC_KEY, PRIVATE_KEY, PASSPHRASE);
 
         assertThat(c.name()).isEqualTo(name);
         assertThat(c.id()).isEqualTo("key-credential");

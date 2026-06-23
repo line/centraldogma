@@ -19,11 +19,14 @@ package com.linecorp.centraldogma.server.mirror;
 import static java.util.Objects.requireNonNull;
 
 import java.net.URI;
+import java.util.List;
+import java.util.Map;
 
 import org.jspecify.annotations.Nullable;
 
 import com.cronutils.model.Cron;
 import com.google.common.base.MoreObjects;
+import com.google.common.collect.ImmutableMap;
 
 import com.linecorp.centraldogma.server.credential.Credential;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
@@ -46,6 +49,7 @@ public final class MirrorContext {
     private final String gitignore;
     @Nullable
     private final String zone;
+    private final Map<String, List<String>> trustedHostKeys;
 
     /**
      * Creates a new instance.
@@ -53,6 +57,17 @@ public final class MirrorContext {
     public MirrorContext(String id, boolean enabled, @Nullable Cron schedule, MirrorDirection direction,
                          Credential credential, Repository localRepo,
                          String localPath, URI remoteUri, @Nullable String gitignore, @Nullable String zone) {
+        this(id, enabled, schedule, direction, credential, localRepo, localPath, remoteUri,
+             gitignore, zone, ImmutableMap.of());
+    }
+
+    /**
+     * Creates a new instance.
+     */
+    public MirrorContext(String id, boolean enabled, @Nullable Cron schedule, MirrorDirection direction,
+                         Credential credential, Repository localRepo,
+                         String localPath, URI remoteUri, @Nullable String gitignore, @Nullable String zone,
+                         Map<String, List<String>> trustedHostKeys) {
         this.id = requireNonNull(id, "id");
         this.enabled = enabled;
         this.schedule = schedule;
@@ -63,6 +78,7 @@ public final class MirrorContext {
         this.remoteUri = requireNonNull(remoteUri, "remoteUri");
         this.gitignore = gitignore;
         this.zone = zone;
+        this.trustedHostKeys = ImmutableMap.copyOf(requireNonNull(trustedHostKeys, "trustedHostKeys"));
     }
 
     /**
@@ -139,6 +155,13 @@ public final class MirrorContext {
         return zone;
     }
 
+    /**
+     * Returns the globally trusted SSH host key fingerprints, keyed by hostname.
+     */
+    public Map<String, List<String>> trustedHostKeys() {
+        return trustedHostKeys;
+    }
+
     @Override
     public String toString() {
         return MoreObjects.toStringHelper(this).omitNullValues()
@@ -152,6 +175,7 @@ public final class MirrorContext {
                           .add("remoteUri", remoteUri)
                           .add("gitignore", gitignore)
                           .add("zone", zone)
+                          .add("trustedHostKeys", trustedHostKeys)
                           .toString();
     }
 }

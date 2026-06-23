@@ -179,6 +179,7 @@ import com.linecorp.centraldogma.server.internal.storage.repository.crud.Replica
 import com.linecorp.centraldogma.server.management.ServerStatus;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
 import com.linecorp.centraldogma.server.mirror.MirrorProvider;
+import com.linecorp.centraldogma.server.mirror.MirroringServicePluginConfig;
 import com.linecorp.centraldogma.server.plugin.AllReplicasPlugin;
 import com.linecorp.centraldogma.server.plugin.Plugin;
 import com.linecorp.centraldogma.server.plugin.PluginInitContext;
@@ -479,8 +480,14 @@ public class CentralDogma implements AutoCloseable {
 
             encryptionStorageManager = EncryptionStorageManager.of(cfg);
 
+            final Map<String, List<String>> trustedHostKeys;
+            final MirroringServicePluginConfig mirrorPluginCfg =
+                    DefaultMirroringServicePlugin.mirrorConfig(cfg);
+            trustedHostKeys = mirrorPluginCfg != null ? mirrorPluginCfg.trustedHostKeys()
+                                                      : ImmutableMap.of();
             pm = new DefaultProjectManager(cfg.dataDir(), repositoryWorker, purgeWorker,
-                                           meterRegistry, cfg.repositoryCacheSpec(), encryptionStorageManager);
+                                           meterRegistry, cfg.repositoryCacheSpec(), encryptionStorageManager,
+                                           trustedHostKeys);
 
             logger.info("Started the project manager: {}", pm);
 

@@ -22,6 +22,7 @@ import static com.linecorp.centraldogma.server.storage.project.InternalProjectIn
 import static java.util.Objects.requireNonNull;
 
 import java.io.File;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
@@ -73,6 +74,7 @@ public class DefaultProject implements Project {
     private final long creationTimeMillis;
     private final Author author;
     final RepositoryManager repos;
+    private final Map<String, List<String>> trustedHostKeys;
 
     @SuppressWarnings("NotNullFieldNotInitialized")
     private volatile MetaRepository metaRepo;
@@ -86,7 +88,8 @@ public class DefaultProject implements Project {
      * Opens an existing project.
      */
     DefaultProject(File rootDir, Executor repositoryWorker, Executor purgeWorker,
-                   @Nullable RepositoryCache cache, EncryptionStorageManager encryptionStorageManager) {
+                   @Nullable RepositoryCache cache, EncryptionStorageManager encryptionStorageManager,
+                   Map<String, List<String>> trustedHostKeys) {
         requireNonNull(rootDir, "rootDir");
         requireNonNull(repositoryWorker, "repositoryWorker");
         requireNonNull(encryptionStorageManager, "encryptionStorageManager");
@@ -96,6 +99,7 @@ public class DefaultProject implements Project {
         }
 
         name = rootDir.getName();
+        this.trustedHostKeys = requireNonNull(trustedHostKeys, "trustedHostKeys");
         repos = newRepoManager(rootDir, repositoryWorker, purgeWorker, cache, encryptionStorageManager);
         if (!repos.exists(REPO_DOGMA)) {
             throw new IllegalStateException(
@@ -110,7 +114,7 @@ public class DefaultProject implements Project {
                 creationTimeMillis = creation.timestampMillis();
                 author = Author.ofEmail(creation.user());
                 attachMetadataListener();
-                metaRepo = new DefaultMetaRepository(repos.get(REPO_DOGMA));
+                metaRepo = new DefaultMetaRepository(repos.get(REPO_DOGMA), trustedHostKeys);
                 registerMigrationCallback();
             } else {
                 creationTimeMillis = repos.get(REPO_DOGMA).creationTimeMillis();
@@ -132,7 +136,8 @@ public class DefaultProject implements Project {
      */
     DefaultProject(File rootDir, Executor repositoryWorker, Executor purgeWorker,
                    long creationTimeMillis, Author author, @Nullable RepositoryCache cache,
-                   EncryptionStorageManager encryptionStorageManager, boolean encryptDogmaRepo) {
+                   EncryptionStorageManager encryptionStorageManager, boolean encryptDogmaRepo,
+                   Map<String, List<String>> trustedHostKeys) {
         requireNonNull(rootDir, "rootDir");
         requireNonNull(repositoryWorker, "repositoryWorker");
         requireNonNull(encryptionStorageManager, "encryptionStorageManager");
@@ -142,6 +147,7 @@ public class DefaultProject implements Project {
         }
 
         name = rootDir.getName();
+        this.trustedHostKeys = requireNonNull(trustedHostKeys, "trustedHostKeys");
         repos = newRepoManager(rootDir, repositoryWorker, purgeWorker, cache, encryptionStorageManager);
 
         boolean success = false;
@@ -150,7 +156,7 @@ public class DefaultProject implements Project {
             if (!name.equals(INTERNAL_PROJECT_DOGMA)) {
                 initializeMetadata(creationTimeMillis, author);
                 attachMetadataListener();
-                metaRepo = new DefaultMetaRepository(repos.get(REPO_DOGMA));
+                metaRepo = new DefaultMetaRepository(repos.get(REPO_DOGMA), trustedHostKeys);
                 registerMigrationCallback();
             }
             this.creationTimeMillis = creationTimeMillis;
@@ -177,7 +183,7 @@ public class DefaultProject implements Project {
     private void registerMigrationCallback() {
         repos.setPostMigrationCallback((repoName, newRepo) -> {
             if (REPO_DOGMA.equals(repoName)) {
-                metaRepo = new DefaultMetaRepository(newRepo);
+                metaRepo = new DefaultMetaRepository(newRepo, trustedHostKeys);
             }
         });
     }

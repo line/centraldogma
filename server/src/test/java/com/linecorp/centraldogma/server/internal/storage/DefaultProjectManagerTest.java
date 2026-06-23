@@ -25,6 +25,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.common.util.concurrent.MoreExecutors;
 
 import com.linecorp.centraldogma.common.Author;
@@ -48,7 +49,8 @@ class DefaultProjectManagerTest {
                 MoreExecutors.directExecutor(),
                 (Runnable r) -> counter.incrementAndGet(),
                 mock(MeterRegistry.class),
-                null, NoopEncryptionStorageManager.INSTANCE);
+                null, NoopEncryptionStorageManager.INSTANCE,
+                ImmutableMap.of());
 
         final String projectName = "foo";
         final String repoName = "bar";

@@ -67,7 +67,8 @@ class StartStopWithoutInitialQuorumTest {
                                                           1, /* groupId */ null, /* weight */ 1));
         final CentralDogma dogma2 = new CentralDogmaBuilder(tmpDir)
                 .port(port, SessionProtocol.HTTP)
-                .replication(new ZooKeeperReplicationConfig(1, servers))
+                .replication(new ZooKeeperReplicationConfig(1, servers,
+                                                            "test-secret-for-replication-0123456789abcdef"))
                 .build();
         final CompletableFuture<Void> start = dogma2.start();
         dogma2.stop().join();
