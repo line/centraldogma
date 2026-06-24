@@ -35,7 +35,6 @@ import com.linecorp.centraldogma.server.internal.admin.auth.AuthUtil;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
 import com.linecorp.centraldogma.server.metadata.ProjectMetadata;
 import com.linecorp.centraldogma.server.metadata.User;
-import com.linecorp.centraldogma.server.metadata.UserWithAppIdentity;
 import com.linecorp.centraldogma.server.storage.encryption.EncryptionStorageException;
 import com.linecorp.centraldogma.server.storage.encryption.EncryptionStorageManager;
 import com.linecorp.centraldogma.server.storage.encryption.WrappedDekDetails;
@@ -47,6 +46,10 @@ import com.linecorp.centraldogma.server.storage.project.ProjectManager;
  * from unprivileged requests.
  */
 public final class ProjectApiManager {
+
+    // The xDS project is a self-service internal project: any authenticated user may access it (e.g. to list
+    // and create groups via the xDS web UI). It is intentionally more permissive than other internal projects.
+    private static final String INTERNAL_PROJECT_XDS = "@xds";
 
     private final ProjectManager projectManager;
     private final CommandExecutor commandExecutor;
@@ -85,22 +88,10 @@ public final class ProjectApiManager {
         final Map<String, Project> result = new LinkedHashMap<>(projects.size() - 1);
         for (Map.Entry<String, Project> entry : projects.entrySet()) {
             if (isInternalProject(entry.getKey())) {
-                if (user != null) {
-                    final ProjectMetadata metadata = entry.getValue().metadata();
-                    if (metadata != null) {
-                        // Only show internal projects to the members of the project.
-                        if (user instanceof UserWithAppIdentity) {
-                            // TODO(minwoox): Add the type that distinguishes between users and app identies.
-                            // login is appId for UserWithAppIdentity
-                            if (metadata.appIdentityOrDefault(user.login(), null) != null) {
-                                result.put(entry.getKey(), entry.getValue());
-                            }
-                        } else {
-                            if (metadata.memberOrDefault(user.id(), null) != null) {
-                                result.put(entry.getKey(), entry.getValue());
-                            }
-                        }
-                    }
+                // Only the accessible internal project (the xDS project) is shown, and only to authenticated
+                // users.
+                if (user != null && isAccessibleInternalProject(entry.getKey())) {
+                    result.put(entry.getKey(), entry.getValue());
                 }
             } else {
                 result.put(entry.getKey(), entry.getValue());
@@ -180,18 +171,19 @@ public final class ProjectApiManager {
         if (user.isSystemAdmin()) {
             return project;
         }
-        final ProjectMetadata metadata = project.metadata();
-        if (metadata != null) {
-            // Only show internal projects to the members of the project.
-            if (user instanceof UserWithAppIdentity) {
-                if (metadata.appIdentityOrDefault(user.login(), null) != null) {
-                    return project;
-                }
-            } else if (metadata.memberOrDefault(user.id(), null) != null) {
-                return project;
-            }
+        if (isAccessibleInternalProject(projectName)) {
+            return project;
         }
         throw new PermissionException("Cannot access " + projectName);
+    }
+
+    /**
+     * Returns whether the specified internal project is accessible through this API. Among the internal
+     * projects, only the xDS project is accessible, and it is open to any authenticated user (e.g. to list and
+     * create groups via the xDS web UI).
+     */
+    private static boolean isAccessibleInternalProject(String projectName) {
+        return INTERNAL_PROJECT_XDS.equals(projectName);
     }
 
     private static boolean isInternalProject(String projectName) {
@@ -199,8 +191,16 @@ public final class ProjectApiManager {
     }
 
     public boolean exists(String projectName) {
-        if (isInternalProject(projectName) && !isSystemAdmin()) {
-            throw new IllegalArgumentException("Cannot access " + projectName);
+        // Apply the same access rule as getProject(): the xDS project is accessible to any authenticated user,
+        // while the other internal projects remain accessible to system administrators only.
+        if (isInternalProject(projectName)) {
+            final User user = AuthUtil.currentUserOrNull();
+            if (user == null) {
+                throw new IllegalArgumentException("Cannot access " + projectName);
+            }
+            if (!user.isSystemAdmin() && !isAccessibleInternalProject(projectName)) {
+                throw new PermissionException("Cannot access " + projectName);
+            }
         }
         return projectManager.exists(projectName);
     }

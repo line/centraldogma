@@ -19,20 +19,48 @@ import static com.linecorp.centraldogma.server.internal.ExecutorServiceUtil.term
 import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.JSON_MESSAGE_MARSHALLER;
 
 import java.io.IOException;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.function.Function;
 
 import org.curioswitch.common.protobuf.json.MessageMarshaller;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import com.google.protobuf.Message;
 
+import com.linecorp.armeria.common.HttpRequest;
+import com.linecorp.armeria.common.HttpResponse;
+import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.armeria.internal.common.grpc.DefaultJsonMarshaller;
+import com.linecorp.armeria.server.HttpService;
+import com.linecorp.armeria.server.ServerBuilder;
+import com.linecorp.armeria.server.ServiceRequestContext;
+import com.linecorp.armeria.server.SimpleDecoratingHttpService;
+import com.linecorp.armeria.server.auth.Authorizer;
 import com.linecorp.armeria.server.grpc.GrpcService;
+import com.linecorp.armeria.server.grpc.GrpcServiceBuilder;
+import com.linecorp.centraldogma.common.Query;
+import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
+import com.linecorp.centraldogma.server.internal.admin.auth.AuthUtil;
+import com.linecorp.centraldogma.server.internal.api.auth.ApplicationCertificateAuthorizer;
+import com.linecorp.centraldogma.server.internal.api.auth.ApplicationTokenAuthorizer;
+import com.linecorp.centraldogma.server.metadata.MetadataService;
+import com.linecorp.centraldogma.server.metadata.ProjectMetadata;
+import com.linecorp.centraldogma.server.metadata.User;
+import com.linecorp.centraldogma.server.metadata.UserWithAppIdentity;
 import com.linecorp.centraldogma.server.plugin.PluginInitContext;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.xds.cluster.v1.XdsClusterService;
@@ -78,11 +106,17 @@ public final class ControlPlaneService extends XdsResourceWatchingService {
 
     // TODO(minwoox): Implement better cache implementation that updates only changed resources
     //                instead of this snapshot based implementation.
-    private final SimpleCache<String> cache = new SimpleCache<>(node -> DEFAULT_GROUP);
+    private final SimpleCache<String> cache = new SimpleCache<>(node -> cacheKey());
+
+    // Entries are keyed per app identity (not per connection), so the size is bounded by the number of distinct
+    // app identities that have ever connected to the discovery API, and entries are never removed. This is fine
+    // for a stable, finite set of app identities. If app identities churn, will implement evicting an entry
+    // when its last stream closes.
+    private final Map<String, ScopedClient> scopedClients = new ConcurrentHashMap<>();
 
     private final ScheduledExecutorService controlPlaneExecutor;
     private final ControlPlaneMetrics metrics;
-    // Accessed only from controlPlaneExecutor.
+    // Mutated only from the controlPlaneExecutor.
     private final CentralDogmaXdsResources centralDogmaXdsResources = new CentralDogmaXdsResources();
     @Nullable
     private volatile XdsEndpointService xdsEndpointService;
@@ -100,26 +134,30 @@ public final class ControlPlaneService extends XdsResourceWatchingService {
 
     void start(PluginInitContext pluginInitContext) {
         init();
-        final CentralDogmaSnapshot snapshot = centralDogmaXdsResources.snapshot();
-        cache.setSnapshot(DEFAULT_GROUP, snapshot);
-        metrics.onSnapshotUpdate(snapshot);
+        // No scoped client has connected yet, so this only sets the DEFAULT_GROUP snapshot.
+        updateAllSnapshots(null);
         final CommandExecutor commandExecutor = pluginInitContext.commandExecutor();
         final V3DiscoveryServer server = new V3DiscoveryServer(new LoggingDiscoveryServerCallbacks(), cache);
-        final GrpcService grpcService = GrpcService.builder()
-                                                   .addService(server.getClusterDiscoveryServiceImpl())
-                                                   .addService(server.getEndpointDiscoveryServiceImpl())
-                                                   .addService(server.getListenerDiscoveryServiceImpl())
-                                                   .addService(server.getRouteDiscoveryServiceImpl())
-                                                   .addService(server.getAggregatedDiscoveryServiceImpl())
-                                                   .build();
-        pluginInitContext.serverBuilder().route().build(grpcService);
+        final GrpcServiceBuilder grpcServiceBuilder =
+                GrpcService.builder()
+                           .addService(server.getClusterDiscoveryServiceImpl())
+                           .addService(server.getEndpointDiscoveryServiceImpl())
+                           .addService(server.getListenerDiscoveryServiceImpl())
+                           .addService(server.getRouteDiscoveryServiceImpl())
+                           .addService(server.getAggregatedDiscoveryServiceImpl());
+        final GrpcService grpcService = grpcServiceBuilder.build();
+        // Clients without an app id are served the full snapshot under DEFAULT_GROUP,
+        // preserving backward compatibility.
+        final MetadataService mds = new MetadataService(pluginInitContext.projectManager(), commandExecutor,
+                                                        pluginInitContext.internalProjectInitializer());
+        pluginInitContext.serverBuilder().service(grpcService, optionalAppIdentityAuth(mds));
         final XdsResourceManager xdsResourceManager = new XdsResourceManager(xdsProject(), commandExecutor);
-        xdsEndpointService = new XdsEndpointService(xdsResourceManager, controlPlaneExecutor);
+        final XdsEndpointService xdsEndpointService =
+                new XdsEndpointService(xdsResourceManager, controlPlaneExecutor);
+        this.xdsEndpointService = xdsEndpointService;
         final GrpcService xdsApplicationService =
                 GrpcService.builder()
-                           .addService(new XdsGroupService(pluginInitContext.projectManager(),
-                                                           commandExecutor,
-                                                           pluginInitContext.internalProjectInitializer()))
+                           .addService(new XdsGroupService(xdsProject(), commandExecutor, mds))
                            .addService(new XdsListenerService(xdsResourceManager))
                            .addService(new XdsRouteService(xdsResourceManager))
                            .addService(new XdsClusterService(xdsResourceManager))
@@ -148,6 +186,25 @@ public final class ControlPlaneService extends XdsResourceWatchingService {
                                    })
                            .enableHttpJsonTranscoding(true).build();
         pluginInitContext.serverBuilder().service(xdsApplicationService, pluginInitContext.authService());
+
+        // Endpoints (EDS) are not access-controlled: any authenticated user can read the endpoints of every
+        // group regardless of its READ access.
+        pluginInitContext.serverBuilder()
+                         .annotatedService()
+                         .pathPrefix("/api/v1")
+                         .decorator(pluginInitContext.authService())
+                         .build(new XdsEndpointReadService(xdsProject()));
+
+        registerWebEnabledFlag(pluginInitContext.serverBuilder());
+    }
+
+    /**
+     * Registers the {@code /api/v1/xds/web} endpoint that signals the xDS web UI is available. The UI itself
+     * is bundled into and served by the main web application under {@code /app/xds}; this flag is registered
+     * only when the control plane plugin is loaded, so the web app reveals the xDS link accordingly.
+     */
+    private static void registerWebEnabledFlag(ServerBuilder sb) {
+        sb.service("/api/v1/xds/web", (ctx, req) -> HttpResponse.ofJson(ImmutableMap.of("enabled", true)));
     }
 
     @Nullable
@@ -198,7 +255,7 @@ public final class ControlPlaneService extends XdsResourceWatchingService {
     @Override
     protected void onGroupRemoved(String groupName) {
         centralDogmaXdsResources.removeGroup(groupName);
-        cache.setSnapshot(DEFAULT_GROUP, centralDogmaXdsResources.snapshot());
+        updateAllSnapshots(groupName);
     }
 
     @Override
@@ -216,10 +273,125 @@ public final class ControlPlaneService extends XdsResourceWatchingService {
     }
 
     @Override
-    protected void onDiffHandled() {
+    protected void onDiffHandled(String groupName) {
+        updateAllSnapshots(groupName);
+    }
+
+    @Override
+    protected void onMetadataChanged() {
+        if (scopedClients.isEmpty()) {
+            return;
+        }
+        // The cached Project.metadata() can lag behind this listener, so read the latest metadata.
+        fetchXdsMetadata().handleAsync((metadata, cause) -> {
+            if (cause != null) {
+                logger.warn("Failed to read the xDS project metadata; scoped snapshots were not refreshed.",
+                            cause);
+                return null;
+            }
+            // Permissions may have changed, so recompute each client's readable groups and rebuild its
+            // snapshot.
+            scopedClients.forEach((key, scopedClient) -> refreshScopedClient(key, scopedClient, metadata));
+            return null;
+        }, controlPlaneExecutor);
+    }
+
+    private CompletableFuture<ProjectMetadata> fetchXdsMetadata() {
+        return xdsProject().repos().get(Project.REPO_DOGMA)
+                           .get(Revision.HEAD, Query.ofJson(MetadataService.METADATA_JSON))
+                           .thenApply(entry -> {
+                               try {
+                                   return Jackson.treeToValue(entry.content(), ProjectMetadata.class);
+                               } catch (JsonProcessingException e) {
+                                   throw new CompletionException(e);
+                               }
+                           });
+    }
+
+    /**
+     * Returns a decorator that authenticates a client with either its mTLS client certificate or an application
+     * access token, but does NOT reject clients that present neither.
+     */
+    private static Function<? super HttpService, ? extends HttpService> optionalAppIdentityAuth(
+            MetadataService mds) {
+        final Authorizer<HttpRequest> authorizer =
+                new ApplicationCertificateAuthorizer(mds::findCertificateById)
+                        .orElse(new ApplicationTokenAuthorizer(mds::findTokenBySecret));
+        return delegate -> new SimpleDecoratingHttpService(delegate) {
+            @Override
+            public HttpResponse serve(ServiceRequestContext ctx, HttpRequest req) {
+                // The authorizer sets the authenticated user on the context when the certificate or token is
+                // valid. The boolean result is ignored on purpose.
+                return HttpResponse.of(authorizer.authorize(ctx, req).handle((authorized, cause) -> {
+                    try {
+                        return unwrap().serve(ctx, req);
+                    } catch (Exception e) {
+                        return Exceptions.throwUnsafely(e);
+                    }
+                }));
+            }
+        };
+    }
+
+    /**
+     * Rebuilds the snapshots after a change. {@code changedGroup} is the group whose resources changed, or
+     * {@code null} to refresh every scoped client (e.g. on start). Only the clients affected by the change are
+     * rebuilt: a scoped client is refreshed when it can read {@code changedGroup}, or unconditionally when the
+     * change touched endpoints (which are shared unfiltered across all clients) or {@code changedGroup} is
+     * {@code null}.
+     */
+    private void updateAllSnapshots(@Nullable String changedGroup) {
+        // Read before snapshot() resets the update flags.
+        final boolean endpointsChanged = centralDogmaXdsResources.isEndpointUpdated();
         final CentralDogmaSnapshot snapshot = centralDogmaXdsResources.snapshot();
         cache.setSnapshot(DEFAULT_GROUP, snapshot);
         metrics.onSnapshotUpdate(snapshot);
+        final boolean refreshAll = endpointsChanged || changedGroup == null;
+        scopedClients.forEach((key, scopedClient) -> {
+            final Set<String> groups = scopedClient.readableGroups;
+            if (groups != null && (refreshAll || groups.contains(changedGroup))) {
+                cache.setSnapshot(key, centralDogmaXdsResources.snapshot(groups));
+            }
+        });
+    }
+
+    private String cacheKey() {
+        final User user = AuthUtil.currentUserOrNull();
+        if (!(user instanceof UserWithAppIdentity) || user.isSystemAdmin()) {
+            return DEFAULT_GROUP;
+        }
+        final UserWithAppIdentity appIdentity = (UserWithAppIdentity) user;
+        // login is the app id for UserWithAppIdentity.
+        final String key = "app/" + appIdentity.login();
+        if (!scopedClients.containsKey(key)) {
+            // First time we see this app identity; compute its readable groups and build its scoped snapshot
+            // synchronously. The snapshot is set in the cache BEFORE the client is registered in scopedClients,
+            // so a concurrent request that resolves to this key never observes it without a snapshot. A racing
+            // first request may redundantly recompute it, which is harmless.
+            final ScopedClient scopedClient = new ScopedClient(appIdentity);
+            final ProjectMetadata metadata = xdsProject().metadata();
+            assert metadata != null;
+            refreshScopedClient(key, scopedClient, metadata);
+            scopedClients.putIfAbsent(key, scopedClient);
+        }
+        return key;
+    }
+
+    private void refreshScopedClient(String key, ScopedClient scopedClient, ProjectMetadata metadata) {
+        final Set<String> groups = groupsWithReadAccess(metadata, scopedClient.appIdentity);
+        scopedClient.readableGroups = groups;
+        cache.setSnapshot(key, centralDogmaXdsResources.snapshot(groups));
+    }
+
+    private static Set<String> groupsWithReadAccess(ProjectMetadata metadata, User user) {
+        final ImmutableSet.Builder<String> groups = ImmutableSet.builder();
+        for (String groupName : metadata.repos().keySet()) {
+            // Any repository role implies at least READ access.
+            if (MetadataService.findRepositoryRole(metadata, groupName, user) != null) {
+                groups.add(groupName);
+            }
+        }
+        return groups.build();
     }
 
     @Override
@@ -252,6 +424,23 @@ public final class ControlPlaneService extends XdsResourceWatchingService {
         final boolean interrupted = terminate(controlPlaneExecutor);
         if (interrupted) {
             Thread.currentThread().interrupt();
+        }
+    }
+
+    /**
+     * An app identity authenticated on the discovery API together with the set of groups it currently has READ
+     * access to.
+     */
+    private static final class ScopedClient {
+
+        private final UserWithAppIdentity appIdentity;
+
+        // null until the readable groups are first computed when the client connects.
+        @Nullable
+        private volatile Set<String> readableGroups;
+
+        ScopedClient(UserWithAppIdentity appIdentity) {
+            this.appIdentity = appIdentity;
         }
     }
 

@@ -77,7 +77,17 @@ public abstract class XdsResourceWatchingService {
 
     protected abstract void onFileRemoved(String groupName, String path);
 
-    protected abstract void onDiffHandled();
+    /**
+     * Invoked on the {@link #executor()} after the diff of a single {@code groupName} has been handled, so that
+     * implementations can refresh only the state affected by that group.
+     */
+    protected abstract void onDiffHandled(String groupName);
+
+    /**
+     * Invoked on the {@link #executor()} whenever the {@code metadata.json} of the xDS project changes (e.g.
+     * when a repository role is granted to or revoked from a user / app identity).
+     */
+    protected void onMetadataChanged() {}
 
     protected abstract boolean isStopped();
 
@@ -146,6 +156,9 @@ public abstract class XdsResourceWatchingService {
                     logger.info("Start watching {}.", groupName);
                     watchRepository(groupName, Revision.INIT);
                 }
+                // The metadata.json also carries repository roles, so a change here may mean a permission
+                // (e.g. app identity access to a group) was granted or revoked.
+                onMetadataChanged();
             });
         }));
     }
@@ -231,7 +244,7 @@ public abstract class XdsResourceWatchingService {
                         break;
                 }
             }
-            onDiffHandled();
+            onDiffHandled(groupName);
             watchRepository(groupName, newRevision);
             return null;
         }, executor());

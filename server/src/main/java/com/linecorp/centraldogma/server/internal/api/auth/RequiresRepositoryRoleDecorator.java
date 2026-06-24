@@ -115,7 +115,7 @@ public final class RequiresRepositoryRoleDecorator extends SimpleDecoratingHttpS
 
     private HttpResponse serveUserRepo(ServiceRequestContext ctx, HttpRequest req,
                                        User user, String projectName, String repoName) throws Exception {
-        final CompletionStage<RepositoryRole> f;
+        final CompletionStage<@Nullable RepositoryRole> f;
         try {
             f = mds.findRepositoryRole(projectName, repoName, user);
         } catch (Throwable cause) {

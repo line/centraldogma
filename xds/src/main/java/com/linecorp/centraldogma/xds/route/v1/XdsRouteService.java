@@ -54,7 +54,7 @@ public final class XdsRouteService extends XdsRouteServiceImplBase {
     public void createRoute(CreateRouteRequest request, StreamObserver<RouteConfiguration> responseObserver) {
         final String parent = request.getParent();
         final String group = removePrefix("groups/", parent);
-        xdsResourceManager.checkGroup(group);
+        xdsResourceManager.checkWritePermission(group);
 
         final String routeId = request.getRouteId();
         if (!RESOURCE_ID_PATTERN.matcher(routeId).matches()) {
@@ -77,7 +77,7 @@ public final class XdsRouteService extends XdsRouteServiceImplBase {
         final RouteConfiguration route = request.getRoute();
         final String routeName = route.getName();
         final String group = checkRouteName(routeName).group(1);
-        xdsResourceManager.checkGroup(group);
+        xdsResourceManager.checkWritePermission(group);
         xdsResourceManager.update(responseObserver, group, routeName, "Update route: " + routeName, route,
                                   currentAuthor());
     }
@@ -96,7 +96,7 @@ public final class XdsRouteService extends XdsRouteServiceImplBase {
     public void deleteRoute(DeleteRouteRequest request, StreamObserver<Empty> responseObserver) {
         final String routeName = request.getName();
         final String group = checkRouteName(routeName).group(1);
-        xdsResourceManager.checkGroup(group);
+        xdsResourceManager.checkWritePermission(group);
         xdsResourceManager.delete(responseObserver, group, routeName, "Delete route: " + routeName,
                                   currentAuthor());
     }

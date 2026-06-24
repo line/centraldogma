@@ -15,9 +15,9 @@
  */
 
 import { RepoDto } from 'dogma/features/repo/RepoDto';
-import { BaseQueryFn, createApi, FetchArgs, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
+import { createApi } from '@reduxjs/toolkit/query/react';
 import { ProjectDto } from 'dogma/features/project/ProjectDto';
-import { AuthState, clearAuth } from 'dogma/features/auth/authSlice';
+import { baseQueryWithReauth } from 'dogma/features/api/baseQuery';
 import { FileDto } from 'dogma/features/file/FileDto';
 import { HistoryDto } from 'dogma/features/history/HistoryDto';
 import { ProjectMetadataDto } from 'dogma/features/project/ProjectMetadataDto';
@@ -115,53 +115,12 @@ export type MirrorConfig = {
   zone: ZoneDto;
 };
 
-const baseQuery = fetchBaseQuery({
-  baseUrl: `${process.env.NEXT_PUBLIC_HOST || ''}/`,
-  credentials: 'include',
-  prepareHeaders: (headers, { getState, type }) => {
-    const { auth } = getState() as { auth: AuthState };
-
-    if (auth.isInAnonymousMode) {
-      // In anonymous mode, the server requires 'Authorization: Bearer anonymous'
-      // to pass through AnonymousTokenAuthorizer.
-      headers.set('Authorization', 'Bearer anonymous');
-      return headers;
-    }
-
-    if (type === 'mutation') {
-      const csrfToken = auth.csrfToken;
-
-      if (csrfToken) {
-        headers.set('X-CSRF-Token', csrfToken);
-      }
-      if (!headers.has('Content-Type')) {
-        headers.set('Content-Type', 'application/json; charset=UTF-8');
-      }
-    }
-    return headers;
-  },
-});
-
-const baseQueryWithReauth: BaseQueryFn<string | FetchArgs, unknown, FetchBaseQueryError> = async (
-  args,
-  api,
-  extraOptions,
-) => {
-  const result = await baseQuery(args, api, extraOptions);
-
-  if (result.error && result.error.status === 401) {
-    const { auth } = api.getState() as { auth: AuthState };
-    if (!auth.isInAnonymousMode) {
-      api.dispatch(clearAuth());
-      Router.push(createLoginUrl());
-    }
-  }
-  return result;
-};
-
 export const apiSlice = createApi({
   reducerPath: 'api',
-  baseQuery: baseQueryWithReauth,
+  // On session expiry, navigate to the login page using the Next.js router.
+  baseQuery: baseQueryWithReauth(() => {
+    Router.push(createLoginUrl());
+  }),
   tagTypes: ['Project', 'Metadata', 'Repo', 'File', 'AppIdentity', 'Mirror', 'ServerStatus'],
   endpoints: (builder) => ({
     getProjects: builder.query<ProjectDto[], GetProjects>({
@@ -632,6 +591,13 @@ export const apiSlice = createApi({
         method: 'GET',
       }),
     }),
+    isXdsWebEnabled: builder.query<boolean, void>({
+      query: () => ({
+        url: `/api/v1/xds/web`,
+        method: 'GET',
+      }),
+      transformResponse: () => true,
+    }),
   }),
 });
 
@@ -645,6 +611,8 @@ function variableApiPrefix(projectName: string, repoName?: string): string {
 }
 
 export const {
+  // xDS
+  useIsXdsWebEnabledQuery,
   // Project
   useGetProjectsQuery,
   useRestoreProjectMutation,

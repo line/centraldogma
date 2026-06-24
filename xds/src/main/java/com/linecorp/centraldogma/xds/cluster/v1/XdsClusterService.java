@@ -54,7 +54,7 @@ public final class XdsClusterService extends XdsClusterServiceImplBase {
     public void createCluster(CreateClusterRequest request, StreamObserver<Cluster> responseObserver) {
         final String parent = request.getParent();
         final String group = removePrefix("groups/", parent);
-        xdsResourceManager.checkGroup(group);
+        xdsResourceManager.checkWritePermission(group);
 
         final String clusterId = request.getClusterId();
         if (!RESOURCE_ID_PATTERN.matcher(clusterId).matches()) {
@@ -87,7 +87,7 @@ public final class XdsClusterService extends XdsClusterServiceImplBase {
         final Cluster cluster = request.getCluster();
         final String clusterName = cluster.getName();
         final String group = checkClusterName(clusterName).group(1);
-        xdsResourceManager.checkGroup(group);
+        xdsResourceManager.checkWritePermission(group);
         xdsResourceManager.update(responseObserver, group, clusterName,
                                   "Update cluster: " + clusterName, cluster, currentAuthor());
     }
@@ -96,7 +96,7 @@ public final class XdsClusterService extends XdsClusterServiceImplBase {
     public void deleteCluster(DeleteClusterRequest request, StreamObserver<Empty> responseObserver) {
         final String clusterName = request.getName();
         final String group = checkClusterName(clusterName).group(1);
-        xdsResourceManager.checkGroup(group);
+        xdsResourceManager.checkWritePermission(group);
         xdsResourceManager.delete(responseObserver, group, clusterName, "Delete cluster: " + clusterName,
                                   currentAuthor());
     }

@@ -21,7 +21,8 @@ import java.util.concurrent.CompletionStage;
 
 import com.linecorp.armeria.common.util.UnmodifiableFuture;
 import com.linecorp.centraldogma.common.Author;
-import com.linecorp.centraldogma.server.command.Command;
+import com.linecorp.centraldogma.server.internal.api.RepositoryServiceUtil;
+import com.linecorp.centraldogma.server.metadata.MetadataService;
 import com.linecorp.centraldogma.server.plugin.AllReplicasPlugin;
 import com.linecorp.centraldogma.server.plugin.PluginContext;
 import com.linecorp.centraldogma.server.plugin.PluginInitContext;
@@ -36,10 +37,12 @@ public final class CreatingInternalGroupPlugin extends AllReplicasPlugin {
     @Override
     public void init(PluginInitContext pluginInitContext) {
         pluginInitContext.internalProjectInitializer().initialize(XDS_CENTRAL_DOGMA_PROJECT);
-        pluginInitContext.commandExecutor()
-                         .execute(Command.forcePush(Command.createRepository(
-                                 Author.SYSTEM, XDS_CENTRAL_DOGMA_PROJECT, "my-group")))
-                         .join();
+        final MetadataService mds = new MetadataService(pluginInitContext.projectManager(),
+                                                        pluginInitContext.commandExecutor(),
+                                                        pluginInitContext.internalProjectInitializer());
+        RepositoryServiceUtil.createRepository(pluginInitContext.commandExecutor(), mds, Author.SYSTEM,
+                                               XDS_CENTRAL_DOGMA_PROJECT, "my-group", false, null)
+                             .join();
     }
 
     @Override

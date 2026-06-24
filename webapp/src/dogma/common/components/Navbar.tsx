@@ -35,7 +35,7 @@ import { CloseIcon, HamburgerIcon, MoonIcon, SunIcon } from '@chakra-ui/icons';
 import { default as RouteLink } from 'next/link';
 import { logout } from 'dogma/features/auth/authSlice';
 import Router from 'next/router';
-import { useGetTitleQuery } from 'dogma/features/api/apiSlice';
+import { useGetTitleQuery, useIsXdsWebEnabledQuery } from 'dogma/features/api/apiSlice';
 import { NewProject } from 'dogma/features/project/NewProject';
 import { usePathname } from 'next/navigation';
 import { useAppDispatch, useAppSelector } from 'dogma/hooks';
@@ -74,9 +74,11 @@ export const Navbar = () => {
 
   const { data: titleDto } = useGetTitleQuery();
   const title = titleDto?.title.replace('{{hostname}}', titleDto.hostname) || 'Central Dogma';
+  const { data: xdsWebEnabled } = useIsXdsWebEnabledQuery();
   const topMenus: TopMenu[] = [
     { name: title, path: '/' },
     { name: 'Projects', path: '/app/projects' },
+    ...(xdsWebEnabled ? [{ name: 'xDS', path: '/app/xds' }] : []),
     { name: 'Settings', path: '/app/settings' },
   ];
 
@@ -105,7 +107,8 @@ export const Navbar = () => {
             ))}
           </HStack>
         </HStack>
-        {pathname === '/' ? (
+        {/* The project search box is irrelevant on the home page and within the xDS section. */}
+        {pathname === '/' || pathname?.startsWith('/app/xds') ? (
           <div />
         ) : (
           <Box w="40%">
@@ -113,7 +116,8 @@ export const Navbar = () => {
           </Box>
         )}
         <Flex alignItems="center" gap={2}>
-          <NewProject />
+          {/* "New Project" is a project-section action, so hide it within the xDS section. */}
+          {!pathname?.startsWith('/app/xds') && <NewProject />}
           <IconButton
             aria-label="Toggle color mode"
             icon={colorMode === 'light' ? <MoonIcon /> : <SunIcon />}

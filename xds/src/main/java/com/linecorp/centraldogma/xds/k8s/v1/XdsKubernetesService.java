@@ -113,7 +113,7 @@ public final class XdsKubernetesService extends XdsKubernetesServiceImplBase {
             StreamObserver<KubernetesEndpointAggregator> responseObserver) {
         final String parent = request.getParent();
         final String group = removePrefix("groups/", parent);
-        xdsResourceManager.checkGroup(group);
+        xdsResourceManager.checkWritePermission(group);
         final String aggregatorId = request.getAggregatorId();
         if (!RESOURCE_ID_PATTERN.matcher(aggregatorId).matches()) {
             throw Status.INVALID_ARGUMENT.withDescription("Invalid aggregator_id: " + aggregatorId +
@@ -319,7 +319,7 @@ public final class XdsKubernetesService extends XdsKubernetesServiceImplBase {
         final KubernetesEndpointAggregator aggregator = request.getKubernetesEndpointAggregator();
         final String aggregatorName = aggregator.getName();
         final String group = checkAggregatorName(aggregatorName).group(1);
-        xdsResourceManager.checkGroup(group);
+        xdsResourceManager.checkWritePermission(group);
         final List<KubernetesLocalityLbEndpoints> kubernetesLocalityLbEndpointsList =
                 aggregator.getLocalityLbEndpointsList();
         if (kubernetesLocalityLbEndpointsList.isEmpty()) {
@@ -354,7 +354,7 @@ public final class XdsKubernetesService extends XdsKubernetesServiceImplBase {
                                                    StreamObserver<Empty> responseObserver) {
         final String aggregatorName = request.getName();
         final String group = checkAggregatorName(aggregatorName).group(1);
-        xdsResourceManager.checkGroup(group);
+        xdsResourceManager.checkWritePermission(group);
         xdsResourceManager.delete(responseObserver, group, aggregatorName,
                                   "Delete kubernetes endpoint aggregator: " + aggregatorName,
                                   currentAuthor());

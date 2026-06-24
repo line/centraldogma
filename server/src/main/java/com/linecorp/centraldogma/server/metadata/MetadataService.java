@@ -927,18 +927,55 @@ public class MetadataService {
      * from the specified {@code repoName} in the specified {@code projectName}. If the {@link User}
      * is not found, it will return {@code null}.
      */
-    public CompletableFuture<RepositoryRole> findRepositoryRole(String projectName, String repoName,
-                                                                User user) {
+    public CompletableFuture<@Nullable RepositoryRole> findRepositoryRole(String projectName, String repoName,
+                                                                          User user) {
         requireNonNull(projectName, "projectName");
         requireNonNull(repoName, "repoName");
         requireNonNull(user, "user");
+        return getProject(projectName).thenApply(metadata -> {
+            // Preserve the existing behavior of raising RepositoryNotFoundException for a missing repository.
+            metadata.repo(repoName);
+            return findRepositoryRole(metadata, repoName, user);
+        });
+    }
+
+    /**
+     * Resolves the effective {@link RepositoryRole} of the specified {@link User} on {@code repoName} from an
+     * already-loaded {@link ProjectMetadata}, returning {@code null} if the user has no role.
+     */
+    @Nullable
+    public static RepositoryRole findRepositoryRole(ProjectMetadata metadata, String repoName, User user) {
+        requireNonNull(metadata, "metadata");
+        requireNonNull(repoName, "repoName");
+        requireNonNull(user, "user");
         if (user.isSystemAdmin()) {
-            return CompletableFuture.completedFuture(RepositoryRole.ADMIN);
+            return RepositoryRole.ADMIN;
         }
+        final RepositoryMetadata repositoryMetadata = metadata.repos().get(repoName);
+        if (repositoryMetadata == null) {
+            return null;
+        }
+        final Roles roles = repositoryMetadata.roles();
         if (user instanceof UserWithAppIdentity) {
-            return findRepositoryRole(projectName, repoName, ((UserWithAppIdentity) user).appIdentity());
+            final AppIdentity appIdentity = ((UserWithAppIdentity) user).appIdentity();
+            final String appId = appIdentity.appId();
+            final RepositoryRole repositoryRole = roles.appIds().get(appId);
+            final AppIdentityRegistration registration = metadata.appIds().get(appId);
+            final ProjectRole projectRole;
+            if (registration != null) {
+                projectRole = registration.role();
+            } else if (repositoryRole != null || appIdentity.allowGuestAccess()) {
+                projectRole = ProjectRole.GUEST;
+            } else {
+                // The app identity is not allowed with the GUEST permission.
+                return null;
+            }
+            return repositoryRole(roles, repositoryRole, projectRole);
         }
-        return findRepositoryRole0(projectName, repoName, user);
+        final RepositoryRole repositoryRole = roles.users().get(user.id());
+        final Member projectUser = metadata.memberOrDefault(user.id(), null);
+        final ProjectRole projectRole = projectUser != null ? projectUser.role() : ProjectRole.GUEST;
+        return repositoryRole(roles, repositoryRole, projectRole);
     }
 
     /**
@@ -973,23 +1010,6 @@ public class MetadataService {
                 }
             }
             return repositoryRole(roles, repositoryRole, projectRole);
-        });
-    }
-
-    private CompletableFuture<RepositoryRole> findRepositoryRole0(String projectName, String repoName,
-                                                                  User user) {
-        requireNonNull(projectName, "projectName");
-        requireNonNull(repoName, "repoName");
-        requireNonNull(user, "user");
-
-        return getProject(projectName).thenApply(metadata -> {
-            final RepositoryMetadata repositoryMetadata = metadata.repo(repoName);
-            final Roles roles = repositoryMetadata.roles();
-            final RepositoryRole userRepositoryRole = roles.users().get(user.id());
-
-            final Member projectUser = metadata.memberOrDefault(user.id(), null);
-            final ProjectRole projectRole = projectUser != null ? projectUser.role() : ProjectRole.GUEST;
-            return repositoryRole(roles, userRepositoryRole, projectRole);
         });
     }
 

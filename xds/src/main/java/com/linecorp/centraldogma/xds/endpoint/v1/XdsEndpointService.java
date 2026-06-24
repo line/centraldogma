@@ -60,7 +60,7 @@ public final class XdsEndpointService extends XdsEndpointServiceImplBase {
                                StreamObserver<ClusterLoadAssignment> responseObserver) {
         final String parent = request.getParent();
         final String group = removePrefix("groups/", parent);
-        xdsResourceManager.checkGroup(group);
+        xdsResourceManager.checkWritePermission(group);
 
         final String endpointId = request.getEndpointId();
         if (!RESOURCE_ID_PATTERN.matcher(endpointId).matches()) {
@@ -93,7 +93,7 @@ public final class XdsEndpointService extends XdsEndpointServiceImplBase {
         final String endpointName = request.getEndpointName();
         final Matcher matcher = checkEndpointName(endpointName);
         final String group = matcher.group(1);
-        xdsResourceManager.checkGroup(group);
+        xdsResourceManager.checkWritePermission(group);
 
         final ClusterLoadAssignment endpoint = request.getEndpoint();
         final String endpointId = matcher.group(2);
@@ -109,7 +109,7 @@ public final class XdsEndpointService extends XdsEndpointServiceImplBase {
         final String endpointName = request.getName();
         final Matcher matcher = checkEndpointName(endpointName);
         final String group = matcher.group(1);
-        xdsResourceManager.checkGroup(group);
+        xdsResourceManager.checkWritePermission(group);
         xdsResourceManager.delete(responseObserver, group, endpointName, fileName(matcher.group(2)),
                                   "Delete endpoint: " + endpointName, currentAuthor());
     }
@@ -150,7 +150,7 @@ public final class XdsEndpointService extends XdsEndpointServiceImplBase {
                                                 boolean register) {
         final Matcher matcher = checkEndpointName(endpointName);
         final String group = matcher.group(1);
-        xdsResourceManager.checkGroup(group);
+        xdsResourceManager.checkWritePermission(group);
 
         final String endpointId = matcher.group(2);
         final String fileName = fileName(endpointId);
