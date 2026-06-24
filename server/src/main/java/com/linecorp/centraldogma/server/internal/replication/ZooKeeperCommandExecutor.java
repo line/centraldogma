@@ -859,7 +859,7 @@ public final class ZooKeeperCommandExecutor
                     // Skip past the failed log so subsequent logs can still be replayed;
                     // the affected scope will be marked as read-only by handleReplicationFailure().
                     updateLastReplayedRevision(nextRevision);
-                    info.lastReplayedRevision = nextRevision;
+                    lastReplayedRevision = nextRevision;
                 } catch (Exception e) {
                     final ReplicationException exception = new ReplicationException(
                             "Failed to update the last replayed revision to " + nextRevision, e);
