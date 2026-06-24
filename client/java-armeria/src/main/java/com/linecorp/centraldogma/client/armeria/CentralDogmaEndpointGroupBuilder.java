@@ -60,9 +60,9 @@ public final class CentralDogmaEndpointGroupBuilder<T> {
     }
 
     /**
-     * @param allowEmptyEndpoints if true, allow the group to start up with no endpoints instead of erroring,
-     *                            and allow the list of endpoints to become empty instead of always retaining
-     *                            the last non-empty version
+     * If set to true, allow the group to start up with no endpoints instead of erroring,
+     * and allow the list of endpoints to become empty instead of always retaining
+     * the last non-empty version.
      */
     public void setAllowEmptyEndpoints(boolean allowEmptyEndpoints) {
         this.allowEmptyEndpoints = allowEmptyEndpoints;
