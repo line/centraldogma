@@ -77,11 +77,12 @@ export const AddRepositoryRole = ({
 
   const onSubmit = async (data: FormData) => {
     // Guard against a stale/empty id (e.g. a cleared select, or empty options) that form validation alone
-    // would not catch.
-    if (!data.id || noSelectableOptions) {
+    // would not catch. Trim free-text input so whitespace-only or padded ids are rejected/normalized.
+    const id = data.id?.trim();
+    if (!id || noSelectableOptions) {
       return;
     }
-    const ok = await onAdd(data.id, role);
+    const ok = await onAdd(id, role);
     if (ok) {
       reset();
       setRole('READ');

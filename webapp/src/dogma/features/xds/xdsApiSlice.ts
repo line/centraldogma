@@ -93,6 +93,13 @@ function idFromPath(path: string, type: XdsResourceType): string {
   return id;
 }
 
+// Encodes a resource id for use as a URL path segment. A resource id can be nested (e.g. 'foo/bar'), and the
+// server routes match it with a '**' wildcard, so the '/' separators must stay literal while each segment is
+// percent-encoded.
+function encodeResourcePath(id: string): string {
+  return id.split('/').map(encodeURIComponent).join('/');
+}
+
 export const xdsApiSlice = createApi({
   reducerPath: 'xdsApi',
   // The login page is in the main web app at the server root (outside the '/xds' basePath), so navigate out
@@ -182,7 +189,7 @@ export const xdsApiSlice = createApi({
     }),
     updateResource: builder.mutation<unknown, UpdateResourceArg>({
       query: ({ group, type, id, body }) => ({
-        url: `/api/v1/xds/groups/${group}/${type}/${id}`,
+        url: `/api/v1/xds/groups/${group}/${type}/${encodeResourcePath(id)}`,
         method: 'PATCH',
         body: JSON.parse(body),
       }),
@@ -190,7 +197,7 @@ export const xdsApiSlice = createApi({
     }),
     deleteResource: builder.mutation<unknown, ResourceIdArg>({
       query: ({ group, type, id }) => ({
-        url: `/api/v1/xds/groups/${group}/${type}/${id}`,
+        url: `/api/v1/xds/groups/${group}/${type}/${encodeResourcePath(id)}`,
         method: 'DELETE',
       }),
       invalidatesTags: ['Resource'],

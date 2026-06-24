@@ -51,10 +51,14 @@ export const PermissionsTab = ({ group }: { group: string }) => {
   const appIdEntries = toEntries(repo?.roles?.appIds);
 
   // App IDs are chosen from the registered application identities, excluding those already granted access.
+  // Derive the options only once the query has resolved; while it is loading or has failed, leave them
+  // undefined so the add form does not present an in-flight fetch as "no application identities available".
   const grantedAppIds = new Set(appIdEntries.map((e) => e.id));
-  const appIdOptions = (allAppIdentities || [])
-    .filter((identity) => !grantedAppIds.has(identity.appId))
-    .map((identity) => ({ value: identity.appId, label: identity.appId }));
+  const appIdOptions = allAppIdentities
+    ? allAppIdentities
+        .filter((identity) => !grantedAppIds.has(identity.appId))
+        .map((identity) => ({ value: identity.appId, label: identity.appId }))
+    : undefined;
 
   const addUserRole = async (id: string, role: RepositoryRole): Promise<boolean> => {
     try {

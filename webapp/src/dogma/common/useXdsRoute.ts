@@ -36,7 +36,7 @@ export function useXdsRoute(): XdsRoute {
     type === 'k8sAggregators' ||
     type === 'credentials' ||
     type === 'dangerZone' ||
-    (type && type in XDS_RESOURCE_META)
+    (type && Object.prototype.hasOwnProperty.call(XDS_RESOURCE_META, type))
       ? (type as XdsSection)
       : 'listeners';
   return { group, section };

@@ -69,11 +69,16 @@ function parseJsonOrNotify(dispatch: ReturnType<typeof useAppDispatch>, value: s
 const NewResourceEditor = ({ group, type }: { group: string; type: XdsResourceType }) => {
   const meta = XDS_RESOURCE_META[type];
   const dispatch = useAppDispatch();
+  // Creating a resource requires WRITE on the group, mirroring the Edit/Delete gating in ExistingResourceEditor.
+  const { hasWrite, isLoading: accessLoading } = useGroupWriteAccess(group);
   const [id, setId] = useState('');
   const [content, setContent] = useState(XDS_RESOURCE_TEMPLATES[type]);
   const [createResource, { isLoading }] = useCreateResourceMutation();
 
   const handleCreate = async () => {
+    if (!hasWrite) {
+      return;
+    }
     if (!id) {
       dispatch(newNotification('ID is required', `Please enter the ${meta.label} ID`, 'error'));
       return;
@@ -89,6 +94,18 @@ const NewResourceEditor = ({ group, type }: { group: string; type: XdsResourceTy
       dispatch(newNotification(`Failed to create the ${meta.label}`, ErrorMessageParser.parse(err), 'error'));
     }
   };
+
+  if (accessLoading) {
+    return null;
+  }
+  if (!hasWrite) {
+    return (
+      <Alert status="warning" borderRadius="md">
+        <AlertIcon />
+        You need the WRITE role on this group to create a {meta.label}.
+      </Alert>
+    );
+  }
 
   return (
     <Box>

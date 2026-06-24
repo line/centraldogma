@@ -363,13 +363,16 @@ public final class ControlPlaneService extends XdsResourceWatchingService {
         final UserWithAppIdentity appIdentity = (UserWithAppIdentity) user;
         // login is the app id for UserWithAppIdentity.
         final String key = "app/" + appIdentity.login();
-        final ScopedClient scopedClient = new ScopedClient(appIdentity);
-        if (scopedClients.putIfAbsent(key, scopedClient) == null) {
+        if (!scopedClients.containsKey(key)) {
             // First time we see this app identity; compute its readable groups and build its scoped snapshot
-            // synchronously.
+            // synchronously. The snapshot is set in the cache BEFORE the client is registered in scopedClients,
+            // so a concurrent request that resolves to this key never observes it without a snapshot. A racing
+            // first request may redundantly recompute it, which is harmless.
+            final ScopedClient scopedClient = new ScopedClient(appIdentity);
             final ProjectMetadata metadata = xdsProject().metadata();
             assert metadata != null;
             refreshScopedClient(key, scopedClient, metadata);
+            scopedClients.putIfAbsent(key, scopedClient);
         }
         return key;
     }

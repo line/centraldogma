@@ -102,6 +102,11 @@ public final class XdsGroupService extends XdsGroupServiceImplBase {
         }
 
         final User user = currentUser();
+        if (user == null) {
+            responseObserver.onError(Status.UNAUTHENTICATED.withDescription(
+                    "You must be authenticated to delete " + groupName).asRuntimeException());
+            return;
+        }
         final ProjectMetadata metadata = xdsProject.metadata();
         final RepositoryRole role =
                 metadata != null ? MetadataService.findRepositoryRole(metadata, name, user) : null;

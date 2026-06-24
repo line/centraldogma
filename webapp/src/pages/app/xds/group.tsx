@@ -87,6 +87,12 @@ const GroupDetailPage = () => {
   if (redirectTo) {
     return null;
   }
+  // Avoid mounting (and fetching for) a READ-gated section before the read-access check resolves. Endpoints
+  // are readable without READ access, so they are exempt. Once resolved, a user without access is redirected
+  // above instead of reaching here.
+  if (gatedSection && accessLoading) {
+    return <Loading />;
+  }
   // Avoid briefly rendering an admin-only section before the admin check resolves.
   if (ADMIN_ONLY_SECTIONS.includes(section) && adminLoading) {
     return <Loading />;

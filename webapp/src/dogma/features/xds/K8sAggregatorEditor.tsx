@@ -14,6 +14,8 @@
  * under the License.
  */
 import {
+  Alert,
+  AlertIcon,
   Box,
   Breadcrumb,
   BreadcrumbItem,
@@ -100,6 +102,16 @@ const emptyWatcher: WatcherForm = {
   additionalProperties: [],
 };
 
+// Parses a numeric form field, rejecting non-numeric input instead of silently serializing it as null
+// (JSON.stringify(NaN) === 'null'). The thrown error is surfaced to the user by the submit handler.
+function toFiniteNumber(value: string, label: string): number {
+  const num = Number(value);
+  if (!Number.isFinite(num)) {
+    throw new Error(`${label} must be a number, but was '${value}'.`);
+  }
+  return num;
+}
+
 function buildBody(data: FormData, name?: string): string {
   const localityLbEndpoints = data.watchers.map((w) => {
     const kubeconfig: Record<string, unknown> = { controlPlaneUrl: w.controlPlaneUrl.trim() };
@@ -140,10 +152,10 @@ function buildBody(data: FormData, name?: string): string {
       entry.locality = locality;
     }
     if (w.priority.trim()) {
-      entry.priority = Number(w.priority);
+      entry.priority = toFiniteNumber(w.priority, 'Priority');
     }
     if (w.loadBalancingWeight.trim()) {
-      entry.loadBalancingWeight = Number(w.loadBalancingWeight);
+      entry.loadBalancingWeight = toFiniteNumber(w.loadBalancingWeight, 'Load balancing weight');
     }
     return entry;
   });
@@ -470,6 +482,9 @@ const AggregatorFormFields = ({
 
 const NewK8sAggregatorEditor = ({ group }: { group: string }) => {
   const dispatch = useAppDispatch();
+  // Creating an aggregator requires WRITE on the group, mirroring the Edit/Delete gating in
+  // ExistingK8sAggregatorEditor.
+  const { hasWrite, isLoading: accessLoading } = useGroupWriteAccess(group);
   const [createAggregator, { isLoading }] = useCreateK8sAggregatorMutation();
   const {
     register,
@@ -479,6 +494,9 @@ const NewK8sAggregatorEditor = ({ group }: { group: string }) => {
   } = useForm<FormData>({ defaultValues: { aggregatorId: '', watchers: [{ ...emptyWatcher }] } });
 
   const onSubmit = async (data: FormData) => {
+    if (!hasWrite) {
+      return;
+    }
     try {
       await createAggregator({ group, aggregatorId: data.aggregatorId, body: buildBody(data) }).unwrap();
       dispatch(
@@ -489,6 +507,18 @@ const NewK8sAggregatorEditor = ({ group }: { group: string }) => {
       dispatch(newNotification('Failed to create the aggregator', ErrorMessageParser.parse(err), 'error'));
     }
   };
+
+  if (accessLoading) {
+    return null;
+  }
+  if (!hasWrite) {
+    return (
+      <Alert status="warning" borderRadius="md">
+        <AlertIcon />
+        You need the WRITE role on this group to create an aggregator.
+      </Alert>
+    );
+  }
 
   return (
     <Box>

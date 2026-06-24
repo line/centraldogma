@@ -51,19 +51,23 @@ class XdsResourceWatchingServiceTest {
         client.forRepo("foo", "bar").commit("Add a file", Change.ofJsonUpsert("/a.json", "1"))
               .push().join();
         assertThat(queue.take()).isEqualTo("handleXdsResource: /a.json");
+        assertThat(queue.take()).isEqualTo("diff handled: bar");
 
         client.createRepository("foo", "baz").join();
         client.forRepo("foo", "baz").commit("Add a file", Change.ofJsonUpsert("/b.json", "1"))
               .push().join();
         assertThat(queue.take()).isEqualTo("handleXdsResource: /b.json");
+        assertThat(queue.take()).isEqualTo("diff handled: baz");
 
         client.forRepo("foo", "baz").commit("Update the file", Change.ofJsonUpsert("/b.json", "2"))
               .push().join();
         assertThat(queue.take()).isEqualTo("handleXdsResource: /b.json");
+        assertThat(queue.take()).isEqualTo("diff handled: baz");
 
         client.forRepo("foo", "bar").commit("Remove a file", Change.ofRemoval("/a.json"))
               .push().join();
         assertThat(queue.take()).isEqualTo("/a.json removed");
+        assertThat(queue.take()).isEqualTo("diff handled: bar");
         client.removeRepository("foo", "bar").join();
         assertThat(queue.take()).isEqualTo("bar removed");
     }
@@ -103,7 +107,9 @@ class XdsResourceWatchingServiceTest {
         }
 
         @Override
-        protected void onDiffHandled(String groupName) {}
+        protected void onDiffHandled(String groupName) {
+            queue.add("diff handled: " + groupName);
+        }
 
         @Override
         protected boolean isStopped() {

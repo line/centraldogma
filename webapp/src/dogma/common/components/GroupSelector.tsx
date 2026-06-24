@@ -30,7 +30,7 @@ import { useGetGroupsQuery } from 'dogma/features/xds/xdsApiSlice';
 
 // A dropdown at the top of the xDS sidebar to switch between groups, or jump back to the full groups list.
 export const GroupSelector = ({ currentGroup }: { currentGroup?: string }) => {
-  const { data: groups } = useGetGroupsQuery();
+  const { data: groups, isLoading, isError } = useGetGroupsQuery();
   const labelColor = useColorModeValue('gray.500', 'gray.400');
   const borderColor = useColorModeValue('gray.200', 'gray.600');
 
@@ -56,16 +56,27 @@ export const GroupSelector = ({ currentGroup }: { currentGroup?: string }) => {
         <MenuList maxH="320px" overflowY="auto" zIndex="dropdown">
           <MenuItem onClick={() => Router.push('/app/xds')}>All groups</MenuItem>
           <MenuDivider />
-          {(groups || []).map((group) => (
-            <MenuItem
-              key={group.id}
-              fontWeight={group.id === currentGroup ? 'bold' : 'normal'}
-              onClick={() => Router.push(`/app/xds/group?name=${encodeURIComponent(group.id)}&type=listeners`)}
-            >
-              {group.id}
-            </MenuItem>
-          ))}
-          {(groups || []).length === 0 && <MenuItem isDisabled>No groups yet</MenuItem>}
+          {isLoading ? (
+            <MenuItem isDisabled>Loading…</MenuItem>
+          ) : isError ? (
+            <MenuItem isDisabled>Failed to load groups</MenuItem>
+          ) : (
+            <>
+              {(groups || []).map((group) => (
+                <MenuItem
+                  key={group.id}
+                  fontWeight={group.id === currentGroup ? 'bold' : 'normal'}
+                  onClick={() =>
+                    Router.push(`/app/xds/group?name=${encodeURIComponent(group.id)}&type=listeners`)
+                  }
+                >
+                  {group.id}
+                </MenuItem>
+              ))}
+              {/* Only shown once the query has resolved successfully with no groups. */}
+              {(groups || []).length === 0 && <MenuItem isDisabled>No groups yet</MenuItem>}
+            </>
+          )}
         </MenuList>
       </Menu>
     </Box>
