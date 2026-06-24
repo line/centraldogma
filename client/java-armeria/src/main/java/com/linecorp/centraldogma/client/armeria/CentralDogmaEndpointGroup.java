@@ -104,15 +104,10 @@ public final class CentralDogmaEndpointGroup<T> extends DynamicEndpointGroup {
      * Query<T> query = ... // The query to the entry that contains the list of endpoints.
      * Watcher watcher = centralDogma.fileWatcher(projectName, repositoryName, query);
      * }</pre>
-     *
-     * @param allowEmptyEndpoints if true, allow the group to start up with no endpoints instead of erroring,
-     *                            and allow the list of endpoints to become empty instead of always retaining
-     *                            the last non-empty version
      */
     public static <T> CentralDogmaEndpointGroupBuilder<T> builder(Watcher<T> watcher,
-                                                                  EndpointListDecoder<T> endpointListDecoder,
-                                                                  boolean allowEmptyEndpoints) {
-        return new CentralDogmaEndpointGroupBuilder<>(watcher, endpointListDecoder, allowEmptyEndpoints);
+                                                                  EndpointListDecoder<T> endpointListDecoder) {
+        return new CentralDogmaEndpointGroupBuilder<>(watcher, endpointListDecoder);
     }
 
     CentralDogmaEndpointGroup(EndpointSelectionStrategy strategy,
