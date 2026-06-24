@@ -1,7 +1,7 @@
 import { ReactNode, useEffect } from 'react';
 import { useToast } from '@chakra-ui/react';
 import { useSelector } from 'react-redux';
-import { Notification } from '../../features/notification/notificationSlice';
+import { Notification } from 'dogma/features/notification/notificationSlice';
 
 // Uses a plain `useSelector` with an inline state type (rather than each app's typed `useAppSelector`) so the
 // component stays decoupled from any single app's RootState; it only depends on the 'notification' slice.

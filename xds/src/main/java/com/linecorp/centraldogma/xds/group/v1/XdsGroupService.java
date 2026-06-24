@@ -102,9 +102,6 @@ public final class XdsGroupService extends XdsGroupServiceImplBase {
         }
 
         final User user = currentUser();
-        // Resolve the role from the cached Project.metadata() rather than reading the latest metadata, which
-        // is consistent with the write-permission check in XdsResourceManager. The cache can lag briefly after
-        // a permission change, which is acceptable here.
         final ProjectMetadata metadata = xdsProject.metadata();
         final RepositoryRole role =
                 metadata != null ? MetadataService.findRepositoryRole(metadata, name, user) : null;

@@ -52,8 +52,8 @@ final class CentralDogmaSnapshotResources<T extends Message> extends SnapshotRes
     }
 
     /**
-     * Creates {@link SnapshotResources} from an already flattened (resource name to {@link VersionedResource})
-     * map.
+     * Creates {@link SnapshotResources} from an already filtered and flattened
+     * (resource name to {@link VersionedResource}) map.
      */
     static <T extends Message> SnapshotResources<T> createFlat(
             Map<String, VersionedResource<T>> versionedResources, ResourceType resourceType) {

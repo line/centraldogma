@@ -1,7 +1,7 @@
 /*
- * Copyright 2026 LY Corporation
+ * Copyright 2022 LINE Corporation
  *
- * LY Corporation licenses this file to you under the Apache License,
+ * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
  * with the License. You may obtain a copy of the License at:
  *
@@ -16,7 +16,7 @@
 import { useColorMode } from '@chakra-ui/react';
 import Error from 'next/error';
 import { ReactNode } from 'react';
-import ErrorMessageParser from '../../features/services/ErrorMessageParser';
+import ErrorMessageParser from 'dogma/features/services/ErrorMessageParser';
 import { Loading } from './Loading';
 
 interface LoadingProps {
