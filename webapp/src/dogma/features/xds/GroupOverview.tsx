@@ -35,7 +35,10 @@ const sectionHref = (group: string, type: string) =>
 
 // A clickable card showing the number of resources of one type in the group.
 const ResourceCountCard = ({ group, type }: { group: string; type: XdsResourceType }) => {
-  const { data, isLoading } = useListResourcesQuery({ group, type }, { refetchOnMountOrArgChange: true });
+  const { data, isLoading, isError } = useListResourcesQuery(
+    { group, type },
+    { refetchOnMountOrArgChange: true },
+  );
   const meta = XDS_RESOURCE_META[type];
   const border = useColorModeValue('gray.200', 'gray.700');
   const hoverBg = useColorModeValue('gray.50', 'gray.700');
@@ -57,13 +60,16 @@ const ResourceCountCard = ({ group, type }: { group: string; type: XdsResourceTy
           {meta.acronym}
         </Badge>
       </StatLabel>
-      <StatNumber>{isLoading ? '…' : data?.length ?? 0}</StatNumber>
+      <StatNumber>{isLoading ? '…' : isError ? '—' : data?.length ?? 0}</StatNumber>
     </LinkBox>
   );
 };
 
 const K8sAggregatorCountCard = ({ group }: { group: string }) => {
-  const { data, isLoading } = useListK8sAggregatorsQuery({ group }, { refetchOnMountOrArgChange: true });
+  const { data, isLoading, isError } = useListK8sAggregatorsQuery(
+    { group },
+    { refetchOnMountOrArgChange: true },
+  );
   const border = useColorModeValue('gray.200', 'gray.700');
   const hoverBg = useColorModeValue('gray.50', 'gray.700');
   return (
@@ -81,7 +87,7 @@ const K8sAggregatorCountCard = ({ group }: { group: string }) => {
           K8s Aggregators
         </LinkOverlay>
       </StatLabel>
-      <StatNumber>{isLoading ? '…' : data?.length ?? 0}</StatNumber>
+      <StatNumber>{isLoading ? '…' : isError ? '—' : data?.length ?? 0}</StatNumber>
     </LinkBox>
   );
 };

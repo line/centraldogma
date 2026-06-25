@@ -111,11 +111,13 @@ final class XdsClientStatusTracker implements DiscoveryServerCallbacks {
         type.lastNonce = request.getResponseNonce();
         type.lastSeenMillis = System.currentTimeMillis();
         // Snapshot the subscribed resource names. An empty list means wildcard (subscribe to all).
-        // Only update when the request carries a non-empty list: ACK/NACK requests from some clients
-        // send an empty resource_names even for specific subscriptions, so an empty list here means
-        // "no change to subscription" rather than "switch to wildcard".
+        // An initial subscribe has both version_info and response_nonce empty; ACK/NACK requests always
+        // carry a non-empty nonce. For initial subscribes, always update (even empty = wildcard). For
+        // ACK/NACK, skip empty lists: some clients omit resource_names to mean "no change to subscription".
         final List<String> names = request.getResourceNamesList();
-        if (!names.isEmpty()) {
+        final boolean isInitialSubscribe = request.getVersionInfo().isEmpty() &&
+                                           request.getResponseNonce().isEmpty();
+        if (isInitialSubscribe || !names.isEmpty()) {
             type.resourceNames = ImmutableList.copyOf(names);
         }
         if (request.hasErrorDetail()) {

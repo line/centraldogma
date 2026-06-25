@@ -76,7 +76,7 @@ export const ClientStatusTable = ({ clients }: { clients: XdsClientStatus[] }) =
   );
 
   const columns = useMemo(() => {
-    const cols: ColumnDef<ClientRow, string>[] = [
+    const cols: ColumnDef<ClientRow, unknown>[] = [
       columnHelper.accessor('nodeId', {
         header: 'Node',
         cell: (info) => (
@@ -156,7 +156,7 @@ export const ClientStatusTable = ({ clients }: { clients: XdsClientStatus[] }) =
             </Text>
           ),
       }),
-      columnHelper.accessor((row) => String(row.lastSeen), {
+      columnHelper.accessor((row) => row.lastSeen, {
         id: 'lastSeen',
         header: 'Last seen',
         cell: (info) => (

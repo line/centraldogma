@@ -24,7 +24,6 @@ import {
   Heading,
   HStack,
   Icon,
-  Link,
   Modal,
   ModalBody,
   ModalCloseButton,
@@ -104,10 +103,11 @@ const GroupCommitDiffModal = ({
     { skip: !isOpen || beforeSkipped },
   );
 
+  const realError = after.error || (!beforeSkipped && before.error);
   const isLoading = after.isLoading || (!beforeSkipped && before.isLoading);
 
   const changedFiles = useMemo(() => {
-    if (isLoading || !after.data) return [];
+    if (isLoading || realError || !after.data) return [];
     const toMap = (files: FileDto | FileDto[]): Map<string, string> => {
       const arr = Array.isArray(files) ? files : [files];
       return new Map(
@@ -129,7 +129,7 @@ const GroupCommitDiffModal = ({
       }
     });
     return result;
-  }, [isLoading, after.data, before.data, beforeSkipped]);
+  }, [isLoading, realError, after.data, before.data, beforeSkipped]);
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} size="6xl" scrollBehavior="inside">
@@ -147,7 +147,7 @@ const GroupCommitDiffModal = ({
         <ModalBody pb={6}>
           {isLoading ? (
             <Loading />
-          ) : after.error ? (
+          ) : realError ? (
             <Alert status="warning" borderRadius="md" fontSize="sm">
               <AlertIcon />
               Could not load the resource content for this revision.
@@ -164,7 +164,9 @@ const GroupCommitDiffModal = ({
                   {path}
                 </Heading>
                 <Text fontSize="xs" color="gray.500" mb={1}>
-                  Left: revision {revision - 1} (before) · Right: revision {revision} (after)
+                  {beforeSkipped
+                    ? `Left: empty document (before) · Right: revision ${revision} (after)`
+                    : `Left: revision ${revision - 1} (before) · Right: revision ${revision} (after)`}
                 </Text>
                 <JsonDiffEditor original={b} modified={a} height="40vh" />
               </Box>
@@ -240,7 +242,9 @@ const CommitDiffModal = ({
           ) : (
             <>
               <Text fontSize="xs" color="gray.500" mb={1}>
-                Left: revision {revision - 1} (before) · Right: revision {revision} (after)
+                {beforeSkipped
+                  ? `Left: empty document (before) · Right: revision ${revision} (after)`
+                  : `Left: revision ${revision - 1} (before) · Right: revision ${revision} (after)`}
               </Text>
               <JsonDiffEditor original={beforeJson} modified={afterJson} height="70vh" />
             </>
@@ -271,8 +275,8 @@ export const ResourceHistory = ({ group, filePath }: { group: string; filePath?:
   );
 
   const columns = useMemo(() => {
-    const cols: ColumnDef<HistoryDto, string>[] = [
-      columnHelper.accessor((row) => String(row.revision), {
+    const cols: ColumnDef<HistoryDto, unknown>[] = [
+      columnHelper.accessor((row) => row.revision, {
         id: 'revision',
         header: 'Revision',
         cell: (info) => (
@@ -287,14 +291,18 @@ export const ResourceHistory = ({ group, filePath }: { group: string; filePath?:
         header: 'Summary',
         enableSorting: false,
         cell: (info) => (
-          <Link
-            color="teal"
-            cursor="pointer"
+          <Button
+            variant="link"
+            colorScheme="teal"
+            fontWeight="normal"
+            size="sm"
+            whiteSpace="normal"
+            textAlign="left"
             wordBreak="break-all"
-            onClick={() => openDiff(info.row.original.revision, info.getValue())}
+            onClick={() => openDiff(info.row.original.revision, info.row.original.commitMessage.summary)}
           >
-            {info.getValue()}
-          </Link>
+            {info.row.original.commitMessage.summary}
+          </Button>
         ),
       }),
       columnHelper.accessor((row) => row.author.name, {

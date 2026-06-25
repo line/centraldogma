@@ -396,10 +396,14 @@ public final class XdsKubernetesService extends XdsKubernetesServiceImplBase {
         CompletableFuture.allOf(futures.toArray(EMPTY_FUTURES))
                         .handle((unused, cause) -> {
                             if (cause != null) {
+                                final Throwable peeled = Exceptions.peel(cause);
+                                final Status status =
+                                        peeled instanceof IllegalArgumentException ||
+                                        peeled instanceof EntryNotFoundException ?
+                                        Status.INVALID_ARGUMENT : Status.INTERNAL;
                                 responseObserver.onError(
-                                        Status.INTERNAL.withDescription(
-                                                Exceptions.peel(cause).getMessage())
-                                                       .asRuntimeException());
+                                        status.withDescription(peeled.getMessage())
+                                              .asRuntimeException());
                             } else {
                                 final ClusterLoadAssignment.Builder cla =
                                         ClusterLoadAssignment.newBuilder();

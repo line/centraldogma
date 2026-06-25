@@ -75,7 +75,9 @@ export const SnapshotViewer = () => {
     error,
   } = useGetXdsSnapshotQuery(
     scope === 'app' ? { appId: selectedAppId || undefined } : { group: group || undefined },
-    { refetchOnMountOrArgChange: true },
+    // Skip when scope is 'app' but no app id is available yet (apps list still loading or empty): avoids
+    // falling back to the global snapshot and rendering it under "By application identity".
+    { refetchOnMountOrArgChange: true, skip: scope === 'app' && !selectedAppId },
   );
 
   const typeSnapshot: XdsSnapshotType | undefined = snapshot?.[type];

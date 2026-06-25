@@ -55,7 +55,7 @@ export const JsonDiffEditor = ({ original, modified, height = '60vh' }: JsonDiff
     <DiffEditor
       height={height}
       language="json"
-      theme={colorMode === 'light' ? 'light' : 'vs-dark'}
+      theme={colorMode === 'light' ? 'vs' : 'vs-dark'}
       original={original}
       modified={modified}
       options={{

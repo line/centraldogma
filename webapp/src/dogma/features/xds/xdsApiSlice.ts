@@ -358,7 +358,7 @@ export const xdsApiSlice = createApi({
     // HEAD back to the first revision; without it the range would collapse to HEAD only and return nothing.
     getGroupHistory: builder.query<HistoryDto[], { group: string; filePath?: string; maxCommits?: number }>({
       query: ({ group, filePath = '/**', maxCommits = 100 }) =>
-        `/api/v1/projects/${XDS_PROJECT}/repos/${group}/commits/head?path=${filePath}&to=1&maxCommits=${maxCommits}`,
+        `/api/v1/projects/${XDS_PROJECT}/repos/${group}/commits/head?path=${encodeURIComponent(filePath)}&to=1&maxCommits=${maxCommits}`,
       providesTags: ['Resource'],
     }),
 
@@ -413,38 +413,43 @@ export const xdsApiSlice = createApi({
         }
 
         // Only listeners, routes and clusters declare outgoing references; read their content to extract them.
-        const edges: XdsGraphEdge[] = [];
+        // All fetches run in parallel to avoid serial RTT accumulation on large groups.
         const REF_TYPES: XdsResourceType[] = ['listeners', 'routes', 'clusters'];
-        for (const type of REF_TYPES) {
-          for (const file of filesByType[type]) {
-            const res = await fetchWithBQ(
-              `/api/v1/projects/${XDS_PROJECT}/repos/${group}/contents${file.path}?revision=head`,
-            );
-            if (res.error) {
-              // Skip resources that cannot be read; they simply contribute no edges.
-              continue;
-            }
-            const content = (res.data as FileContentDto)?.content;
-            const fromId = idOf(type, file.path);
-            const fromName = resourceName(group, file.path);
-            for (const ref of extractReferences(type, JSON.stringify(content ?? {}))) {
-              const link = resolveReference(group, ref);
-              const status: XdsRefStatus =
-                link.group !== group ? 'external' : idsByType[ref.targetType].has(link.id) ? 'ok' : 'missing';
-              edges.push({
-                fromType: type,
-                fromId,
-                fromName,
-                targetType: ref.targetType,
-                targetId: link.id,
-                targetGroup: link.group,
-                targetK8s: link.k8s,
-                name: ref.name,
-                status,
-              });
-            }
-          }
-        }
+        const edgeArrays = await Promise.all(
+          REF_TYPES.flatMap((type) =>
+            filesByType[type].map(async (file) => {
+              const localEdges: XdsGraphEdge[] = [];
+              const res = await fetchWithBQ(
+                `/api/v1/projects/${XDS_PROJECT}/repos/${group}/contents${file.path}?revision=head`,
+              );
+              if (res.error) {
+                // Skip resources that cannot be read; they simply contribute no edges.
+                return localEdges;
+              }
+              const content = (res.data as FileContentDto)?.content;
+              const fromId = idOf(type, file.path);
+              const fromName = resourceName(group, file.path);
+              for (const ref of extractReferences(type, JSON.stringify(content ?? {}))) {
+                const link = resolveReference(group, ref);
+                const status: XdsRefStatus =
+                  link.group !== group ? 'external' : idsByType[ref.targetType].has(link.id) ? 'ok' : 'missing';
+                localEdges.push({
+                  fromType: type,
+                  fromId,
+                  fromName,
+                  targetType: ref.targetType,
+                  targetId: link.id,
+                  targetGroup: link.group,
+                  targetK8s: link.k8s,
+                  name: ref.name,
+                  status,
+                });
+              }
+              return localEdges;
+            }),
+          ),
+        );
+        const edges: XdsGraphEdge[] = edgeArrays.flat();
         return { data: { nodes, edges } };
       },
       providesTags: ['Resource'],

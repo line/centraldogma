@@ -187,9 +187,10 @@ public final class ControlPlaneService extends XdsResourceWatchingService {
                                        return new DefaultJsonMarshaller(builder.build());
                                    })
                            .enableHttpJsonTranscoding(true).build();
-        // Authentication for /api/v1/** is handled globally by CentralDogma's route-level decorator;
-        // no per-service auth decorator is needed here.
-        serverBuilder.service(xdsApplicationService);
+        // The global /api/v1/** route decorator in CentralDogma covers the HTTP-transcoded routes, but
+        // the native gRPC paths (e.g. /centraldogma.xds.*.v1.*Service/Method) bypass it. The per-service
+        // decorator ensures both paths require authentication.
+        serverBuilder.service(xdsApplicationService, pluginInitContext.authService());
 
         // Endpoints (EDS) are not access-controlled: any authenticated user can read the endpoints of every
         // group regardless of its READ access.

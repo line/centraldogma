@@ -67,6 +67,11 @@ export const K8sAggregatorStatus = ({ group, id }: { group: string; id: string }
           No endpoints generated yet. The aggregator may still be connecting to Kubernetes, or no matching
           endpoints exist.
         </Alert>
+      ) : error ? (
+        <Alert status="error" borderRadius="md" fontSize="sm">
+          <AlertIcon />
+          Could not load sync status.
+        </Alert>
       ) : (
         <HStack spacing={4} wrap="wrap" fontSize="sm">
           <Badge colorScheme="green">Synced</Badge>
