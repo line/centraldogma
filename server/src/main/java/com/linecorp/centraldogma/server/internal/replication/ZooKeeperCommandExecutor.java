@@ -429,8 +429,7 @@ public final class ZooKeeperCommandExecutor
         return cfg.serverId();
     }
 
-    @VisibleForTesting
-    CommandExecutor unwrap() {
+    public CommandExecutor unwrap() {
         return delegate;
     }
 
@@ -1227,17 +1226,17 @@ public final class ZooKeeperCommandExecutor
                 //     design, two commands never conflict with each other if they have different execution
                 //     paths.
 
-            timings.startLogReplay();
-            try {
-                final List<String> recentRevisions = curator.getChildren().forPath(absolutePath(LOG_PATH));
-                if (!recentRevisions.isEmpty()) {
-                    final long lastRevision = recentRevisions.stream().mapToLong(Long::parseLong).max()
-                                                             .getAsLong();
-                    replayLogs(lastRevision, true);
+                timings.startLogReplay();
+                try {
+                    final List<String> recentRevisions = curator.getChildren().forPath(absolutePath(LOG_PATH));
+                    if (!recentRevisions.isEmpty()) {
+                        final long lastRevision = recentRevisions.stream().mapToLong(Long::parseLong).max()
+                                                                 .getAsLong();
+                        replayLogs(lastRevision, true);
+                    }
+                } finally {
+                    timings.endLogReplay();
                 }
-            } finally {
-                timings.endLogReplay();
-            }
 
                 timings.startCommandExecution();
                 final T result;

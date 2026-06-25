@@ -94,7 +94,6 @@ class ZooKeeperScopedReadonlyIntegrationTest {
             adminClient.prepare()
                        .put("/api/v1/status")
                        .contentJson(new UpdateServerStatusRequest(ServerStatus.WRITABLE, Scope.LOCAL))
-                       .asJson(ServerStatus.class)
                        .execute();
             await().untilAsserted(() -> {
                 assertThat(getServerStatus(adminClient)).isEqualTo(ServerStatus.WRITABLE);
