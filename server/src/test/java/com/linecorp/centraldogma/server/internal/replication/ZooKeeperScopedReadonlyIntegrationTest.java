@@ -89,18 +89,15 @@ class ZooKeeperScopedReadonlyIntegrationTest {
 
         // Restore the server status to WRITABLE so that a previous test that escalated to
         // REPLICATION_ONLY does not block project/repository creation below.
-        final BlockingWebClient adminClient = replica.servers().get(0).blockingHttpClient();
-        if (getServerStatus(adminClient) != ServerStatus.WRITABLE) {
+        for (int i = 0; i < 3; i++) {
+            final BlockingWebClient adminClient = replica.servers().get(i).blockingHttpClient();
             adminClient.prepare()
                        .put("/api/v1/status")
                        .contentJson(new UpdateServerStatusRequest(ServerStatus.WRITABLE, Scope.ALL))
                        .asJson(ServerStatus.class)
                        .execute();
             await().untilAsserted(() -> {
-                for (int i = 0; i < 3; i++) {
-                    assertThat(getServerStatus(replica.servers().get(i).blockingHttpClient()))
-                            .isEqualTo(ServerStatus.WRITABLE);
-                }
+                assertThat(getServerStatus(adminClient)).isEqualTo(ServerStatus.WRITABLE);
             });
         }
 
@@ -119,8 +116,8 @@ class ZooKeeperScopedReadonlyIntegrationTest {
     void repositoryReadonly() {
         final CentralDogmaRepository repo1 = client0.forRepo(testProject1, TEST_REPO1);
         repo1.commit("first", Change.ofJsonUpsert("/a.json", "{ \"a\": 1 }"))
-            .push()
-            .join();
+             .push()
+             .join();
 
         final Change<JsonNode> unknownChange = Change.ofJsonUpsert("/a.json", "{ \"a\": 3 }");
         final Command<Revision> unknownCommand = Command.push(Author.DEFAULT, testProject1, TEST_REPO1,
@@ -134,8 +131,8 @@ class ZooKeeperScopedReadonlyIntegrationTest {
                                    JsonPatchOperation.safeReplace("/a", new IntNode(1), new IntNode(2)));
 
         repo1.commit("second", jsonPatch)
-            .push()
-            .join();
+             .push()
+             .join();
 
         final BlockingWebClient client1 = replica.servers().get(1).blockingHttpClient();
 
@@ -167,8 +164,8 @@ class ZooKeeperScopedReadonlyIntegrationTest {
         // Pushing to the read-only repository should fail.
         assertThatThrownBy(() -> {
             repo1.commit("third", Change.ofJsonUpsert("/a.json", "{ \"a\": 4 }"))
-                .push()
-                .join();
+                 .push()
+                 .join();
         }).isInstanceOf(CompletionException.class)
           .hasCauseInstanceOf(ReadOnlyException.class);
 
@@ -341,7 +338,7 @@ class ZooKeeperScopedReadonlyIntegrationTest {
         final BlockingWebClient client1 = replica.servers().get(1).blockingHttpClient();
         await().untilAsserted(() -> assertThat(
                 getRepoStatus(client1, testProject1, TEST_REPO1).status())
-                        .isEqualTo(ReplicationStatus.READ_ONLY));
+                .isEqualTo(ReplicationStatus.READ_ONLY));
 
         // The server itself and sibling repos are still writable.
         assertThat(getServerStatus(client1)).isEqualTo(ServerStatus.WRITABLE);
@@ -454,7 +451,7 @@ class ZooKeeperScopedReadonlyIntegrationTest {
         final BlockingWebClient client1 = replica.servers().get(1).blockingHttpClient();
         await().untilAsserted(() -> assertThat(
                 getRepoStatus(client1, testProject1, TEST_REPO1).status())
-                        .isEqualTo(ReplicationStatus.READ_ONLY));
+                .isEqualTo(ReplicationStatus.READ_ONLY));
 
         // A regular push is rejected.
         assertThatThrownBy(() -> {
@@ -507,7 +504,7 @@ class ZooKeeperScopedReadonlyIntegrationTest {
         final BlockingWebClient client1 = replica.servers().get(1).blockingHttpClient();
         await().untilAsserted(() -> assertThat(
                 getRepoStatus(client1, testProject1, TEST_REPO1).status())
-                        .isEqualTo(ReplicationStatus.READ_ONLY));
+                .isEqualTo(ReplicationStatus.READ_ONLY));
 
         // A regular push to any repo in the read-only project is rejected.
         final CentralDogmaRepository repo1 = client0.forRepo(testProject1, TEST_REPO1);
