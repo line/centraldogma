@@ -13,7 +13,7 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
-import { Button, Flex, HStack, Link, Spacer, Tag, Text, useDisclosure } from '@chakra-ui/react';
+import { Button, Flex, HStack, Link, Select, Spacer, Tag, Text, useDisclosure } from '@chakra-ui/react';
 import { default as RouteLink } from 'next/link';
 import { AiOutlineDelete } from 'react-icons/ai';
 import { IoAddCircleOutline } from 'react-icons/io5';
@@ -21,6 +21,8 @@ import {
   ColumnDef,
   createColumnHelper,
   getCoreRowModel,
+  getFilteredRowModel,
+  getPaginationRowModel,
   getSortedRowModel,
   useReactTable,
 } from '@tanstack/react-table';
@@ -30,7 +32,7 @@ import { DeleteConfirmationModal } from 'dogma/common/components/DeleteConfirmat
 import { Deferred } from 'dogma/common/components/Deferred';
 import { useDeleteResourceMutation, useListResourcesQuery } from 'dogma/features/xds/xdsApiSlice';
 import { resourceName, XdsResourceDto, XdsResourceType, XDS_RESOURCE_META } from 'dogma/features/xds/XdsTypes';
-import { useGroupWriteAccess } from 'dogma/common/useGroupWriteAccess';
+import { useGroupWriteAccess } from 'dogma/features/xds/useGroupWriteAccess';
 import { useAppDispatch } from 'dogma/hooks';
 import { newNotification } from 'dogma/features/notification/notificationSlice';
 import ErrorMessageParser from 'dogma/features/services/ErrorMessageParser';
@@ -127,6 +129,9 @@ export const ResourceList = ({ group, type }: { group: string; type: XdsResource
     columns,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    initialState: { pagination: { pageSize: 10 } },
   });
 
   return (
@@ -153,6 +158,45 @@ export const ResourceList = ({ group, type }: { group: string; type: XdsResource
             </Text>
           ) : null}
           <DataTable table={table} />
+          {resources.length > 0 &&
+            (() => {
+              const { pageIndex, pageSize } = table.getState().pagination;
+              const pageCount = table.getPageCount();
+              return (
+                <Flex mt={4} align="center" gap={3} wrap="wrap">
+                  <Text fontSize="sm" color="gray.500">
+                    {resources.length} {meta.label.toLowerCase()}
+                    {resources.length === 1 ? '' : 's'}
+                  </Text>
+                  <Spacer />
+                  <Button
+                    size="sm"
+                    onClick={() => table.previousPage()}
+                    isDisabled={!table.getCanPreviousPage()}
+                  >
+                    Previous
+                  </Button>
+                  <Text fontSize="sm">
+                    Page {pageCount === 0 ? 0 : pageIndex + 1} of {pageCount}
+                  </Text>
+                  <Button size="sm" onClick={() => table.nextPage()} isDisabled={!table.getCanNextPage()}>
+                    Next
+                  </Button>
+                  <Select
+                    size="sm"
+                    w="auto"
+                    value={pageSize}
+                    onChange={(e) => table.setPageSize(Number(e.target.value))}
+                  >
+                    {[10, 20, 50, 100].map((size) => (
+                      <option key={size} value={size}>
+                        {size} / page
+                      </option>
+                    ))}
+                  </Select>
+                </Flex>
+              );
+            })()}
           <DeleteConfirmationModal
             isOpen={isOpen}
             onClose={onClose}

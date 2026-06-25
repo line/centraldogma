@@ -20,11 +20,20 @@ import { baseQueryWithReauth } from 'dogma/features/api/baseQuery';
 import { createLoginUrl } from 'dogma/util/auth';
 import {
   GroupDto,
+  resourceName,
   XdsResourceDto,
   XdsResourceType,
   XDS_PROJECT,
   XDS_RESOURCE_META,
 } from 'dogma/features/xds/XdsTypes';
+import {
+  extractReferences,
+  resolveReference,
+  XdsGraphEdge,
+  XdsGraphNode,
+  XdsReferenceGraph,
+  XdsRefStatus,
+} from 'dogma/features/xds/xdsReferences';
 import {
   AddRepositoryRoleDto,
   DeleteRepositoryRoleDto,
@@ -32,6 +41,7 @@ import {
 } from 'dogma/features/xds/MetadataDto';
 import { AppIdentityDto } from 'dogma/features/appidentity/AppIdentityDto';
 import { CredentialDto, credentialId, XdsCredentialDto } from 'dogma/features/xds/CredentialDto';
+import { HistoryDto } from 'dogma/features/history/HistoryDto';
 
 // The repositories created automatically for every Central Dogma project. They
 // are not xDS groups and must be hidden from the group list.
@@ -235,6 +245,19 @@ export const xdsApiSlice = createApi({
         `/api/v1/projects/${XDS_PROJECT}/repos/${group}/contents/k8s/endpointAggregators/${id}.json?revision=head`,
       providesTags: ['K8sAggregator'],
     }),
+    // Dry-run preview: resolves the aggregator's watchers against Kubernetes and returns the
+    // ClusterLoadAssignment that would be generated, without persisting.
+    previewK8sAggregator: builder.mutation<
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      any, // ClusterLoadAssignment JSON
+      { group: string; body: string }
+    >({
+      query: ({ group, body }) => ({
+        url: `/api/v1/xds/groups/${group}/k8s/endpointAggregators/preview`,
+        method: 'POST',
+        body: JSON.parse(body),
+      }),
+    }),
     createK8sAggregator: builder.mutation<unknown, { group: string; aggregatorId: string; body: string }>({
       query: ({ group, aggregatorId, body }) => ({
         url: `/api/v1/xds/groups/${group}/k8s/endpointAggregators?aggregator_id=${encodeURIComponent(
@@ -328,6 +351,104 @@ export const xdsApiSlice = createApi({
       query: () => '/api/v1/appIdentities',
       providesTags: ['AppIdentity'],
     }),
+
+    // --- Change history ---
+    // The commit history (newest first) of a group repository, optionally scoped to a single resource file via
+    // `filePath`. Each create/update/delete of an xDS resource is a commit. `to=1` makes the range span from
+    // HEAD back to the first revision; without it the range would collapse to HEAD only and return nothing.
+    getGroupHistory: builder.query<HistoryDto[], { group: string; filePath?: string; maxCommits?: number }>({
+      query: ({ group, filePath = '/**', maxCommits = 100 }) =>
+        `/api/v1/projects/${XDS_PROJECT}/repos/${group}/commits/head?path=${filePath}&to=1&maxCommits=${maxCommits}`,
+      providesTags: ['Resource'],
+    }),
+
+    // --- Reference graph ---
+    // Builds the group's resource reference graph (nodes + edges) on the client: it lists every resource, reads
+    // the content of the referencing types (LDS/RDS/CDS) and extracts their references to RDS/CDS/EDS, marking
+    // each edge ok / missing (dangling) / external. Powers the References (search + reverse-reference) view.
+    getGroupGraph: builder.query<XdsReferenceGraph, { group: string }>({
+      async queryFn({ group }, _queryApi, _extraOptions, fetchWithBQ) {
+        const TYPES: XdsResourceType[] = ['listeners', 'routes', 'clusters', 'endpoints'];
+        const filesByType: Record<XdsResourceType, RawFileDto[]> = {
+          listeners: [],
+          routes: [],
+          clusters: [],
+          endpoints: [],
+        };
+        for (const type of TYPES) {
+          // Endpoints (EDS) are not access-controlled, so they are listed through the dedicated ungated API.
+          const url =
+            type === 'endpoints'
+              ? `/api/v1/xds/groups/${group}/endpoints`
+              : `/api/v1/projects/${XDS_PROJECT}/repos/${group}/list/${type}/**?revision=head`;
+          const res = await fetchWithBQ(url);
+          if (res.error) {
+            // The type directory does not exist until the first resource is created.
+            if ((res.error as FetchBaseQueryError).status === 404) {
+              continue;
+            }
+            return { error: res.error as FetchBaseQueryError };
+          }
+          filesByType[type] = ((res.data || []) as RawFileDto[]).filter((file) => file.type !== 'DIRECTORY');
+        }
+
+        const idOf = (type: XdsResourceType, path: string): string =>
+          type === 'endpoints' && path.startsWith('/k8s/endpoints/')
+            ? path.slice('/k8s/endpoints/'.length).replace(/\.json$/, '')
+            : idFromPath(path, type);
+
+        const nodes: XdsGraphNode[] = [];
+        const idsByType: Record<XdsResourceType, Set<string>> = {
+          listeners: new Set(),
+          routes: new Set(),
+          clusters: new Set(),
+          endpoints: new Set(),
+        };
+        for (const type of TYPES) {
+          for (const file of filesByType[type]) {
+            const id = idOf(type, file.path);
+            nodes.push({ type, id, name: resourceName(group, file.path), k8s: file.path.startsWith('/k8s/') });
+            idsByType[type].add(id);
+          }
+        }
+
+        // Only listeners, routes and clusters declare outgoing references; read their content to extract them.
+        const edges: XdsGraphEdge[] = [];
+        const REF_TYPES: XdsResourceType[] = ['listeners', 'routes', 'clusters'];
+        for (const type of REF_TYPES) {
+          for (const file of filesByType[type]) {
+            const res = await fetchWithBQ(
+              `/api/v1/projects/${XDS_PROJECT}/repos/${group}/contents${file.path}?revision=head`,
+            );
+            if (res.error) {
+              // Skip resources that cannot be read; they simply contribute no edges.
+              continue;
+            }
+            const content = (res.data as FileContentDto)?.content;
+            const fromId = idOf(type, file.path);
+            const fromName = resourceName(group, file.path);
+            for (const ref of extractReferences(type, JSON.stringify(content ?? {}))) {
+              const link = resolveReference(group, ref);
+              const status: XdsRefStatus =
+                link.group !== group ? 'external' : idsByType[ref.targetType].has(link.id) ? 'ok' : 'missing';
+              edges.push({
+                fromType: type,
+                fromId,
+                fromName,
+                targetType: ref.targetType,
+                targetId: link.id,
+                targetGroup: link.group,
+                targetK8s: link.k8s,
+                name: ref.name,
+                status,
+              });
+            }
+          }
+        }
+        return { data: { nodes, edges } };
+      },
+      providesTags: ['Resource'],
+    }),
   }),
 });
 
@@ -342,6 +463,7 @@ export const {
   useDeleteResourceMutation,
   useListK8sAggregatorsQuery,
   useGetK8sAggregatorQuery,
+  usePreviewK8sAggregatorMutation,
   useCreateK8sAggregatorMutation,
   useUpdateK8sAggregatorMutation,
   useDeleteK8sAggregatorMutation,
@@ -354,4 +476,6 @@ export const {
   useAddAppIdentityRepositoryRoleMutation,
   useDeleteAppIdentityRepositoryRoleMutation,
   useGetAppIdentitiesQuery,
+  useGetGroupHistoryQuery,
+  useGetGroupGraphQuery,
 } = xdsApiSlice;

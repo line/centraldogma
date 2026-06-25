@@ -41,7 +41,7 @@ import Router from 'next/router';
 import { useEffect, useState } from 'react';
 import { Control, Controller, FieldErrors, useFieldArray, useForm, UseFormRegister } from 'react-hook-form';
 import { OptionBase, Select } from 'chakra-react-select';
-import { AiOutlineClose, AiOutlineDelete, AiOutlineEdit } from 'react-icons/ai';
+import { AiOutlineClose, AiOutlineDelete, AiOutlineEdit, AiOutlineEye } from 'react-icons/ai';
 import { FiSave } from 'react-icons/fi';
 import { IoAddCircleOutline } from 'react-icons/io5';
 import { Deferred } from 'dogma/common/components/Deferred';
@@ -52,12 +52,15 @@ import {
   useDeleteK8sAggregatorMutation,
   useGetK8sAggregatorQuery,
   useListCredentialsQuery,
+  usePreviewK8sAggregatorMutation,
   useUpdateK8sAggregatorMutation,
 } from 'dogma/features/xds/xdsApiSlice';
-import { useGroupWriteAccess } from 'dogma/common/useGroupWriteAccess';
+import { K8sAggregatorPreviewModal, K8sPreviewResult } from 'dogma/features/xds/K8sAggregatorPreviewModal';
+import { useGroupWriteAccess } from 'dogma/features/xds/useGroupWriteAccess';
 import { useAppDispatch } from 'dogma/hooks';
 import { newNotification } from 'dogma/features/notification/notificationSlice';
 import ErrorMessageParser from 'dogma/features/services/ErrorMessageParser';
+import { K8sAggregatorStatus } from 'dogma/features/xds/K8sAggregatorStatus';
 
 // Matches the server-side resource id pattern (XdsResourceManager.RESOURCE_ID_PATTERN_STRING).
 const AGGREGATOR_ID_PATTERN = /^[a-z](?:[a-z0-9-_/]*[a-z0-9])?$/;
@@ -486,12 +489,26 @@ const NewK8sAggregatorEditor = ({ group }: { group: string }) => {
   // ExistingK8sAggregatorEditor.
   const { hasWrite, isLoading: accessLoading } = useGroupWriteAccess(group);
   const [createAggregator, { isLoading }] = useCreateK8sAggregatorMutation();
+  const [previewAggregator, { isLoading: isPreviewing }] = usePreviewK8sAggregatorMutation();
+  const { isOpen: previewOpen, onOpen: openPreview, onClose: closePreview } = useDisclosure();
+  const [previewResult, setPreviewResult] = useState<K8sPreviewResult | null>(null);
   const {
     register,
     control,
     handleSubmit,
     formState: { errors },
   } = useForm<FormData>({ defaultValues: { aggregatorId: '', watchers: [{ ...emptyWatcher }] } });
+
+  const onPreview = async (data: FormData) => {
+    setPreviewResult(null);
+    openPreview();
+    try {
+      const assignment = await previewAggregator({ group, body: buildBody(data) }).unwrap();
+      setPreviewResult({ ok: true, assignment });
+    } catch (err) {
+      setPreviewResult({ ok: false, error: ErrorMessageParser.parse(err) });
+    }
+  };
 
   const onSubmit = async (data: FormData) => {
     if (!hasWrite) {
@@ -533,10 +550,32 @@ const NewK8sAggregatorEditor = ({ group }: { group: string }) => {
       <Divider my={4} maxW="3xl" />
       <Flex maxW="3xl">
         <Spacer />
-        <Button colorScheme="teal" leftIcon={<FiSave />} onClick={handleSubmit(onSubmit)} isLoading={isLoading}>
-          Create
-        </Button>
+        <HStack spacing={3}>
+          <Button
+            variant="outline"
+            colorScheme="teal"
+            leftIcon={<AiOutlineEye />}
+            onClick={handleSubmit(onPreview)}
+            isLoading={isPreviewing}
+          >
+            Preview endpoints
+          </Button>
+          <Button
+            colorScheme="teal"
+            leftIcon={<FiSave />}
+            onClick={handleSubmit(onSubmit)}
+            isLoading={isLoading}
+          >
+            Create
+          </Button>
+        </HStack>
       </Flex>
+      <K8sAggregatorPreviewModal
+        isOpen={previewOpen}
+        onClose={closePreview}
+        isLoading={isPreviewing}
+        result={previewResult}
+      />
     </Box>
   );
 };
@@ -551,7 +590,10 @@ const ExistingK8sAggregatorEditor = ({ group, id }: { group: string; id: string 
   );
   const [updateAggregator, { isLoading: isSaving }] = useUpdateK8sAggregatorMutation();
   const [deleteAggregator, { isLoading: isDeleting }] = useDeleteK8sAggregatorMutation();
+  const [previewAggregator, { isLoading: isPreviewing }] = usePreviewK8sAggregatorMutation();
   const { isOpen, onOpen, onClose } = useDisclosure();
+  const { isOpen: previewOpen, onOpen: openPreview, onClose: closePreview } = useDisclosure();
+  const [previewResult, setPreviewResult] = useState<K8sPreviewResult | null>(null);
   // An aggregator opens in read-only view; the user must click Edit to modify it (like the resource editors).
   const [editing, setEditing] = useState(false);
   const {
@@ -588,6 +630,17 @@ const ExistingK8sAggregatorEditor = ({ group, id }: { group: string; id: string 
     setEditing(false);
   };
 
+  const onPreview = async (formData: FormData) => {
+    setPreviewResult(null);
+    openPreview();
+    try {
+      const assignment = await previewAggregator({ group, body: buildBody(formData) }).unwrap();
+      setPreviewResult({ ok: true, assignment });
+    } catch (err) {
+      setPreviewResult({ ok: false, error: ErrorMessageParser.parse(err) });
+    }
+  };
+
   const handleDelete = async () => {
     try {
       await deleteAggregator({ group, id }).unwrap();
@@ -618,6 +671,16 @@ const ExistingK8sAggregatorEditor = ({ group, id }: { group: string; id: string 
               ) : (
                 <HStack spacing={3}>
                   <Button
+                    variant="outline"
+                    colorScheme="teal"
+                    leftIcon={<AiOutlineEye />}
+                    size="sm"
+                    onClick={handleSubmit(onPreview)}
+                    isLoading={isPreviewing}
+                  >
+                    Preview
+                  </Button>
+                  <Button
                     colorScheme="teal"
                     leftIcon={<AiOutlineEdit />}
                     size="sm"
@@ -631,6 +694,7 @@ const ExistingK8sAggregatorEditor = ({ group, id }: { group: string; id: string 
                 </HStack>
               ))}
           </Flex>
+          <K8sAggregatorStatus group={group} id={id} />
           <AggregatorFormFields
             group={group}
             control={control}
@@ -644,17 +708,34 @@ const ExistingK8sAggregatorEditor = ({ group, id }: { group: string; id: string 
               <Divider my={4} maxW="3xl" />
               <Flex maxW="3xl">
                 <Spacer />
-                <Button
-                  colorScheme="teal"
-                  leftIcon={<FiSave />}
-                  onClick={handleSubmit(onSubmit)}
-                  isLoading={isSaving}
-                >
-                  Save
-                </Button>
+                <HStack spacing={3}>
+                  <Button
+                    variant="outline"
+                    colorScheme="teal"
+                    leftIcon={<AiOutlineEye />}
+                    onClick={handleSubmit(onPreview)}
+                    isLoading={isPreviewing}
+                  >
+                    Preview endpoints
+                  </Button>
+                  <Button
+                    colorScheme="teal"
+                    leftIcon={<FiSave />}
+                    onClick={handleSubmit(onSubmit)}
+                    isLoading={isSaving}
+                  >
+                    Save
+                  </Button>
+                </HStack>
               </Flex>
             </>
           )}
+          <K8sAggregatorPreviewModal
+            isOpen={previewOpen}
+            onClose={closePreview}
+            isLoading={isPreviewing}
+            result={previewResult}
+          />
           <DeleteConfirmationModal
             isOpen={isOpen}
             onClose={onClose}

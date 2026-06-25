@@ -13,13 +13,17 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Flex, Heading, Spacer } from '@chakra-ui/react';
+import { Box, Button, Flex, Heading, Spacer } from '@chakra-ui/react';
+import { default as RouteLink } from 'next/link';
+import { TbServer2 } from 'react-icons/tb';
 import { Deferred } from 'dogma/common/components/Deferred';
 import { useGetGroupsQuery } from 'dogma/features/xds/xdsApiSlice';
 import { GroupList } from 'dogma/features/xds/GroupList';
 import { NewGroup } from 'dogma/features/xds/NewGroup';
+import { useAppSelector } from 'dogma/hooks';
 
 const GroupsPage = () => {
+  const { user } = useAppSelector((state) => state.auth);
   const { data, isLoading, error } = useGetGroupsQuery(undefined, {
     refetchOnMountOrArgChange: true,
   });
@@ -32,6 +36,19 @@ const GroupsPage = () => {
               xDS Groups
             </Heading>
             <Spacer />
+            {/* The control plane view is system-administrator only, so the entry point is shown only to them. */}
+            {user?.systemAdmin && (
+              <Button
+                as={RouteLink}
+                href="/app/xds/control-plane"
+                variant="outline"
+                colorScheme="teal"
+                size="sm"
+                leftIcon={<TbServer2 />}
+              >
+                Control Plane
+              </Button>
+            )}
             <NewGroup />
           </Flex>
           <GroupList groups={data || []} />
