@@ -93,7 +93,7 @@ class ZooKeeperScopedReadonlyIntegrationTest {
             final BlockingWebClient adminClient = replica.servers().get(i).blockingHttpClient();
             adminClient.prepare()
                        .put("/api/v1/status")
-                       .contentJson(new UpdateServerStatusRequest(ServerStatus.WRITABLE, Scope.ALL))
+                       .contentJson(new UpdateServerStatusRequest(ServerStatus.WRITABLE, Scope.LOCAL))
                        .asJson(ServerStatus.class)
                        .execute();
             await().untilAsserted(() -> {
