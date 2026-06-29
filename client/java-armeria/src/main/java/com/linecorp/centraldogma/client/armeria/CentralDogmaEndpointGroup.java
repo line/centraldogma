@@ -73,7 +73,7 @@ public final class CentralDogmaEndpointGroup<T> extends DynamicEndpointGroup {
     public static <T> CentralDogmaEndpointGroup<T> ofWatcher(Watcher<T> watcher,
                                                              EndpointListDecoder<T> endpointListDecoder) {
         return new CentralDogmaEndpointGroup<>(EndpointSelectionStrategy.weightedRoundRobin(),
-                                               watcher, endpointListDecoder);
+                                               watcher, endpointListDecoder, false);
     }
 
     /**
@@ -112,8 +112,9 @@ public final class CentralDogmaEndpointGroup<T> extends DynamicEndpointGroup {
 
     CentralDogmaEndpointGroup(EndpointSelectionStrategy strategy,
                               Watcher<T> instanceListWatcher,
-                              EndpointListDecoder<T> endpointListDecoder) {
-        super(strategy);
+                              EndpointListDecoder<T> endpointListDecoder,
+                              boolean allowEmptyEndpoints) {
+        super(strategy, allowEmptyEndpoints);
         this.instanceListWatcher = requireNonNull(instanceListWatcher, "instanceListWatcher");
         this.endpointListDecoder = requireNonNull(endpointListDecoder, "endpointListDecoder");
         registerWatcher();
@@ -123,7 +124,7 @@ public final class CentralDogmaEndpointGroup<T> extends DynamicEndpointGroup {
         instanceListWatcher.watch((revision, instances) -> {
             try {
                 final List<Endpoint> newEndpoints = endpointListDecoder.decode(instances);
-                if (newEndpoints.isEmpty()) {
+                if (newEndpoints.isEmpty() && !allowsEmptyEndpoints()) {
                     logger.info("Not refreshing the endpoint list of {} because it's empty. {}",
                                 instanceListWatcher, revision);
                     return;
