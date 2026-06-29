@@ -17,11 +17,16 @@ package com.linecorp.centraldogma.xds.internal;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.List;
+
 import org.junit.jupiter.api.Test;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.google.rpc.Status;
+
+import com.linecorp.armeria.common.HttpMethod;
+import com.linecorp.armeria.common.HttpRequest;
+import com.linecorp.armeria.common.util.SafeCloseable;
+import com.linecorp.armeria.server.ServiceRequestContext;
 
 import io.envoyproxy.envoy.config.core.v3.Node;
 import io.envoyproxy.envoy.service.discovery.v3.DiscoveryRequest;
@@ -34,7 +39,7 @@ class XdsClientStatusTrackerTest {
     @Test
     void initialSubscribeIsNotAnAck() throws Exception {
         final XdsClientStatusTracker tracker = new XdsClientStatusTracker();
-        tracker.onStreamOpen(1, CDS_TYPE_URL);
+        openStream(tracker, 1);
         // The very first request has empty version_info and response_nonce, and carries the node.
         tracker.onV3StreamRequest(1, DiscoveryRequest.newBuilder()
                                                      .setNode(Node.newBuilder()
@@ -43,20 +48,19 @@ class XdsClientStatusTrackerTest {
                                                      .setTypeUrl(CDS_TYPE_URL)
                                                      .build());
 
-        final JsonNode type = singleType(tracker);
-        assertThat(type.get("status").asText()).isEqualTo("INITIAL");
-        assertThat(type.get("ackedVersion").asText()).isEmpty();
-        assertThat(type.get("inSync").asBoolean()).isFalse();
+        final XdsTypeStateDto type = singleType(tracker);
+        assertThat(type.status()).isEqualTo("INITIAL");
+        assertThat(type.ackedVersion()).isEmpty();
 
-        final JsonNode stream = tracker.toClientsJson().get(0);
-        assertThat(stream.get("nodeId").asText()).isEqualTo("node-1");
-        assertThat(stream.get("nodeCluster").asText()).isEqualTo("cluster-a");
+        final XdsClientStreamDto stream = tracker.clients().get(0);
+        assertThat(stream.nodeId()).isEqualTo("node-1");
+        assertThat(stream.nodeCluster()).isEqualTo("cluster-a");
     }
 
     @Test
     void ackOfTheServedVersionIsInSync() throws Exception {
         final XdsClientStatusTracker tracker = new XdsClientStatusTracker();
-        tracker.onStreamOpen(1, CDS_TYPE_URL);
+        openStream(tracker, 1);
         // The server sent version v1...
         tracker.onV3StreamResponse(1, DiscoveryRequest.getDefaultInstance(),
                                    DiscoveryResponse.newBuilder()
@@ -71,17 +75,16 @@ class XdsClientStatusTrackerTest {
                                                      .setResponseNonce("nonce-1")
                                                      .build());
 
-        final JsonNode type = singleType(tracker);
-        assertThat(type.get("status").asText()).isEqualTo("ACKED");
-        assertThat(type.get("ackedVersion").asText()).isEqualTo("v1");
-        assertThat(type.get("servedVersion").asText()).isEqualTo("v1");
-        assertThat(type.get("inSync").asBoolean()).isTrue();
+        final XdsTypeStateDto type = singleType(tracker);
+        assertThat(type.status()).isEqualTo("ACKED");
+        assertThat(type.ackedVersion()).isEqualTo("v1");
+        assertThat(type.servedVersion()).isEqualTo("v1");
     }
 
     @Test
     void ackOfAnOlderVersionIsOutOfSync() throws Exception {
         final XdsClientStatusTracker tracker = new XdsClientStatusTracker();
-        tracker.onStreamOpen(1, CDS_TYPE_URL);
+        openStream(tracker, 1);
         tracker.onV3StreamResponse(1, DiscoveryRequest.getDefaultInstance(),
                                    DiscoveryResponse.newBuilder()
                                                     .setTypeUrl(CDS_TYPE_URL)
@@ -92,17 +95,16 @@ class XdsClientStatusTrackerTest {
                                                      .setVersionInfo("v1")
                                                      .build());
 
-        final JsonNode type = singleType(tracker);
-        assertThat(type.get("status").asText()).isEqualTo("ACKED");
-        assertThat(type.get("ackedVersion").asText()).isEqualTo("v1");
-        assertThat(type.get("servedVersion").asText()).isEqualTo("v2");
-        assertThat(type.get("inSync").asBoolean()).isFalse();
+        final XdsTypeStateDto type = singleType(tracker);
+        assertThat(type.status()).isEqualTo("ACKED");
+        assertThat(type.ackedVersion()).isEqualTo("v1");
+        assertThat(type.servedVersion()).isEqualTo("v2");
     }
 
     @Test
     void errorDetailIsANack() throws Exception {
         final XdsClientStatusTracker tracker = new XdsClientStatusTracker();
-        tracker.onStreamOpen(1, CDS_TYPE_URL);
+        openStream(tracker, 1);
         final Status error = Status.newBuilder().setMessage("bad config").build();
         tracker.onV3StreamRequest(1, DiscoveryRequest.newBuilder()
                                                      .setTypeUrl(CDS_TYPE_URL)
@@ -110,28 +112,37 @@ class XdsClientStatusTrackerTest {
                                                      .setErrorDetail(error)
                                                      .build());
 
-        final JsonNode type = singleType(tracker);
-        assertThat(type.get("status").asText()).isEqualTo("NACKED");
-        assertThat(type.get("nackReason").asText()).isEqualTo("bad config");
-        assertThat(type.get("inSync").asBoolean()).isFalse();
+        final XdsTypeStateDto type = singleType(tracker);
+        assertThat(type.status()).isEqualTo("NACKED");
+        assertThat(type.nackReason()).isEqualTo("bad config");
     }
 
     @Test
     void streamCloseRemovesTheClient() throws Exception {
         final XdsClientStatusTracker tracker = new XdsClientStatusTracker();
-        tracker.onStreamOpen(1, CDS_TYPE_URL);
+        openStream(tracker, 1);
         tracker.onV3StreamRequest(1, DiscoveryRequest.newBuilder().setTypeUrl(CDS_TYPE_URL).build());
-        assertThat(tracker.toClientsJson()).hasSize(1);
+        assertThat(tracker.clients()).hasSize(1);
 
         tracker.onStreamClose(1, CDS_TYPE_URL);
-        assertThat(tracker.toClientsJson()).isEmpty();
+        assertThat(tracker.clients()).isEmpty();
     }
 
-    // Returns the single resource-type node of the single tracked stream.
-    private static JsonNode singleType(XdsClientStatusTracker tracker) {
-        final ArrayNode clients = tracker.toClientsJson();
+    // Calls onStreamOpen with a real Armeria context so that the assert ctx != null in the
+    // production code is satisfied (Gradle runs tests with assertions enabled by default).
+    private static void openStream(XdsClientStatusTracker tracker, long streamId) throws Exception {
+        final ServiceRequestContext ctx =
+                ServiceRequestContext.of(HttpRequest.of(HttpMethod.GET, "/"));
+        try (SafeCloseable ignored = ctx.push()) {
+            tracker.onStreamOpen(streamId, CDS_TYPE_URL);
+        }
+    }
+
+    // Returns the single resource-type state of the single tracked stream.
+    private static XdsTypeStateDto singleType(XdsClientStatusTracker tracker) {
+        final List<XdsClientStreamDto> clients = tracker.clients();
         assertThat(clients).hasSize(1);
-        final JsonNode types = clients.get(0).get("types");
+        final List<XdsTypeStateDto> types = clients.get(0).types();
         assertThat(types).hasSize(1);
         return types.get(0);
     }

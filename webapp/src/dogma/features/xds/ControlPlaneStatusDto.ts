@@ -28,8 +28,6 @@ export interface XdsClientTypeStatus {
   ackedVersion: string;
   // The version this stream was last sent (empty until the first response).
   servedVersion: string;
-  // True when the client has ACKed exactly the version currently being served.
-  inSync: boolean;
   // The reason Envoy rejected the resources; only set when status is 'NACKED'.
   nackReason: string;
   lastNonce: string;

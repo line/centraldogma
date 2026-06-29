@@ -15,12 +15,10 @@
  */
 package com.linecorp.centraldogma.xds.internal;
 
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 import org.jspecify.annotations.Nullable;
-
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ArrayNode;
 
 import com.linecorp.armeria.server.annotation.Get;
 import com.linecorp.armeria.server.annotation.Param;
@@ -56,16 +54,16 @@ public final class XdsControlPlaneStatusService {
      * Returns the ACK/NACK state of every xDS client connected to this control plane instance.
      */
     @Get("/xds/clients")
-    public ArrayNode clients() {
-        return clientStatusTracker.toClientsJson();
+    public List<XdsClientStreamDto> clients() {
+        return clientStatusTracker.clients();
     }
 
     /**
      * Lists the application identities that have connected to the discovery API, with the groups each can read.
      */
     @Get("/xds/apps")
-    public ArrayNode apps() {
-        return controlPlaneService.appsJson();
+    public List<XdsAppDto> apps() {
+        return controlPlaneService.apps();
     }
 
     /**
@@ -74,7 +72,8 @@ public final class XdsControlPlaneStatusService {
      * the full snapshot.
      */
     @Get("/xds/snapshot")
-    public CompletableFuture<JsonNode> snapshot(@Param @Nullable String group, @Param @Nullable String appId) {
-        return controlPlaneService.snapshotJson(group, appId);
+    public CompletableFuture<XdsSnapshotDto> snapshot(@Param @Nullable String group,
+                                                      @Param @Nullable String appId) {
+        return controlPlaneService.snapshot(group, appId);
     }
 }

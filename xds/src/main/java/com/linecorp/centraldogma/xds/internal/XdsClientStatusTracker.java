@@ -22,9 +22,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.JsonNodeFactory;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.collect.ImmutableList;
 
 import com.linecorp.armeria.server.ServiceRequestContext;
@@ -42,8 +39,9 @@ import io.envoyproxy.envoy.service.discovery.v3.DiscoveryResponse;
  * Tracks the ACK/NACK state of every xDS client connected to this control plane instance.
  *
  * <p>State is kept in memory and reflects only the clients connected to <em>this</em> replica. Callbacks are
- * invoked on gRPC worker threads, so all mutable state is held in {@link ConcurrentHashMap}s and {@code
- * volatile} fields.
+ * invoked on gRPC worker threads. Mutable fields within {@link StreamState} and {@link TypeState} are
+ * protected by {@code synchronized} on the owning object so that {@link #clients()} always serializes a
+ * consistent snapshot of each entry.
  *
  * <p>This assumes State-of-the-World (SotW) xDS. Delta xDS ({@link #onV3StreamDeltaRequest}) is not tracked
  * yet; clients using delta would not appear here.
@@ -68,10 +66,8 @@ final class XdsClientStatusTracker implements DiscoveryServerCallbacks {
         // (onCancelHandler), which does NOT trigger those callbacks and would leak the entry. Tie removal to
         // the end of the underlying gRPC call instead, which covers every termination path. onStreamOpen is
         // invoked synchronously from the service method with the Armeria context mounted.
-        final ServiceRequestContext ctx = ServiceRequestContext.currentOrNull();
-        if (ctx != null) {
-            ctx.log().whenComplete().thenAccept(unused -> streams.remove(streamId));
-        }
+        final ServiceRequestContext ctx = ServiceRequestContext.current();
+        ctx.log().whenComplete().thenAccept(unused -> streams.remove(streamId));
     }
 
     @Override
@@ -92,43 +88,44 @@ final class XdsClientStatusTracker implements DiscoveryServerCallbacks {
             return;
         }
         // The node is populated only on the first request of a stream, so remember it once.
-        if (stream.nodeId.isEmpty() && request.hasNode()) {
-            stream.nodeId = request.getNode().getId();
-            stream.nodeCluster = request.getNode().getCluster();
-        }
-        // The authenticated application identity (set on the context by the discovery auth decorator) is what
-        // the control plane scopes the served snapshot by, so capture it once. It is distinct from the Envoy
-        // node id above; it stays empty for anonymous clients served the full (DEFAULT_GROUP) snapshot.
-        if (stream.appId.isEmpty()) {
-            final User user = AuthUtil.currentUserOrNull();
-            if (user instanceof UserWithAppIdentity) {
-                stream.appId = user.login();
+        synchronized (stream) {
+            if (stream.nodeId.isEmpty() && request.hasNode()) {
+                stream.nodeId = request.getNode().getId();
+                stream.nodeCluster = request.getNode().getCluster();
+            }
+            if (stream.appId.isEmpty()) {
+                final User user = AuthUtil.currentUserOrNull();
+                if (user instanceof UserWithAppIdentity) {
+                    stream.appId = user.login();
+                }
             }
         }
 
         // ADS multiplexes multiple type_urls over a single stream, so key the state by type_url.
         final TypeState type = stream.perType.computeIfAbsent(request.getTypeUrl(), unused -> new TypeState());
-        type.lastNonce = request.getResponseNonce();
-        type.lastSeenMillis = System.currentTimeMillis();
-        // Snapshot the subscribed resource names. An empty list means wildcard (subscribe to all).
-        // An initial subscribe has both version_info and response_nonce empty; ACK/NACK requests always
-        // carry a non-empty nonce. For initial subscribes, always update (even empty = wildcard). For
-        // ACK/NACK, skip empty lists: some clients omit resource_names to mean "no change to subscription".
         final List<String> names = request.getResourceNamesList();
         final boolean isInitialSubscribe = request.getVersionInfo().isEmpty() &&
                                            request.getResponseNonce().isEmpty();
-        if (isInitialSubscribe || !names.isEmpty()) {
-            type.resourceNames = ImmutableList.copyOf(names);
+        synchronized (type) {
+            type.lastNonce = request.getResponseNonce();
+            type.lastSeenMillis = System.currentTimeMillis();
+            // Snapshot the subscribed resource names. An empty list means wildcard (subscribe to all).
+            // An initial subscribe has both version_info and response_nonce empty; ACK/NACK requests always
+            // carry a non-empty nonce. For initial subscribes, always update (even empty = wildcard). For
+            // ACK/NACK, skip empty lists: some clients omit resource_names to mean "no change to
+            // subscription".
+            if (isInitialSubscribe || !names.isEmpty()) {
+                type.resourceNames = ImmutableList.copyOf(names);
+            }
+            if (request.hasErrorDetail()) {
+                type.status = AckStatus.NACKED;
+                type.nackReason = request.getErrorDetail().getMessage();
+            } else if (!request.getVersionInfo().isEmpty()) {
+                type.status = AckStatus.ACKED;
+                type.ackedVersion = request.getVersionInfo();
+                type.nackReason = "";
+            }
         }
-        if (request.hasErrorDetail()) {
-            type.status = AckStatus.NACKED;
-            type.nackReason = request.getErrorDetail().getMessage();
-        } else if (!request.getVersionInfo().isEmpty()) {
-            type.status = AckStatus.ACKED;
-            type.ackedVersion = request.getVersionInfo();
-            type.nackReason = "";
-        }
-        // Otherwise this is the initial subscribe; keep the INITIAL status.
 
         logger.debug("Received v3 stream request. streamId: {}, version: {}, resource_names: {}, " +
                      "response_nonce: {}, type_url: {}", streamId, request.getVersionInfo(),
@@ -146,7 +143,9 @@ final class XdsClientStatusTracker implements DiscoveryServerCallbacks {
         if (stream != null) {
             final TypeState type =
                     stream.perType.computeIfAbsent(response.getTypeUrl(), unused -> new TypeState());
-            type.lastSentVersion = response.getVersionInfo();
+            synchronized (type) {
+                type.lastSentVersion = response.getVersionInfo();
+            }
         }
         logger.debug("Sent v3 stream response. streamId: {}, version: {}, " +
                      "response_nonce: {}, type_url: {}", streamId, response.getVersionInfo(),
@@ -154,53 +153,61 @@ final class XdsClientStatusTracker implements DiscoveryServerCallbacks {
     }
 
     /**
-     * Returns the current state of every connected client as a JSON array. Each element describes one stream
-     * and the ACK/NACK state of every resource type subscribed on it. The view is eventually consistent: it
-     * may observe concurrent updates from the gRPC worker threads.
+     * Returns the current state of every connected client. Each element describes one stream and the ACK/NACK
+     * state of every resource type subscribed on it. Reads are protected by {@code synchronized} on each
+     * {@link StreamState} / {@link TypeState} object so that every entry is a consistent snapshot: no field
+     * within a single entry observes two different points in time.
      */
-    ArrayNode toClientsJson() {
-        final ArrayNode array = JsonNodeFactory.instance.arrayNode();
+    List<XdsClientStreamDto> clients() {
+        final ImmutableList.Builder<XdsClientStreamDto> result = ImmutableList.builder();
         streams.forEach((streamId, stream) -> {
-            final ObjectNode streamNode = array.addObject();
-            streamNode.put("streamId", streamId);
-            streamNode.put("nodeId", stream.nodeId);
-            streamNode.put("nodeCluster", stream.nodeCluster);
-            streamNode.put("appId", stream.appId);
-            streamNode.put("openedAt", stream.openedAtMillis);
-            final ArrayNode types = streamNode.putArray("types");
+            final String nodeId;
+            final String nodeCluster;
+            final String appId;
+            synchronized (stream) {
+                nodeId = stream.nodeId;
+                nodeCluster = stream.nodeCluster;
+                appId = stream.appId;
+            }
+            final ImmutableList.Builder<XdsTypeStateDto> typeList = ImmutableList.builder();
             stream.perType.forEach((typeUrl, type) -> {
-                final ObjectNode typeNode = types.addObject();
-                final boolean inSync = type.status == AckStatus.ACKED &&
-                                       !type.lastSentVersion.isEmpty() &&
-                                       type.ackedVersion.equals(type.lastSentVersion);
-                typeNode.put("typeUrl", typeUrl);
-                typeNode.put("status", type.status.name());
-                typeNode.put("ackedVersion", type.ackedVersion);
-                typeNode.put("servedVersion", type.lastSentVersion);
-                typeNode.put("inSync", inSync);
-                typeNode.put("nackReason", type.nackReason);
-                typeNode.put("lastNonce", type.lastNonce);
-                typeNode.put("lastSeen", type.lastSeenMillis);
-                final ArrayNode resourceNames = typeNode.putArray("resourceNames");
-                type.resourceNames.forEach(resourceNames::add);
+                final AckStatus status;
+                final String ackedVersion;
+                final String lastSentVersion;
+                final String nackReason;
+                final String lastNonce;
+                final long lastSeenMillis;
+                final List<String> resourceNames;
+                synchronized (type) {
+                    status = type.status;
+                    ackedVersion = type.ackedVersion;
+                    lastSentVersion = type.lastSentVersion;
+                    nackReason = type.nackReason;
+                    lastNonce = type.lastNonce;
+                    lastSeenMillis = type.lastSeenMillis;
+                    resourceNames = type.resourceNames;
+                }
+                typeList.add(new XdsTypeStateDto(typeUrl, status.name(), ackedVersion, lastSentVersion,
+                                                 nackReason, lastNonce, lastSeenMillis,
+                                                 ImmutableList.copyOf(resourceNames)));
             });
+            result.add(new XdsClientStreamDto(streamId, nodeId, nodeCluster,
+                                              appId, stream.openedAtMillis, typeList.build()));
         });
-        return array;
+        return result.build();
     }
 
     /**
-     * The state of a single discovery stream. {@link #nodeId}/{@link #nodeCluster} are mutated only from
-     * {@link #onV3StreamRequest} on the owning stream's gRPC thread; {@code volatile} makes the captured node
-     * visible to the reader of {@link #toClientsJson()}.
+     * The state of a single discovery stream. Mutable fields are guarded by {@code synchronized(this)}.
      */
     private static final class StreamState {
 
         private final long openedAtMillis;
         private final Map<String, TypeState> perType = new ConcurrentHashMap<>();
 
-        private volatile String nodeId = "";
-        private volatile String nodeCluster = "";
-        private volatile String appId = "";
+        private String nodeId = "";
+        private String nodeCluster = "";
+        private String appId = "";
 
         StreamState(long openedAtMillis) {
             this.openedAtMillis = openedAtMillis;
@@ -212,13 +219,13 @@ final class XdsClientStatusTracker implements DiscoveryServerCallbacks {
      */
     private static final class TypeState {
 
-        private volatile AckStatus status = AckStatus.INITIAL;
-        private volatile String ackedVersion = "";
-        private volatile String lastNonce = "";
-        private volatile String nackReason = "";
-        private volatile String lastSentVersion = "";
-        private volatile long lastSeenMillis;
+        private AckStatus status = AckStatus.INITIAL;
+        private String ackedVersion = "";
+        private String lastNonce = "";
+        private String nackReason = "";
+        private String lastSentVersion = "";
+        private long lastSeenMillis;
         // The resource names the client subscribed to. An empty list means wildcard.
-        private volatile List<String> resourceNames = ImmutableList.of();
+        private List<String> resourceNames = ImmutableList.of();
     }
 }

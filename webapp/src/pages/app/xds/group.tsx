@@ -36,7 +36,7 @@ import { ResourceHistory } from 'dogma/features/xds/ResourceHistory';
 import { GroupOverview } from 'dogma/features/xds/GroupOverview';
 import { ResourceReferences } from 'dogma/features/xds/ResourceReferences';
 import { Loading } from 'dogma/common/components/Loading';
-import { XDS_RESOURCE_META } from 'dogma/features/xds/XdsTypes';
+import { XDS_RESOURCE_META, XdsResourceType } from 'dogma/features/xds/XdsTypes';
 import { useXdsRoute } from 'dogma/features/xds/useXdsRoute';
 import { useGroupReadAccess } from 'dogma/features/xds/useGroupReadAccess';
 import { useGroupAdminAccess } from 'dogma/features/xds/useGroupAdminAccess';
@@ -44,6 +44,16 @@ import { useGroupExists } from 'dogma/features/xds/useGroupExists';
 
 // Sections that manage group-level access and are therefore restricted to group admins.
 const ADMIN_ONLY_SECTIONS = ['permissions', 'credentials', 'dangerZone'];
+
+const SECTION_TITLE: Record<string, string> = {
+  overview: 'Overview',
+  permissions: 'Permissions',
+  k8sAggregators: 'K8s Aggregators',
+  credentials: 'Credentials',
+  dangerZone: 'Danger Zone',
+  history: 'History',
+  references: 'References',
+};
 
 const GroupDetailPage = () => {
   const { group, section } = useXdsRoute();
@@ -100,22 +110,7 @@ const GroupDetailPage = () => {
   if (ADMIN_ONLY_SECTIONS.includes(section) && adminLoading) {
     return <Loading />;
   }
-  const title =
-    section === 'overview'
-      ? 'Overview'
-      : section === 'permissions'
-        ? 'Permissions'
-        : section === 'k8sAggregators'
-          ? 'K8s Aggregators'
-          : section === 'credentials'
-            ? 'Credentials'
-            : section === 'dangerZone'
-              ? 'Danger Zone'
-              : section === 'history'
-                ? 'History'
-                : section === 'references'
-                  ? 'References'
-                  : `${XDS_RESOURCE_META[section].label}s`;
+  const title = SECTION_TITLE[section] ?? `${XDS_RESOURCE_META[section as XdsResourceType].label}s`;
   return (
     <Box>
       <Breadcrumb mb={4} color="gray.500" fontSize="sm">

@@ -20,6 +20,7 @@ import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.JSON_MES
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -36,9 +37,6 @@ import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.JsonNodeFactory;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
@@ -230,85 +228,92 @@ public final class ControlPlaneService extends XdsResourceWatchingService {
      * </ul>
      * Each resource type is rendered as {@code {version, resources: {name: <proto-json>}}}.
      */
-    CompletableFuture<JsonNode> snapshotJson(@Nullable String group, @Nullable String appId) {
+    CompletableFuture<XdsSnapshotDto> snapshot(@Nullable String group, @Nullable String appId) {
         return CompletableFuture.supplyAsync(() -> {
-            final ObjectNode root = JsonNodeFactory.instance.objectNode();
+            final String resolvedAppId;
+            final List<String> readableGroups;
+            final Boolean served;
+            final String resolvedGroup;
             final CentralDogmaSnapshot snapshot;
             if (appId != null) {
-                root.put("appId", appId);
+                resolvedAppId = appId;
+                resolvedGroup = null;
                 final String key = appCacheKey(appId);
                 final ScopedClient scopedClient = scopedClients.get(key);
-                if (scopedClient != null) {
-                    final Set<String> readableGroups = scopedClient.readableGroups;
-                    if (readableGroups != null) {
-                        final ArrayNode groupsNode = root.putArray("readableGroups");
-                        readableGroups.forEach(groupsNode::add);
-                    }
-                }
+                final Set<String> groups = scopedClient != null ? scopedClient.readableGroups : null;
+                readableGroups = groups != null ? ImmutableList.copyOf(groups) : null;
                 // The exact snapshot served to this app identity, scoped to the groups it can read.
                 snapshot = (CentralDogmaSnapshot) cache.getSnapshot(key);
-                root.put("served", snapshot != null);
+                served = snapshot != null;
             } else if (group != null) {
-                root.put("group", group);
+                resolvedAppId = null;
+                readableGroups = null;
+                served = null;
+                resolvedGroup = group;
                 // snapshot(Set) is a pure read of the current state.
                 snapshot = centralDogmaXdsResources.snapshot(ImmutableSet.of(group));
             } else {
+                resolvedAppId = null;
+                readableGroups = null;
+                served = null;
+                resolvedGroup = null;
                 // Reuse the full snapshot already published to the cache. The no-arg snapshot() must not be
                 // called here because it has side effects (it resets the per-type "updated" flags, which would
                 // make the next updateAllSnapshots() skip rebuilding the changed resources).
                 snapshot = (CentralDogmaSnapshot) cache.getSnapshot(DEFAULT_GROUP);
             }
+            final XdsResourceTypeDto listeners;
+            final XdsResourceTypeDto routes;
+            final XdsResourceTypeDto clusters;
+            final XdsResourceTypeDto endpoints;
             if (snapshot != null) {
-                putType(root, "listeners", snapshot.listenersVersion(), snapshot.listeners().resources());
-                putType(root, "routes", snapshot.routesVersion(), snapshot.routes().resources());
-                putType(root, "clusters", snapshot.clustersVersion(), snapshot.clusters().resources());
-                putType(root, "endpoints", snapshot.endpointsVersion(), snapshot.endpoints().resources());
+                listeners = toResourceTypeDto(snapshot.listenersVersion(), snapshot.listeners().resources());
+                routes = toResourceTypeDto(snapshot.routesVersion(), snapshot.routes().resources());
+                clusters = toResourceTypeDto(snapshot.clustersVersion(), snapshot.clusters().resources());
+                endpoints = toResourceTypeDto(snapshot.endpointsVersion(), snapshot.endpoints().resources());
+            } else {
+                listeners = null;
+                routes = null;
+                clusters = null;
+                endpoints = null;
             }
-            return root;
+            return new XdsSnapshotDto(resolvedAppId, readableGroups, served, resolvedGroup,
+                                      listeners, routes, clusters, endpoints);
         }, controlPlaneExecutor);
     }
 
     /**
      * Lists the application identities that have connected to the discovery API on this instance, together with
      * the groups each currently has READ access to. The exact served snapshot for each is available through
-     * {@link #snapshotJson(String, String)} with its {@code appId}.
+     * {@link #snapshot(String, String)} with its {@code appId}.
      */
-    ArrayNode appsJson() {
-        final ArrayNode array = JsonNodeFactory.instance.arrayNode();
+    List<XdsAppDto> apps() {
+        final ImmutableList.Builder<XdsAppDto> result = ImmutableList.builder();
         scopedClients.forEach((key, scopedClient) -> {
-            final ObjectNode node = array.addObject();
-            node.put("appId", scopedClient.appIdentity.login());
-            final ArrayNode groupsNode = node.putArray("readableGroups");
             final Set<String> groups = scopedClient.readableGroups;
-            if (groups != null) {
-                groups.forEach(groupsNode::add);
-            }
+            result.add(new XdsAppDto(
+                    scopedClient.appIdentity.login(),
+                    groups != null ? ImmutableList.copyOf(groups) : ImmutableList.of()));
         });
-        return array;
+        return result.build();
     }
 
     private static String appCacheKey(String appId) {
         return "app/" + appId;
     }
 
-    private static void putType(ObjectNode root, String key, String version,
-                                Map<String, ? extends Message> resources) {
-        root.set(key, toTypeNode(version, resources));
-    }
-
-    private static ObjectNode toTypeNode(String version, Map<String, ? extends Message> resources) {
-        final ObjectNode typeNode = JsonNodeFactory.instance.objectNode();
-        typeNode.put("version", version);
-        final ObjectNode resourcesNode = typeNode.putObject("resources");
+    private static XdsResourceTypeDto toResourceTypeDto(String version,
+                                                         Map<String, ? extends Message> resources) {
+        final ImmutableMap.Builder<String, JsonNode> builder = ImmutableMap.builder();
         resources.forEach((name, message) -> {
             try {
-                resourcesNode.set(name, Jackson.readTree(JSON_MESSAGE_MARSHALLER.writeValueAsString(message)));
+                builder.put(name, Jackson.readTree(JSON_MESSAGE_MARSHALLER.writeValueAsString(message)));
             } catch (IOException e) {
                 // Should never reach here.
                 throw new UncheckedIOException(e);
             }
         });
-        return typeNode;
+        return new XdsResourceTypeDto(version, builder.build());
     }
 
     @Nullable
