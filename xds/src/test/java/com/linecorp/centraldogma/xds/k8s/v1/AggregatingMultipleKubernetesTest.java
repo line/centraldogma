@@ -49,6 +49,7 @@ import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
@@ -129,14 +130,14 @@ class AggregatingMultipleKubernetesTest {
 
         final Repository fooGroup = dogma.projectManager().get(XDS_CENTRAL_DOGMA_PROJECT).repos().get("foo");
         final Entry<JsonNode> aggregatorEntry =
-                fooGroup.get(Revision.HEAD, Query.ofJson(
-                        K8S_ENDPOINT_AGGREGATORS_DIRECTORY + aggregatorId + ".json")).join();
-        assertAggregator(aggregatorEntry.contentAsText(), expectedAggregator);
+                fooGroup.get(Revision.HEAD, Query.ofYaml(
+                        K8S_ENDPOINT_AGGREGATORS_DIRECTORY + aggregatorId + ".yaml")).join();
+        assertAggregator(Jackson.writeValueAsString(aggregatorEntry.content()), expectedAggregator);
 
         await().until(() -> fooGroup.normalizeNow(Revision.HEAD).equals(aggregatorEntry.revision().forward(1)));
 
-        final Entry<JsonNode> endpointEntry = fooGroup.getOrNull(Revision.HEAD, Query.ofJson(
-                K8S_ENDPOINTS_DIRECTORY + aggregatorId + ".json")).join();
+        final Entry<JsonNode> endpointEntry = fooGroup.getOrNull(Revision.HEAD, Query.ofYaml(
+                K8S_ENDPOINTS_DIRECTORY + aggregatorId + ".yaml")).join();
         assertThatJson(endpointEntry.content()).isEqualTo(
                 '{' +
                 "  \"clusterName\": \"groups/foo/k8s/clusters/foo-k8s-cluster/1\"," +
@@ -208,8 +209,8 @@ class AggregatingMultipleKubernetesTest {
         // the debouncing logic.
         await().until(() -> fooGroup.normalizeNow(Revision.HEAD).equals(
                 endpointEntry.revision().forward(1)));
-        final Entry<JsonNode> endpointEntry1 = fooGroup.getOrNull(Revision.HEAD, Query.ofJson(
-                K8S_ENDPOINTS_DIRECTORY + aggregatorId + ".json")).join();
+        final Entry<JsonNode> endpointEntry1 = fooGroup.getOrNull(Revision.HEAD, Query.ofYaml(
+                K8S_ENDPOINTS_DIRECTORY + aggregatorId + ".yaml")).join();
         assertThatJson(endpointEntry1.content()).isEqualTo(
                 '{' +
                 "  \"clusterName\": \"groups/foo/k8s/clusters/foo-k8s-cluster/1\"," +
@@ -274,8 +275,8 @@ class AggregatingMultipleKubernetesTest {
         await().until(() -> fooGroup.normalizeNow(Revision.HEAD).equals(
                 // 1 + 2 because of the aggregator update and endpoint update
                 endpointEntry.revision().forward(3)));
-        final Entry<JsonNode> endpointEntry2 = fooGroup.getOrNull(Revision.HEAD, Query.ofJson(
-                K8S_ENDPOINTS_DIRECTORY + aggregatorId + ".json")).join();
+        final Entry<JsonNode> endpointEntry2 = fooGroup.getOrNull(Revision.HEAD, Query.ofYaml(
+                K8S_ENDPOINTS_DIRECTORY + aggregatorId + ".yaml")).join();
         assertThatJson(endpointEntry2.content()).isEqualTo(
                 '{' +
                 "  \"clusterName\": \"groups/foo/k8s/clusters/foo-k8s-cluster/1\"," +

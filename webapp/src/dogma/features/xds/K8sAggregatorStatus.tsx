@@ -22,7 +22,7 @@ import { useGetGroupHistoryQuery, useGetResourceQuery } from 'dogma/features/xds
 
 // The aggregator writes its generated endpoints to this path; reading it tells us whether (and when) the
 // aggregator has produced endpoints from Kubernetes.
-const generatedPath = (id: string) => `/k8s/endpoints/${id}.json`;
+const generatedPath = (id: string) => `/k8s/endpoints/${id}.yaml`;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function countEndpoints(content: any): { localities: number; endpoints: number } {

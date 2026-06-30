@@ -152,15 +152,15 @@ class XdsKubernetesNodeIpExtractorTest {
         final Repository fooGroup = dogma.projectManager().get(XDS_CENTRAL_DOGMA_PROJECT)
                                          .repos().get("foo");
         final Entry<JsonNode> aggregatorEntry =
-                fooGroup.get(Revision.HEAD, Query.ofJson(
-                        K8S_ENDPOINT_AGGREGATORS_DIRECTORY + aggregatorId + ".json")).join();
+                fooGroup.get(Revision.HEAD, Query.ofYaml(
+                        K8S_ENDPOINT_AGGREGATORS_DIRECTORY + aggregatorId + ".yaml")).join();
 
         // KubernetesEndpointsUpdater commits the resolved endpoints in the next revision.
         await().until(() -> fooGroup.normalizeNow(Revision.HEAD)
                                     .equals(aggregatorEntry.revision().forward(1)));
 
         final Entry<JsonNode> endpointEntry = fooGroup.get(
-                Revision.HEAD, Query.ofJson(K8S_ENDPOINTS_DIRECTORY + aggregatorId + ".json")).join();
+                Revision.HEAD, Query.ofYaml(K8S_ENDPOINTS_DIRECTORY + aggregatorId + ".yaml")).join();
 
         // The endpoints must use the label values resolved by LabelBasedNodeIpExtractor,
         // not the default InternalIP addresses (1.1.1.1 / 2.2.2.2).
@@ -228,13 +228,13 @@ class XdsKubernetesNodeIpExtractorTest {
         final Repository fooGroup = dogma.projectManager().get(XDS_CENTRAL_DOGMA_PROJECT)
                                          .repos().get("foo");
         final Entry<JsonNode> aggregatorEntry =
-                fooGroup.get(Revision.HEAD, Query.ofJson(
-                        K8S_ENDPOINT_AGGREGATORS_DIRECTORY + aggregatorId + ".json")).join();
+                fooGroup.get(Revision.HEAD, Query.ofYaml(
+                        K8S_ENDPOINT_AGGREGATORS_DIRECTORY + aggregatorId + ".yaml")).join();
         await().until(() -> fooGroup.normalizeNow(Revision.HEAD)
                                     .equals(aggregatorEntry.revision().forward(1)));
 
         final Entry<JsonNode> endpointEntry = fooGroup.get(
-                Revision.HEAD, Query.ofJson(K8S_ENDPOINTS_DIRECTORY + aggregatorId + ".json")).join();
+                Revision.HEAD, Query.ofYaml(K8S_ENDPOINTS_DIRECTORY + aggregatorId + ".yaml")).join();
         assertThatJson(endpointEntry.content()).isEqualTo(
                 '{' +
                 "  \"clusterName\": \"groups/foo/k8s/clusters/" + aggregatorId + "\"," +

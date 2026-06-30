@@ -43,9 +43,12 @@ import com.linecorp.armeria.common.util.SafeCloseable;
 import com.linecorp.armeria.internal.common.RequestContextUtil;
 import com.linecorp.armeria.internal.common.util.ReentrantShortLock;
 import com.linecorp.centraldogma.common.Author;
+import com.linecorp.centraldogma.common.Change;
+import com.linecorp.centraldogma.common.ChangeConflictException;
 import com.linecorp.centraldogma.common.EntryNotFoundException;
 import com.linecorp.centraldogma.common.EntryType;
 import com.linecorp.centraldogma.common.Markup;
+import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.RedundantChangeException;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.Jackson;
@@ -170,11 +173,12 @@ final class XdsEndpointUpdateScheduler {
                 }
             }
 
-            final ContentTransformer<JsonNode> transformer = new ContentTransformer<>(
-                    fileName, EntryType.JSON, new BatchUpdateTransformer(toRegister, toDeregister));
-
+            // Use a glob to find both the .yaml file and its legacy .json counterpart in one atomic call,
+            // avoiding a race window where a migration commit could land between two sequential find() calls.
             final Repository repository = xdsResourceManager.xdsProject().repos().get(group);
-            repository.find(Revision.HEAD, fileName, FIND_ONE_WITHOUT_CONTENT).handle((entries, cause) -> {
+            final String baseFileName = fileName.substring(0, fileName.length() - 5);
+            repository.find(Revision.HEAD, baseFileName + ".*", FIND_ONE_WITHOUT_CONTENT)
+                      .handle((entries, cause) -> {
                 if (cause != null) {
                     copied.forEach(pendingUpdate -> pendingUpdate.streamObserver.onError(cause));
                     return null;
@@ -186,40 +190,105 @@ final class XdsEndpointUpdateScheduler {
                     copied.forEach(pendingUpdate -> pendingUpdate.streamObserver.onError(runtimeException));
                     return null;
                 }
+                final String foundFileName = entries.keySet().iterator().next();
+                if (foundFileName.endsWith(".yaml")) {
+                    executeTransform(fileName, EntryType.YAML, copied, toRegister, toDeregister);
+                } else {
+                    executeTransformWithMigration(repository, foundFileName,
+                                                  copied, toRegister, toDeregister);
+                }
+                return null;
+            });
+        }
+
+        private void executeTransform(String targetFileName, EntryType entryType,
+                                      List<PendingUpdate> copied,
+                                      List<LocalityLbEndpoint> toRegister,
+                                      List<LocalityLbEndpoint> toDeregister) {
+            final ContentTransformer<JsonNode> transformer = new ContentTransformer<>(
+                    targetFileName, entryType, new BatchUpdateTransformer(toRegister, toDeregister));
+            final String commitMessage =
+                    "Batch update for " + endpointName + " in group " + group + ": " +
+                    toRegister.size() + " register, " + toDeregister.size() + " deregister";
+            xdsResourceManager.commandExecutor()
+                              .execute(Command.transform(
+                                      null, Author.SYSTEM, XDS_CENTRAL_DOGMA_PROJECT, group, Revision.HEAD,
+                                      commitMessage, "", Markup.PLAINTEXT, transformer))
+                              .handle((result, cause2) -> {
+                                  if (cause2 != null) {
+                                      final Throwable peeled = Exceptions.peel(cause2);
+                                      if (!(peeled instanceof RedundantChangeException)) {
+                                          copied.forEach(pendingUpdate -> pendingUpdate
+                                                  .streamObserver.onError(peeled));
+                                          return null;
+                                      }
+                                      // If the change is redundant, we just ignore it and complete
+                                      // the stream observer without error.
+                                  }
+                                  completeUpdates(copied);
+                                  return null;
+                              });
+        }
+
+        private void executeTransformWithMigration(Repository repository, String legacyFileName,
+                                                    List<PendingUpdate> copied,
+                                                    List<LocalityLbEndpoint> toRegister,
+                                                    List<LocalityLbEndpoint> toDeregister) {
+            // Read the legacy .json file with content so we can transform and migrate atomically.
+            repository.getOrNull(Revision.HEAD, Query.ofJson(legacyFileName)).handle((entry, cause) -> {
+                if (cause != null) {
+                    copied.forEach(p -> p.streamObserver.onError(cause));
+                    return null;
+                }
+                if (entry == null) {
+                    // .json was removed concurrently (e.g. by updateEndpoint migration); use .yaml.
+                    executeTransform(fileName, EntryType.YAML, copied, toRegister, toDeregister);
+                    return null;
+                }
+                final JsonNode newContent = new BatchUpdateTransformer(toRegister, toDeregister)
+                        .apply(entry.revision(), entry.content());
                 final String commitMessage =
                         "Batch update for " + endpointName + " in group " + group + ": " +
                         toRegister.size() + " register, " + toDeregister.size() + " deregister";
+                final ImmutableList<Change<?>> changes = ImmutableList.of(
+                        Change.ofRemoval(legacyFileName), Change.ofYamlUpsert(fileName, newContent));
                 xdsResourceManager.commandExecutor()
-                                  .execute(Command.transform(
-                                          null, Author.SYSTEM, XDS_CENTRAL_DOGMA_PROJECT, group, Revision.HEAD,
-                                          commitMessage, "", Markup.PLAINTEXT, transformer))
+                                  .execute(Command.push(Author.SYSTEM, XDS_CENTRAL_DOGMA_PROJECT, group,
+                                                        Revision.HEAD, commitMessage, "", Markup.PLAINTEXT,
+                                                        changes))
                                   .handle((result, cause2) -> {
                                       if (cause2 != null) {
                                           final Throwable peeled = Exceptions.peel(cause2);
-                                          if (!(peeled instanceof RedundantChangeException)) {
-                                              copied.forEach(pendingUpdate -> pendingUpdate
-                                                      .streamObserver.onError(peeled));
+                                          if (peeled instanceof ChangeConflictException &&
+                                              peeled.getMessage().contains("non-existent file")) {
+                                              // .json removed concurrently; retry with .yaml.
+                                              executeTransform(fileName, EntryType.YAML,
+                                                               copied, toRegister, toDeregister);
                                               return null;
                                           }
-                                          // If the change is redundant, we just ignore it and complete
-                                          // the stream observer without error.
-                                      }
-                                      copied.forEach(pendingUpdate -> {
-                                          final StreamObserver<?> streamObserver = pendingUpdate.streamObserver;
-                                          if (pendingUpdate.register) {
-                                              //noinspection unchecked
-                                              ((StreamObserver<LocalityLbEndpoint> ) streamObserver).onNext(
-                                                      pendingUpdate.endpoint);
-                                          } else {
-                                              //noinspection unchecked
-                                              ((StreamObserver<Empty>) streamObserver).onNext(
-                                                      Empty.getDefaultInstance());
+                                          if (!(peeled instanceof RedundantChangeException)) {
+                                              copied.forEach(p -> p.streamObserver.onError(peeled));
+                                              return null;
                                           }
-                                          streamObserver.onCompleted();
-                                      });
+                                      }
+                                      completeUpdates(copied);
                                       return null;
                                   });
                 return null;
+            });
+        }
+
+        private void completeUpdates(List<PendingUpdate> copied) {
+            copied.forEach(pendingUpdate -> {
+                final StreamObserver<?> streamObserver = pendingUpdate.streamObserver;
+                if (pendingUpdate.register) {
+                    //noinspection unchecked
+                    ((StreamObserver<LocalityLbEndpoint>) streamObserver).onNext(pendingUpdate.endpoint);
+                } else {
+                    //noinspection unchecked
+                    ((StreamObserver<Empty>) streamObserver).onNext(Empty.getDefaultInstance());
+                }
+                streamObserver.onCompleted();
             });
         }
     }

@@ -26,6 +26,8 @@ import java.util.concurrent.ScheduledExecutorService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
+import com.fasterxml.jackson.databind.JsonNode;
+
 import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.server.storage.project.Project;
@@ -68,6 +70,13 @@ class XdsResourceWatchingServiceTest {
               .push().join();
         assertThat(queue.take()).isEqualTo("/a.json removed");
         assertThat(queue.take()).isEqualTo("diff handled: bar");
+
+        // YAML files are also handled (new format).
+        client.forRepo("foo", "bar").commit("Add a YAML file", Change.ofYamlUpsert("/c.yaml", "key: value"))
+              .push().join();
+        assertThat(queue.take()).isEqualTo("handleXdsResource: /c.yaml");
+        assertThat(queue.take()).isEqualTo("diff handled: bar");
+
         client.removeRepository("foo", "bar").join();
         assertThat(queue.take()).isEqualTo("bar removed");
     }
@@ -91,7 +100,7 @@ class XdsResourceWatchingServiceTest {
         }
 
         @Override
-        protected void handleXdsResource(String path, String contentAsText, String groupName)
+        protected void handleXdsResource(String path, JsonNode content, String groupName)
                 throws IOException {
             queue.add("handleXdsResource: " + path);
         }

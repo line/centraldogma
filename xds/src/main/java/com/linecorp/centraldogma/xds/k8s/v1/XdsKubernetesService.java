@@ -141,13 +141,13 @@ public final class XdsKubernetesService extends XdsKubernetesServiceImplBase {
                                          .asRuntimeException();
         }
         final Author author = currentAuthor();
-        final String fileName = K8S_ENDPOINT_AGGREGATORS_DIRECTORY + aggregatorId + ".json";
+        final String fileName = K8S_ENDPOINT_AGGREGATORS_DIRECTORY + aggregatorId + ".yaml";
         validateKubernetesEndpointAndPush(
                 responseObserver, kubernetesLocalityLbEndpointsList, group, fileName,
                 () -> xdsResourceManager.push(
                         responseObserver, group, kubernetesEndpointName,
                         fileName,
-                        "Create kubernetes endpoint: " + kubernetesEndpointName, aggregator, author, true));
+                        "Create kubernetes endpoint: " + kubernetesEndpointName, aggregator, author));
     }
 
     private void validateKubernetesEndpointAndPush(

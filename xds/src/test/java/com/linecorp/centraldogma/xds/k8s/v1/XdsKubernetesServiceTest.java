@@ -56,6 +56,7 @@ import com.linecorp.armeria.common.RequestHeaders;
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.credential.CreateCredentialRequest;
 import com.linecorp.centraldogma.server.internal.credential.AccessTokenCredential;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
@@ -221,9 +222,9 @@ class XdsKubernetesServiceTest {
         assertAggregator(json, expectedAggregator);
         final Repository fooGroup = dogma.projectManager().get(XDS_CENTRAL_DOGMA_PROJECT).repos().get("foo");
         final Entry<JsonNode> entry =
-                fooGroup.get(Revision.HEAD, Query.ofJson(
-                        K8S_ENDPOINT_AGGREGATORS_DIRECTORY + aggregatorId + ".json")).join();
-        assertAggregator(entry.contentAsText(), expectedAggregator);
+                fooGroup.get(Revision.HEAD, Query.ofYaml(
+                        K8S_ENDPOINT_AGGREGATORS_DIRECTORY + aggregatorId + ".yaml")).join();
+        assertAggregator(Jackson.writeValueAsString(entry.content()), expectedAggregator);
         final ClusterLoadAssignment loadAssignment = clusterLoadAssignment(clusterName, 30000);
         checkEndpointsViaDiscoveryRequest(dogma.httpClient().uri(), loadAssignment, clusterName);
 
@@ -232,10 +233,11 @@ class XdsKubernetesServiceTest {
         // so that endpoints are not updated one by one.
         final Entry<JsonNode> clusterEntry =
                 fooGroup.get(entry.revision().forward(1),
-                             Query.ofJson("/k8s/endpoints/" + aggregatorId + ".json"))
+                             Query.ofYaml("/k8s/endpoints/" + aggregatorId + ".yaml"))
                         .join();
         final ClusterLoadAssignment.Builder clusterLoadAssignmentBuilder = ClusterLoadAssignment.newBuilder();
-        JSON_MESSAGE_MARSHALLER.mergeValue(clusterEntry.contentAsText(), clusterLoadAssignmentBuilder);
+        JSON_MESSAGE_MARSHALLER.mergeValue(Jackson.writeValueAsString(clusterEntry.content()),
+                                           clusterLoadAssignmentBuilder);
         assertThat(clusterLoadAssignmentBuilder.build()).isEqualTo(loadAssignment);
 
         dispatcher.queue().forEach(req -> {

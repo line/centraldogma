@@ -23,9 +23,11 @@ import static java.util.Objects.requireNonNull;
 import java.io.IOException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.util.function.Consumer;
 import java.util.regex.Pattern;
 
 import org.curioswitch.common.protobuf.json.MessageMarshaller;
+import org.jspecify.annotations.Nullable;
 import org.reflections.Reflections;
 import org.reflections.scanners.SubTypesScanner;
 
@@ -178,31 +180,61 @@ public final class XdsResourceManager {
 
     public <T extends Message> void push(
             StreamObserver<T> responseObserver, String group, String resourceName, String fileName,
-            String summary, T resource, Author author, boolean create) {
+            String summary, T resource, Author author) {
         final Change<JsonNode> change;
         try {
             final String jsonText = JSON_MESSAGE_MARSHALLER.writeValueAsString(resource);
             final JsonNode jsonNode = Jackson.readTree(jsonText);
-            if (create) {
-                change = Change.ofJsonPatch(fileName, null, jsonNode);
-            } else {
-                change = Change.ofJsonUpsert(fileName, jsonNode);
-            }
+            // ofJsonPatch with null oldJsonNode means "expect the file to not exist yet", giving us an atomic
+            // create-or-fail that prevents a concurrent create from silently overwriting the first writer.
+            // APPLY_JSON_PATCH works on .yaml files (see Change.ofJsonPatch javadoc).
+            change = Change.ofJsonPatch(fileName, null, jsonNode);
         } catch (IOException e) {
             // This could happen when the message has a type that isn't registered to JSON_MESSAGE_MARSHALLER.
             responseObserver.onError(Status.INTERNAL.withCause(new IllegalStateException(
                     "failed to convert message to JSON: " + resource, e)).asRuntimeException());
             return;
         }
+        // We still need to check for a legacy .json file explicitly, because the atomic ofJsonPatch above
+        // only guards against a concurrent .yaml creation — it won't detect an existing .json counterpart.
+        final Repository repository = xdsProject.repos().get(group);
+        final String baseFileName = fileName.substring(0, fileName.length() - 5);
+        repository.find(Revision.HEAD, baseFileName + ".*", FIND_ONE_WITHOUT_CONTENT)
+                  .handle((entries, cause) -> {
+            if (cause != null) {
+                responseObserver.onError(cause);
+                return null;
+            }
+            if (!entries.isEmpty()) {
+                responseObserver.onError(
+                        Status.ALREADY_EXISTS
+                                .withDescription("Resource already exists: " + resourceName)
+                                .asRuntimeException());
+                return null;
+            }
+            executePush(responseObserver, group, resourceName, summary, author, resource,
+                        change, true, null);
+            return null;
+        });
+    }
+
+    private <T extends Message> void executePush(
+            StreamObserver<T> responseObserver, String group, String resourceName,
+            String summary, Author author, T resource, Change<JsonNode> change,
+            boolean create, @Nullable String legacyFileToRemove) {
+        final ImmutableList<Change<?>> changes =
+                legacyFileToRemove != null
+                ? ImmutableList.of(Change.ofRemoval(legacyFileToRemove), change)
+                : ImmutableList.of(change);
         commandExecutor.execute(Command.push(author, XDS_CENTRAL_DOGMA_PROJECT, group, Revision.HEAD,
-                                             summary, "", Markup.PLAINTEXT, ImmutableList.of(change)))
+                                             summary, "", Markup.PLAINTEXT, changes))
                        .handle((unused, cause) -> {
                            if (cause != null) {
                                final Throwable peeled = Exceptions.peel(cause);
                                if (create && peeled instanceof ChangeConflictException) {
+                                   // A concurrent create raced past the find() check and created the file first.
                                    responseObserver.onError(
                                            Status.ALREADY_EXISTS
-                                                   .withCause(peeled)
                                                    .withDescription("Resource already exists: " + resourceName)
                                                    .asRuntimeException());
                                    return null;
@@ -213,7 +245,6 @@ public final class XdsResourceManager {
                                    responseObserver.onCompleted();
                                    return null;
                                }
-
                                responseObserver.onError(cause);
                                return null;
                            }
@@ -225,7 +256,11 @@ public final class XdsResourceManager {
 
     public static String fileName(String group, String resourceName) {
         // Remove groups/{group}
-        return resourceName.substring(7 + group.length()) + ".json";
+        return resourceName.substring(7 + group.length()) + ".yaml";
+    }
+
+    private static String toLegacyJsonFileName(String yamlFileName) {
+        return yamlFileName.substring(0, yamlFileName.length() - 5) + ".json";
     }
 
     public <T extends Message> void update(StreamObserver<T> responseObserver, String group,
@@ -236,9 +271,22 @@ public final class XdsResourceManager {
     public <T extends Message> void update(StreamObserver<T> responseObserver, String group,
                                            String resourceName, String fileName, String summary, T resource,
                                            Author author) {
-        updateOrDelete(responseObserver, group, resourceName, fileName,
-                       () -> push(responseObserver, group, resourceName, fileName,
-                                  summary, resource, author, false));
+        updateOrDelete(responseObserver, group, resourceName, fileName, foundFileName -> {
+            final String legacyFileToRemove = foundFileName.endsWith(".json") ? foundFileName : null;
+            final String targetFileName = legacyFileToRemove != null ? fileName : foundFileName;
+            final Change<JsonNode> change;
+            try {
+                final String jsonText = JSON_MESSAGE_MARSHALLER.writeValueAsString(resource);
+                final JsonNode jsonNode = Jackson.readTree(jsonText);
+                change = Change.ofYamlUpsert(targetFileName, jsonNode);
+            } catch (IOException e) {
+                responseObserver.onError(Status.INTERNAL.withCause(new IllegalStateException(
+                        "failed to convert message to JSON: " + resource, e)).asRuntimeException());
+                return;
+            }
+            executePush(responseObserver, group, resourceName, summary, author, resource,
+                        change, false, legacyFileToRemove);
+        });
     }
 
     public void delete(StreamObserver<Empty> responseObserver, String group,
@@ -248,10 +296,10 @@ public final class XdsResourceManager {
 
     public void delete(StreamObserver<Empty> responseObserver, String group,
                        String resourceName, String fileName, String summary, Author author) {
-        final Runnable deleteTask = () ->
+        updateOrDelete(responseObserver, group, resourceName, fileName, foundFileName ->
                 commandExecutor.execute(Command.push(author, XDS_CENTRAL_DOGMA_PROJECT, group,
                                                      Revision.HEAD, summary, "", Markup.PLAINTEXT,
-                                                     ImmutableList.of(Change.ofRemoval(fileName))))
+                                                     ImmutableList.of(Change.ofRemoval(foundFileName))))
                                .handle((unused, cause) -> {
                                    if (cause != null) {
                                        responseObserver.onError(
@@ -261,25 +309,29 @@ public final class XdsResourceManager {
                                    responseObserver.onNext(Empty.getDefaultInstance());
                                    responseObserver.onCompleted();
                                    return null;
-                               });
-        updateOrDelete(responseObserver, group, resourceName, fileName, deleteTask);
+                               }));
     }
 
     public void updateOrDelete(StreamObserver<?> responseObserver, String group, String resourceName,
-                               String fileName, Runnable task) {
+                               String fileName, Consumer<String> task) {
+        // Use a glob to find both the .yaml file and its legacy .json counterpart in one atomic call.
+        // Two sequential find() calls would have a race window: a migration commit that atomically removes
+        // .json and creates .yaml could land between the two calls, making the resource appear missing.
         final Repository repository = xdsProject.repos().get(group);
-        repository.find(Revision.HEAD, fileName, FIND_ONE_WITHOUT_CONTENT).handle((entries, cause) -> {
+        final String baseFileName = fileName.substring(0, fileName.length() - 5);
+        repository.find(Revision.HEAD, baseFileName + ".*", FIND_ONE_WITHOUT_CONTENT)
+                  .handle((entries, cause) -> {
             if (cause != null) {
                 responseObserver.onError(cause);
                 return null;
             }
             if (entries.isEmpty()) {
-                // TODO(minwoox): implement allowMissing.
-                responseObserver.onError(Status.NOT_FOUND.withDescription("Resource not found: " + resourceName)
-                                                         .asRuntimeException());
+                responseObserver.onError(
+                        Status.NOT_FOUND.withDescription("Resource not found: " + resourceName)
+                                        .asRuntimeException());
                 return null;
             }
-            task.run();
+            task.accept(entries.keySet().iterator().next());
             return null;
         });
     }

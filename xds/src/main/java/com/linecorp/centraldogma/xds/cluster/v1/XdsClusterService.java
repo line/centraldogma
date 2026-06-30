@@ -78,8 +78,8 @@ public final class XdsClusterService extends XdsClusterServiceImplBase {
                          // can be set to false via the update API.
                          .setRespectDnsTtl(true)
                          .build();
-        xdsResourceManager.push(responseObserver, group, clusterName, CLUSTERS_DIRECTORY + clusterId + ".json",
-                                "Create cluster: " + clusterName, cluster, currentAuthor(), true);
+        xdsResourceManager.push(responseObserver, group, clusterName, CLUSTERS_DIRECTORY + clusterId + ".yaml",
+                                "Create cluster: " + clusterName, cluster, currentAuthor());
     }
 
     @Override
