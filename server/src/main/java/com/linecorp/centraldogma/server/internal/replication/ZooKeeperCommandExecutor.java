@@ -827,10 +827,9 @@ public final class ZooKeeperCommandExecutor
                 break;
             }
             ReplicationLogContext logContext = null;
-            ReplicationLog<?> l = null;
             try {
                 logContext = loadLog(nextRevision);
-                l = logContext.log();
+                final ReplicationLog<?> l = logContext.log();
                 assert l != null : "logContext: " + logContext;
                 final Command<?> command = l.command();
                 final Object expectedResult = l.result();
