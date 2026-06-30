@@ -17,6 +17,7 @@
 import { combineReducers, configureStore } from '@reduxjs/toolkit';
 import { authReducer } from 'dogma/features/auth/authSlice';
 import { apiSlice } from 'dogma/features/api/apiSlice';
+import { xdsApiSlice } from 'dogma/features/xds/xdsApiSlice';
 import { notificationReducer } from 'dogma/features/notification/notificationSlice';
 import { filterReducer } from 'dogma/features/filter/filterSlice';
 import { serverConfigReducer } from 'dogma/features/server-config/serverConfigSlice';
@@ -27,6 +28,7 @@ const rootReducer = combineReducers({
   notification: notificationReducer,
   serverConfig: serverConfigReducer,
   [apiSlice.reducerPath]: apiSlice.reducer,
+  [xdsApiSlice.reducerPath]: xdsApiSlice.reducer,
 });
 
 export function setupStore(preloadedState?: Partial<RootState>) {
@@ -38,7 +40,9 @@ export function setupStore(preloadedState?: Partial<RootState>) {
     middleware: (getDefaultMiddleware) =>
       getDefaultMiddleware({
         serializableCheck: false,
-      }).concat(apiSlice.middleware),
+      })
+        .concat(apiSlice.middleware)
+        .concat(xdsApiSlice.middleware),
   });
 }
 

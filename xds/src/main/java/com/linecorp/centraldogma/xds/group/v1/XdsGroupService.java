@@ -16,6 +16,8 @@
 package com.linecorp.centraldogma.xds.group.v1;
 
 import static com.linecorp.centraldogma.server.internal.admin.auth.AuthUtil.currentAuthor;
+import static com.linecorp.centraldogma.server.internal.admin.auth.AuthUtil.currentUser;
+import static com.linecorp.centraldogma.server.internal.admin.auth.AuthUtil.getAuthor;
 import static com.linecorp.centraldogma.server.internal.api.RepositoryServiceUtil.createRepository;
 import static com.linecorp.centraldogma.server.internal.api.RepositoryServiceUtil.removeRepository;
 import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.XDS_CENTRAL_DOGMA_PROJECT;
@@ -26,11 +28,12 @@ import com.google.protobuf.Empty;
 
 import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.centraldogma.common.RepositoryExistsException;
+import com.linecorp.centraldogma.common.RepositoryRole;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
-import com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer;
+import com.linecorp.centraldogma.server.metadata.ProjectMetadata;
+import com.linecorp.centraldogma.server.metadata.User;
 import com.linecorp.centraldogma.server.storage.project.Project;
-import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 import com.linecorp.centraldogma.xds.group.v1.XdsGroupServiceGrpc.XdsGroupServiceImplBase;
 
 import io.grpc.Status;
@@ -41,18 +44,17 @@ import io.grpc.stub.StreamObserver;
  */
 public final class XdsGroupService extends XdsGroupServiceImplBase {
 
-    private final ProjectManager projectManager;
+    private final Project xdsProject;
     private final CommandExecutor commandExecutor;
     private final MetadataService mds;
 
     /**
      * Creates a new instance.
      */
-    public XdsGroupService(ProjectManager projectManager, CommandExecutor commandExecutor,
-                           InternalProjectInitializer internalProjectInitializer) {
-        this.projectManager = projectManager;
+    public XdsGroupService(Project xdsProject, CommandExecutor commandExecutor, MetadataService mds) {
+        this.xdsProject = xdsProject;
         this.commandExecutor = commandExecutor;
-        mds = new MetadataService(projectManager, commandExecutor, internalProjectInitializer);
+        this.mds = mds;
     }
 
     @Override
@@ -60,7 +62,7 @@ public final class XdsGroupService extends XdsGroupServiceImplBase {
                             StreamObserver<Group> responseObserver) {
         final String groupId = request.getGroupId();
         checkGroupId(groupId);
-        if (projectManager.get(XDS_CENTRAL_DOGMA_PROJECT).repos().exists(groupId)) {
+        if (xdsProject.repos().exists(groupId)) {
             throw alreadyExistsException(groupId);
         }
         createRepository(commandExecutor, mds, currentAuthor(), XDS_CENTRAL_DOGMA_PROJECT, groupId, false, null)
@@ -90,7 +92,7 @@ public final class XdsGroupService extends XdsGroupServiceImplBase {
     public void deleteGroup(DeleteGroupRequest request, StreamObserver<Empty> responseObserver) {
         final String groupName = request.getName();
         final String name = removePrefix("groups/", groupName);
-        if (!projectManager.get(XDS_CENTRAL_DOGMA_PROJECT).repos().exists(name)) {
+        if (!xdsProject.repos().exists(name)) {
             throw Status.NOT_FOUND.withDescription("Group does not exist: " + groupName)
                                   .asRuntimeException();
         }
@@ -99,8 +101,22 @@ public final class XdsGroupService extends XdsGroupServiceImplBase {
                                           .asRuntimeException();
         }
 
-        // TODO(minwoox): Check the permission.
-        removeRepository(commandExecutor, mds, currentAuthor(), XDS_CENTRAL_DOGMA_PROJECT, name)
+        final User user = currentUser();
+        if (user == null) {
+            responseObserver.onError(Status.UNAUTHENTICATED.withDescription(
+                    "You must be authenticated to delete " + groupName).asRuntimeException());
+            return;
+        }
+        final ProjectMetadata metadata = xdsProject.metadata();
+        final RepositoryRole role =
+                metadata != null ? MetadataService.findRepositoryRole(metadata, name, user) : null;
+        if (role != RepositoryRole.ADMIN) {
+            responseObserver.onError(Status.PERMISSION_DENIED.withDescription(
+                    "You must have the ADMIN repository role to delete " + groupName)
+                                                             .asRuntimeException());
+            return;
+        }
+        removeRepository(commandExecutor, mds, getAuthor(user), XDS_CENTRAL_DOGMA_PROJECT, name)
                 .handle((unused, cause1) -> {
                     if (cause1 != null) {
                         responseObserver.onError(

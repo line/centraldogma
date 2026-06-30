@@ -4,8 +4,8 @@ plugins {
 }
 
 node {
-    version = '22.3.0'
-    npmVersion = '10.8.1'
+    version = '22.14.0'
+    npmVersion = '10.9.2'
     download = true
     npmInstallCommand = "ci"
 }
@@ -32,15 +32,15 @@ sourceSets {
     }
 }
 
-task installPlayWright(type: NpmTask) {
-    dependsOn tasks.npmInstall
+tasks.register('installPlayWright', NpmTask) {
+    dependsOn(tasks.named('npmInstall'))
     args = ['run', 'playwright:install']
 }
 
 // Set `NEXT_ENV=development` to `.env.local` file to produce source maps for the minified JavaScript files.
-task buildWeb(type: NpmTask) {
-    dependsOn tasks.npmInstall
-    dependsOn installPlayWright
+tasks.register('buildWeb', NpmTask) {
+    dependsOn(tasks.named('npmInstall'))
+    dependsOn(tasks.named('installPlayWright'))
     args = ['run', 'build']
     inputs.dir('src')
     inputs.file('package.json')
@@ -50,21 +50,21 @@ task buildWeb(type: NpmTask) {
     outputs.dir('build/web')
 }
 
-task copyWeb(type: Copy) {
-    dependsOn buildWeb
+tasks.register('copyWeb', Copy) {
+    dependsOn(tasks.named('buildWeb'))
 
     from 'build/web'
     into 'build/javaweb/com/linecorp/centraldogma/webapp'
 }
 
-task runTestServer(type: JavaExec) {
+tasks.register('runTestServer', JavaExec) {
     group = "Execution"
     description = "Run the simple Central Dogma server"
     classpath = sourceSets.test.runtimeClasspath
     mainClass = "com.linecorp.centraldogma.webapp.SimpleCentralDogmaTestServer"
 }
 
-task runTestShiroServer(type: JavaExec) {
+tasks.register('runTestShiroServer', JavaExec) {
     group = "Execution"
     description = "Run the Central Dogma server with Apache Shiro"
     classpath = sourceSets.test.runtimeClasspath
@@ -72,8 +72,8 @@ task runTestShiroServer(type: JavaExec) {
 }
 
 if (!rootProject.hasProperty('noLint')) {
-    task eslint(type: NpmTask) {
-        dependsOn tasks.npmInstall
+    tasks.register('eslint', NpmTask) {
+        dependsOn(tasks.named('npmInstall'))
 
         args = ['run', 'lint']
 
@@ -84,8 +84,8 @@ if (!rootProject.hasProperty('noLint')) {
         outputs.upToDateWhen { true }
     }
 
-    task prettier(type: NpmTask) {
-        dependsOn tasks.eslint
+    tasks.register('prettier', NpmTask) {
+        dependsOn(tasks.named('eslint'))
 
         args = ['run', 'format']
 
@@ -97,12 +97,14 @@ if (!rootProject.hasProperty('noLint')) {
     }
 
     Task lintTask = project.ext.getLintTask()
-    lintTask.dependsOn(tasks.prettier)
-    tasks.buildWeb.dependsOn(tasks.prettier)
+    lintTask.dependsOn(tasks.named('prettier'))
+    tasks.named('buildWeb').configure {
+        dependsOn(tasks.named('prettier'))
+    }
 }
 
-task testWeb(type: NpmTask) {
-    dependsOn tasks.npmInstall
+tasks.register('testWeb', NpmTask) {
+    dependsOn(tasks.named('npmInstall'))
 
     args = ['run', 'test:ci']
 
@@ -112,10 +114,12 @@ task testWeb(type: NpmTask) {
     inputs.file('next.config.js')
     outputs.upToDateWhen { true }
 }
-tasks.test.dependsOn(tasks.testWeb)
+tasks.named('test').configure {
+    dependsOn(tasks.named('testWeb'))
+}
 
-task testE2e(type: NpmTask) {
-    dependsOn tasks.installPlayWright
+tasks.register('testE2e', NpmTask) {
+    dependsOn(tasks.named('installPlayWright'))
 
     args = ['run', 'test:e2e']
 

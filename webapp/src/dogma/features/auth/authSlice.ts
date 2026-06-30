@@ -1,7 +1,7 @@
 /*
- * Copyright 2022 LINE Corporation
+ * Copyright 2026 LY Corporation
  *
- * LINE Corporation licenses this file to you under the Apache License,
+ * LY Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
  * with the License. You may obtain a copy of the License at:
  *
@@ -15,9 +15,9 @@
  */
 
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
-import { UserDto } from 'dogma/features/auth/UserDto';
-import ErrorMessageParser from 'dogma/features/services/ErrorMessageParser';
-import { newNotification } from 'dogma/features/notification/notificationSlice';
+import { UserDto } from './UserDto';
+import ErrorMessageParser from '../services/ErrorMessageParser';
+import { newNotification } from '../notification/notificationSlice';
 
 const baseUrl = process.env.NEXT_PUBLIC_HOST || '';
 
@@ -108,11 +108,13 @@ export const checkSecurityEnabled = createAsyncThunk(
       }
     } catch (err) {
       const error: string = ErrorMessageParser.parse(err);
-      if (err.response && err.response.status === 404) {
+      const status: number | undefined = err.response?.status;
+      if (status === 404) {
         dispatch(newNotification('', 'Accessing Central Dogma in anonymous mode', 'info'));
       }
-
-      return rejectWithValue(error);
+      // Carry the status so the reducer can distinguish "no auth configured" (404 -> anonymous) from
+      // network/5xx failures, which must not downgrade the auth state to anonymous.
+      return rejectWithValue({ error, status });
     }
   },
 );
@@ -173,11 +175,16 @@ export const authSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
-      .addCase(checkSecurityEnabled.rejected, (state) => {
-        state.isInAnonymousMode = true;
-        state.csrfToken = null;
+      .addCase(checkSecurityEnabled.rejected, (state, action) => {
         state.isLoading = false;
-        state.user = anonymousUser;
+        // Only a 404 (the server has no authentication configured) means anonymous mode. Network or 5xx
+        // failures leave the security state unknown and must not downgrade the UI to anonymous.
+        const status = (action.payload as { status?: number } | undefined)?.status;
+        if (status === 404) {
+          state.isInAnonymousMode = true;
+          state.csrfToken = null;
+          state.user = anonymousUser;
+        }
       })
       .addCase(login.fulfilled, (state, { payload }) => {
         state.csrfToken = payload.csrf_token;

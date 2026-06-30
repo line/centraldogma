@@ -32,6 +32,8 @@ interface DeleteConfirmationModalProps {
   onClose: () => void;
   type: string;
   id: string;
+  // An explicit "from" label. Takes precedence over repoName/projectName when provided.
+  from?: string;
   projectName?: string;
   repoName?: string;
   handleDelete: () => void;
@@ -43,17 +45,13 @@ export const DeleteConfirmationModal = ({
   onClose,
   id,
   type,
+  from,
   projectName,
   repoName,
   handleDelete,
   isLoading,
 }: DeleteConfirmationModalProps): JSX.Element => {
-  let from;
-  if (repoName) {
-    from = ` from ${repoName}`;
-  } else if (projectName) {
-    from = ` from ${projectName}`;
-  }
+  const fromName = from ?? repoName ?? projectName;
   return (
     <Modal isOpen={isOpen} onClose={onClose}>
       <ModalOverlay />
@@ -64,8 +62,8 @@ export const DeleteConfirmationModal = ({
           Delete {type}{' '}
           <Mark bg="gray.200" rounded="base" fontWeight="bold" px="1" py="1">
             {id}
-          </Mark>{' '}
-          {from}?
+          </Mark>
+          {fromName ? ` from ${fromName}` : ''}?
         </ModalBody>
         <ModalFooter>
           <HStack spacing={3}>
