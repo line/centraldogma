@@ -47,6 +47,7 @@ import {
 } from 'dogma/features/settings/server-status/ServerStatusDto';
 import Router from 'next/router';
 import { VariableDto } from 'dogma/features/project/settings/variables/VariableDto';
+import { XdsApp, XdsClientStatus, XdsSnapshot } from 'dogma/features/xds/ControlPlaneStatusDto';
 
 export type ApiAction<Arg, Result> = {
   (arg: Arg): { unwrap: () => Promise<Result> };
@@ -598,6 +599,21 @@ export const apiSlice = createApi({
       }),
       transformResponse: () => true,
     }),
+    // System-administrator-only views of the xDS control plane runtime state.
+    getXdsClients: builder.query<XdsClientStatus[], void>({
+      query: () => '/api/v1/xds/clients',
+    }),
+    getXdsApps: builder.query<XdsApp[], void>({
+      query: () => '/api/v1/xds/apps',
+    }),
+    getXdsSnapshot: builder.query<XdsSnapshot, { group?: string; appId?: string }>({
+      query: ({ group, appId }) => {
+        if (appId) {
+          return `/api/v1/xds/snapshot?appId=${encodeURIComponent(appId)}`;
+        }
+        return group ? `/api/v1/xds/snapshot?group=${encodeURIComponent(group)}` : '/api/v1/xds/snapshot';
+      },
+    }),
   }),
 });
 
@@ -613,6 +629,9 @@ function variableApiPrefix(projectName: string, repoName?: string): string {
 export const {
   // xDS
   useIsXdsWebEnabledQuery,
+  useGetXdsClientsQuery,
+  useGetXdsAppsQuery,
+  useGetXdsSnapshotQuery,
   // Project
   useGetProjectsQuery,
   useRestoreProjectMutation,

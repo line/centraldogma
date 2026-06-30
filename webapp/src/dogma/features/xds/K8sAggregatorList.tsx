@@ -30,7 +30,7 @@ import { DeleteConfirmationModal } from 'dogma/common/components/DeleteConfirmat
 import { Deferred } from 'dogma/common/components/Deferred';
 import { useDeleteK8sAggregatorMutation, useListK8sAggregatorsQuery } from 'dogma/features/xds/xdsApiSlice';
 import { resourceName, XdsResourceDto } from 'dogma/features/xds/XdsTypes';
-import { useGroupWriteAccess } from 'dogma/common/useGroupWriteAccess';
+import { useGroupWriteAccess } from 'dogma/features/xds/useGroupWriteAccess';
 import { useAppDispatch } from 'dogma/hooks';
 import { newNotification } from 'dogma/features/notification/notificationSlice';
 import ErrorMessageParser from 'dogma/features/services/ErrorMessageParser';

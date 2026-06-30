@@ -19,6 +19,8 @@ import static com.linecorp.centraldogma.server.internal.ExecutorServiceUtil.term
 import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.JSON_MESSAGE_MARSHALLER;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -34,6 +36,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
@@ -71,16 +74,11 @@ import com.linecorp.centraldogma.xds.listener.v1.XdsListenerService;
 import com.linecorp.centraldogma.xds.route.v1.XdsRouteService;
 
 import io.envoyproxy.controlplane.cache.v3.SimpleCache;
-import io.envoyproxy.controlplane.server.DiscoveryServerCallbacks;
 import io.envoyproxy.controlplane.server.V3DiscoveryServer;
-import io.envoyproxy.controlplane.server.exception.RequestException;
 import io.envoyproxy.envoy.config.cluster.v3.Cluster;
 import io.envoyproxy.envoy.config.endpoint.v3.ClusterLoadAssignment;
 import io.envoyproxy.envoy.config.listener.v3.Listener;
 import io.envoyproxy.envoy.config.route.v3.RouteConfiguration;
-import io.envoyproxy.envoy.service.discovery.v3.DeltaDiscoveryRequest;
-import io.envoyproxy.envoy.service.discovery.v3.DiscoveryRequest;
-import io.envoyproxy.envoy.service.discovery.v3.DiscoveryResponse;
 import io.grpc.MethodDescriptor;
 import io.grpc.MethodDescriptor.Marshaller;
 import io.grpc.MethodDescriptor.PrototypeMarshaller;
@@ -137,7 +135,8 @@ public final class ControlPlaneService extends XdsResourceWatchingService {
         // No scoped client has connected yet, so this only sets the DEFAULT_GROUP snapshot.
         updateAllSnapshots(null);
         final CommandExecutor commandExecutor = pluginInitContext.commandExecutor();
-        final V3DiscoveryServer server = new V3DiscoveryServer(new LoggingDiscoveryServerCallbacks(), cache);
+        final XdsClientStatusTracker clientStatusTracker = new XdsClientStatusTracker();
+        final V3DiscoveryServer server = new V3DiscoveryServer(clientStatusTracker, cache);
         final GrpcServiceBuilder grpcServiceBuilder =
                 GrpcService.builder()
                            .addService(server.getClusterDiscoveryServiceImpl())
@@ -150,7 +149,8 @@ public final class ControlPlaneService extends XdsResourceWatchingService {
         // preserving backward compatibility.
         final MetadataService mds = new MetadataService(pluginInitContext.projectManager(), commandExecutor,
                                                         pluginInitContext.internalProjectInitializer());
-        pluginInitContext.serverBuilder().service(grpcService, optionalAppIdentityAuth(mds));
+        final ServerBuilder serverBuilder = pluginInitContext.serverBuilder();
+        serverBuilder.service(grpcService, optionalAppIdentityAuth(mds));
         final XdsResourceManager xdsResourceManager = new XdsResourceManager(xdsProject(), commandExecutor);
         final XdsEndpointService xdsEndpointService =
                 new XdsEndpointService(xdsResourceManager, controlPlaneExecutor);
@@ -185,17 +185,24 @@ public final class ControlPlaneService extends XdsResourceWatchingService {
                                        return new DefaultJsonMarshaller(builder.build());
                                    })
                            .enableHttpJsonTranscoding(true).build();
-        pluginInitContext.serverBuilder().service(xdsApplicationService, pluginInitContext.authService());
+        // The global /api/v1/** route decorator in CentralDogma covers the HTTP-transcoded routes, but
+        // the native gRPC paths (e.g. /centraldogma.xds.*.v1.*Service/Method) bypass it. The per-service
+        // decorator ensures both paths require authentication.
+        serverBuilder.service(xdsApplicationService, pluginInitContext.authService());
 
         // Endpoints (EDS) are not access-controlled: any authenticated user can read the endpoints of every
         // group regardless of its READ access.
-        pluginInitContext.serverBuilder()
-                         .annotatedService()
-                         .pathPrefix("/api/v1")
-                         .decorator(pluginInitContext.authService())
-                         .build(new XdsEndpointReadService(xdsProject()));
+        serverBuilder.annotatedService()
+                     .pathPrefix("/api/v1")
+                     .build(new XdsEndpointReadService(xdsProject()));
 
-        registerWebEnabledFlag(pluginInitContext.serverBuilder());
+        // System-administrator-only views of the control plane runtime state (connected clients and the served
+        // snapshot).
+        serverBuilder.annotatedService()
+                     .pathPrefix("/api/v1")
+                     .build(new XdsControlPlaneStatusService(clientStatusTracker, this));
+
+        registerWebEnabledFlag(serverBuilder);
     }
 
     /**
@@ -205,6 +212,108 @@ public final class ControlPlaneService extends XdsResourceWatchingService {
      */
     private static void registerWebEnabledFlag(ServerBuilder sb) {
         sb.service("/api/v1/xds/web", (ctx, req) -> HttpResponse.ofJson(ImmutableMap.of("enabled", true)));
+    }
+
+    /**
+     * Builds a JSON view of a served snapshot, computed on the {@link #controlPlaneExecutor} because
+     * {@link #centralDogmaXdsResources} must only be read from that thread. The scope is, in order of
+     * precedence:
+     * <ul>
+     *   <li>{@code appId} set: the exact snapshot served to that application identity, read from the cache key
+     *       it is scoped under (the union of the groups it can read). {@code served} is {@code false} when the
+     *       app id has never connected, so nothing is cached for it.</li>
+     *   <li>{@code group} set: the snapshot scoped to that single group.</li>
+     *   <li>neither set: the full snapshot published under {@link #DEFAULT_GROUP} (what anonymous and
+     *       system-admin clients are served).</li>
+     * </ul>
+     * Each resource type is rendered as {@code {version, resources: {name: <proto-json>}}}.
+     */
+    CompletableFuture<XdsSnapshotDto> snapshot(@Nullable String group, @Nullable String appId) {
+        return CompletableFuture.supplyAsync(() -> {
+            final String resolvedAppId;
+            final List<String> readableGroups;
+            final Boolean served;
+            final String resolvedGroup;
+            final CentralDogmaSnapshot snapshot;
+            if (appId != null) {
+                resolvedAppId = appId;
+                resolvedGroup = null;
+                final String key = appCacheKey(appId);
+                final ScopedClient scopedClient = scopedClients.get(key);
+                final Set<String> groups = scopedClient != null ? scopedClient.readableGroups : null;
+                readableGroups = groups != null ? ImmutableList.copyOf(groups) : null;
+                // The exact snapshot served to this app identity, scoped to the groups it can read.
+                snapshot = (CentralDogmaSnapshot) cache.getSnapshot(key);
+                served = snapshot != null;
+            } else if (group != null) {
+                resolvedAppId = null;
+                readableGroups = null;
+                served = null;
+                resolvedGroup = group;
+                // snapshot(Set) is a pure read of the current state.
+                snapshot = centralDogmaXdsResources.snapshot(ImmutableSet.of(group));
+            } else {
+                resolvedAppId = null;
+                readableGroups = null;
+                served = null;
+                resolvedGroup = null;
+                // Reuse the full snapshot already published to the cache. The no-arg snapshot() must not be
+                // called here because it has side effects (it resets the per-type "updated" flags, which would
+                // make the next updateAllSnapshots() skip rebuilding the changed resources).
+                snapshot = (CentralDogmaSnapshot) cache.getSnapshot(DEFAULT_GROUP);
+            }
+            final XdsResourceTypeDto listeners;
+            final XdsResourceTypeDto routes;
+            final XdsResourceTypeDto clusters;
+            final XdsResourceTypeDto endpoints;
+            if (snapshot != null) {
+                listeners = toResourceTypeDto(snapshot.listenersVersion(), snapshot.listeners().resources());
+                routes = toResourceTypeDto(snapshot.routesVersion(), snapshot.routes().resources());
+                clusters = toResourceTypeDto(snapshot.clustersVersion(), snapshot.clusters().resources());
+                endpoints = toResourceTypeDto(snapshot.endpointsVersion(), snapshot.endpoints().resources());
+            } else {
+                listeners = null;
+                routes = null;
+                clusters = null;
+                endpoints = null;
+            }
+            return new XdsSnapshotDto(resolvedAppId, readableGroups, served, resolvedGroup,
+                                      listeners, routes, clusters, endpoints);
+        }, controlPlaneExecutor);
+    }
+
+    /**
+     * Lists the application identities that have connected to the discovery API on this instance, together with
+     * the groups each currently has READ access to. The exact served snapshot for each is available through
+     * {@link #snapshot(String, String)} with its {@code appId}.
+     */
+    List<XdsAppDto> apps() {
+        final ImmutableList.Builder<XdsAppDto> result = ImmutableList.builder();
+        scopedClients.forEach((key, scopedClient) -> {
+            final Set<String> groups = scopedClient.readableGroups;
+            result.add(new XdsAppDto(
+                    scopedClient.appIdentity.login(),
+                    groups != null ? ImmutableList.copyOf(groups) : ImmutableList.of()));
+        });
+        return result.build();
+    }
+
+    private static String appCacheKey(String appId) {
+        return "app/" + appId;
+    }
+
+    private static XdsResourceTypeDto toResourceTypeDto(String version,
+                                                         Map<String, ? extends Message> resources) {
+        final ImmutableMap.Builder<String, JsonNode> builder = ImmutableMap.builder();
+        resources.forEach((name, message) -> {
+            try {
+                builder.put(name, Jackson.readTree(JSON_MESSAGE_MARSHALLER.writeValueAsString(message)));
+            } catch (IOException e) {
+                // Should never reach here.
+                throw new UncheckedIOException(e);
+            }
+        });
+        return new XdsResourceTypeDto(version, builder.build());
     }
 
     @Nullable
@@ -362,7 +471,7 @@ public final class ControlPlaneService extends XdsResourceWatchingService {
         }
         final UserWithAppIdentity appIdentity = (UserWithAppIdentity) user;
         // login is the app id for UserWithAppIdentity.
-        final String key = "app/" + appIdentity.login();
+        final String key = appCacheKey(appIdentity.login());
         if (!scopedClients.containsKey(key)) {
             // First time we see this app identity; compute its readable groups and build its scoped snapshot
             // synchronously. The snapshot is set in the cache BEFORE the client is registered in scopedClients,
@@ -441,26 +550,6 @@ public final class ControlPlaneService extends XdsResourceWatchingService {
 
         ScopedClient(UserWithAppIdentity appIdentity) {
             this.appIdentity = appIdentity;
-        }
-    }
-
-    private static final class LoggingDiscoveryServerCallbacks implements DiscoveryServerCallbacks {
-        @Override
-        public void onV3StreamRequest(long streamId, DiscoveryRequest request) throws RequestException {
-            logger.debug("Received v3 stream request. streamId: {}, version: {}, resource_names: {}, " +
-                         "response_nonce: {}, type_url: {}", streamId, request.getVersionInfo(),
-                         request.getResourceNamesList(), request.getResponseNonce(), request.getTypeUrl());
-        }
-
-        @Override
-        public void onV3StreamDeltaRequest(long streamId, DeltaDiscoveryRequest request)
-                throws RequestException {}
-
-        @Override
-        public void onV3StreamResponse(long streamId, DiscoveryRequest request, DiscoveryResponse response) {
-            logger.debug("Sent v3 stream response. streamId: {}, version: {}, " +
-                         "response_nonce: {}, type_url: {}", streamId, response.getVersionInfo(),
-                         response.getNonce(), response.getTypeUrl());
         }
     }
 }

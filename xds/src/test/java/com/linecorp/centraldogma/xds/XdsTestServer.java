@@ -90,6 +90,9 @@ public final class XdsTestServer {
     private static final String SAMPLE_GROUP = "my-group";
     private static final String SAMPLE_CREDENTIAL = "k8s-credential";
     private static final String SAMPLE_AGGREGATOR = "nginx";
+    // A non-admin application identity with READ access to SAMPLE_GROUP, so the per application-identity
+    // snapshot view (and a token-authenticated discovery client) can be demonstrated out of the box.
+    private static final String SAMPLE_APP_ID = "xds-app";
 
     // A sample LDS -> RDS -> CDS -> EDS graph so the "References" links between resources can be exercised in
     // the web UI. Several resources reference more than one child (a listener with two route configs, routes
@@ -127,7 +130,7 @@ public final class XdsTestServer {
 
         final NamespacedKubernetesClient k8sClient = startKubernetesMock();
 
-        bootstrapSampleData(PORT, k8sClient);
+        final String sampleAppToken = bootstrapSampleData(PORT, k8sClient);
 
         System.out.println();
         System.out.println("==========================================================================");
@@ -151,6 +154,17 @@ public final class XdsTestServer {
         System.out.println("   References  : 2 listeners (LDS) -> 2 routes (RDS) -> 2 clusters (CDS) -> " +
                            "2 endpoints (EDS); some resources reference multiple children (e.g. " +
                            SAMPLE_LISTENER + " -> 2 routes, " + SAMPLE_ROUTE + " -> 2 clusters)");
+        if (sampleAppToken != null) {
+            System.out.println();
+            System.out.println(" Sample application identity (for the per app-id 'xDS Control Plane' view):");
+            System.out.println("   App id    : " + SAMPLE_APP_ID + " (READ on " + SAMPLE_GROUP + ')');
+            System.out.println("   App token : " + sampleAppToken);
+            System.out.println("   Connect a token-authenticated ADS client as this identity with:");
+            System.out.println("     ./gradlew :xds:runXdsTestClient --args=\"http://127.0.0.1:" + PORT +
+                               ' ' + SAMPLE_APP_ID + "-node default " + sampleAppToken + '"');
+            System.out.println("   Then open Settings -> xDS Control Plane -> Snapshot, scope 'By application" +
+                               " identity', and pick " + SAMPLE_APP_ID + '.');
+        }
         System.out.println();
         System.out.println(" Press Ctrl+C to stop.");
         System.out.println("==========================================================================");
@@ -159,11 +173,14 @@ public final class XdsTestServer {
 
     /**
      * Creates a sample group, an access-token credential and a Kubernetes endpoint aggregator that references
-     * the credential and watches the mock's {@value #SAMPLE_K8S_SERVICE} service. Best-effort: failures are
-     * logged but do not stop the server.
+     * the credential and watches the mock's {@value #SAMPLE_K8S_SERVICE} service, plus a non-admin application
+     * identity with READ access to the group. Returns that identity's access token (or {@code null} on
+     * failure) so a token-authenticated client can be run against it. Best-effort: failures are logged but do
+     * not stop the server.
      */
-    private static void bootstrapSampleData(int port, NamespacedKubernetesClient k8sClient) {
+    private static String bootstrapSampleData(int port, NamespacedKubernetesClient k8sClient) {
         final String baseUri = "http://127.0.0.1:" + port;
+        String appToken = null;
         try {
             final String adminToken = TestAuthMessageUtil.getAccessToken(
                     WebClient.of(baseUri), ADMIN_USERNAME, ADMIN_PASSWORD, "xds-bootstrap", true);
@@ -196,9 +213,20 @@ public final class XdsTestServer {
                     .execute().aggregate().join());
 
             bootstrapSampleResources(admin);
+
+            // A non-admin application identity, granted READ on the sample group. A discovery client
+            // authenticating with this token is served a snapshot scoped to the groups it can read, which is
+            // what the per application-identity snapshot view shows.
+            appToken = TestAuthMessageUtil.getAccessToken(
+                    WebClient.of(baseUri), ADMIN_USERNAME, ADMIN_PASSWORD, SAMPLE_APP_ID, false);
+            bootstrapStep("grant " + SAMPLE_APP_ID + " READ on " + SAMPLE_GROUP, admin.prepare()
+                    .post("/api/v1/metadata/@xds/repos/" + SAMPLE_GROUP + "/roles/appIdentities")
+                    .content(MediaType.JSON, "{\"id\":\"" + SAMPLE_APP_ID + "\",\"role\":\"READ\"}")
+                    .execute().aggregate().join());
         } catch (Throwable t) {
             System.err.println("Failed to bootstrap sample xDS data: " + t);
         }
+        return appToken;
     }
 
     /**

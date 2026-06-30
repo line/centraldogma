@@ -16,7 +16,15 @@
 import { useRouter } from 'next/router';
 import { XdsResourceType, XDS_RESOURCE_META } from 'dogma/features/xds/XdsTypes';
 
-export type XdsSection = XdsResourceType | 'k8sAggregators' | 'credentials' | 'permissions' | 'dangerZone';
+export type XdsSection =
+  | XdsResourceType
+  | 'overview'
+  | 'k8sAggregators'
+  | 'credentials'
+  | 'permissions'
+  | 'dangerZone'
+  | 'history'
+  | 'references';
 
 export interface XdsRoute {
   // The currently selected group, if any.
@@ -32,12 +40,15 @@ export function useXdsRoute(): XdsRoute {
   const group = (router.query.name as string) || (router.query.group as string) || undefined;
   const type = router.query.type as string | undefined;
   const section: XdsSection =
+    type === 'overview' ||
     type === 'permissions' ||
     type === 'k8sAggregators' ||
     type === 'credentials' ||
     type === 'dangerZone' ||
+    type === 'history' ||
+    type === 'references' ||
     (type && Object.prototype.hasOwnProperty.call(XDS_RESOURCE_META, type))
       ? (type as XdsSection)
-      : 'listeners';
+      : 'overview';
   return { group, section };
 }

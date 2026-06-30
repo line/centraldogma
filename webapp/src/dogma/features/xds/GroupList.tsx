@@ -54,7 +54,7 @@ export const GroupList = ({ groups }: { groups: GroupDto[] }) => {
         cell: (info) => (
           <Link
             as={RouteLink}
-            href={`/app/xds/group?name=${encodeURIComponent(info.getValue())}&type=listeners`}
+            href={`/app/xds/group?name=${encodeURIComponent(info.getValue())}&type=overview`}
             color="teal"
           >
             {info.getValue()}

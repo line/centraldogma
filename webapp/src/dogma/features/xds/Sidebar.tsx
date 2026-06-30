@@ -18,15 +18,23 @@ import { default as RouteLink } from 'next/link';
 import { IconType } from 'react-icons';
 import { FiBox } from 'react-icons/fi';
 import { HiOutlineDocumentText } from 'react-icons/hi2';
-import { MdOutlineRoute, MdLockOutline, MdVpnKey, MdWarningAmber } from 'react-icons/md';
+import {
+  MdOutlineRoute,
+  MdLockOutline,
+  MdVpnKey,
+  MdWarningAmber,
+  MdHistory,
+  MdDashboard,
+  MdAccountTree,
+} from 'react-icons/md';
 import { TbServer2, TbRouteSquare } from 'react-icons/tb';
 import { SiKubernetes } from 'react-icons/si';
 import { XDS_RESOURCE_META, XDS_RESOURCE_TYPES } from 'dogma/features/xds/XdsTypes';
-import { GroupSelector } from 'dogma/common/components/GroupSelector';
-import { useXdsRoute, XdsSection } from 'dogma/common/useXdsRoute';
-import { useGroupReadAccess } from 'dogma/common/useGroupReadAccess';
-import { useGroupAdminAccess } from 'dogma/common/useGroupAdminAccess';
-import { useGroupExists } from 'dogma/common/useGroupExists';
+import { GroupSelector } from 'dogma/features/xds/GroupSelector';
+import { useXdsRoute, XdsSection } from 'dogma/features/xds/useXdsRoute';
+import { useGroupReadAccess } from 'dogma/features/xds/useGroupReadAccess';
+import { useGroupAdminAccess } from 'dogma/features/xds/useGroupAdminAccess';
+import { useGroupExists } from 'dogma/features/xds/useGroupExists';
 
 interface NavItemProps {
   href: string;
@@ -61,6 +69,8 @@ const NavItem = ({ href, label, icon, active }: NavItemProps) => {
 };
 
 const SECTION_ICONS: Record<XdsSection, IconType> = {
+  overview: MdDashboard,
+  references: MdAccountTree,
   listeners: TbServer2,
   routes: MdOutlineRoute,
   clusters: FiBox,
@@ -69,6 +79,7 @@ const SECTION_ICONS: Record<XdsSection, IconType> = {
   credentials: MdVpnKey,
   permissions: MdLockOutline,
   dangerZone: MdWarningAmber,
+  history: MdHistory,
 };
 
 export const Sidebar = () => {
@@ -109,6 +120,17 @@ export const Sidebar = () => {
       <Box px={1} mb={4}>
         <GroupSelector currentGroup={group} />
       </Box>
+      {/* Group overview is a READ-gated summary, shown above the per-type resource navigation. */}
+      {!endpointsOnly && (
+        <Box mb={3}>
+          <NavItem
+            href={`/app/xds/group?name=${encodeURIComponent(group)}&type=overview`}
+            label="Overview"
+            icon={SECTION_ICONS.overview}
+            active={section === 'overview'}
+          />
+        </Box>
+      )}
       <Text px={3} mb={2} fontSize="xs" fontWeight="bold" color={headerColor} letterSpacing="wide">
         RESOURCES
       </Text>
@@ -128,6 +150,24 @@ export const Sidebar = () => {
             label="K8s Aggregators"
             icon={SECTION_ICONS.k8sAggregators}
             active={section === 'k8sAggregators'}
+          />
+        )}
+        {/* Reference graph (search + reverse references + dangling detection), readable with READ access. */}
+        {!endpointsOnly && (
+          <NavItem
+            href={`/app/xds/group?name=${encodeURIComponent(group)}&type=references`}
+            label="References"
+            icon={SECTION_ICONS.references}
+            active={section === 'references'}
+          />
+        )}
+        {/* The group's resource change history (commit log), readable by anyone with READ access. */}
+        {!endpointsOnly && (
+          <NavItem
+            href={`/app/xds/group?name=${encodeURIComponent(group)}&type=history`}
+            label="History"
+            icon={SECTION_ICONS.history}
+            active={section === 'history'}
           />
         )}
         {/* Credentials and Permissions manage group-level access, so they are shown only to group admins. */}

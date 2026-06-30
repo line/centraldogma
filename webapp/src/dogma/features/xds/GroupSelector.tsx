@@ -67,7 +67,7 @@ export const GroupSelector = ({ currentGroup }: { currentGroup?: string }) => {
                   key={group.id}
                   fontWeight={group.id === currentGroup ? 'bold' : 'normal'}
                   onClick={() =>
-                    Router.push(`/app/xds/group?name=${encodeURIComponent(group.id)}&type=listeners`)
+                    Router.push(`/app/xds/group?name=${encodeURIComponent(group.id)}&type=overview`)
                   }
                 >
                   {group.id}

@@ -36,3 +36,17 @@ tasks.register('runXdsTestServer', JavaExec) {
     classpath = sourceSets.test.runtimeClasspath + rootProject.files('webapp/build/javaweb')
     mainClass = "com.linecorp.centraldogma.xds.XdsTestServer"
 }
+
+// A manual ADS xDS client that connects to a running control plane (e.g. the one started by
+// 'runXdsTestServer'), subscribes to LDS/RDS/CDS/EDS, ACKs every response and stays connected, so the client
+// appears in the system-administrator 'xDS Control Plane' view and 'GET /api/v1/xds/clients'.
+//   ./gradlew :xds:runXdsTestClient
+//   ./gradlew :xds:runXdsTestClient --args="http://127.0.0.1:36462 my-node my-cluster"
+// Add the literal 'nack' as an argument to reject every response (NACK) instead of ACKing, e.g.
+//   ./gradlew :xds:runXdsTestClient --args="http://127.0.0.1:36462 my-node my-cluster nack"
+tasks.register('runXdsTestClient', JavaExec) {
+    group = "Execution"
+    description = "Connect a sample ADS xDS client that ACKs, to populate the control plane client status view"
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = "com.linecorp.centraldogma.xds.XdsTestClient"
+}

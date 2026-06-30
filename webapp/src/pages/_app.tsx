@@ -5,7 +5,7 @@ import { NextPage } from 'next';
 import { ReactElement, ReactNode } from 'react';
 import { useRouter } from 'next/router';
 import { Layout } from 'dogma/common/components/Layout';
-import { XdsLayout } from 'dogma/common/components/XdsLayout';
+import { XdsLayout } from 'dogma/features/xds/XdsLayout';
 import { NotificationWrapper } from 'dogma/common/components/NotificationWrapper';
 import dynamic from 'next/dynamic';
 import StoreProvider from 'dogma/StoreProvider';

@@ -55,6 +55,11 @@ import com.linecorp.centraldogma.server.storage.repository.MetaRepository;
 import com.linecorp.centraldogma.xds.internal.XdsResourceManager;
 import com.linecorp.centraldogma.xds.k8s.v1.XdsKubernetesServiceGrpc.XdsKubernetesServiceImplBase;
 
+import io.envoyproxy.envoy.config.core.v3.Address;
+import io.envoyproxy.envoy.config.core.v3.SocketAddress;
+import io.envoyproxy.envoy.config.endpoint.v3.ClusterLoadAssignment;
+import io.envoyproxy.envoy.config.endpoint.v3.LbEndpoint;
+import io.envoyproxy.envoy.config.endpoint.v3.LocalityLbEndpoints;
 import io.fabric8.kubernetes.client.Config;
 import io.fabric8.kubernetes.client.ConfigBuilder;
 import io.grpc.Status;
@@ -96,6 +101,8 @@ public final class XdsKubernetesService extends XdsKubernetesServiceImplBase {
             "^groups/([^/]+)" + K8S_ENDPOINT_AGGREGATORS_DIRECTORY + '(' + RESOURCE_ID_PATTERN_STRING + ")$");
 
     public static final CompletableFuture<?>[] EMPTY_FUTURES = new CompletableFuture[0];
+
+    private static final long PREVIEW_TIMEOUT_SECONDS = 5;
 
     private final XdsResourceManager xdsResourceManager;
 
@@ -358,5 +365,131 @@ public final class XdsKubernetesService extends XdsKubernetesServiceImplBase {
         xdsResourceManager.delete(responseObserver, group, aggregatorName,
                                   "Delete kubernetes endpoint aggregator: " + aggregatorName,
                                   currentAuthor());
+    }
+
+    @Blocking
+    @Override
+    public void previewKubernetesEndpointAggregator(
+            PreviewKubernetesEndpointAggregatorRequest request,
+            StreamObserver<ClusterLoadAssignment> responseObserver) {
+        final String parent = request.getParent();
+        final String group = removePrefix("groups/", parent);
+        xdsResourceManager.checkWritePermission(group);
+
+        final KubernetesEndpointAggregator aggregator = request.getKubernetesEndpointAggregator();
+        final List<KubernetesLocalityLbEndpoints> localityLbEndpointsList =
+                aggregator.getLocalityLbEndpointsList();
+        if (localityLbEndpointsList.isEmpty()) {
+            throw Status.INVALID_ARGUMENT.withDescription("kubernetes locality lb endpoints are empty.")
+                                         .asRuntimeException();
+        }
+
+        final MetaRepository metaRepository = xdsResourceManager.xdsProject().metaRepo();
+        final ContextAwareBlockingTaskExecutor taskExecutor =
+                ServiceRequestContext.current().blockingTaskExecutor();
+
+        final List<CompletableFuture<LocalityLbEndpoints>> futures = new ArrayList<>();
+        for (KubernetesLocalityLbEndpoints localityLbEndpoints : localityLbEndpointsList) {
+            futures.add(resolvePreview(localityLbEndpoints, group, metaRepository, taskExecutor));
+        }
+
+        CompletableFuture.allOf(futures.toArray(EMPTY_FUTURES))
+                        .handle((unused, cause) -> {
+                            if (cause != null) {
+                                final Throwable peeled = Exceptions.peel(cause);
+                                final Status status =
+                                        peeled instanceof IllegalArgumentException ||
+                                        peeled instanceof EntryNotFoundException ?
+                                        Status.INVALID_ARGUMENT : Status.INTERNAL;
+                                responseObserver.onError(
+                                        status.withDescription(peeled.getMessage())
+                                              .asRuntimeException());
+                            } else {
+                                final ClusterLoadAssignment.Builder cla =
+                                        ClusterLoadAssignment.newBuilder();
+                                if (!aggregator.getClusterName().isEmpty()) {
+                                    cla.setClusterName(aggregator.getClusterName());
+                                }
+                                for (CompletableFuture<LocalityLbEndpoints> future : futures) {
+                                    cla.addEndpoints(future.join());
+                                }
+                                responseObserver.onNext(cla.build());
+                                responseObserver.onCompleted();
+                            }
+                            return null;
+                        });
+    }
+
+    private static CompletableFuture<LocalityLbEndpoints> resolvePreview(
+            KubernetesLocalityLbEndpoints localityLbEndpoints, String group,
+            MetaRepository metaRepository, ContextAwareBlockingTaskExecutor taskExecutor) {
+        final CompletableFuture<LocalityLbEndpoints> result = new CompletableFuture<>();
+        final ServiceEndpointWatcher watcher = localityLbEndpoints.getWatcher();
+        createKubernetesEndpointGroup(watcher, metaRepository, group, "(preview)", false)
+                .handle((endpointGroup, cause) -> {
+                    if (cause != null) {
+                        result.completeExceptionally(Exceptions.peel(cause));
+                        return null;
+                    }
+                    final AtomicBoolean completed = new AtomicBoolean();
+                    final ScheduledFuture<?> timeout = taskExecutor.schedule(() -> {
+                        if (completed.compareAndSet(false, true)) {
+                            endpointGroup.closeAsync();
+                            result.completeExceptionally(new IllegalStateException(
+                                    "Timed out after " + PREVIEW_TIMEOUT_SECONDS +
+                                    "s resolving '" + watcher.getServiceName() + '\''));
+                        }
+                    }, PREVIEW_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+                    endpointGroup.whenReady().handle((endpoints, readyCause) -> {
+                        if (!completed.compareAndSet(false, true)) {
+                            return null;
+                        }
+                        timeout.cancel(false);
+                        try {
+                            if (readyCause != null) {
+                                result.completeExceptionally(Exceptions.peel(readyCause));
+                            } else {
+                                result.complete(toLocalityLbEndpoints(endpointGroup,
+                                                                       localityLbEndpoints));
+                            }
+                        } finally {
+                            endpointGroup.closeAsync();
+                        }
+                        return null;
+                    });
+                    return null;
+                });
+        return result;
+    }
+
+    private static LocalityLbEndpoints toLocalityLbEndpoints(
+            KubernetesEndpointGroup endpointGroup, KubernetesLocalityLbEndpoints localityLbEndpoints) {
+        final LocalityLbEndpoints.Builder builder = LocalityLbEndpoints.newBuilder();
+        if (localityLbEndpoints.hasLocality()) {
+            builder.setLocality(localityLbEndpoints.getLocality());
+        }
+        if (localityLbEndpoints.hasLoadBalancingWeight()) {
+            builder.setLoadBalancingWeight(localityLbEndpoints.getLoadBalancingWeight());
+        }
+        builder.setPriority(localityLbEndpoints.getPriority());
+        for (Endpoint endpoint : endpointGroup.endpoints()) {
+            if (!endpoint.hasPort()) {
+                continue;
+            }
+            final SocketAddress socketAddress = SocketAddress.newBuilder()
+                                                             .setAddress(endpoint.host())
+                                                             .setPortValue(endpoint.port())
+                                                             .build();
+            builder.addLbEndpoints(
+                    LbEndpoint.newBuilder()
+                              .setEndpoint(
+                                      io.envoyproxy.envoy.config.endpoint.v3.Endpoint.newBuilder()
+                                                .setAddress(Address.newBuilder()
+                                                                   .setSocketAddress(socketAddress)
+                                                                   .build())
+                                                .build())
+                              .build());
+        }
+        return builder.build();
     }
 }
