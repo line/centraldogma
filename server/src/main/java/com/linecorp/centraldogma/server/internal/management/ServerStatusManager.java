@@ -28,6 +28,11 @@ import java.nio.file.Path;
 import java.util.Properties;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.linecorp.armeria.common.util.ThreadFactories;
 import com.linecorp.centraldogma.server.management.ServerStatus;
@@ -37,13 +42,17 @@ import com.linecorp.centraldogma.server.management.ServerStatus;
  */
 public final class ServerStatusManager {
 
-    private static final String STATUS = "status";
+    private static final Logger logger = LoggerFactory.getLogger(ServerStatusManager.class);
 
-    private final Executor sequentialExecutor =
-            Executors.newSingleThreadExecutor(
+    private static final String STATUS = "status";
+    private static final long REFRESH_INTERVAL_SECONDS = 1;
+
+    private final ScheduledExecutorService sequentialExecutor =
+            Executors.newSingleThreadScheduledExecutor(
                     ThreadFactories.newThreadFactory("server-status-manager", true));
 
     private final File dataDir;
+    private volatile ServerStatus cachedServerStatus;
 
     /**
      * Creates a new instance with the specified {@code dataDir}.
@@ -58,15 +67,33 @@ public final class ServerStatusManager {
         } catch (IOException e) {
             throw new IllegalStateException("Failed to create server status file: " + serverStatusFile, e);
         }
+        // Refresh the cache periodically so external edits to the file are picked up.
+        cachedServerStatus = loadServerStatus();
+        sequentialExecutor.scheduleWithFixedDelay(this::refreshServerStatus, REFRESH_INTERVAL_SECONDS,
+                                                  REFRESH_INTERVAL_SECONDS, TimeUnit.SECONDS);
     }
 
     /**
-     * Reads the {@link ServerStatus} from the {@code "<data-dir>/server-status.properties"} file.
+     * Returns the cached {@link ServerStatus}, which is refreshed from the
+     * {@code "<data-dir>/server-status.properties"} file every second.
      *
      * <p>The stored {@link ServerStatus} may be used to determine whether the server is writable and
      * replicating when the server is started.
      */
-    public synchronized ServerStatus serverStatus() {
+    public ServerStatus serverStatus() {
+        return cachedServerStatus;
+    }
+
+    private void refreshServerStatus() {
+        try {
+            cachedServerStatus = loadServerStatus();
+        } catch (Exception e) {
+            logger.warn("Failed to refresh the server status; keeping the cached value: {}",
+                        cachedServerStatus, e);
+        }
+    }
+
+    private synchronized ServerStatus loadServerStatus() {
         final Properties properties = new Properties();
         try (InputStream is = Files.newInputStream(getServerStatusFile())) {
             properties.load(is);
@@ -85,7 +112,7 @@ public final class ServerStatusManager {
     /**
      * Updates the server status with the specified {@code writable} and {@code replicating} values.
      *
-     * <p>The status may be stored in the {@code "<data-dir>/server-status.properties"} file so that the server
+     * <p>The status is stored in the {@code "<data-dir>/server-status.properties"} file so that the server
      * can be initialized with the same status when it is restarted.
      */
     public synchronized void updateStatus(ServerStatus newServerStatus) {
@@ -96,6 +123,8 @@ public final class ServerStatusManager {
         } catch (IOException e) {
             throw new IllegalStateException("Failed to store server status file: server-status.properties", e);
         }
+        // Apply the new status to the cache immediately instead of waiting for the next refresh.
+        cachedServerStatus = newServerStatus;
     }
 
     private Path getServerStatusFile() {
@@ -107,5 +136,12 @@ public final class ServerStatusManager {
      */
     public Executor sequentialExecutor() {
         return sequentialExecutor;
+    }
+
+    /**
+     * Stops refreshing the cached {@link ServerStatus}.
+     */
+    public void close() {
+        sequentialExecutor.shutdown();
     }
 }

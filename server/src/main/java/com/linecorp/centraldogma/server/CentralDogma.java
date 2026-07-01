@@ -1251,6 +1251,7 @@ public class CentralDogma implements AutoCloseable {
         final ExecutorService purgeWorker = this.purgeWorker;
         final SessionManager sessionManager = this.sessionManager;
         final MirrorRunner mirrorRunner = this.mirrorRunner;
+        final ServerStatusManager statusManager = this.statusManager;
 
         this.server = null;
         this.executor = null;
@@ -1259,11 +1260,16 @@ public class CentralDogma implements AutoCloseable {
         this.repositoryWorker = null;
         this.sessionManager = null;
         this.mirrorRunner = null;
+        this.statusManager = null;
         if (meterRegistryToBeClosed != null) {
             assert meterRegistry instanceof CompositeMeterRegistry;
             ((CompositeMeterRegistry) meterRegistry).remove(meterRegistryToBeClosed);
             meterRegistryToBeClosed.close();
             meterRegistryToBeClosed = null;
+        }
+
+        if (statusManager != null) {
+            statusManager.close();
         }
 
         logger.info("Stopping the Central Dogma ..");
