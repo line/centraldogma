@@ -94,6 +94,7 @@ public final class RepositoryState {
     @Override
     public String toString() {
         return MoreObjects.toStringHelper(this)
+                          .omitNullValues()
                           .add("projectName", projectName)
                           .add("repoName", repoName)
                           .add("status", status)

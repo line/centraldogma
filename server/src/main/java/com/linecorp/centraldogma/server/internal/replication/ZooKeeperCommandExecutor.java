@@ -847,29 +847,35 @@ public final class ZooKeeperCommandExecutor
                 if (command instanceof UpdateServerStatusCommand) {
                     updateZkCommandStatusLater((UpdateServerStatusCommand) command);
                 }
-                if (nextRevision == targetRevision) {
-                    break;
-                } else {
-                    nextRevision++;
-                }
             } catch (Throwable t) {
                 try {
-                    // Skip past the failed log so subsequent logs can still be replayed;
-                    // the affected scope will be marked as read-only by handleReplicationFailure().
+                    // Skip the failed log so the remaining logs can still be replayed.
                     updateLastReplayedRevision(nextRevision);
                     lastReplayedRevision = nextRevision;
                 } catch (Exception e) {
+                    // Can't persist replay progress; fall back to global read-only.
                     final ReplicationException exception = new ReplicationException(
                             "Failed to update the last replayed revision to " + nextRevision, e);
                     exception.addSuppressed(t);
-                    throw exception;
+                    handleReplicationFailure(exception, false, null);
+                    return;
                 }
+
+                final ReplicationException re;
                 if (t instanceof ReplicationException) {
-                    throw (ReplicationException) t;
+                    re = (ReplicationException) t;
+                } else {
+                    re = new ReplicationException("failed to replay a log at revision " + nextRevision,
+                                                  t, logContext);
                 }
-                throw new ReplicationException("failed to replay a log at revision " + nextRevision, t,
-                                               logContext);
+                // Apply read-only asynchronously and keep replaying the next log.
+                handleReplicationFailure(re, false, null);
             }
+
+            if (nextRevision == targetRevision) {
+                break;
+            }
+            nextRevision++;
         }
     }
 
@@ -893,12 +899,7 @@ public final class ZooKeeperCommandExecutor
         }
 
         final long lastKnownRevision = revisionFromPath(event.getData().getPath());
-        try {
-            replayLogs(lastKnownRevision, false);
-        } catch (ReplicationException exception) {
-            handleReplicationFailure(exception, false);
-            return;
-        }
+        replayLogs(lastKnownRevision, false);
 
         oldLogRemover.touch();
     }
@@ -1059,7 +1060,8 @@ public final class ZooKeeperCommandExecutor
         }
     }
 
-    private void handleReplicationFailure(ReplicationException exception, boolean directExecution) {
+    private void handleReplicationFailure(ReplicationException exception, boolean directExecution,
+                                          @Nullable CompletableFuture<?> future) {
         final ReplicationLogContext logContext = exception.logContext();
         if (logContext == null) {
             // No log context, so we can't determine which project/repo failed;
@@ -1092,13 +1094,13 @@ public final class ZooKeeperCommandExecutor
             }
         }
 
-        logger.error("Failed to replicate a log; attemping to switch to read-only mode. " +
+        logger.error("Failed to replicate a log; attempting to switch to read-only mode. " +
                      "scope: {}, logContext: {}", scope, logContext, exception);
         if (directExecution) {
             // When a replication failure occurs during command execution, the replication should enter
             // read-only mode while holding the lock for the original command.
             try {
-                delegate.execute(ExecutionContext.empty(), command).get(30, TimeUnit.SECONDS);
+                delegate.execute(command).get(30, TimeUnit.SECONDS);
                 final ReplicationLog<?> log = new ReplicationLog<>(replicaId(), command, null);
                 final long revision = storeLog(log);
                 logger.info("Successfully applied read-only mode to {}. revision: {}", scope, revision);
@@ -1108,6 +1110,9 @@ public final class ZooKeeperCommandExecutor
             }
         } else {
             execute(command).handle((unused, cause) -> {
+                if (future != null) {
+                    future.completeExceptionally(exception);
+                }
                 if (cause != null) {
                     logger.error("Failed to apply read-only mode for {}; stopping command executor...",
                                  scope, cause);
@@ -1198,8 +1203,7 @@ public final class ZooKeeperCommandExecutor
             } catch (ScopedReadOnlyAppliedException e) {
                 future.completeExceptionally(e.getCause());
             } catch (ReplicationException e) {
-                handleReplicationFailure(e, false);
-                future.completeExceptionally(e);
+                handleReplicationFailure(e, false, future);
             } catch (Throwable t) {
                 future.completeExceptionally(t);
             } finally {
@@ -1278,7 +1282,7 @@ public final class ZooKeeperCommandExecutor
                 logger.debug("logging OK. revision = {}, log = {}", revision, log);
                 return result;
             } catch (ReplicationException ex) {
-                handleReplicationFailure(ex, true);
+                handleReplicationFailure(ex, true, null);
                 throw new ScopedReadOnlyAppliedException(ex);
             }
         }

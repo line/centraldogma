@@ -54,6 +54,7 @@ class ZooKeeperScopedReadOnlyTest {
     private static final String PROJECT = "project";
     private static final String VICTIM_REPO = "victim";
     private static final String BYSTANDER_REPO = "bystander";
+    private static final String SIBLING_REPO = "sibling";
     private static final long AWAIT_MILLIS = TimeUnit.SECONDS.toMillis(15);
 
     @Test
@@ -249,6 +250,68 @@ class ZooKeeperScopedReadOnlyTest {
             for (Replica r : cluster) {
                 verify(r.delegate(), timeout(AWAIT_MILLIS)).apply(eq(bystanderPush));
             }
+        }
+    }
+
+    @Test
+    void replayContinuesPastFailedLogToLaterRepos() throws Exception {
+        try (Cluster cluster = Cluster.builder()
+                                      .numReplicas(3)
+                                      .build(ZooKeeperCommandExecutorTest::newMockDelegate)) {
+            final Replica leader = cluster.get(0);
+            final Replica failingFollower = cluster.get(1);
+
+            leader.commandExecutor().execute(Command.createProject(Author.SYSTEM, PROJECT)).join();
+            leader.commandExecutor().execute(
+                    Command.createRepository(Author.SYSTEM, PROJECT, VICTIM_REPO)).join();
+            leader.commandExecutor().execute(
+                    Command.createRepository(Author.SYSTEM, PROJECT, BYSTANDER_REPO)).join();
+            leader.commandExecutor().execute(
+                    Command.createRepository(Author.SYSTEM, PROJECT, SIBLING_REPO)).join();
+
+            final Change<JsonNode> change = Change.ofJsonUpsert("/foo.json", "{\"a\":\"b\"}");
+            final Command<Revision> victimPush = Command.push(
+                    0L, Author.SYSTEM, PROJECT, VICTIM_REPO, new Revision(1),
+                    "summary", "detail", Markup.PLAINTEXT, ImmutableList.of(change));
+            doReturn(failedFuture("simulated replay failure"))
+                    .when(failingFollower.delegate()).apply(eq(victimPush));
+
+            // The victim push fails to replay on the failing follower; the two later pushes must still run.
+            final Command<Revision> bystanderPush = Command.push(
+                    0L, Author.SYSTEM, PROJECT, BYSTANDER_REPO, new Revision(1),
+                    "summary", "detail", Markup.PLAINTEXT, ImmutableList.of(change));
+            final Command<Revision> siblingPush = Command.push(
+                    0L, Author.SYSTEM, PROJECT, SIBLING_REPO, new Revision(1),
+                    "summary", "detail", Markup.PLAINTEXT, ImmutableList.of(change));
+            leader.commandExecutor().execute(victimPush).join();
+            leader.commandExecutor().execute(bystanderPush).join();
+            leader.commandExecutor().execute(siblingPush).join();
+
+            // The failure is contained to the victim repo on every replica.
+            for (Replica r : cluster) {
+                verify(r.delegate(), timeout(AWAIT_MILLIS)).apply(argThat(c -> {
+                    if (!(c instanceof UpdateRepositoryStatusCommand)) {
+                        return false;
+                    }
+                    final UpdateRepositoryStatusCommand u = (UpdateRepositoryStatusCommand) c;
+                    return PROJECT.equals(u.projectName()) &&
+                           VICTIM_REPO.equals(u.repoName()) &&
+                           u.repoStatus() == ReplicationStatus.READ_ONLY;
+                }));
+            }
+
+            // Replay continued past the failed log: both later pushes reach every replica,
+            // including the follower that failed on the victim push.
+            for (Replica r : cluster) {
+                verify(r.delegate(), timeout(AWAIT_MILLIS)).apply(eq(bystanderPush));
+                verify(r.delegate(), timeout(AWAIT_MILLIS)).apply(eq(siblingPush));
+            }
+
+            // The failing follower stays up and never escalates beyond the repository scope.
+            assertThat(failingFollower.commandExecutor().isStarted()).isTrue();
+            verify(failingFollower.delegate(), never()).apply(argThat(
+                    c -> c instanceof UpdateProjectStatusCommand ||
+                         c instanceof UpdateServerStatusCommand));
         }
     }
 
