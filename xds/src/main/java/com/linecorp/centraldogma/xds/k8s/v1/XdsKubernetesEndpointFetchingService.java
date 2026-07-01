@@ -44,7 +44,6 @@ import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.google.protobuf.InvalidProtocolBufferException;
 import com.spotify.futures.CompletableFutures;
 
 import com.linecorp.armeria.client.kubernetes.endpoints.KubernetesEndpointGroup;
@@ -120,15 +119,15 @@ final class XdsKubernetesEndpointFetchingService extends XdsResourceWatchingServ
     }
 
     @Override
-    protected void handleXdsResource(String path, String contentAsText, String groupName)
-            throws InvalidProtocolBufferException {
+    protected void handleXdsResource(String path, JsonNode content, String groupName)
+            throws IOException {
         final KubernetesEndpointAggregator.Builder aggregatorBuilder =
                 KubernetesEndpointAggregator.newBuilder();
         try {
-            JSON_MESSAGE_MARSHALLER.mergeValue(contentAsText, aggregatorBuilder);
+            JSON_MESSAGE_MARSHALLER.mergeValue(content.traverse(), aggregatorBuilder);
         } catch (IOException e) {
             logger.warn("Failed to parse a KubernetesEndpointAggregator at {}{}. content: {}",
-                        groupName, path, contentAsText, e);
+                        groupName, path, content, e);
             return;
         }
 
@@ -179,8 +178,8 @@ final class XdsKubernetesEndpointFetchingService extends XdsResourceWatchingServ
     protected void onFileRemoved(String groupName, String path) {
         final Map<String, KubernetesEndpointsUpdater> updaters = kubernetesEndpointsUpdaters.get(groupName);
         // e.g. groups/foo/k8s/endpointAggregators/foo-cluster
-        final String aggregatorName =
-                "groups/" + groupName + path.substring(0, path.length() - 5); // Remove .json
+        // Remove .json or .yaml (both 5 chars)
+        final String aggregatorName = "groups/" + groupName + path.substring(0, path.length() - 5);
         if (updaters != null) {
             final KubernetesEndpointsUpdater updater = updaters.get(aggregatorName);
             if (updater != null) {

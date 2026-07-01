@@ -40,7 +40,8 @@ public class ContentTransformer<T> {
      */
     public ContentTransformer(String path, EntryType entryType, BiFunction<Revision, T, T> transformer) {
         this.path = requireNonNull(path, "path");
-        checkArgument(entryType == EntryType.JSON, "entryType: %s (expected: %s)", entryType, EntryType.JSON);
+        checkArgument(entryType == EntryType.JSON || entryType == EntryType.YAML,
+                      "entryType: %s (expected: JSON or YAML)", entryType);
         this.entryType = requireNonNull(entryType, "entryType");
         this.transformer = requireNonNull(transformer, "transformer");
     }
