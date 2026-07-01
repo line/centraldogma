@@ -30,7 +30,7 @@ import { useRouter } from 'next/router';
 import { DeleteConfirmationModal } from 'dogma/common/components/DeleteConfirmationModal';
 import { Loading } from 'dogma/common/components/Loading';
 import { useDeleteGroupMutation } from 'dogma/features/xds/xdsApiSlice';
-import { useGroupAdminAccess } from 'dogma/common/useGroupAdminAccess';
+import { useGroupAdminAccess } from 'dogma/features/xds/useGroupAdminAccess';
 import { useAppDispatch } from 'dogma/hooks';
 import { newNotification } from 'dogma/features/notification/notificationSlice';
 import ErrorMessageParser from 'dogma/features/services/ErrorMessageParser';

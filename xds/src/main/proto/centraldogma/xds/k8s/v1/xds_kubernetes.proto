@@ -53,6 +53,14 @@ service XdsKubernetesService {
       delete: "/api/v1/xds/{name=groups/*/k8s/endpointAggregators/**}"
     };
   }
+
+  rpc PreviewKubernetesEndpointAggregator(PreviewKubernetesEndpointAggregatorRequest)
+      returns (envoy.config.endpoint.v3.ClusterLoadAssignment) {
+    option (google.api.http) = {
+      post: "/api/v1/xds/{parent=groups/*}/k8s/endpointAggregators/preview"
+      body: "kubernetes_endpoint_aggregator"
+    };
+  }
 }
 
 message CreateKubernetesEndpointAggregatorRequest {
@@ -105,4 +113,10 @@ message UpdateKubernetesEndpointAggregatorRequest {
 
 message DeleteKubernetesEndpointAggregatorRequest {
   string name = 1 [(google.api.field_behavior) = IDENTIFIER];
+}
+
+message PreviewKubernetesEndpointAggregatorRequest {
+  // The parent group. Format: groups/{group}
+  string parent = 1 [(google.api.field_behavior) = REQUIRED];
+  KubernetesEndpointAggregator kubernetes_endpoint_aggregator = 2 [(google.api.field_behavior) = REQUIRED];
 }

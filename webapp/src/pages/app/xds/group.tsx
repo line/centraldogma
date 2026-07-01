@@ -32,15 +32,28 @@ import { PermissionsTab } from 'dogma/features/xds/PermissionsTab';
 import { K8sAggregatorList } from 'dogma/features/xds/K8sAggregatorList';
 import { CredentialsTab } from 'dogma/features/xds/CredentialsTab';
 import { DangerZone } from 'dogma/features/xds/DangerZone';
+import { ResourceHistory } from 'dogma/features/xds/ResourceHistory';
+import { GroupOverview } from 'dogma/features/xds/GroupOverview';
+import { ResourceReferences } from 'dogma/features/xds/ResourceReferences';
 import { Loading } from 'dogma/common/components/Loading';
-import { XDS_RESOURCE_META } from 'dogma/features/xds/XdsTypes';
-import { useXdsRoute } from 'dogma/common/useXdsRoute';
-import { useGroupReadAccess } from 'dogma/common/useGroupReadAccess';
-import { useGroupAdminAccess } from 'dogma/common/useGroupAdminAccess';
-import { useGroupExists } from 'dogma/common/useGroupExists';
+import { XDS_RESOURCE_META, XdsResourceType } from 'dogma/features/xds/XdsTypes';
+import { useXdsRoute } from 'dogma/features/xds/useXdsRoute';
+import { useGroupReadAccess } from 'dogma/features/xds/useGroupReadAccess';
+import { useGroupAdminAccess } from 'dogma/features/xds/useGroupAdminAccess';
+import { useGroupExists } from 'dogma/features/xds/useGroupExists';
 
 // Sections that manage group-level access and are therefore restricted to group admins.
 const ADMIN_ONLY_SECTIONS = ['permissions', 'credentials', 'dangerZone'];
+
+const SECTION_TITLE: Record<string, string> = {
+  overview: 'Overview',
+  permissions: 'Permissions',
+  k8sAggregators: 'K8s Aggregators',
+  credentials: 'Credentials',
+  dangerZone: 'Danger Zone',
+  history: 'History',
+  references: 'References',
+};
 
 const GroupDetailPage = () => {
   const { group, section } = useXdsRoute();
@@ -55,9 +68,9 @@ const GroupDetailPage = () => {
   const gatedSection = section !== 'endpoints';
   const redirectToEndpoints = !!group && !accessLoading && !hasAccess && gatedSection;
   // Admin-only sections are hidden from the sidebar for non-admins; also redirect them away when reached
-  // directly via a bookmark or the URL. Users with READ access land on Listeners, the default resource view.
+  // directly via a bookmark or the URL. Users with READ access land on Overview, the default view.
   const redirectFromAdminOnly = !!group && !adminLoading && !isAdmin && ADMIN_ONLY_SECTIONS.includes(section);
-  const redirectTo = redirectToEndpoints ? 'endpoints' : redirectFromAdminOnly ? 'listeners' : null;
+  const redirectTo = redirectToEndpoints ? 'endpoints' : redirectFromAdminOnly ? 'overview' : null;
   useEffect(() => {
     if (redirectTo) {
       router.replace(`/app/xds/group?name=${encodeURIComponent(group as string)}&type=${redirectTo}`);
@@ -97,16 +110,7 @@ const GroupDetailPage = () => {
   if (ADMIN_ONLY_SECTIONS.includes(section) && adminLoading) {
     return <Loading />;
   }
-  const title =
-    section === 'permissions'
-      ? 'Permissions'
-      : section === 'k8sAggregators'
-        ? 'K8s Aggregators'
-        : section === 'credentials'
-          ? 'Credentials'
-          : section === 'dangerZone'
-            ? 'Danger Zone'
-            : `${XDS_RESOURCE_META[section].label}s`;
+  const title = SECTION_TITLE[section] ?? `${XDS_RESOURCE_META[section as XdsResourceType].label}s`;
   return (
     <Box>
       <Breadcrumb mb={4} color="gray.500" fontSize="sm">
@@ -118,7 +122,7 @@ const GroupDetailPage = () => {
         <BreadcrumbItem>
           <BreadcrumbLink
             as={RouteLink}
-            href={`/app/xds/group?name=${encodeURIComponent(group)}&type=listeners`}
+            href={`/app/xds/group?name=${encodeURIComponent(group)}&type=overview`}
           >
             {group}
           </BreadcrumbLink>
@@ -140,7 +144,9 @@ const GroupDetailPage = () => {
           )}
         </Heading>
       </Flex>
-      {section === 'permissions' ? (
+      {section === 'overview' ? (
+        <GroupOverview group={group} />
+      ) : section === 'permissions' ? (
         <PermissionsTab group={group} />
       ) : section === 'k8sAggregators' ? (
         <K8sAggregatorList group={group} />
@@ -148,6 +154,10 @@ const GroupDetailPage = () => {
         <CredentialsTab group={group} />
       ) : section === 'dangerZone' ? (
         <DangerZone group={group} />
+      ) : section === 'history' ? (
+        <ResourceHistory group={group} />
+      ) : section === 'references' ? (
+        <ResourceReferences group={group} />
       ) : (
         <ResourceList group={group} type={section} />
       )}

@@ -16,7 +16,7 @@
 import { ReactNode } from 'react';
 import { Box, Flex } from '@chakra-ui/react';
 import { Navbar } from 'dogma/common/components/Navbar';
-import { Sidebar } from 'dogma/common/components/Sidebar';
+import { Sidebar } from 'dogma/features/xds/Sidebar';
 
 // Layout for the xDS section (`/app/xds/*`): the shared web app Navbar on top, then the xDS sidebar +
 // full-width content. It deliberately bypasses the default `Layout`'s width-limiting Container.
