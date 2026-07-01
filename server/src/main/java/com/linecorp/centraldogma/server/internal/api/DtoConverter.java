@@ -18,8 +18,6 @@ package com.linecorp.centraldogma.server.internal.api;
 
 import static java.util.Objects.requireNonNull;
 
-import java.util.Map;
-
 import org.jspecify.annotations.Nullable;
 
 import com.linecorp.centraldogma.common.Author;
@@ -29,7 +27,7 @@ import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.EntryType;
 import com.linecorp.centraldogma.common.MergedEntry;
 import com.linecorp.centraldogma.common.ProjectRole;
-import com.linecorp.centraldogma.common.RepositoryStatus;
+import com.linecorp.centraldogma.common.ReplicationStatus;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.api.v1.ChangeDto;
 import com.linecorp.centraldogma.internal.api.v1.CommitDto;
@@ -39,7 +37,6 @@ import com.linecorp.centraldogma.internal.api.v1.MergedEntryDto;
 import com.linecorp.centraldogma.internal.api.v1.ProjectDto;
 import com.linecorp.centraldogma.internal.api.v1.PushResultDto;
 import com.linecorp.centraldogma.internal.api.v1.RepositoryDto;
-import com.linecorp.centraldogma.server.metadata.RepositoryMetadata;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
@@ -53,24 +50,7 @@ final class DtoConverter {
         return new ProjectDto(project.name(), project.author(), userRole, project.creationTimeMillis());
     }
 
-    public static RepositoryDto newRepositoryDto(Repository repository,
-                                                 Map<String, RepositoryMetadata> metadataMap) {
-        requireNonNull(repository, "repository");
-        final RepositoryStatus status;
-        if (metadataMap == null) {
-            status = RepositoryStatus.ACTIVE;
-        } else {
-            final RepositoryMetadata metadata = metadataMap.get(repository.name());
-            if (metadata == null) {
-                status = RepositoryStatus.ACTIVE;
-            } else {
-                status = metadata.status();
-            }
-        }
-        return newRepositoryDto(repository, status);
-    }
-
-    public static RepositoryDto newRepositoryDto(Repository repository, RepositoryStatus status) {
+    public static RepositoryDto newRepositoryDto(Repository repository, ReplicationStatus status) {
         final Revision headRevision = repository.normalizeNow(Revision.HEAD);
         final String projectName = repository.parent().name();
         return new RepositoryDto(projectName, repository.name(), repository.author(), headRevision,

@@ -32,8 +32,9 @@ import com.linecorp.centraldogma.common.ShuttingDownException;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.command.StandaloneCommandExecutor;
+import com.linecorp.centraldogma.server.internal.management.RepoStatusManager;
+import com.linecorp.centraldogma.server.internal.management.ServerStatusManager;
 import com.linecorp.centraldogma.server.internal.storage.project.DefaultProjectManager;
-import com.linecorp.centraldogma.server.management.ServerStatusManager;
 import com.linecorp.centraldogma.server.storage.encryption.NoopEncryptionStorageManager;
 import com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
@@ -64,6 +65,7 @@ public class ProjectManagerExtension extends AbstractAllOrEachExtension {
     private CommandExecutor executor;
     private ScheduledExecutorService purgeWorker;
     private InternalProjectInitializer internalProjectInitializer;
+    private ServerStatusManager serverStatusManager;
 
     private final TemporaryFolder tempDir = new TemporaryFolder();
     private File dataDir;
@@ -80,6 +82,7 @@ public class ProjectManagerExtension extends AbstractAllOrEachExtension {
         purgeWorker = Executors.newSingleThreadScheduledExecutor(
                 new DefaultThreadFactory("purge-worker", true));
         projectManager = newProjectManager(repositoryWorker, purgeWorker);
+        serverStatusManager = new ServerStatusManager(dataDir);
         executor = newCommandExecutor(projectManager, repositoryWorker, dataDir);
 
         executor.start().get();
@@ -128,6 +131,10 @@ public class ProjectManagerExtension extends AbstractAllOrEachExtension {
         return internalProjectInitializer;
     }
 
+    public ServerStatusManager serverStatusManager() {
+        return serverStatusManager;
+    }
+
     /**
      * Override this method to configure a project after the executor started.
      */
@@ -165,7 +172,9 @@ public class ProjectManagerExtension extends AbstractAllOrEachExtension {
      * Override this method to customize a {@link CommandExecutor}.
      */
     protected CommandExecutor newCommandExecutor(ProjectManager projectManager, Executor worker, File dataDir) {
-        return new StandaloneCommandExecutor(projectManager, worker, new ServerStatusManager(dataDir), null,
-                                             NoopEncryptionStorageManager.INSTANCE, null, null, null, null);
+        return new StandaloneCommandExecutor(projectManager, worker, serverStatusManager,
+                                             new RepoStatusManager(serverStatusManager, projectManager), null,
+                                             NoopEncryptionStorageManager.INSTANCE, null, null, null,
+                                             null);
     }
 }

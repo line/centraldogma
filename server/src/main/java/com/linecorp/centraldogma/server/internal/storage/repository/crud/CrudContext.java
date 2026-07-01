@@ -14,7 +14,7 @@
  * under the License.
  */
 
-package com.linecorp.centraldogma.server.internal.storage.repository.git;
+package com.linecorp.centraldogma.server.internal.storage.repository.crud;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
@@ -24,6 +24,7 @@ import java.util.Objects;
 import com.google.common.base.MoreObjects;
 
 import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.internal.Util;
 
 public final class CrudContext {
 
@@ -31,6 +32,10 @@ public final class CrudContext {
     private final String repoName;
     private final String targetPath;
     private final Revision revision;
+
+    public CrudContext(String projectName, String repoName, String targetPath) {
+       this(projectName, repoName, targetPath, Revision.HEAD);
+    }
 
     public CrudContext(String projectName, String repoName, String targetPath, Revision revision) {
         this.projectName = requireNonNull(projectName, "projectName");
@@ -55,6 +60,17 @@ public final class CrudContext {
 
     public Revision revision() {
         return revision;
+    }
+
+    public CrudContext withRevision(Revision revision) {
+        return new CrudContext(projectName, repoName, targetPath, revision);
+    }
+
+    public String getPath(String id) {
+        checkArgument(!id.isEmpty(), "id is empty.");
+        Util.validateFileName(id, "id");
+
+        return targetPath() + id + ".json";
     }
 
     @Override

@@ -31,6 +31,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableMap;
 
+import com.linecorp.centraldogma.common.ReplicationStatus;
 import com.linecorp.centraldogma.common.RepositoryRole;
 import com.linecorp.centraldogma.common.RepositoryStatus;
 import com.linecorp.centraldogma.server.storage.project.Project;
@@ -168,7 +169,10 @@ public final class RepositoryMetadata implements Identifiable, HasWeight {
 
     /**
      * Returns the {@link RepositoryStatus}.
+     *
+     * @deprecated Use {@link ReplicationStatus} provided by {@code RepoStatusManager}.
      */
+    @Deprecated
     @JsonProperty
     public RepositoryStatus status() {
         return repositoryStatus;

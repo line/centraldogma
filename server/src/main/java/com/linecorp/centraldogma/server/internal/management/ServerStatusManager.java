@@ -1,0 +1,147 @@
+/*
+ * Copyright 2026 LY Corporation
+ *
+ * LY Corporation licenses this file to you under the Apache License,
+ * version 2.0 (the "License"); you may not use this file except in compliance
+ * with the License. You may obtain a copy of the License at:
+ *
+ *   https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
+ */
+
+package com.linecorp.centraldogma.server.internal.management;
+
+import static java.util.Objects.requireNonNull;
+
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
+import java.nio.file.Path;
+import java.util.Properties;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.linecorp.armeria.common.util.ThreadFactories;
+import com.linecorp.centraldogma.server.management.ServerStatus;
+
+/**
+ * Manages the server status.
+ */
+public final class ServerStatusManager {
+
+    private static final Logger logger = LoggerFactory.getLogger(ServerStatusManager.class);
+
+    private static final String STATUS = "status";
+    private static final long REFRESH_INTERVAL_SECONDS = 1;
+
+    private final ScheduledExecutorService sequentialExecutor =
+            Executors.newSingleThreadScheduledExecutor(
+                    ThreadFactories.newThreadFactory("server-status-manager", true));
+
+    private final File dataDir;
+    private volatile ServerStatus cachedServerStatus;
+
+    /**
+     * Creates a new instance with the specified {@code dataDir}.
+     */
+    public ServerStatusManager(File dataDir) {
+        requireNonNull(dataDir, "dataDir");
+        this.dataDir = dataDir;
+        final File serverStatusFile = new File(dataDir, "server-status.properties");
+        // Create the file if it does not exist.
+        try {
+            serverStatusFile.createNewFile();
+        } catch (IOException e) {
+            throw new IllegalStateException("Failed to create server status file: " + serverStatusFile, e);
+        }
+        // Refresh the cache periodically so external edits to the file are picked up.
+        cachedServerStatus = loadServerStatus();
+        sequentialExecutor.scheduleWithFixedDelay(this::refreshServerStatus, REFRESH_INTERVAL_SECONDS,
+                                                  REFRESH_INTERVAL_SECONDS, TimeUnit.SECONDS);
+    }
+
+    /**
+     * Returns the cached {@link ServerStatus}, which is refreshed from the
+     * {@code "<data-dir>/server-status.properties"} file every second.
+     *
+     * <p>The stored {@link ServerStatus} may be used to determine whether the server is writable and
+     * replicating when the server is started.
+     */
+    public ServerStatus serverStatus() {
+        return cachedServerStatus;
+    }
+
+    private void refreshServerStatus() {
+        try {
+            cachedServerStatus = loadServerStatus();
+        } catch (Exception e) {
+            logger.warn("Failed to refresh the server status; keeping the cached value: {}",
+                        cachedServerStatus, e);
+        }
+    }
+
+    private synchronized ServerStatus loadServerStatus() {
+        final Properties properties = new Properties();
+        try (InputStream is = Files.newInputStream(getServerStatusFile())) {
+            properties.load(is);
+        } catch (NoSuchFileException e) {
+            // The file may have been removed externally by an administrator (e.g. to reset the
+            // state after manual recovery).
+            return ServerStatus.WRITABLE;
+        } catch (IOException e) {
+            throw new IllegalStateException("Failed to load server status file: server-status.properties", e);
+        }
+
+        final String status = properties.getProperty(STATUS, "WRITABLE");
+        return ServerStatus.valueOf(status);
+    }
+
+    /**
+     * Updates the server status with the specified {@code writable} and {@code replicating} values.
+     *
+     * <p>The status is stored in the {@code "<data-dir>/server-status.properties"} file so that the server
+     * can be initialized with the same status when it is restarted.
+     */
+    public synchronized void updateStatus(ServerStatus newServerStatus) {
+        final Properties properties = new Properties();
+        properties.setProperty(STATUS, newServerStatus.name());
+        try (OutputStream out = Files.newOutputStream(getServerStatusFile())) {
+            properties.store(out, "Do not edit this file manually. Use the AdministrativeService API.");
+        } catch (IOException e) {
+            throw new IllegalStateException("Failed to store server status file: server-status.properties", e);
+        }
+        // Apply the new status to the cache immediately instead of waiting for the next refresh.
+        cachedServerStatus = newServerStatus;
+    }
+
+    private Path getServerStatusFile() {
+        return dataDir.toPath().resolve("server-status.properties");
+    }
+
+    /**
+     * Returns the {@link Executor} which is used to execute the status update sequentially.
+     */
+    public Executor sequentialExecutor() {
+        return sequentialExecutor;
+    }
+
+    /**
+     * Stops refreshing the cached {@link ServerStatus}.
+     */
+    public void close() {
+        sequentialExecutor.shutdown();
+    }
+}

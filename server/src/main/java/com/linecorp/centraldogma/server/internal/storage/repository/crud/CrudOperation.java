@@ -14,19 +14,31 @@
  * under the License.
  */
 
-package com.linecorp.centraldogma.server.internal.storage.repository.git;
+package com.linecorp.centraldogma.server.internal.storage.repository.crud;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
+import org.jspecify.annotations.Nullable;
+
+import com.fasterxml.jackson.core.JsonParseException;
+import com.fasterxml.jackson.databind.JsonMappingException;
+
 import com.linecorp.centraldogma.common.Author;
+import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.EntryNotFoundException;
 import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.internal.admin.auth.AuthUtil;
 import com.linecorp.centraldogma.server.internal.storage.repository.HasId;
 import com.linecorp.centraldogma.server.storage.repository.HasRevision;
 
 public interface CrudOperation<T> {
+
+    /**
+     * Returns the type of the entity.
+     */
+    Class<T> entityType();
 
     CompletableFuture<HasRevision<T>> save(CrudContext ctx, String id, T entity, Author author,
                                            String description);
@@ -90,5 +102,17 @@ public interface CrudOperation<T> {
 
     default CompletableFuture<Revision> delete(CrudContext ctx, String id) {
         return delete(ctx, id, AuthUtil.currentAuthor());
+    }
+
+    @Nullable
+    default HasRevision<T> entryToValue(@Nullable Entry<?> entry) {
+        if (entry == null) {
+            return null;
+        }
+        try {
+            return HasRevision.of(Jackson.treeToValue(entry.contentAsJson(), entityType()), entry.revision());
+        } catch (JsonParseException | JsonMappingException e) {
+            throw new RuntimeException(e);
+        }
     }
 }

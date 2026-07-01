@@ -79,6 +79,7 @@ import com.google.common.util.concurrent.Uninterruptibles;
 
 import com.linecorp.armeria.common.util.SafeCloseable;
 import com.linecorp.centraldogma.common.LockAcquireTimeoutException;
+import com.linecorp.centraldogma.common.ReplicationStatus;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.ZooKeeperReplicationConfig;
@@ -91,9 +92,13 @@ import com.linecorp.centraldogma.server.command.CommitResult;
 import com.linecorp.centraldogma.server.command.ExecutionContext;
 import com.linecorp.centraldogma.server.command.ForcePushCommand;
 import com.linecorp.centraldogma.server.command.NormalizableCommit;
+import com.linecorp.centraldogma.server.command.ProjectCommand;
 import com.linecorp.centraldogma.server.command.RepositoryCommand;
 import com.linecorp.centraldogma.server.command.UpdateServerStatusCommand;
 import com.linecorp.centraldogma.server.internal.command.DefaultExecutionContext;
+import com.linecorp.centraldogma.server.management.ServerStatus;
+import com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer;
+import com.linecorp.centraldogma.server.storage.project.Project;
 
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -422,6 +427,10 @@ public final class ZooKeeperCommandExecutor
     @Override
     public int replicaId() {
         return cfg.serverId();
+    }
+
+    public CommandExecutor unwrap() {
+        return delegate;
     }
 
     @Override
@@ -817,9 +826,11 @@ public final class ZooKeeperCommandExecutor
             if (!force && !canReplicate) {
                 break;
             }
-            ReplicationLog<?> l = null;
+            ReplicationLogContext logContext = null;
             try {
-                l = loadLog(nextRevision);
+                logContext = loadLog(nextRevision);
+                final ReplicationLog<?> l = logContext.log();
+                assert l != null : "logContext: " + logContext;
                 final Command<?> command = l.command();
                 final Object expectedResult = l.result();
                 final Object actualResult = delegate.execute(REPLAY_CONTEXT, command).get();
@@ -828,7 +839,7 @@ public final class ZooKeeperCommandExecutor
                     throw new ReplicationException(
                             "mismatching replay result at revision " + nextRevision +
                             ": " + actualResult + " (expected: " + expectedResult +
-                            ", command: " + command + ')');
+                            ", command: " + command + ')', logContext);
                 }
 
                 updateLastReplayedRevision(nextRevision);
@@ -836,33 +847,35 @@ public final class ZooKeeperCommandExecutor
                 if (command instanceof UpdateServerStatusCommand) {
                     updateZkCommandStatusLater((UpdateServerStatusCommand) command);
                 }
-                if (nextRevision == targetRevision) {
-                    break;
-                } else {
-                    nextRevision++;
-                }
             } catch (Throwable t) {
-                if (l != null) {
-                    logger.error(
-                            "Failed to replay a log at revision {}; entering read-only mode. replay log: {}",
-                            nextRevision, l, t);
-                } else {
-                    logger.error("Failed to replay a log at revision {}; entering read-only mode.",
-                                 nextRevision, t);
+                try {
+                    // Skip the failed log so the remaining logs can still be replayed.
+                    updateLastReplayedRevision(nextRevision);
+                    lastReplayedRevision = nextRevision;
+                } catch (Exception e) {
+                    // Can't persist replay progress; fall back to global read-only.
+                    final ReplicationException exception = new ReplicationException(
+                            "Failed to update the last replayed revision to " + nextRevision, e);
+                    exception.addSuppressed(t);
+                    handleReplicationFailure(exception, false, null);
+                    return;
                 }
 
-                stopLater();
-
+                final ReplicationException re;
                 if (t instanceof ReplicationException) {
-                    throw (ReplicationException) t;
+                    re = (ReplicationException) t;
+                } else {
+                    re = new ReplicationException("failed to replay a log at revision " + nextRevision,
+                                                  t, logContext);
                 }
-                final StringBuilder sb = new StringBuilder();
-                sb.append("failed to replay a log at revision " + nextRevision);
-                if (l != null) {
-                    sb.append(". replay log: ").append(l);
-                }
-                throw new ReplicationException(sb.toString(), t);
+                // Apply read-only asynchronously and keep replaying the next log.
+                handleReplicationFailure(re, false, null);
             }
+
+            if (nextRevision == targetRevision) {
+                break;
+            }
+            nextRevision++;
         }
     }
 
@@ -886,12 +899,7 @@ public final class ZooKeeperCommandExecutor
         }
 
         final long lastKnownRevision = revisionFromPath(event.getData().getPath());
-        try {
-            replayLogs(lastKnownRevision, false);
-        } catch (ReplicationException ignored) {
-            // replayLogs() logs and handles the exception already, so we just bail out here.
-            return;
-        }
+        replayLogs(lastKnownRevision, false);
 
         oldLogRemover.touch();
     }
@@ -943,7 +951,6 @@ public final class ZooKeeperCommandExecutor
             if (cause != null) {
                 logger.error("Failed to acquire a lock for {} (command: {}); entering read-only mode",
                              executionPath, command, cause);
-                stopLater();
                 throw new ReplicationException("failed to acquire a lock for " + executionPath, cause);
             } else {
                 logger.warn("Failed to acquire a lock for {} in time (command: {})", executionPath, command);
@@ -992,13 +999,34 @@ public final class ZooKeeperCommandExecutor
     }
 
     private long storeLog(ReplicationLog<?> log) {
+        final ReplicationLogContext logContext = new ReplicationLogContext();
+        logContext.setLog(log);
         try {
             byte[] bytes = Jackson.writeValueAsBytes(log);
             assert bytes.length > 0;
             bytes = Zstd.compress(bytes);
+            logContext.setBytes(bytes);
 
+            final Command<?> command = log.command();
+            final String commandType = command.type().toString();
+            // Unwrap ForcePushCommand to determine the delegate's scope.
+            final Command<?> scopeCommand = unwrapForcePush(command);
+            final String projectName;
+            final String repoName;
+            if (scopeCommand instanceof ProjectCommand) {
+                projectName = ((ProjectCommand<?>) scopeCommand).projectName();
+                repoName = null;
+            } else if (scopeCommand instanceof RepositoryCommand) {
+                final RepositoryCommand<?> repoCommand = (RepositoryCommand<?>) scopeCommand;
+                projectName = repoCommand.projectName();
+                repoName = repoCommand.repositoryName();
+            } else {
+                projectName = null;
+                repoName = null;
+            }
             final LogMeta logMeta = new LogMeta(log.replicaId(), System.currentTimeMillis(), bytes.length,
-                                                true, null);
+                                                commandType, projectName, repoName, true, null);
+            logContext.setMeta(logMeta);
 
             final int count = (bytes.length + MAX_BYTES - 1) / MAX_BYTES;
             for (int i = 0; i < count; ++i) {
@@ -1020,6 +1048,7 @@ public final class ZooKeeperCommandExecutor
                         curator.create().withMode(CreateMode.PERSISTENT_SEQUENTIAL)
                                .forPath(absolutePath(LOG_PATH) + '/', logMetaBytes);
                 revision = revisionFromPath(logPath);
+                logContext.setReplayRevision(revision);
 
                 replayLogs(revision - 1, true);
                 updateLastReplayedRevision(revision);
@@ -1027,20 +1056,86 @@ public final class ZooKeeperCommandExecutor
             }
             return revision;
         } catch (Exception e) {
-            logger.error("Failed to store a log; entering read-only mode: {}", log, e);
+            throw new ReplicationException("failed to store a log", e, logContext);
+        }
+    }
+
+    private void handleReplicationFailure(ReplicationException exception, boolean directExecution,
+                                          @Nullable CompletableFuture<?> future) {
+        final ReplicationLogContext logContext = exception.logContext();
+        if (logContext == null) {
+            // No log context, so we can't determine which project/repo failed;
+            // fall back to a global read-only mode.
+            logger.error("Failed to replicate a log; entering read-only mode.", exception);
             stopLater();
-            throw new ReplicationException("failed to store a log: " + log, e);
+            return;
+        }
+
+        final LogMeta logMeta = logContext.meta();
+        String projectName = null;
+        String repoName = null;
+        if (logMeta != null) {
+            projectName = logMeta.projectName();
+            repoName = logMeta.repoName();
+        }
+
+        final String scope;
+        final Command<Void> command;
+        if (projectName == null || projectName.equals(InternalProjectInitializer.INTERNAL_PROJECT_DOGMA)) {
+            command = Command.updateServerStatus(ServerStatus.REPLICATION_ONLY);
+            scope = "SERVER(all)";
+        } else {
+            if (repoName == null || repoName.equals(Project.REPO_DOGMA)) {
+                command = Command.updateProjectStatus(projectName, ReplicationStatus.READ_ONLY);
+                scope = projectName;
+            } else {
+                command = Command.updateRepositoryStatus(projectName, repoName, ReplicationStatus.READ_ONLY);
+                scope = projectName + '/' + repoName;
+            }
+        }
+
+        logger.error("Failed to replicate a log; attempting to switch to read-only mode. " +
+                     "scope: {}, logContext: {}", scope, logContext, exception);
+        if (directExecution) {
+            // When a replication failure occurs during command execution, the replication should enter
+            // read-only mode while holding the lock for the original command.
+            try {
+                delegate.execute(command).get(30, TimeUnit.SECONDS);
+                final ReplicationLog<?> log = new ReplicationLog<>(replicaId(), command, null);
+                final long revision = storeLog(log);
+                logger.info("Successfully applied read-only mode to {}. revision: {}", scope, revision);
+            } catch (Exception e) {
+                logger.error("Failed to apply read-only mode for {}; stopping command executor...", scope, e);
+                stopLater();
+            }
+        } else {
+            execute(command).handle((unused, cause) -> {
+                if (future != null) {
+                    future.completeExceptionally(exception);
+                }
+                if (cause != null) {
+                    logger.error("Failed to apply read-only mode for {}; stopping command executor...",
+                                 scope, cause);
+                    stopLater();
+                } else {
+                    logger.info("Successfully applied read-only mode to {}", scope);
+                }
+                return null;
+            });
         }
     }
 
     @VisibleForTesting
-    ReplicationLog<?> loadLog(long revision) {
+    ReplicationLogContext loadLog(long revision) {
+        final ReplicationLogContext logContext = new ReplicationLogContext();
+        logContext.setReplayRevision(revision);
         try {
             createParentNodes();
 
             final String logPath = absolutePath(LOG_PATH) + '/' + pathFromRevision(revision);
 
             final LogMeta logMeta = Jackson.readValue(curator.getData().forPath(logPath), LogMeta.class);
+            logContext.setMeta(logMeta);
 
             byte[] bytes = new byte[logMeta.size()];
             int offset = 0;
@@ -1051,16 +1146,18 @@ public final class ZooKeeperCommandExecutor
                 offset += b.length;
             }
             assert logMeta.size() == offset;
+            logContext.setBytes(bytes);
 
             final Boolean compressed = logMeta.compressed();
             if (Boolean.TRUE.equals(compressed)) {
                 bytes = Zstd.decompress(bytes);
             }
-            return Jackson.readValue(bytes, ReplicationLog.class);
+            logContext.setBytes(bytes);
+            final ReplicationLog<?> log = Jackson.readValue(bytes, ReplicationLog.class);
+            logContext.setLog(log);
+            return logContext;
         } catch (Exception e) {
-            logger.error("Failed to load a log at revision {}; entering read-only mode", revision, e);
-            stopLater();
-            throw new ReplicationException("failed to load a log at revision " + revision, e);
+            throw new ReplicationException("failed to load a log at revision " + revision, e, logContext);
         }
     }
 
@@ -1103,6 +1200,10 @@ public final class ZooKeeperCommandExecutor
             try {
                 timings.startExecutorExecution();
                 future.complete(blockingExecute(ctx, command, timings));
+            } catch (ScopedReadOnlyAppliedException e) {
+                future.completeExceptionally(e.getCause());
+            } catch (ReplicationException e) {
+                handleReplicationFailure(e, false, future);
             } catch (Throwable t) {
                 future.completeExceptionally(t);
             } finally {
@@ -1120,64 +1221,70 @@ public final class ZooKeeperCommandExecutor
         createParentNodes();
 
         try (SafeCloseable ignored = safeLock(command, timings)) {
-
-            // NB: We are sure no other replicas will append the conflicting logs (the commands with the
-            //     same execution path) while we hold the lock for the command's execution path.
-            //
-            //     Other replicas may still append the logs with different execution paths, because, by design,
-            //     two commands never conflict with each other if they have different execution paths.
-
-            timings.startLogReplay();
             try {
-                final List<String> recentRevisions = curator.getChildren().forPath(absolutePath(LOG_PATH));
-                if (!recentRevisions.isEmpty()) {
-                    final long lastRevision = recentRevisions.stream().mapToLong(Long::parseLong).max()
-                                                             .getAsLong();
-                    replayLogs(lastRevision, true);
-                }
-            } finally {
-                timings.endLogReplay();
-            }
+                // NB: We are sure no other replicas will append the conflicting logs (the commands with the
+                //     same execution path) while we hold the lock for the command's execution path.
+                //
+                //     Other replicas may still append the logs with different execution paths, because, by
+                //     design, two commands never conflict with each other if they have different execution
+                //     paths.
 
-            timings.startCommandExecution();
-            final T result;
-            try {
-                result = delegate.execute(ctx, command).get();
-            } finally {
-                timings.endCommandExecution();
-            }
-
-            timings.startLogStore();
-            final long revision;
-            final ReplicationLog<?> log;
-            try {
-                final Command<?> maybeUnwrapped = unwrapForcePush(command);
-                if (maybeUnwrapped instanceof NormalizableCommit) {
-                    final NormalizableCommit normalizingPushCommand = (NormalizableCommit) maybeUnwrapped;
-                    assert result instanceof CommitResult : result;
-                    final CommitResult commitResult = (CommitResult) result;
-                    final Command<Revision> pushAsIsCommand = normalizingPushCommand.asIs(commitResult);
-                    log = new ReplicationLog<>(replicaId(),
-                                               maybeWrap(command, pushAsIsCommand), commitResult.revision());
-                } else {
-                    log = new ReplicationLog<>(replicaId(), command, result);
+                timings.startLogReplay();
+                try {
+                    final List<String> recentRevisions = curator.getChildren().forPath(absolutePath(LOG_PATH));
+                    if (!recentRevisions.isEmpty()) {
+                        final long lastRevision = recentRevisions.stream().mapToLong(Long::parseLong).max()
+                                                                 .getAsLong();
+                        replayLogs(lastRevision, true);
+                    }
+                } finally {
+                    timings.endLogReplay();
                 }
 
-                // Store the command execution log to ZooKeeper.
-                revision = storeLog(log);
-            } finally {
-                timings.endLogStore();
-            }
+                timings.startCommandExecution();
+                final T result;
+                try {
+                    result = delegate.execute(ctx, command).get();
+                } finally {
+                    timings.endCommandExecution();
+                }
 
-            // Update the ServerStatus to the CommandExecutor after the log is stored.
-            if (command.type() == CommandType.UPDATE_SERVER_STATUS) {
-                final UpdateServerStatusCommand statusCommand = (UpdateServerStatusCommand) command;
-                canReplicate = statusCommand.serverStatus().replicating();
-                statusManager().updateStatus(statusCommand);
-            }
+                timings.startLogStore();
+                final long revision;
+                final ReplicationLog<?> log;
+                try {
+                    final Command<?> maybeUnwrapped = unwrapForcePush(command);
+                    if (maybeUnwrapped instanceof NormalizableCommit) {
+                        final NormalizableCommit normalizingPushCommand = (NormalizableCommit) maybeUnwrapped;
+                        assert result instanceof CommitResult : result;
+                        final CommitResult commitResult = (CommitResult) result;
+                        final Command<Revision> pushAsIsCommand = normalizingPushCommand.asIs(commitResult);
+                        log = new ReplicationLog<>(replicaId(),
+                                                   maybeWrap(command, pushAsIsCommand),
+                                                   commitResult.revision());
+                    } else {
+                        log = new ReplicationLog<>(replicaId(), command, result);
+                    }
 
-            logger.debug("logging OK. revision = {}, log = {}", revision, log);
-            return result;
+                    // Store the command execution log to ZooKeeper.
+                    revision = storeLog(log);
+                } finally {
+                    timings.endLogStore();
+                }
+
+                // Update the ServerStatus to the CommandExecutor after the log is stored.
+                if (command.type() == CommandType.UPDATE_SERVER_STATUS) {
+                    final UpdateServerStatusCommand statusCommand = (UpdateServerStatusCommand) command;
+                    canReplicate = statusCommand.serverStatus().replicating();
+                    statusManager().updateStatus(statusCommand);
+                }
+
+                logger.debug("logging OK. revision = {}, log = {}", revision, log);
+                return result;
+            } catch (ReplicationException ex) {
+                handleReplicationFailure(ex, true, null);
+                throw new ScopedReadOnlyAppliedException(ex);
+            }
         }
     }
 
@@ -1220,5 +1327,18 @@ public final class ZooKeeperCommandExecutor
     @VisibleForTesting
     public void setLockTimeoutMillis(long lockTimeoutMillis) {
         lockTimeoutNanos = TimeUnit.MILLISECONDS.toNanos(lockTimeoutMillis);
+    }
+
+    /**
+     * A marker exception to indicate that a ReplicationException has been handled by marking the scope as
+     * read-only.
+     */
+    private static final class ScopedReadOnlyAppliedException extends RuntimeException {
+
+        private static final long serialVersionUID = -8652319825149778572L;
+
+        ScopedReadOnlyAppliedException(ReplicationException cause) {
+            super(cause);
+        }
     }
 }

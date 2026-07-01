@@ -29,8 +29,9 @@ import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.internal.api.AbstractService;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresSystemAdministrator;
 import com.linecorp.centraldogma.server.internal.api.sysadmin.UpdateServerStatusRequest.Scope;
+import com.linecorp.centraldogma.server.internal.management.ServerStatusManager;
+import com.linecorp.centraldogma.server.internal.replication.ZooKeeperCommandExecutor;
 import com.linecorp.centraldogma.server.management.ServerStatus;
-import com.linecorp.centraldogma.server.management.ServerStatusManager;
 
 @ProducesJson
 @RequiresSystemAdministrator
@@ -78,6 +79,10 @@ public final class ServerStatusService extends AbstractService {
 
             return CompletableFuture.supplyAsync(() -> {
                 executor().statusManager().updateStatus(newStatus);
+                if (executor() instanceof ZooKeeperCommandExecutor) {
+                    final CommandExecutor delegate = ((ZooKeeperCommandExecutor) executor()).unwrap();
+                    delegate.statusManager().updateStatus(newStatus);
+                }
                 serverStatusManager.updateStatus(newStatus);
                 return status();
             }, serverStatusManager.sequentialExecutor());

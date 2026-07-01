@@ -21,8 +21,8 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.base.MoreObjects;
 
+import com.linecorp.centraldogma.server.internal.management.ServerStatusManager;
 import com.linecorp.centraldogma.server.management.ServerStatus;
-import com.linecorp.centraldogma.server.management.ServerStatusManager;
 
 /**
  * Manages the status of a {@link CommandExecutor}.

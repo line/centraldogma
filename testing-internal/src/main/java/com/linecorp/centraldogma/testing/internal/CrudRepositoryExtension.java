@@ -24,8 +24,8 @@ import org.junit.jupiter.api.extension.ExtensionContext;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.ProjectExistsException;
 import com.linecorp.centraldogma.common.RepositoryExistsException;
-import com.linecorp.centraldogma.server.internal.storage.repository.CrudRepository;
-import com.linecorp.centraldogma.server.internal.storage.repository.git.GitCrudRepository;
+import com.linecorp.centraldogma.server.internal.storage.repository.crud.CrudRepository;
+import com.linecorp.centraldogma.server.internal.storage.repository.crud.ReplicatingCrudRepository;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 import com.linecorp.centraldogma.testing.junit.AbstractAllOrEachExtension;
@@ -72,9 +72,9 @@ public class CrudRepositoryExtension<T> extends AbstractAllOrEachExtension {
         } catch (RepositoryExistsException e) {
             // Ignore.
         }
-        crudRepository = new GitCrudRepository<>(entityType, projectManagerExtension.executor(),
-                                                 projectManager, projectName,
-                                                 repoName, targetPath);
+        crudRepository = new ReplicatingCrudRepository<>(entityType, projectManagerExtension.executor(),
+                                                        projectManager, projectName,
+                                                        repoName, targetPath);
     }
 
     @Override

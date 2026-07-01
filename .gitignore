@@ -141,5 +141,11 @@ typings/
 # macOS folder meta-data
 .DS_Store
 
+# Claude
+.claude/
+
 # Codex
 AGENTS.md
+
+# IntelliJ AI agent
+.junie/

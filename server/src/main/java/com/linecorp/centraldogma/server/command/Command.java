@@ -30,6 +30,7 @@ import com.google.common.collect.ImmutableList;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Markup;
+import com.linecorp.centraldogma.common.ReplicationStatus;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.server.EncryptionConfig;
 import com.linecorp.centraldogma.server.auth.Session;
@@ -64,6 +65,8 @@ import com.linecorp.centraldogma.server.storage.repository.Repository;
         @Type(value = RemoveSessionCommand.class, name = "REMOVE_SESSIONS"),
         @Type(value = CreateSessionMasterKeyCommand.class, name = "CREATE_SESSION_MASTER_KEY"),
         @Type(value = UpdateServerStatusCommand.class, name = "UPDATE_SERVER_STATUS"),
+        @Type(value = UpdateProjectStatusCommand.class, name = "UPDATE_PROJECT_STATUS"),
+        @Type(value = UpdateRepositoryStatusCommand.class, name = "UPDATE_REPOSITORY_STATUS"),
         @Type(value = ForcePushCommand.class, name = "FORCE_PUSH_COMMAND"),
 })
 public interface Command<T> {
@@ -331,8 +334,8 @@ public interface Command<T> {
      * @param changes the changes to be applied
      */
     static Command<Revision> push(Author author, String projectName, String repositoryName,
-                                      Revision baseRevision, String summary, String detail,
-                                      Markup markup, Change<?>... changes) {
+                                  Revision baseRevision, String summary, String detail,
+                                  Markup markup, Change<?>... changes) {
 
         return push(null, author, projectName, repositoryName, baseRevision, summary, detail, markup, changes);
     }
@@ -476,6 +479,34 @@ public interface Command<T> {
      */
     static Command<Void> updateServerStatus(ServerStatus serverStatus) {
         return new UpdateServerStatusCommand(null, null, serverStatus);
+    }
+
+    /**
+     * Returns a new {@link Command} which is used to update the status of a project.
+     */
+    static Command<Void> updateProjectStatus(String projectName, ReplicationStatus projectStatus) {
+        requireNonNull(projectName, "projectName");
+        requireNonNull(projectStatus, "projectStatus");
+        return new UpdateProjectStatusCommand(null, null, projectName, projectStatus);
+    }
+
+    /**
+     * Returns a new {@link Command} which is used to update the status of a repository.
+     */
+    static Command<Void> updateRepositoryStatus(String projectName, String repositoryName,
+                                                ReplicationStatus replicationStatus) {
+        return updateRepositoryStatus(projectName, repositoryName, Author.SYSTEM, replicationStatus);
+    }
+
+    /**
+     * Returns a new {@link Command} which is used to update the status of a repository.
+     */
+    static Command<Void> updateRepositoryStatus(String projectName, String repositoryName, Author author,
+                                                ReplicationStatus replicationStatus) {
+        requireNonNull(projectName, "projectName");
+        requireNonNull(repositoryName, "repositoryName");
+        requireNonNull(replicationStatus, "replicationStatus");
+        return new UpdateRepositoryStatusCommand(null, author, projectName, repositoryName, replicationStatus);
     }
 
     /**
