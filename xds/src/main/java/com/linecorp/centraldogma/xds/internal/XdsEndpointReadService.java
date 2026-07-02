@@ -19,16 +19,19 @@ import static com.linecorp.centraldogma.xds.internal.ControlPlaneService.ENDPOIN
 import static com.linecorp.centraldogma.xds.internal.ControlPlaneService.K8S_ENDPOINTS_DIRECTORY;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Function;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
+import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.armeria.server.annotation.Get;
 import com.linecorp.armeria.server.annotation.Param;
 import com.linecorp.armeria.server.annotation.ProducesJson;
 import com.linecorp.centraldogma.common.Entry;
+import com.linecorp.centraldogma.common.EntryNotFoundException;
 import com.linecorp.centraldogma.common.EntryType;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.server.storage.project.Project;
@@ -56,12 +59,12 @@ public final class XdsEndpointReadService {
                          .thenApply(entries -> {
             final ArrayNode array = JsonNodeFactory.instance.arrayNode();
             for (Entry<?> entry : entries.values()) {
-                if (entry.type() != EntryType.JSON) {
+                if (entry.type() != EntryType.JSON && entry.type() != EntryType.YAML) {
                     continue;
                 }
                 final ObjectNode node = array.addObject();
                 node.put("path", entry.path());
-                node.put("type", "JSON");
+                node.put("type", entry.type().name());
                 node.put("revision", entry.revision().major());
             }
             return array;
@@ -73,7 +76,8 @@ public final class XdsEndpointReadService {
      */
     @Get("/xds/groups/{group}/endpoints/{*id}")
     public CompletableFuture<JsonNode> getEndpoint(@Param String group, @Param String id) {
-        return read(group, ENDPOINTS_DIRECTORY + id + ".json");
+        return readWithFallback(group, ENDPOINTS_DIRECTORY + id + ".yaml",
+                                ENDPOINTS_DIRECTORY + id + ".json");
     }
 
     /**
@@ -82,17 +86,33 @@ public final class XdsEndpointReadService {
      */
     @Get("/xds/groups/{group}/k8s/endpoints/{*id}")
     public CompletableFuture<JsonNode> getK8sEndpoint(@Param String group, @Param String id) {
-        return read(group, K8S_ENDPOINTS_DIRECTORY + id + ".json");
+        return readWithFallback(group, K8S_ENDPOINTS_DIRECTORY + id + ".yaml",
+                                K8S_ENDPOINTS_DIRECTORY + id + ".json");
     }
 
-    private CompletableFuture<JsonNode> read(String group, String path) {
-        return xdsProject.repos().get(group).get(Revision.HEAD, path).thenApply(XdsEndpointReadService::toNode);
+    private CompletableFuture<JsonNode> readWithFallback(String group, String yamlPath, String jsonPath) {
+        final Repository repository = xdsProject.repos().get(group);
+        return repository.get(Revision.HEAD, yamlPath)
+                         .thenApply(XdsEndpointReadService::toNode)
+                         .handle((result, cause) -> {
+                             if (cause == null) {
+                                 return CompletableFuture.completedFuture(result);
+                             }
+                             if (Exceptions.peel(cause) instanceof EntryNotFoundException) {
+                                 return repository.get(Revision.HEAD, jsonPath)
+                                                  .thenApply(XdsEndpointReadService::toNode);
+                             }
+                             final CompletableFuture<JsonNode> failed = new CompletableFuture<>();
+                             failed.completeExceptionally(cause);
+                             return failed;
+                         })
+                         .thenCompose(Function.identity());
     }
 
     private static JsonNode toNode(Entry<?> entry) {
         final ObjectNode node = JsonNodeFactory.instance.objectNode();
         node.put("path", entry.path());
-        node.put("type", "JSON");
+        node.put("type", entry.type().name());
         node.put("revision", entry.revision().major());
         node.set("content", (JsonNode) entry.content());
         return node;

@@ -16,6 +16,9 @@
 package com.linecorp.centraldogma.xds.k8s.v1;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static com.linecorp.centraldogma.server.storage.repository.FindOptions.FIND_ONE_WITHOUT_CONTENT;
+
+import com.google.common.collect.ImmutableList;
 import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.XDS_CENTRAL_DOGMA_PROJECT;
 import static com.linecorp.centraldogma.xds.internal.ControlPlaneService.K8S_ENDPOINTS_DIRECTORY;
 import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.JSON_MESSAGE_MARSHALLER;
@@ -59,6 +62,7 @@ import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.storage.project.Project;
+import com.linecorp.centraldogma.server.storage.repository.Repository;
 import com.linecorp.centraldogma.xds.internal.XdsResourceWatchingService;
 
 import io.envoyproxy.envoy.config.core.v3.Address;
@@ -120,15 +124,15 @@ final class XdsKubernetesEndpointFetchingService extends XdsResourceWatchingServ
     }
 
     @Override
-    protected void handleXdsResource(String path, String contentAsText, String groupName)
+    protected void handleXdsResource(String path, JsonNode content, String groupName)
             throws InvalidProtocolBufferException {
         final KubernetesEndpointAggregator.Builder aggregatorBuilder =
                 KubernetesEndpointAggregator.newBuilder();
         try {
-            JSON_MESSAGE_MARSHALLER.mergeValue(contentAsText, aggregatorBuilder);
+            JSON_MESSAGE_MARSHALLER.mergeValue(content.traverse(), aggregatorBuilder);
         } catch (IOException e) {
             logger.warn("Failed to parse a KubernetesEndpointAggregator at {}{}. content: {}",
-                        groupName, path, contentAsText, e);
+                        groupName, path, content, e);
             return;
         }
 
@@ -179,8 +183,8 @@ final class XdsKubernetesEndpointFetchingService extends XdsResourceWatchingServ
     protected void onFileRemoved(String groupName, String path) {
         final Map<String, KubernetesEndpointsUpdater> updaters = kubernetesEndpointsUpdaters.get(groupName);
         // e.g. groups/foo/k8s/endpointAggregators/foo-cluster
-        final String aggregatorName =
-                "groups/" + groupName + path.substring(0, path.length() - 5); // Remove .json
+        final String aggregatorName = "groups/" + groupName + path.substring(
+                0, path.length() - 5); // Remove file extension (.json or .yaml)
         if (updaters != null) {
             final KubernetesEndpointsUpdater updater = updaters.get(aggregatorName);
             if (updater != null) {
@@ -188,22 +192,40 @@ final class XdsKubernetesEndpointFetchingService extends XdsResourceWatchingServ
             }
         }
 
-        // Remove corresponding endpoints.
-        final String endpointPath = AGGREGATORS_REPLCACE_PATTERN.matcher(path).replaceFirst("/endpoints/");
-        logger.info("Removing {} from {}. aggregatorName: {}", endpointPath, groupName, aggregatorName);
+        // Find the endpoint file (either .yaml or legacy .json) and remove it in a single commit.
+        final String endpointBase = AGGREGATORS_REPLCACE_PATTERN.matcher(
+                path.substring(0, path.length() - 5)).replaceFirst("/endpoints/");
+        logger.info("Removing endpoint for {} from {}. aggregatorName: {}", endpointBase, groupName,
+                    aggregatorName);
+        final Repository repository = xdsProject().repos().get(groupName);
+        repository.find(Revision.HEAD, endpointBase + ".*", FIND_ONE_WITHOUT_CONTENT)
+                  .handle((entries, findCause) -> {
+            if (findCause != null) {
+                logger.warn("Failed to find endpoint file for {} in {}", endpointBase, groupName, findCause);
+                return null;
+            }
+            final String actualPath = entries.keySet().stream()
+                    .filter(p -> p.endsWith(".yaml") || p.endsWith(".json"))
+                    .findFirst().orElse(null);
+            if (actualPath == null) {
+                return null; // Already removed or never created.
+            }
+            removeEndpointFile(groupName, actualPath);
+            return null;
+        });
+    }
+
+    private void removeEndpointFile(String groupName, String endpointPath) {
         commandExecutor.execute(
                 Command.push(Author.SYSTEM, XDS_CENTRAL_DOGMA_PROJECT, groupName, Revision.HEAD,
                              "Remove " + endpointPath, "",
                              Markup.PLAINTEXT, Change.ofRemoval(endpointPath))).handle((unused, cause) -> {
             if (cause != null) {
                 final Throwable peeled = Exceptions.peel(cause);
-                if (peeled instanceof ChangeConflictException &&
-                    peeled.getMessage().contains("non-existent file")) {
-                    // TODO(minwoox): Provide a type to ChangeConflictException to distinguish this case.
+                if (peeled instanceof ChangeConflictException) {
                     // Could happen if deleteKubernetesEndpointAggregator is called before the file is created.
                     return null;
                 }
-
                 logger.warn("Failed to remove {} from {}", endpointPath, groupName, cause);
             }
             return null;
@@ -228,6 +250,7 @@ final class XdsKubernetesEndpointFetchingService extends XdsResourceWatchingServ
         @Nullable
         private ScheduledFuture<?> scheduledFuture;
         private boolean closing;
+        private volatile boolean legacyJsonMigrated;
 
         KubernetesEndpointsUpdater(
                 CommandExecutor commandExecutor,
@@ -316,7 +339,7 @@ final class XdsKubernetesEndpointFetchingService extends XdsResourceWatchingServ
             final boolean matches = matcher.matches();
             assert matches;
             final String aggregatorId = matcher.group(2);
-            final String fileName = K8S_ENDPOINTS_DIRECTORY + aggregatorId + ".json";
+            final String fileName = K8S_ENDPOINTS_DIRECTORY + aggregatorId + ".yaml";
             final JsonNode jsonNode;
             try {
                 jsonNode = Jackson.readTree(json);
@@ -324,7 +347,42 @@ final class XdsKubernetesEndpointFetchingService extends XdsResourceWatchingServ
                 // Should never reach here as it is already validated.
                 throw new IllegalStateException(e);
             }
-            final Change<JsonNode> change = Change.ofJsonUpsert(fileName, jsonNode);
+            final Change<JsonNode> yamlChange = Change.ofYamlUpsert(fileName, jsonNode);
+            if (legacyJsonMigrated) {
+                pushYamlChange(yamlChange);
+                return;
+            }
+            // Attempt atomic migration: remove legacy .json and upsert .yaml in one commit.
+            final String legacyFileName = K8S_ENDPOINTS_DIRECTORY + aggregatorId + ".json";
+            final List<Change<?>> changes = ImmutableList.of(Change.ofRemoval(legacyFileName), yamlChange);
+            commandExecutor.execute(
+                    Command.push(Author.SYSTEM, XDS_CENTRAL_DOGMA_PROJECT, groupName, Revision.HEAD,
+                                 "Add " + aggregator.getClusterName() + '.', "",
+                                 Markup.PLAINTEXT, changes)).handle((unused, cause) -> {
+                if (cause != null) {
+                    final Throwable peeled = Exceptions.peel(cause);
+                    if (peeled instanceof RedundantChangeException) {
+                        // Repository state is unchanged: .json is already absent and .yaml already has the
+                        // same content, so migration is effectively done.
+                        legacyJsonMigrated = true;
+                        return null;
+                    }
+                    if (peeled instanceof ChangeConflictException) {
+                        // No legacy .json file exists; mark as migrated and push only the .yaml.
+                        legacyJsonMigrated = true;
+                        pushYamlChange(yamlChange);
+                        return null;
+                    }
+                    logger.warn("Failed to push {} to {}", changes, groupName, peeled);
+                    return null;
+                }
+                // Migration succeeded; no need to attempt removal on future pushes.
+                legacyJsonMigrated = true;
+                return null;
+            });
+        }
+
+        private void pushYamlChange(Change<JsonNode> change) {
             commandExecutor.execute(
                     Command.push(Author.SYSTEM, XDS_CENTRAL_DOGMA_PROJECT, groupName, Revision.HEAD,
                                  "Add " + aggregator.getClusterName() + '.', "",
@@ -332,7 +390,6 @@ final class XdsKubernetesEndpointFetchingService extends XdsResourceWatchingServ
                 if (cause != null) {
                     final Throwable peeled = Exceptions.peel(cause);
                     if (peeled instanceof RedundantChangeException) {
-                        // ignore
                         return null;
                     }
                     logger.warn("Failed to push {} to {}", change, groupName, peeled);
