@@ -81,6 +81,16 @@ final class XdsEndpointUpdateScheduler {
         return batchUpdateTasks.size();
     }
 
+    private static String alternativeFileName(String fileName) {
+        if (fileName.endsWith(".json")) {
+            return fileName.substring(0, fileName.length() - 5) + ".yaml";
+        }
+        if (fileName.endsWith(".yaml")) {
+            return fileName.substring(0, fileName.length() - 5) + ".json";
+        }
+        return fileName;
+    }
+
     void schedule(String group, String endpointName, String fileName,
                   LocalityLbEndpoint localityLbEndpoint, StreamObserver<?> streamObserver, boolean register) {
         final EndpointIdentifier identifier = EndpointIdentifier.of(localityLbEndpoint);
@@ -170,11 +180,10 @@ final class XdsEndpointUpdateScheduler {
                 }
             }
 
-            final ContentTransformer<JsonNode> transformer = new ContentTransformer<>(
-                    fileName, EntryType.JSON, new BatchUpdateTransformer(toRegister, toDeregister));
-
             final Repository repository = xdsResourceManager.xdsProject().repos().get(group);
-            repository.find(Revision.HEAD, fileName, FIND_ONE_WITHOUT_CONTENT).handle((entries, cause) -> {
+            final String altFileName = alternativeFileName(fileName);
+            repository.find(Revision.HEAD, fileName + ',' + altFileName, FIND_ONE_WITHOUT_CONTENT)
+                      .handle((entries, cause) -> {
                 if (cause != null) {
                     copied.forEach(pendingUpdate -> pendingUpdate.streamObserver.onError(cause));
                     return null;
@@ -186,6 +195,11 @@ final class XdsEndpointUpdateScheduler {
                     copied.forEach(pendingUpdate -> pendingUpdate.streamObserver.onError(runtimeException));
                     return null;
                 }
+                final String resolvedFileName = entries.keySet().iterator().next();
+                final EntryType entryType =
+                        resolvedFileName.endsWith(".yaml") ? EntryType.YAML : EntryType.JSON;
+                final ContentTransformer<JsonNode> transformer = new ContentTransformer<>(
+                        resolvedFileName, entryType, new BatchUpdateTransformer(toRegister, toDeregister));
                 final String commitMessage =
                         "Batch update for " + endpointName + " in group " + group + ": " +
                         toRegister.size() + " register, " + toDeregister.size() + " deregister";
@@ -304,8 +318,7 @@ final class XdsEndpointUpdateScheduler {
             final Builder clusterLoadAssignmentBuilder =
                     ClusterLoadAssignment.newBuilder();
             try {
-                JSON_MESSAGE_MARSHALLER.mergeValue(Jackson.writeValueAsString(oldJsonNode),
-                                                   clusterLoadAssignmentBuilder);
+                JSON_MESSAGE_MARSHALLER.mergeValue(oldJsonNode.traverse(), clusterLoadAssignmentBuilder);
             } catch (Throwable t) {
                 // Should never reach here.
                 throw new Error();
