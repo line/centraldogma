@@ -3,7 +3,7 @@
 #     If its classes are exposed in Javadoc, update offline links as well.
 #
 [versions]
-armeria = "1.40.0"
+armeria = "1.40.1-SNAPSHOT"
 assertj = "3.27.7"
 awaitility = "4.3.0"
 bouncycastle = "1.84"
@@ -392,6 +392,9 @@ version.ref = "owasp"
 module = "com.guardsquare:proguard-gradle"
 version.ref = "proguard"
 
+[libraries.protobuf-java]
+module = "com.google.protobuf:protobuf-java"
+version.ref = "protobuf"
 [libraries.protobuf-protoc]
 module = "com.google.protobuf:protoc"
 version.ref = "protobuf"
