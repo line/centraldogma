@@ -23,7 +23,7 @@ import static java.util.Objects.requireNonNull;
 import java.io.IOException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
-import java.util.function.Function;
+import java.util.function.Consumer;
 import java.util.regex.Pattern;
 
 import org.curioswitch.common.protobuf.json.MessageMarshaller;
@@ -270,8 +270,8 @@ public final class XdsResourceManager {
                                            String resourceName, String fileName, String summary, T resource,
                                            Author author) {
         updateOrDelete(responseObserver, group, resourceName, fileName, resolvedFileName ->
-                       () -> push(responseObserver, group, resourceName, resolvedFileName,
-                                  summary, resource, author, false));
+                       push(responseObserver, group, resourceName, resolvedFileName,
+                            summary, resource, author, false));
     }
 
     public void delete(StreamObserver<Empty> responseObserver, String group,
@@ -281,7 +281,7 @@ public final class XdsResourceManager {
 
     public void delete(StreamObserver<Empty> responseObserver, String group,
                        String resourceName, String fileName, String summary, Author author) {
-        updateOrDelete(responseObserver, group, resourceName, fileName, resolvedFileName -> () ->
+        updateOrDelete(responseObserver, group, resourceName, fileName, resolvedFileName ->
                 commandExecutor.execute(Command.push(author, XDS_CENTRAL_DOGMA_PROJECT, group,
                                                      Revision.HEAD, summary, "", Markup.PLAINTEXT,
                                                      ImmutableList.of(Change.ofRemoval(resolvedFileName))))
@@ -298,7 +298,7 @@ public final class XdsResourceManager {
     }
 
     public void updateOrDelete(StreamObserver<?> responseObserver, String group, String resourceName,
-                               String fileName, Function<String, Runnable> taskProvider) {
+                               String fileName, Consumer<String> taskProvider) {
         final Repository repository = xdsProject.repos().get(group);
         // Search for both the requested filename and its alternative extension (.json ↔ .yaml)
         // to support files that may have been written in either format.
@@ -316,7 +316,7 @@ public final class XdsResourceManager {
                 return null;
             }
             final String resolvedFileName = entries.keySet().iterator().next();
-            taskProvider.apply(resolvedFileName).run();
+            taskProvider.accept(resolvedFileName);
             return null;
         });
     }
