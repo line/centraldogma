@@ -61,6 +61,7 @@ import io.envoyproxy.envoy.config.endpoint.v3.LocalityLbEndpoints;
 import io.envoyproxy.envoy.service.discovery.v3.DiscoveryRequest;
 import io.envoyproxy.envoy.service.discovery.v3.DiscoveryResponse;
 import io.envoyproxy.envoy.service.endpoint.v3.EndpointDiscoveryServiceGrpc.EndpointDiscoveryServiceStub;
+import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 
 public class XdsEndpointServiceTest {
@@ -174,6 +175,33 @@ public class XdsEndpointServiceTest {
         assertThat(actualEndpoint2).isEqualTo(
                 updatingEndpoint.toBuilder().setClusterName(clusterName).build());
         checkEndpointsViaDiscoveryRequest(dogma.httpClient().uri(), actualEndpoint2, clusterName);
+    }
+
+    @Test
+    void createEndpointReturnAlreadyExistsWhenYamlExists() throws Exception {
+        // Pre-populate the repo with a YAML endpoint (simulating a JSON→YAML migration).
+        final String clusterName = "groups/foo/clusters/yaml-exists/1";
+        final ClusterLoadAssignment initial = loadAssignment(clusterName, "127.0.0.1", 8080);
+        dogma.client().forRepo(XDS_CENTRAL_DOGMA_PROJECT, "foo")
+             .commit("Add YAML endpoint",
+                     Change.ofYamlUpsert(ENDPOINTS_DIRECTORY + "yaml-exists/1.yaml",
+                                         JSON_MESSAGE_MARSHALLER.writeValueAsString(initial)))
+             .push().join();
+
+        // A create request for the same logical resource must return ALREADY_EXISTS, not succeed.
+        final AggregatedHttpResponse response =
+                createEndpoint("groups/foo", "yaml-exists/1", initial, dogma.httpClient());
+        assertThat(response.status()).isSameAs(HttpStatus.CONFLICT);
+        assertThat(response.headers().get("grpc-status"))
+                .isEqualTo(Integer.toString(Status.ALREADY_EXISTS.getCode().value()));
+
+        // The original .yaml file must still be the only file present (no new .json created).
+        final Repository repo =
+                dogma.projectManager().get(XDS_CENTRAL_DOGMA_PROJECT).repos().get("foo");
+        assertThat(repo.find(Revision.HEAD, ENDPOINTS_DIRECTORY + "yaml-exists/1.yaml",
+                             FindOptions.FIND_ONE_WITHOUT_CONTENT).join()).isNotEmpty();
+        assertThat(repo.find(Revision.HEAD, ENDPOINTS_DIRECTORY + "yaml-exists/1.json",
+                             FindOptions.FIND_ONE_WITHOUT_CONTENT).join()).isEmpty();
     }
 
     @Test

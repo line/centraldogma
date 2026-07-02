@@ -180,6 +180,36 @@ public final class XdsResourceManager {
     public <T extends Message> void push(
             StreamObserver<T> responseObserver, String group, String resourceName, String fileName,
             String summary, T resource, Author author, boolean create) {
+        if (create) {
+            // Before attempting to create, verify that neither the requested file nor its alternative
+            // extension (.json ↔ .yaml) already exists, so a migrated .yaml resource is not silently
+            // shadowed by a newly created .json file.
+            final Repository repository = xdsProject.repos().get(group);
+            final String altFileName = alternativeFileName(fileName);
+            repository.find(Revision.HEAD, fileName + ',' + altFileName, FIND_ONE_WITHOUT_CONTENT)
+                      .handle((entries, cause) -> {
+                if (cause != null) {
+                    responseObserver.onError(cause);
+                    return null;
+                }
+                if (!entries.isEmpty()) {
+                    responseObserver.onError(
+                            Status.ALREADY_EXISTS
+                                    .withDescription("Resource already exists: " + resourceName)
+                                    .asRuntimeException());
+                    return null;
+                }
+                doPush(responseObserver, group, resourceName, fileName, summary, resource, author, true);
+                return null;
+            });
+            return;
+        }
+        doPush(responseObserver, group, resourceName, fileName, summary, resource, author, false);
+    }
+
+    private <T extends Message> void doPush(
+            StreamObserver<T> responseObserver, String group, String resourceName, String fileName,
+            String summary, T resource, Author author, boolean create) {
         final Change<JsonNode> change;
         try {
             final String jsonText = JSON_MESSAGE_MARSHALLER.writeValueAsString(resource);
