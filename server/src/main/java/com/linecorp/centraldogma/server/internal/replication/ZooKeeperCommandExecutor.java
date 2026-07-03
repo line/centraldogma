@@ -641,7 +641,7 @@ public final class ZooKeeperCommandExecutor
             peer.start();
 
             // Wait until the ZooKeeper joins the cluster.
-            for (; ; ) {
+            for (;;) {
                 final ServerState state = peer.getPeerState();
                 if (state == ServerState.FOLLOWING || state == ServerState.LEADING) {
                     break;
@@ -822,7 +822,7 @@ public final class ZooKeeperCommandExecutor
         }
 
         long nextRevision = lastReplayedRevision + 1;
-        for (; ; ) {
+        for (;;) {
             if (!force && !canReplicate) {
                 break;
             }
@@ -923,7 +923,7 @@ public final class ZooKeeperCommandExecutor
             // Retry up to 1 minute, to minimize the chance of going read-only.
             long remainingTimeNanos = lockTimeoutNanos;
             final long deadlineNanos = startTime + remainingTimeNanos;
-            for (; ; ) {
+            for (;;) {
                 try {
                     if (mtx.acquire(remainingTimeNanos, TimeUnit.NANOSECONDS)) {
                         lockAcquired = true;
