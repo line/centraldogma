@@ -338,23 +338,23 @@ public final class ControlPlaneService extends XdsResourceWatchingService {
     }
 
     @Override
-    protected void handleXdsResource(String path, String contentAsText, String groupName)
+    protected void handleXdsResource(String path, JsonNode content, String groupName)
             throws IOException {
         if (path.startsWith(CLUSTERS_DIRECTORY)) {
             final Cluster.Builder builder = Cluster.newBuilder();
-            JSON_MESSAGE_MARSHALLER.mergeValue(contentAsText, builder);
+            JSON_MESSAGE_MARSHALLER.mergeValue(content.traverse(), builder);
             centralDogmaXdsResources.setCluster(groupName, builder.build());
         } else if (path.startsWith(ENDPOINTS_DIRECTORY) || path.startsWith(K8S_ENDPOINTS_DIRECTORY)) {
             final ClusterLoadAssignment.Builder builder = ClusterLoadAssignment.newBuilder();
-            JSON_MESSAGE_MARSHALLER.mergeValue(contentAsText, builder);
+            JSON_MESSAGE_MARSHALLER.mergeValue(content.traverse(), builder);
             centralDogmaXdsResources.setEndpoint(groupName, builder.build());
         } else if (path.startsWith(LISTENERS_DIRECTORY)) {
             final Listener.Builder builder = Listener.newBuilder();
-            JSON_MESSAGE_MARSHALLER.mergeValue(contentAsText, builder);
+            JSON_MESSAGE_MARSHALLER.mergeValue(content.traverse(), builder);
             centralDogmaXdsResources.setListener(groupName, builder.build());
         } else if (path.startsWith(ROUTES_DIRECTORY)) {
             final RouteConfiguration.Builder builder = RouteConfiguration.newBuilder();
-            JSON_MESSAGE_MARSHALLER.mergeValue(contentAsText, builder);
+            JSON_MESSAGE_MARSHALLER.mergeValue(content.traverse(), builder);
             centralDogmaXdsResources.setRoute(groupName, builder.build());
         } else {
             // ignore

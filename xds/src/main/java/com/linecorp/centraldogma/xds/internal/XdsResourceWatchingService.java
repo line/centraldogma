@@ -26,6 +26,7 @@ import java.util.function.BiFunction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableList.Builder;
 import com.google.common.collect.Sets;
@@ -70,7 +71,7 @@ public abstract class XdsResourceWatchingService {
 
     protected abstract String pathPattern();
 
-    protected abstract void handleXdsResource(String path, String contentAsText, String groupName)
+    protected abstract void handleXdsResource(String path, JsonNode content, String groupName)
             throws IOException;
 
     protected abstract void onGroupRemoved(String groupName);
@@ -110,13 +111,13 @@ public abstract class XdsResourceWatchingService {
                                                " at revision: " + normalizedRevision, cause);
                 }
                 for (Entry<?> entry : entries.values()) {
-                    if (entry.type() != EntryType.JSON || !entry.hasContent()) {
+                    if ((entry.type() != EntryType.JSON && entry.type() != EntryType.YAML) ||
+                        !entry.hasContent()) {
                         continue;
                     }
                     final String path = entry.path();
-                    final String contentAsText = entry.contentAsText();
                     try {
-                        handleXdsResource(path, contentAsText, groupName);
+                        handleXdsResource(path, (JsonNode) entry.content(), groupName);
                     } catch (Throwable t) {
                         logger.warn("Unexpected exception while building an xDS resource from {}.",
                                     groupName + path, t);
@@ -222,8 +223,9 @@ public abstract class XdsResourceWatchingService {
                 final String path = change.path();
                 switch (change.type()) {
                     case UPSERT_JSON:
+                    case UPSERT_YAML:
                         try {
-                            handleXdsResource(path, change.contentAsText(), groupName);
+                            handleXdsResource(path, (JsonNode) change.content(), groupName);
                         } catch (Throwable t) {
                             logger.warn("Unexpected exception while handling an xDS resource from {}.",
                                         groupName + path, t);
