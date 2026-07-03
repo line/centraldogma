@@ -37,6 +37,12 @@ class LogMeta {
     private final long timestamp;
     private final int size;
     @Nullable
+    private final String commandType;
+    @Nullable
+    private final String projectName;
+    @Nullable
+    private final String repoName;
+    @Nullable
     private final Boolean compressed;
     @Nullable
     private final Boolean encrypted;
@@ -46,9 +52,12 @@ class LogMeta {
     LogMeta(@JsonProperty(value = "replicaId", required = true) int replicaId,
             @JsonProperty(value = "timestamp", defaultValue = "0") @Nullable Long timestamp,
             @JsonProperty("size") int size,
+            @JsonProperty("commandType") @Nullable String commandType,
+            @JsonProperty("projectName") @Nullable String projectName,
+            @JsonProperty("repoName") @Nullable String repoName,
             @JsonProperty("blocks") List<Long> blocks,
-            @Nullable @JsonProperty("compressed") Boolean compressed,
-            @Nullable @JsonProperty("encrypted") Boolean encrypted) {
+            @JsonProperty("compressed") @Nullable Boolean compressed,
+            @JsonProperty("encrypted") @Nullable Boolean encrypted) {
 
         this.replicaId = replicaId;
         if (timestamp == null) {
@@ -56,14 +65,19 @@ class LogMeta {
         }
         this.timestamp = timestamp;
         this.size = size;
+        this.commandType = commandType;
+        this.projectName = projectName;
+        this.repoName = repoName;
         this.compressed = compressed;
         this.encrypted = encrypted;
         this.blocks = blocks;
     }
 
     LogMeta(int replicaId, Long timestamp, int size,
+            @Nullable String commandType, @Nullable String projectName, @Nullable String repoName,
             @Nullable Boolean compressed, @Nullable Boolean encrypted) {
-        this(replicaId, timestamp, size, new ArrayList<>(4), compressed, encrypted);
+        this(replicaId, timestamp, size, commandType, projectName, repoName,
+             new ArrayList<>(4), compressed, encrypted);
     }
 
     @JsonProperty
@@ -79,6 +93,24 @@ class LogMeta {
     @JsonProperty
     int size() {
         return size;
+    }
+
+    @Nullable
+    @JsonProperty("commandType")
+    String commandType() {
+        return commandType;
+    }
+
+    @Nullable
+    @JsonProperty("projectName")
+    String projectName() {
+        return projectName;
+    }
+
+    @Nullable
+    @JsonProperty("repoName")
+    String repoName() {
+        return repoName;
     }
 
     @Nullable
@@ -111,6 +143,9 @@ class LogMeta {
         return replicaId == logMeta.replicaId &&
                timestamp == logMeta.timestamp &&
                size == logMeta.size &&
+               Objects.equals(commandType, logMeta.commandType) &&
+               Objects.equals(projectName, logMeta.projectName) &&
+               Objects.equals(repoName, logMeta.repoName) &&
                Objects.equals(compressed, logMeta.compressed) &&
                Objects.equals(encrypted, logMeta.encrypted) &&
                Objects.equals(blocks, logMeta.blocks);
@@ -118,7 +153,8 @@ class LogMeta {
 
     @Override
     public int hashCode() {
-        return Objects.hash(replicaId, timestamp, size, compressed, encrypted, blocks);
+        return Objects.hash(replicaId, timestamp, size, commandType, projectName, repoName,
+                            compressed, encrypted, blocks);
     }
 
     @Override
@@ -128,6 +164,9 @@ class LogMeta {
                           .add("replicaId", replicaId)
                           .add("timestamp", timestamp)
                           .add("size", size)
+                          .add("commandType", commandType)
+                          .add("projectName", projectName)
+                          .add("repoName", repoName)
                           .add("compressed", compressed)
                           .add("encrypted", encrypted)
                           .add("blocks", blocks)

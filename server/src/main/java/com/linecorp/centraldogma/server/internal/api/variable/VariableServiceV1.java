@@ -44,9 +44,9 @@ import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.internal.api.AbstractService;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresProjectRole;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresRepositoryRole;
-import com.linecorp.centraldogma.server.internal.storage.repository.git.CrudContext;
-import com.linecorp.centraldogma.server.internal.storage.repository.git.CrudOperation;
-import com.linecorp.centraldogma.server.internal.storage.repository.git.DefaultCrudOperation;
+import com.linecorp.centraldogma.server.internal.storage.repository.crud.CrudContext;
+import com.linecorp.centraldogma.server.internal.storage.repository.crud.CrudOperation;
+import com.linecorp.centraldogma.server.internal.storage.repository.crud.ReplicatingCrudOperation;
 import com.linecorp.centraldogma.server.metadata.UserAndTimestamp;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
@@ -61,7 +61,7 @@ public final class VariableServiceV1 extends AbstractService {
 
     public VariableServiceV1(ProjectManager pm, CommandExecutor executor) {
         super(executor);
-        repository = new DefaultCrudOperation<>(Variable.class, executor, pm);
+        repository = new ReplicatingCrudOperation<>(Variable.class, executor, pm);
     }
 
     /**

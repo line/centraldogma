@@ -97,7 +97,7 @@ class FallbackFromReadOnlyTest {
         // Fallback should succeed even in read-only state.
         response = postApi(client, PROJECT_NAME, REPO_NAME, "/migrate/file");
         assertThat(response.status()).isEqualTo(HttpStatus.OK);
-        assertThat(response.contentUtf8()).contains("\"status\":\"ACTIVE\"");
+        assertThat(response.contentUtf8()).contains("\"status\":\"WRITABLE\"");
 
         assertThat(dogma.projectManager().get(PROJECT_NAME).repos().get(REPO_NAME).isEncrypted()).isFalse();
         dogma.stop().join();

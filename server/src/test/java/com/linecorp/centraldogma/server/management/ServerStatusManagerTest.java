@@ -23,6 +23,7 @@ import java.io.IOException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
+import com.linecorp.centraldogma.server.internal.management.ServerStatusManager;
 import com.linecorp.centraldogma.testing.internal.TemporaryFolderExtension;
 
 class ServerStatusManagerTest {

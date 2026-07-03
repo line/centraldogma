@@ -165,6 +165,8 @@ import com.linecorp.centraldogma.server.internal.api.sysadmin.KeyManagementServi
 import com.linecorp.centraldogma.server.internal.api.sysadmin.MirrorAccessControlService;
 import com.linecorp.centraldogma.server.internal.api.sysadmin.ServerStatusService;
 import com.linecorp.centraldogma.server.internal.api.variable.VariableServiceV1;
+import com.linecorp.centraldogma.server.internal.management.RepoStatusManager;
+import com.linecorp.centraldogma.server.internal.management.ServerStatusManager;
 import com.linecorp.centraldogma.server.internal.mirror.DefaultMirrorAccessController;
 import com.linecorp.centraldogma.server.internal.mirror.DefaultMirroringServicePlugin;
 import com.linecorp.centraldogma.server.internal.mirror.MirrorAccessControl;
@@ -172,10 +174,9 @@ import com.linecorp.centraldogma.server.internal.mirror.MirrorRunner;
 import com.linecorp.centraldogma.server.internal.replication.ZooKeeperCommandExecutor;
 import com.linecorp.centraldogma.server.internal.storage.project.DefaultProjectManager;
 import com.linecorp.centraldogma.server.internal.storage.project.ProjectApiManager;
-import com.linecorp.centraldogma.server.internal.storage.repository.CrudRepository;
-import com.linecorp.centraldogma.server.internal.storage.repository.git.GitCrudRepository;
+import com.linecorp.centraldogma.server.internal.storage.repository.crud.CrudRepository;
+import com.linecorp.centraldogma.server.internal.storage.repository.crud.ReplicatingCrudRepository;
 import com.linecorp.centraldogma.server.management.ServerStatus;
-import com.linecorp.centraldogma.server.management.ServerStatusManager;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
 import com.linecorp.centraldogma.server.mirror.MirrorProvider;
 import com.linecorp.centraldogma.server.mirror.MirroringServicePluginConfig;
@@ -303,6 +304,8 @@ public class CentralDogma implements AutoCloseable {
     private SessionManager sessionManager;
     @Nullable
     private ServerStatusManager statusManager;
+    @Nullable
+    private RepoStatusManager repoStatusManager;
     @Nullable
     private InternalProjectInitializer projectInitializer;
     @Nullable
@@ -620,20 +623,22 @@ public class CentralDogma implements AutoCloseable {
         }
 
         statusManager = new ServerStatusManager(cfg.dataDir());
+        repoStatusManager = new RepoStatusManager(statusManager, pm);
         logger.info("Startup mode: {}", statusManager.serverStatus());
         final CommandExecutor executor;
         final ReplicationMethod replicationMethod = cfg.replicationConfig().method();
         switch (replicationMethod) {
             case ZOOKEEPER:
-                executor = newZooKeeperCommandExecutor(pm, repositoryWorker, statusManager, meterRegistry,
+                executor = newZooKeeperCommandExecutor(pm, repositoryWorker, statusManager, repoStatusManager,
+                                                       meterRegistry,
                                                        sessionManager, encryptionStorageManager,
                                                        onTakeLeadership, onReleaseLeadership,
                                                        onTakeZoneLeadership, onReleaseZoneLeadership);
                 break;
             case NONE:
                 logger.info("No replication mechanism specified; entering standalone");
-                executor = new StandaloneCommandExecutor(pm, repositoryWorker, statusManager, sessionManager,
-                                                         encryptionStorageManager,
+                executor = new StandaloneCommandExecutor(pm, repositoryWorker, statusManager, repoStatusManager,
+                                                         sessionManager, encryptionStorageManager,
                                                          onTakeLeadership, onReleaseLeadership,
                                                          onTakeZoneLeadership, onReleaseZoneLeadership);
                 break;
@@ -647,6 +652,7 @@ public class CentralDogma implements AutoCloseable {
         executor.setWritable(initialServerStatus.writable());
         if (!initialServerStatus.replicating()) {
             projectInitializer.initializeInReadOnlyMode();
+            repoStatusManager.initialize();
             setMirrorAccessControllerRepository(pm, executor);
             return executor;
         }
@@ -669,9 +675,11 @@ public class CentralDogma implements AutoCloseable {
             // Trigger the exception if any.
             startFuture.get();
             projectInitializer.initialize();
+            repoStatusManager.initialize();
         } catch (Exception e) {
             logger.warn("Failed to start the command executor. Entering read-only.", e);
             projectInitializer.initializeInReadOnlyMode();
+            repoStatusManager.initialize();
         }
         setMirrorAccessControllerRepository(pm, executor);
         return executor;
@@ -679,9 +687,9 @@ public class CentralDogma implements AutoCloseable {
 
     private void setMirrorAccessControllerRepository(ProjectManager pm, CommandExecutor executor) {
         final CrudRepository<MirrorAccessControl> accessControlRepository =
-                new GitCrudRepository<>(MirrorAccessControl.class, executor, pm,
-                                        INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA,
-                                        MIRROR_ACCESS_CONTROL_PATH);
+                new ReplicatingCrudRepository<>(MirrorAccessControl.class, executor, pm,
+                                               INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA,
+                                               MIRROR_ACCESS_CONTROL_PATH);
         mirrorAccessController.setRepository(accessControlRepository);
     }
 
@@ -924,6 +932,7 @@ public class CentralDogma implements AutoCloseable {
     private CommandExecutor newZooKeeperCommandExecutor(
             ProjectManager pm, Executor repositoryWorker,
             ServerStatusManager serverStatusManager,
+            RepoStatusManager repoStatusManager,
             MeterRegistry meterRegistry,
             @Nullable SessionManager sessionManager,
             EncryptionStorageManager encryptionStorageManager,
@@ -945,8 +954,8 @@ public class CentralDogma implements AutoCloseable {
         //                so that we can recover from ZooKeeper maintenance automatically.
         return new ZooKeeperCommandExecutor(
                 zkCfg, dataDir,
-                new StandaloneCommandExecutor(pm, repositoryWorker, serverStatusManager, sessionManager,
-                                              encryptionStorageManager,
+                new StandaloneCommandExecutor(pm, repositoryWorker, serverStatusManager, repoStatusManager,
+                                              sessionManager, encryptionStorageManager,
                         /* onTakeLeadership */ null, /* onReleaseLeadership */ null,
                         /* onTakeZoneLeadership */ null, /* onReleaseZoneLeadership */ null),
                 meterRegistry, zone,
@@ -1008,12 +1017,13 @@ public class CentralDogma implements AutoCloseable {
             decoratorBuilder.build(decorator);
         }
 
-        assert statusManager != null;
+        assert statusManager != null && repoStatusManager != null;
         final ContextPathServicesBuilder apiV1ServiceBuilder = sb.contextPath(API_V1_PATH_PREFIX);
         apiV1ServiceBuilder
                 .annotatedService(new ServerStatusService(executor, statusManager))
                 .annotatedService(new ProjectServiceV1(projectApiManager, executor))
-                .annotatedService(new RepositoryServiceV1(executor, mds, encryptionStorageManager))
+                .annotatedService(new RepositoryServiceV1(executor, mds, encryptionStorageManager,
+                                                          repoStatusManager))
                 .annotatedService(new CredentialServiceV1(projectApiManager, executor))
                 .annotatedService(new VariableServiceV1(pm, executor));
         if (LOGBACK_ENABLED) {
@@ -1241,6 +1251,7 @@ public class CentralDogma implements AutoCloseable {
         final ExecutorService purgeWorker = this.purgeWorker;
         final SessionManager sessionManager = this.sessionManager;
         final MirrorRunner mirrorRunner = this.mirrorRunner;
+        final ServerStatusManager statusManager = this.statusManager;
 
         this.server = null;
         this.executor = null;
@@ -1249,11 +1260,16 @@ public class CentralDogma implements AutoCloseable {
         this.repositoryWorker = null;
         this.sessionManager = null;
         this.mirrorRunner = null;
+        this.statusManager = null;
         if (meterRegistryToBeClosed != null) {
             assert meterRegistry instanceof CompositeMeterRegistry;
             ((CompositeMeterRegistry) meterRegistry).remove(meterRegistryToBeClosed);
             meterRegistryToBeClosed.close();
             meterRegistryToBeClosed = null;
+        }
+
+        if (statusManager != null) {
+            statusManager.close();
         }
 
         logger.info("Stopping the Central Dogma ..");

@@ -30,7 +30,7 @@ import com.linecorp.centraldogma.common.Author;
  *
  * @param <T> the result type of a {@link Command}
  */
-abstract class ProjectCommand<T> extends AbstractCommand<T> {
+public abstract class ProjectCommand<T> extends AbstractCommand<T> {
 
     private final String projectName;
 
@@ -40,6 +40,9 @@ abstract class ProjectCommand<T> extends AbstractCommand<T> {
         this.projectName = requireNonNull(projectName, "projectName");
     }
 
+    /**
+     * Returns the project name.
+     */
     @JsonProperty
     public final String projectName() {
         return projectName;

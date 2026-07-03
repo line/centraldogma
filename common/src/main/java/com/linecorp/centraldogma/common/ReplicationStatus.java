@@ -1,7 +1,7 @@
 /*
- * Copyright 2025 LINE Corporation
+ * Copyright 2026 LY Corporation
  *
- * LINE Corporation licenses this file to you under the Apache License,
+ * LY Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
  * with the License. You may obtain a copy of the License at:
  *
@@ -13,24 +13,24 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
+
 package com.linecorp.centraldogma.common;
 
 /**
- * The status of a repository.
- *
- * @deprecated Use {@link ReplicationStatus} instead.
+ * The replication status of a project or repository. It indicates whether the project or repository is active
+ * and writable or in read-only mode.
  */
-// TODO(ikhoon): Remove this enum in the future.
-@Deprecated
-public enum RepositoryStatus {
+public enum ReplicationStatus {
 
     /**
-     * The repository is active and writable.
+     * The project or repository is active and writable. It can accept write operations and is being replicated
+     * to other nodes.
      */
-    ACTIVE,
+    WRITABLE,
 
     /**
-     * The repository is in read-only mode and cannot be modified.
+     * The project or repository is in read-only mode. It cannot accept write operations and is not being
+     * replicated to other nodes.
      */
     READ_ONLY
 }

@@ -21,19 +21,19 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects;
 
-import com.linecorp.centraldogma.common.RepositoryStatus;
+import com.linecorp.centraldogma.common.ReplicationStatus;
 
 public final class UpdateRepositoryStatusRequest {
 
-    private final RepositoryStatus status;
+    private final ReplicationStatus status;
 
     @JsonCreator
-    public UpdateRepositoryStatusRequest(@JsonProperty("status") RepositoryStatus status) {
+    public UpdateRepositoryStatusRequest(@JsonProperty("status") ReplicationStatus status) {
         this.status = requireNonNull(status, "status");
     }
 
     @JsonProperty("status")
-    public RepositoryStatus status() {
+    public ReplicationStatus status() {
         return status;
     }
 
