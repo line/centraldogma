@@ -18,6 +18,7 @@ package com.linecorp.centraldogma.xds.endpoint.v1;
 import static com.linecorp.centraldogma.xds.endpoint.v1.XdsEndpointServiceTest.assertOk;
 import static com.linecorp.centraldogma.xds.endpoint.v1.XdsEndpointServiceTest.checkEndpointsViaDiscoveryRequest;
 import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.XDS_CENTRAL_DOGMA_PROJECT;
+import static com.linecorp.centraldogma.xds.internal.ControlPlaneService.ENDPOINTS_DIRECTORY;
 import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.JSON_MESSAGE_MARSHALLER;
 import static com.linecorp.centraldogma.xds.internal.XdsTestUtil.createEndpoint;
 import static com.linecorp.centraldogma.xds.internal.XdsTestUtil.createGroup;
@@ -39,6 +40,7 @@ import com.linecorp.armeria.common.HttpMethod;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.MediaType;
 import com.linecorp.armeria.common.RequestHeaders;
+import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
@@ -277,5 +279,60 @@ public class XdsRegisterEndpointTest {
         response = registerOrDeregister(endpointName, localityLbEndpoint, false);
         // endpoint name is not found.
         assertThat(response.status()).isSameAs(HttpStatus.NOT_FOUND);
+    }
+
+    @Test
+    void registerAndDeregisterOnYamlEndpoint() throws Exception {
+        // Push the endpoint file directly as YAML (simulating a migration from JSON to YAML).
+        final String clusterName = "groups/foo/clusters/yaml-register-ep";
+        final String endpointName = "groups/foo/endpoints/yaml-register-ep";
+        final Locality locality = Locality.newBuilder().setRegion("r1").setZone("z1").build();
+        final ClusterLoadAssignment initial = loadAssignment(clusterName, locality,
+                                                             endpoint("127.0.0.1", 9100));
+        dogma.client().forRepo(XDS_CENTRAL_DOGMA_PROJECT, "foo")
+             .commit("Add YAML endpoint",
+                     Change.ofYamlUpsert(ENDPOINTS_DIRECTORY + "yaml-register-ep.yaml",
+                                         JSON_MESSAGE_MARSHALLER.writeValueAsString(initial)))
+             .push().join();
+
+        checkEndpointsViaDiscoveryRequest(dogma.httpClient().uri(), initial, clusterName);
+
+        // Register a new lb endpoint into the YAML-backed endpoint file.
+        final LocalityLbEndpoint toRegister =
+                LocalityLbEndpoint.newBuilder().setLocality(locality)
+                                  .setLbEndpoint(endpoint("127.0.0.1", 9101))
+                                  .build();
+        final AggregatedHttpResponse registerResponse =
+                registerOrDeregister(endpointName, toRegister, true);
+        assertOk(registerResponse);
+
+        final ClusterLoadAssignment expected =
+                initial.toBuilder()
+                       .addEndpoints(LocalityLbEndpoints.newBuilder()
+                                                        .setLocality(locality)
+                                                        .addLbEndpoints(endpoint("127.0.0.1", 9100))
+                                                        .addLbEndpoints(endpoint("127.0.0.1", 9101)))
+                       .removeEndpoints(0)
+                       .build();
+        checkEndpointsViaDiscoveryRequest(dogma.httpClient().uri(), expected, clusterName);
+
+        // Deregister the original endpoint from the YAML-backed file.
+        final LocalityLbEndpoint toDeregister =
+                LocalityLbEndpoint.newBuilder().setLocality(locality)
+                                  .setLbEndpoint(endpoint("127.0.0.1", 9100))
+                                  .build();
+        final AggregatedHttpResponse deregisterResponse =
+                registerOrDeregister(endpointName, toDeregister, false);
+        assertOk(deregisterResponse);
+
+        final ClusterLoadAssignment afterDeregister =
+                ClusterLoadAssignment.newBuilder()
+                                     .setClusterName(clusterName)
+                                     .addEndpoints(LocalityLbEndpoints.newBuilder()
+                                                                       .setLocality(locality)
+                                                                       .addLbEndpoints(
+                                                                               endpoint("127.0.0.1", 9101)))
+                                     .build();
+        checkEndpointsViaDiscoveryRequest(dogma.httpClient().uri(), afterDeregister, clusterName);
     }
 }

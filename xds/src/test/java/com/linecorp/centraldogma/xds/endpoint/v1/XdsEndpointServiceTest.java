@@ -15,6 +15,8 @@
  */
 package com.linecorp.centraldogma.xds.endpoint.v1;
 
+import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.XDS_CENTRAL_DOGMA_PROJECT;
+import static com.linecorp.centraldogma.xds.internal.ControlPlaneService.ENDPOINTS_DIRECTORY;
 import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.JSON_MESSAGE_MARSHALLER;
 import static com.linecorp.centraldogma.xds.internal.XdsTestUtil.createEndpoint;
 import static com.linecorp.centraldogma.xds.internal.XdsTestUtil.createGroup;
@@ -46,6 +48,10 @@ import com.linecorp.armeria.common.HttpMethod;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.MediaType;
 import com.linecorp.armeria.common.RequestHeaders;
+import com.linecorp.centraldogma.common.Change;
+import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.server.storage.repository.FindOptions;
+import com.linecorp.centraldogma.server.storage.repository.Repository;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 import com.linecorp.centraldogma.xds.endpoint.v1.XdsEndpointServiceGrpc.XdsEndpointServiceBlockingStub;
 
@@ -55,6 +61,7 @@ import io.envoyproxy.envoy.config.endpoint.v3.LocalityLbEndpoints;
 import io.envoyproxy.envoy.service.discovery.v3.DiscoveryRequest;
 import io.envoyproxy.envoy.service.discovery.v3.DiscoveryResponse;
 import io.envoyproxy.envoy.service.endpoint.v3.EndpointDiscoveryServiceGrpc.EndpointDiscoveryServiceStub;
+import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 
 public class XdsEndpointServiceTest {
@@ -168,6 +175,96 @@ public class XdsEndpointServiceTest {
         assertThat(actualEndpoint2).isEqualTo(
                 updatingEndpoint.toBuilder().setClusterName(clusterName).build());
         checkEndpointsViaDiscoveryRequest(dogma.httpClient().uri(), actualEndpoint2, clusterName);
+    }
+
+    @Test
+    void createEndpointReturnAlreadyExistsWhenYamlExists() throws Exception {
+        // Pre-populate the repo with a YAML endpoint (simulating a JSON→YAML migration).
+        final String clusterName = "groups/foo/clusters/yaml-exists/1";
+        final ClusterLoadAssignment initial = loadAssignment(clusterName, "127.0.0.1", 8080);
+        dogma.client().forRepo(XDS_CENTRAL_DOGMA_PROJECT, "foo")
+             .commit("Add YAML endpoint",
+                     Change.ofYamlUpsert(ENDPOINTS_DIRECTORY + "yaml-exists/1.yaml",
+                                         JSON_MESSAGE_MARSHALLER.writeValueAsString(initial)))
+             .push().join();
+
+        // A create request for the same logical resource must return ALREADY_EXISTS, not succeed.
+        final AggregatedHttpResponse response =
+                createEndpoint("groups/foo", "yaml-exists/1", initial, dogma.httpClient());
+        assertThat(response.status()).isSameAs(HttpStatus.CONFLICT);
+        assertThat(response.headers().get("grpc-status"))
+                .isEqualTo(Integer.toString(Status.ALREADY_EXISTS.getCode().value()));
+
+        // The original .yaml file must still be the only file present (no new .json created).
+        final Repository repo =
+                dogma.projectManager().get(XDS_CENTRAL_DOGMA_PROJECT).repos().get("foo");
+        assertThat(repo.find(Revision.HEAD, ENDPOINTS_DIRECTORY + "yaml-exists/1.yaml",
+                             FindOptions.FIND_ONE_WITHOUT_CONTENT).join()).isNotEmpty();
+        assertThat(repo.find(Revision.HEAD, ENDPOINTS_DIRECTORY + "yaml-exists/1.json",
+                             FindOptions.FIND_ONE_WITHOUT_CONTENT).join()).isEmpty();
+    }
+
+    @Test
+    void updateYamlEndpointViaHttp() throws Exception {
+        // Push an endpoint as YAML directly (simulating a JSON→YAML migration).
+        final String clusterName = "groups/foo/clusters/yaml-endpoint/1";
+        final String endpointName = "groups/foo/endpoints/yaml-endpoint/1";
+        final ClusterLoadAssignment initial = loadAssignment(clusterName, "127.0.0.1", 8080);
+        dogma.client().forRepo(XDS_CENTRAL_DOGMA_PROJECT, "foo")
+             .commit("Add YAML endpoint",
+                     Change.ofYamlUpsert(ENDPOINTS_DIRECTORY + "yaml-endpoint/1.yaml",
+                                         JSON_MESSAGE_MARSHALLER.writeValueAsString(initial)))
+             .push().join();
+        checkEndpointsViaDiscoveryRequest(dogma.httpClient().uri(), initial, clusterName);
+
+        // Update via the HTTP API — updateOrDelete must locate the .yaml file, not create a new .json.
+        final ClusterLoadAssignment updated =
+                initial.toBuilder().setClusterName(clusterName)
+                       .addEndpoints(LocalityLbEndpoints.newBuilder()
+                                                        .addLbEndpoints(endpoint("127.0.0.1", 8081)))
+                       .build();
+        final AggregatedHttpResponse response = updateEndpoint("yaml-endpoint/1", updated);
+        assertOk(response);
+
+        // The .yaml file must have been updated in-place; no new .json file should exist.
+        final Repository repo =
+                dogma.projectManager().get(XDS_CENTRAL_DOGMA_PROJECT).repos().get("foo");
+        assertThat(repo.find(Revision.HEAD, ENDPOINTS_DIRECTORY + "yaml-endpoint/1.yaml",
+                             FindOptions.FIND_ONE_WITHOUT_CONTENT).join()).isNotEmpty();
+        assertThat(repo.find(Revision.HEAD, ENDPOINTS_DIRECTORY + "yaml-endpoint/1.json",
+                             FindOptions.FIND_ONE_WITHOUT_CONTENT).join()).isEmpty();
+
+        final ClusterLoadAssignment.Builder endpointBuilder = ClusterLoadAssignment.newBuilder();
+        JSON_MESSAGE_MARSHALLER.mergeValue(response.contentUtf8(), endpointBuilder);
+        checkEndpointsViaDiscoveryRequest(dogma.httpClient().uri(), endpointBuilder.build(), clusterName);
+    }
+
+    @Test
+    void deleteYamlEndpointViaHttp() throws Exception {
+        // Push an endpoint as YAML directly.
+        final String clusterName = "groups/foo/clusters/yaml-endpoint/2";
+        final String endpointName = "groups/foo/endpoints/yaml-endpoint/2";
+        final ClusterLoadAssignment initial = loadAssignment(clusterName, "127.0.0.1", 8080);
+        dogma.client().forRepo(XDS_CENTRAL_DOGMA_PROJECT, "foo")
+             .commit("Add YAML endpoint",
+                     Change.ofYamlUpsert(ENDPOINTS_DIRECTORY + "yaml-endpoint/2.yaml",
+                                         JSON_MESSAGE_MARSHALLER.writeValueAsString(initial)))
+             .push().join();
+        checkEndpointsViaDiscoveryRequest(dogma.httpClient().uri(), initial, clusterName);
+
+        // Delete via the HTTP API — updateOrDelete must locate and remove the .yaml file.
+        final AggregatedHttpResponse response = deleteEndpoint(endpointName);
+        assertOk(response);
+        assertThat(response.contentUtf8()).isEqualTo("{}");
+
+        // The .yaml file must be gone.
+        final Repository repo =
+                dogma.projectManager().get(XDS_CENTRAL_DOGMA_PROJECT).repos().get("foo");
+        assertThat(repo.find(Revision.HEAD, ENDPOINTS_DIRECTORY + "yaml-endpoint/2.yaml",
+                             FindOptions.FIND_ONE_WITHOUT_CONTENT).join()).isEmpty();
+
+        // Control plane must no longer serve the deleted endpoint.
+        checkEndpointsViaDiscoveryRequest(dogma.httpClient().uri(), null, clusterName);
     }
 
     private static AggregatedHttpResponse updateEndpoint(

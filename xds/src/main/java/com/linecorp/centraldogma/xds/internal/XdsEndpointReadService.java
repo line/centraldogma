@@ -56,12 +56,12 @@ public final class XdsEndpointReadService {
                          .thenApply(entries -> {
             final ArrayNode array = JsonNodeFactory.instance.arrayNode();
             for (Entry<?> entry : entries.values()) {
-                if (entry.type() != EntryType.JSON) {
+                if (entry.type() != EntryType.JSON && entry.type() != EntryType.YAML) {
                     continue;
                 }
                 final ObjectNode node = array.addObject();
                 node.put("path", entry.path());
-                node.put("type", "JSON");
+                node.put("type", entry.type().name());
                 node.put("revision", entry.revision().major());
             }
             return array;
@@ -73,7 +73,7 @@ public final class XdsEndpointReadService {
      */
     @Get("/xds/groups/{group}/endpoints/{*id}")
     public CompletableFuture<JsonNode> getEndpoint(@Param String group, @Param String id) {
-        return read(group, ENDPOINTS_DIRECTORY + id + ".json");
+        return readByBase(group, ENDPOINTS_DIRECTORY + id);
     }
 
     /**
@@ -82,17 +82,27 @@ public final class XdsEndpointReadService {
      */
     @Get("/xds/groups/{group}/k8s/endpoints/{*id}")
     public CompletableFuture<JsonNode> getK8sEndpoint(@Param String group, @Param String id) {
-        return read(group, K8S_ENDPOINTS_DIRECTORY + id + ".json");
+        return readByBase(group, K8S_ENDPOINTS_DIRECTORY + id);
     }
 
-    private CompletableFuture<JsonNode> read(String group, String path) {
-        return xdsProject.repos().get(group).get(Revision.HEAD, path).thenApply(XdsEndpointReadService::toNode);
+    private CompletableFuture<JsonNode> readByBase(String group, String pathBase) {
+        final Repository repository = xdsProject.repos().get(group);
+        return repository.find(Revision.HEAD, pathBase + ".json," + pathBase + ".yaml")
+                         .thenCompose(entries -> {
+                             if (entries.isEmpty()) {
+                                 // Delegate to get() so the caller receives a proper EntryNotFoundException.
+                                 return repository.get(Revision.HEAD, pathBase + ".json")
+                                                  .thenApply(XdsEndpointReadService::toNode);
+                             }
+                             return CompletableFuture.completedFuture(
+                                     toNode(entries.values().iterator().next()));
+                         });
     }
 
     private static JsonNode toNode(Entry<?> entry) {
         final ObjectNode node = JsonNodeFactory.instance.objectNode();
         node.put("path", entry.path());
-        node.put("type", "JSON");
+        node.put("type", entry.type().name());
         node.put("revision", entry.revision().major());
         node.set("content", (JsonNode) entry.content());
         return node;
