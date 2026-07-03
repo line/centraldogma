@@ -61,11 +61,7 @@ import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.xds.internal.XdsResourceWatchingService;
 
-import io.envoyproxy.envoy.config.core.v3.Address;
-import io.envoyproxy.envoy.config.core.v3.SocketAddress;
 import io.envoyproxy.envoy.config.endpoint.v3.ClusterLoadAssignment;
-import io.envoyproxy.envoy.config.endpoint.v3.Endpoint;
-import io.envoyproxy.envoy.config.endpoint.v3.LbEndpoint;
 import io.envoyproxy.envoy.config.endpoint.v3.LocalityLbEndpoints;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.binder.jvm.ExecutorServiceMetrics;
@@ -362,20 +358,9 @@ final class XdsKubernetesEndpointFetchingService extends XdsResourceWatchingServ
                         kubernetesLocalityLbEndpoints.getLoadBalancingWeight());
             }
             localityLbEndpointsBuilder.setPriority(kubernetesLocalityLbEndpoints.getPriority());
-            for (com.linecorp.armeria.client.Endpoint endpoint : kubernetesEndpointGroup.endpoints()) {
-                assert endpoint.hasPort();
-                final SocketAddress socketAddress = SocketAddress.newBuilder()
-                                                                 .setAddress(endpoint.host())
-                                                                 .setPortValue(endpoint.port())
-                                                                 .build();
-                localityLbEndpointsBuilder.addLbEndpoints(
-                        LbEndpoint.newBuilder()
-                                  .setEndpoint(Endpoint.newBuilder()
-                                                       .setAddress(Address.newBuilder()
-                                                                          .setSocketAddress(socketAddress)
-                                                                          .build()).build())
-                                  .build());
-            }
+            KubernetesEndpointConverter.addLbEndpoints(localityLbEndpointsBuilder,
+                                                       kubernetesEndpointGroup.endpoints(),
+                                                       kubernetesLocalityLbEndpoints.getWatcher());
             clusterLoadAssignmentBuilder.addEndpoints(localityLbEndpointsBuilder.build());
         }
 
