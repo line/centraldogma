@@ -180,61 +180,67 @@ public final class XdsResourceManager {
 
     public <T extends Message> void push(
             StreamObserver<T> responseObserver, String group, String resourceName, String fileName,
-            String summary, T resource, Author author) {
+            String summary, T resource, Author author, boolean create) {
+        if (create) {
+            // Before attempting to create, verify that neither the requested file nor its alternative
+            // extension (.json ↔ .yaml) already exists, so a migrated .yaml resource is not silently
+            // shadowed by a newly created .json file.
+            final Repository repository = xdsProject.repos().get(group);
+            final String altFileName = alternativeFileName(fileName);
+            repository.find(Revision.HEAD, fileName + ',' + altFileName, FIND_ONE_WITHOUT_CONTENT)
+                      .handle((entries, cause) -> {
+                if (cause != null) {
+                    responseObserver.onError(cause);
+                    return null;
+                }
+                if (!entries.isEmpty()) {
+                    responseObserver.onError(
+                            Status.ALREADY_EXISTS
+                                    .withDescription("Resource already exists: " + resourceName)
+                                    .asRuntimeException());
+                    return null;
+                }
+                doPush(responseObserver, group, resourceName, fileName, summary, resource, author, true, null);
+                return null;
+            });
+            return;
+        }
+        doPush(responseObserver, group, resourceName, fileName, summary, resource, author, false, null);
+    }
+
+    private <T extends Message> void doPush(
+            StreamObserver<T> responseObserver, String group, String resourceName, String fileName,
+            String summary, T resource, Author author, boolean create,
+            @Nullable String legacyFileToRemove) {
         final Change<JsonNode> change;
         try {
             final String jsonText = JSON_MESSAGE_MARSHALLER.writeValueAsString(resource);
             final JsonNode jsonNode = Jackson.readTree(jsonText);
-            // ofJsonPatch with null oldJsonNode means "expect the file to not exist yet", giving us an atomic
-            // create-or-fail that prevents a concurrent create from silently overwriting the first writer.
-            // APPLY_JSON_PATCH works on .yaml files (see Change.ofJsonPatch javadoc).
-            change = Change.ofJsonPatch(fileName, null, jsonNode);
+            if (create) {
+                change = Change.ofJsonPatch(fileName, null, jsonNode);
+            } else if (fileName.endsWith(".yaml")) {
+                change = Change.ofYamlUpsert(fileName, jsonNode);
+            } else {
+                change = Change.ofJsonUpsert(fileName, jsonNode);
+            }
         } catch (IOException e) {
             // This could happen when the message has a type that isn't registered to JSON_MESSAGE_MARSHALLER.
             responseObserver.onError(Status.INTERNAL.withCause(new IllegalStateException(
                     "failed to convert message to JSON: " + resource, e)).asRuntimeException());
             return;
         }
-        // We still need to check for a legacy .json file explicitly, because the atomic ofJsonPatch above
-        // only guards against a concurrent .yaml creation — it won't detect an existing .json counterpart.
-        final Repository repository = xdsProject.repos().get(group);
-        final String baseFileName = fileName.substring(0, fileName.length() - 5);
-        repository.find(Revision.HEAD, baseFileName + ".*", FIND_ONE_WITHOUT_CONTENT)
-                  .handle((entries, cause) -> {
-            if (cause != null) {
-                responseObserver.onError(cause);
-                return null;
-            }
-            if (!entries.isEmpty()) {
-                responseObserver.onError(
-                        Status.ALREADY_EXISTS
-                                .withDescription("Resource already exists: " + resourceName)
-                                .asRuntimeException());
-                return null;
-            }
-            executePush(responseObserver, group, resourceName, summary, author, resource,
-                        change, true, null);
-            return null;
-        });
-    }
-
-    private <T extends Message> void executePush(
-            StreamObserver<T> responseObserver, String group, String resourceName,
-            String summary, Author author, T resource, Change<JsonNode> change,
-            boolean create, @Nullable String legacyFileToRemove) {
         final ImmutableList<Change<?>> changes =
-                legacyFileToRemove != null
-                ? ImmutableList.of(Change.ofRemoval(legacyFileToRemove), change)
-                : ImmutableList.of(change);
+                legacyFileToRemove != null ? ImmutableList.of(Change.ofRemoval(legacyFileToRemove), change)
+                                           : ImmutableList.of(change);
         commandExecutor.execute(Command.push(author, XDS_CENTRAL_DOGMA_PROJECT, group, Revision.HEAD,
                                              summary, "", Markup.PLAINTEXT, changes))
                        .handle((unused, cause) -> {
                            if (cause != null) {
                                final Throwable peeled = Exceptions.peel(cause);
                                if (create && peeled instanceof ChangeConflictException) {
-                                   // A concurrent create raced past the find() check and created the file first.
                                    responseObserver.onError(
                                            Status.ALREADY_EXISTS
+                                                   .withCause(peeled)
                                                    .withDescription("Resource already exists: " + resourceName)
                                                    .asRuntimeException());
                                    return null;
@@ -259,10 +265,6 @@ public final class XdsResourceManager {
         return resourceName.substring(7 + group.length()) + ".yaml";
     }
 
-    private static String toLegacyJsonFileName(String yamlFileName) {
-        return yamlFileName.substring(0, yamlFileName.length() - 5) + ".json";
-    }
-
     public <T extends Message> void update(StreamObserver<T> responseObserver, String group,
                                            String resourceName, String summary, T resource, Author author) {
         update(responseObserver, group, resourceName, fileName(group, resourceName), summary, resource, author);
@@ -271,21 +273,11 @@ public final class XdsResourceManager {
     public <T extends Message> void update(StreamObserver<T> responseObserver, String group,
                                            String resourceName, String fileName, String summary, T resource,
                                            Author author) {
-        updateOrDelete(responseObserver, group, resourceName, fileName, foundFileName -> {
-            final String legacyFileToRemove = foundFileName.endsWith(".json") ? foundFileName : null;
-            final String targetFileName = legacyFileToRemove != null ? fileName : foundFileName;
-            final Change<JsonNode> change;
-            try {
-                final String jsonText = JSON_MESSAGE_MARSHALLER.writeValueAsString(resource);
-                final JsonNode jsonNode = Jackson.readTree(jsonText);
-                change = Change.ofYamlUpsert(targetFileName, jsonNode);
-            } catch (IOException e) {
-                responseObserver.onError(Status.INTERNAL.withCause(new IllegalStateException(
-                        "failed to convert message to JSON: " + resource, e)).asRuntimeException());
-                return;
-            }
-            executePush(responseObserver, group, resourceName, summary, author, resource,
-                        change, false, legacyFileToRemove);
+        updateOrDelete(responseObserver, group, resourceName, fileName, resolvedFileName -> {
+            final String legacyFileToRemove = resolvedFileName.endsWith(".json") ? resolvedFileName : null;
+            final String targetFileName = legacyFileToRemove != null ? fileName : resolvedFileName;
+            doPush(responseObserver, group, resourceName, targetFileName, summary, resource, author, false,
+                   legacyFileToRemove);
         });
     }
 
@@ -296,10 +288,10 @@ public final class XdsResourceManager {
 
     public void delete(StreamObserver<Empty> responseObserver, String group,
                        String resourceName, String fileName, String summary, Author author) {
-        updateOrDelete(responseObserver, group, resourceName, fileName, foundFileName ->
+        updateOrDelete(responseObserver, group, resourceName, fileName, resolvedFileName ->
                 commandExecutor.execute(Command.push(author, XDS_CENTRAL_DOGMA_PROJECT, group,
                                                      Revision.HEAD, summary, "", Markup.PLAINTEXT,
-                                                     ImmutableList.of(Change.ofRemoval(foundFileName))))
+                                                     ImmutableList.of(Change.ofRemoval(resolvedFileName))))
                                .handle((unused, cause) -> {
                                    if (cause != null) {
                                        responseObserver.onError(
@@ -313,13 +305,12 @@ public final class XdsResourceManager {
     }
 
     public void updateOrDelete(StreamObserver<?> responseObserver, String group, String resourceName,
-                               String fileName, Consumer<String> task) {
-        // Use a glob to find both the .yaml file and its legacy .json counterpart in one atomic call.
-        // Two sequential find() calls would have a race window: a migration commit that atomically removes
-        // .json and creates .yaml could land between the two calls, making the resource appear missing.
+                               String fileName, Consumer<String> taskProvider) {
         final Repository repository = xdsProject.repos().get(group);
-        final String baseFileName = fileName.substring(0, fileName.length() - 5);
-        repository.find(Revision.HEAD, baseFileName + ".*", FIND_ONE_WITHOUT_CONTENT)
+        // Search for both the requested filename and its alternative extension (.json ↔ .yaml)
+        // to support files that may have been written in either format.
+        final String altFileName = alternativeFileName(fileName);
+        repository.find(Revision.HEAD, fileName + ',' + altFileName, FIND_ONE_WITHOUT_CONTENT)
                   .handle((entries, cause) -> {
             if (cause != null) {
                 responseObserver.onError(cause);
@@ -331,8 +322,19 @@ public final class XdsResourceManager {
                                         .asRuntimeException());
                 return null;
             }
-            task.accept(entries.keySet().iterator().next());
+            final String resolvedFileName = entries.keySet().iterator().next();
+            taskProvider.accept(resolvedFileName);
             return null;
         });
+    }
+
+    private static String alternativeFileName(String fileName) {
+        if (fileName.endsWith(".json")) {
+            return fileName.substring(0, fileName.length() - 5) + ".yaml";
+        }
+        if (fileName.endsWith(".yaml")) {
+            return fileName.substring(0, fileName.length() - 5) + ".json";
+        }
+        return fileName;
     }
 }

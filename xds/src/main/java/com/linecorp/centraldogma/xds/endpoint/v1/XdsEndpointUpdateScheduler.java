@@ -84,6 +84,16 @@ final class XdsEndpointUpdateScheduler {
         return batchUpdateTasks.size();
     }
 
+    private static String alternativeFileName(String fileName) {
+        if (fileName.endsWith(".json")) {
+            return fileName.substring(0, fileName.length() - 5) + ".yaml";
+        }
+        if (fileName.endsWith(".yaml")) {
+            return fileName.substring(0, fileName.length() - 5) + ".json";
+        }
+        return fileName;
+    }
+
     void schedule(String group, String endpointName, String fileName,
                   LocalityLbEndpoint localityLbEndpoint, StreamObserver<?> streamObserver, boolean register) {
         final EndpointIdentifier identifier = EndpointIdentifier.of(localityLbEndpoint);
@@ -173,11 +183,9 @@ final class XdsEndpointUpdateScheduler {
                 }
             }
 
-            // Use a glob to find both the .yaml file and its legacy .json counterpart in one atomic call,
-            // avoiding a race window where a migration commit could land between two sequential find() calls.
             final Repository repository = xdsResourceManager.xdsProject().repos().get(group);
-            final String baseFileName = fileName.substring(0, fileName.length() - 5);
-            repository.find(Revision.HEAD, baseFileName + ".*", FIND_ONE_WITHOUT_CONTENT)
+            final String altFileName = alternativeFileName(fileName);
+            repository.find(Revision.HEAD, fileName + ',' + altFileName, FIND_ONE_WITHOUT_CONTENT)
                       .handle((entries, cause) -> {
                 if (cause != null) {
                     copied.forEach(pendingUpdate -> pendingUpdate.streamObserver.onError(cause));
@@ -190,92 +198,77 @@ final class XdsEndpointUpdateScheduler {
                     copied.forEach(pendingUpdate -> pendingUpdate.streamObserver.onError(runtimeException));
                     return null;
                 }
-                final String foundFileName = entries.keySet().iterator().next();
-                if (foundFileName.endsWith(".yaml")) {
-                    executeTransform(fileName, EntryType.YAML, copied, toRegister, toDeregister);
-                } else {
-                    executeTransformWithMigration(repository, foundFileName,
-                                                  copied, toRegister, toDeregister);
-                }
-                return null;
-            });
-        }
 
-        private void executeTransform(String targetFileName, EntryType entryType,
-                                      List<PendingUpdate> copied,
-                                      List<LocalityLbEndpoint> toRegister,
-                                      List<LocalityLbEndpoint> toDeregister) {
-            final ContentTransformer<JsonNode> transformer = new ContentTransformer<>(
-                    targetFileName, entryType, new BatchUpdateTransformer(toRegister, toDeregister));
-            final String commitMessage =
-                    "Batch update for " + endpointName + " in group " + group + ": " +
-                    toRegister.size() + " register, " + toDeregister.size() + " deregister";
-            xdsResourceManager.commandExecutor()
-                              .execute(Command.transform(
-                                      null, Author.SYSTEM, XDS_CENTRAL_DOGMA_PROJECT, group, Revision.HEAD,
-                                      commitMessage, "", Markup.PLAINTEXT, transformer))
+                final String resolvedFileName = entries.keySet().iterator().next();
+                final String commitMessage =
+                        "Batch update for " + endpointName + " in group " + group + ": " +
+                        toRegister.size() + " register, " + toDeregister.size() + " deregister";
+                if (resolvedFileName.endsWith(".json")) {
+                    // Legacy .json file: transform and atomically migrate to .yaml.
+                    repository.get(Revision.HEAD, Query.ofJson(resolvedFileName))
+                              .thenCompose(entry -> {
+                                  final JsonNode newJsonNode =
+                                          new BatchUpdateTransformer(toRegister, toDeregister)
+                                                  .apply(Revision.HEAD, entry.content());
+                                  final ImmutableList<Change<?>> changes = ImmutableList.of(
+                                          Change.ofRemoval(resolvedFileName),
+                                          Change.ofYamlUpsert(fileName, newJsonNode));
+                                  return xdsResourceManager.commandExecutor()
+                                                           .execute(Command.push(
+                                                                   Author.SYSTEM,
+                                                                   XDS_CENTRAL_DOGMA_PROJECT, group,
+                                                                   Revision.HEAD, commitMessage, "",
+                                                                   Markup.PLAINTEXT, changes));
+                              })
                               .handle((result, cause2) -> {
                                   if (cause2 != null) {
                                       final Throwable peeled = Exceptions.peel(cause2);
-                                      if (!(peeled instanceof RedundantChangeException)) {
-                                          copied.forEach(pendingUpdate -> pendingUpdate
-                                                  .streamObserver.onError(peeled));
+                                      if (peeled instanceof RedundantChangeException) {
+                                          completeUpdates(copied);
                                           return null;
                                       }
-                                      // If the change is redundant, we just ignore it and complete
-                                      // the stream observer without error.
+                                      if (peeled instanceof ChangeConflictException) {
+                                          // The .json was concurrently migrated away; apply the
+                                          // update via the atomic .yaml transform path.
+                                          executeYamlTransform(commitMessage, toRegister,
+                                                               toDeregister, copied);
+                                          return null;
+                                      }
+                                      copied.forEach(pendingUpdate -> pendingUpdate
+                                              .streamObserver.onError(peeled));
+                                      return null;
                                   }
                                   completeUpdates(copied);
                                   return null;
                               });
-        }
-
-        private void executeTransformWithMigration(Repository repository, String legacyFileName,
-                                                    List<PendingUpdate> copied,
-                                                    List<LocalityLbEndpoint> toRegister,
-                                                    List<LocalityLbEndpoint> toDeregister) {
-            // Read the legacy .json file with content so we can transform and migrate atomically.
-            repository.getOrNull(Revision.HEAD, Query.ofJson(legacyFileName)).handle((entry, cause) -> {
-                if (cause != null) {
-                    copied.forEach(p -> p.streamObserver.onError(cause));
-                    return null;
+                } else {
+                    executeYamlTransform(commitMessage, toRegister, toDeregister, copied);
                 }
-                if (entry == null) {
-                    // .json was removed concurrently (e.g. by updateEndpoint migration); use .yaml.
-                    executeTransform(fileName, EntryType.YAML, copied, toRegister, toDeregister);
-                    return null;
-                }
-                final JsonNode newContent = new BatchUpdateTransformer(toRegister, toDeregister)
-                        .apply(entry.revision(), entry.content());
-                final String commitMessage =
-                        "Batch update for " + endpointName + " in group " + group + ": " +
-                        toRegister.size() + " register, " + toDeregister.size() + " deregister";
-                final ImmutableList<Change<?>> changes = ImmutableList.of(
-                        Change.ofRemoval(legacyFileName), Change.ofYamlUpsert(fileName, newContent));
-                xdsResourceManager.commandExecutor()
-                                  .execute(Command.push(Author.SYSTEM, XDS_CENTRAL_DOGMA_PROJECT, group,
-                                                        Revision.HEAD, commitMessage, "", Markup.PLAINTEXT,
-                                                        changes))
-                                  .handle((result, cause2) -> {
-                                      if (cause2 != null) {
-                                          final Throwable peeled = Exceptions.peel(cause2);
-                                          if (peeled instanceof ChangeConflictException &&
-                                              peeled.getMessage().contains("non-existent file")) {
-                                              // .json removed concurrently; retry with .yaml.
-                                              executeTransform(fileName, EntryType.YAML,
-                                                               copied, toRegister, toDeregister);
-                                              return null;
-                                          }
-                                          if (!(peeled instanceof RedundantChangeException)) {
-                                              copied.forEach(p -> p.streamObserver.onError(peeled));
-                                              return null;
-                                          }
-                                      }
-                                      completeUpdates(copied);
-                                      return null;
-                                  });
                 return null;
             });
+        }
+
+        private void executeYamlTransform(String commitMessage, List<LocalityLbEndpoint> toRegister,
+                                          List<LocalityLbEndpoint> toDeregister,
+                                          List<PendingUpdate> copied) {
+            final ContentTransformer<JsonNode> transformer =
+                    new ContentTransformer<>(fileName, EntryType.YAML,
+                                            new BatchUpdateTransformer(toRegister, toDeregister));
+            xdsResourceManager.commandExecutor()
+                              .execute(Command.transform(null, Author.SYSTEM, XDS_CENTRAL_DOGMA_PROJECT,
+                                                         group, Revision.HEAD, commitMessage, "",
+                                                         Markup.PLAINTEXT, transformer))
+                              .handle((result, cause) -> {
+                                  if (cause != null) {
+                                      final Throwable peeled = Exceptions.peel(cause);
+                                      if (!(peeled instanceof RedundantChangeException)) {
+                                          copied.forEach(u -> u.streamObserver.onError(peeled));
+                                          return null;
+                                      }
+                                  }
+                                  completeUpdates(copied);
+                                  return null;
+                              });
         }
 
         private void completeUpdates(List<PendingUpdate> copied) {
@@ -373,8 +366,7 @@ final class XdsEndpointUpdateScheduler {
             final Builder clusterLoadAssignmentBuilder =
                     ClusterLoadAssignment.newBuilder();
             try {
-                JSON_MESSAGE_MARSHALLER.mergeValue(Jackson.writeValueAsString(oldJsonNode),
-                                                   clusterLoadAssignmentBuilder);
+                JSON_MESSAGE_MARSHALLER.mergeValue(oldJsonNode.traverse(), clusterLoadAssignmentBuilder);
             } catch (Throwable t) {
                 // Should never reach here.
                 throw new Error();

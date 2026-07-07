@@ -55,10 +55,7 @@ import com.linecorp.centraldogma.server.storage.repository.MetaRepository;
 import com.linecorp.centraldogma.xds.internal.XdsResourceManager;
 import com.linecorp.centraldogma.xds.k8s.v1.XdsKubernetesServiceGrpc.XdsKubernetesServiceImplBase;
 
-import io.envoyproxy.envoy.config.core.v3.Address;
-import io.envoyproxy.envoy.config.core.v3.SocketAddress;
 import io.envoyproxy.envoy.config.endpoint.v3.ClusterLoadAssignment;
-import io.envoyproxy.envoy.config.endpoint.v3.LbEndpoint;
 import io.envoyproxy.envoy.config.endpoint.v3.LocalityLbEndpoints;
 import io.fabric8.kubernetes.client.Config;
 import io.fabric8.kubernetes.client.ConfigBuilder;
@@ -147,13 +144,16 @@ public final class XdsKubernetesService extends XdsKubernetesServiceImplBase {
                 () -> xdsResourceManager.push(
                         responseObserver, group, kubernetesEndpointName,
                         fileName,
-                        "Create kubernetes endpoint: " + kubernetesEndpointName, aggregator, author));
+                        "Create kubernetes endpoint: " + kubernetesEndpointName, aggregator, author, true));
     }
 
     private void validateKubernetesEndpointAndPush(
             StreamObserver<KubernetesEndpointAggregator> responseObserver,
             List<KubernetesLocalityLbEndpoints> kubernetesLocalityLbEndpointsList,
             String group, String fileName, Runnable onSuccess) {
+        for (KubernetesLocalityLbEndpoints kubernetesLocalityLbEndpoints : kubernetesLocalityLbEndpointsList) {
+            validateMetadataMappings(kubernetesLocalityLbEndpoints.getWatcher());
+        }
         // Create a KubernetesEndpointGroup to check if the watcher is valid.
         // We use KubernetesEndpointGroup for simplicity, but we will implement a custom implementation
         // for better debugging and error handling in the future.
@@ -226,6 +226,41 @@ public final class XdsKubernetesService extends XdsKubernetesServiceImplBase {
             }
             return null;
         });
+    }
+
+    private static void validateMetadataMappings(ServiceEndpointWatcher watcher) {
+        for (MetadataMapping mapping : watcher.getMetadataMappingList()) {
+            if (mapping.getResourceType() == MetadataMapping.ResourceType.RESOURCE_TYPE_UNSPECIFIED) {
+                throw Status.INVALID_ARGUMENT.withDescription(
+                        "resource_type must be specified in metadata_mapping: " + mapping)
+                                             .asRuntimeException();
+            }
+            if (mapping.getEntryType() == MetadataMapping.EntryType.ENTRY_TYPE_UNSPECIFIED) {
+                throw Status.INVALID_ARGUMENT.withDescription(
+                        "entry_type must be specified in metadata_mapping: " + mapping)
+                                             .asRuntimeException();
+            }
+            switch (mapping.getSourceCase()) {
+                case SOURCE_KEY:
+                    if (mapping.getSourceKey().isEmpty()) {
+                        throw Status.INVALID_ARGUMENT.withDescription(
+                                "source_key must not be empty in metadata_mapping: " + mapping)
+                                                     .asRuntimeException();
+                    }
+                    break;
+                case SOURCE_KEY_PREFIX:
+                    if (mapping.getSourceKeyPrefix().isEmpty()) {
+                        throw Status.INVALID_ARGUMENT.withDescription(
+                                "source_key_prefix must not be empty in metadata_mapping: " + mapping)
+                                                     .asRuntimeException();
+                    }
+                    break;
+                default:
+                    throw Status.INVALID_ARGUMENT.withDescription(
+                            "either source_key or source_key_prefix must be set in metadata_mapping: " +
+                            mapping).asRuntimeException();
+            }
+        }
     }
 
     /**
@@ -472,24 +507,8 @@ public final class XdsKubernetesService extends XdsKubernetesServiceImplBase {
             builder.setLoadBalancingWeight(localityLbEndpoints.getLoadBalancingWeight());
         }
         builder.setPriority(localityLbEndpoints.getPriority());
-        for (Endpoint endpoint : endpointGroup.endpoints()) {
-            if (!endpoint.hasPort()) {
-                continue;
-            }
-            final SocketAddress socketAddress = SocketAddress.newBuilder()
-                                                             .setAddress(endpoint.host())
-                                                             .setPortValue(endpoint.port())
-                                                             .build();
-            builder.addLbEndpoints(
-                    LbEndpoint.newBuilder()
-                              .setEndpoint(
-                                      io.envoyproxy.envoy.config.endpoint.v3.Endpoint.newBuilder()
-                                                .setAddress(Address.newBuilder()
-                                                                   .setSocketAddress(socketAddress)
-                                                                   .build())
-                                                .build())
-                              .build());
-        }
+        KubernetesEndpointConverter.addLbEndpoints(builder, endpointGroup.endpoints(),
+                                                   localityLbEndpoints.getWatcher());
         return builder.build();
     }
 }

@@ -127,6 +127,15 @@ async function fetchYamlOrJson(
     if ((direct.error as FetchBaseQueryError).status !== 404) {
       return { error: direct.error as FetchBaseQueryError };
     }
+    // knownPath 404'd. If it already had the .yaml extension, skip the redundant .yaml probe
+    // below (basePath + ".yaml" would resolve to the same URL) and go straight to .json.
+    if (knownPath.endsWith('.yaml')) {
+      const jsonResult = await fetchWithBQ(
+        `/api/v1/projects/${XDS_PROJECT}/repos/${group}/contents${basePath}.json?revision=head`,
+      );
+      if (jsonResult.error) return { error: jsonResult.error as FetchBaseQueryError };
+      return { data: jsonResult.data as FileContentDto };
+    }
   }
   const yamlResult = await fetchWithBQ(
     `/api/v1/projects/${XDS_PROJECT}/repos/${group}/contents${basePath}.yaml?revision=head`,

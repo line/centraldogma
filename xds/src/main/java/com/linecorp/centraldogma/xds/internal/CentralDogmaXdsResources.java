@@ -103,7 +103,7 @@ final class CentralDogmaXdsResources {
     }
 
     private static String getResourceName(String groupName, String path) {
-        // Remove file extension (.json or .yaml)
+        // Remove .json or .yaml (both 5 chars)
         return "groups/" + groupName + path.substring(0, path.length() - 5);
     }
 
@@ -113,11 +113,11 @@ final class CentralDogmaXdsResources {
         if (groupEndpoints == null) {
             return;
         }
-        // e.g. /endpoints/foo-cluster.yaml file with group foo -> groups/foo/clusters/foo-cluster
-        // e.g. /k8s/endpoints/foo-cluster.yaml file with group foo -> groups/foo/k8s/clusters/foo-cluster
+        // e.g. /endpoints/foo-cluster.json/.yaml file with group foo -> groups/foo/clusters/foo-cluster
+        // e.g. /k8s/endpoints/foo-cluster.json/.yaml file with group foo -> groups/foo/k8s/clusters/foo-cluster
         final String clusterName =
                 "groups/" + groupName +
-                ENDPOINTS_PATTERN.matcher(path.substring(0, path.length() - 5) /* remove file extension */)
+                ENDPOINTS_PATTERN.matcher(path.substring(0, path.length() - 5) /* remove .json or .yaml */)
                                  .replaceFirst("/clusters/");
         endpointUpdated |= groupEndpoints.remove(clusterName) != null;
     }

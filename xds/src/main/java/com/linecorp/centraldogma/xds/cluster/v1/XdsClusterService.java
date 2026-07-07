@@ -79,7 +79,7 @@ public final class XdsClusterService extends XdsClusterServiceImplBase {
                          .setRespectDnsTtl(true)
                          .build();
         xdsResourceManager.push(responseObserver, group, clusterName, CLUSTERS_DIRECTORY + clusterId + ".yaml",
-                                "Create cluster: " + clusterName, cluster, currentAuthor());
+                                "Create cluster: " + clusterName, cluster, currentAuthor(), true);
     }
 
     @Override

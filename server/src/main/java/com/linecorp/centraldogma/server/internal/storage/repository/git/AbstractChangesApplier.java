@@ -37,7 +37,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.linecorp.centraldogma.common.CentralDogmaException;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.Jackson;
-import com.linecorp.centraldogma.internal.Yaml;
 import com.linecorp.centraldogma.server.storage.StorageException;
 
 abstract class AbstractChangesApplier {
@@ -95,28 +94,6 @@ abstract class AbstractChangesApplier {
                 ent.setFileMode(FileMode.REGULAR_FILE);
             } catch (IOException e) {
                 throw new StorageException("failed to create a new JSON blob", e);
-            }
-        }
-    }
-
-    static final class InsertYaml extends PathEdit {
-        private final ObjectInserter inserter;
-        private final JsonNode jsonNode;
-
-        InsertYaml(String entryPath, ObjectInserter inserter, JsonNode jsonNode) {
-            super(entryPath);
-            this.inserter = inserter;
-            this.jsonNode = jsonNode;
-        }
-
-        @Override
-        public void apply(DirCacheEntry ent) {
-            try {
-                final byte[] yamlBytes = Yaml.writeValueAsString(jsonNode).getBytes(UTF_8);
-                ent.setObjectId(inserter.insert(Constants.OBJ_BLOB, yamlBytes));
-                ent.setFileMode(FileMode.REGULAR_FILE);
-            } catch (IOException e) {
-                throw new StorageException("failed to create a new YAML blob", e);
             }
         }
     }

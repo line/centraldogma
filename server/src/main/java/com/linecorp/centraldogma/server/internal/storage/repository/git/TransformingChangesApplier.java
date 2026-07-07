@@ -43,7 +43,8 @@ final class TransformingChangesApplier extends AbstractChangesApplier {
     private final ContentTransformer<JsonNode> transformer;
 
     TransformingChangesApplier(ContentTransformer<?> transformer) {
-        checkArgument(transformer.entryType() == EntryType.JSON || transformer.entryType() == EntryType.YAML,
+        checkArgument(transformer.entryType() == EntryType.JSON ||
+                      transformer.entryType() == EntryType.YAML,
                       "transformer: %s (expected: JSON or YAML type)", transformer);
         //noinspection unchecked
         this.transformer = (ContentTransformer<JsonNode>) transformer;
@@ -56,20 +57,17 @@ final class TransformingChangesApplier extends AbstractChangesApplier {
         final DirCacheEntry oldEntry = dirCache.getEntry(changePath);
         final byte[] oldContent = oldEntry != null ? reader.open(oldEntry.getObjectId()).getBytes()
                                                    : null;
-        final JsonNode oldJsonNode;
-        if (oldContent == null) {
-            oldJsonNode = JsonNodeFactory.instance.nullNode();
-        } else if (transformer.entryType() == EntryType.YAML) {
-            oldJsonNode = Yaml.readTree(oldContent);
-        } else {
-            oldJsonNode = Jackson.readTree(oldContent);
-        }
+        final boolean isYaml = transformer.entryType() == EntryType.YAML;
+        final JsonNode oldJsonNode = oldContent != null ? (isYaml ? Yaml.readTree(oldContent)
+                                                                  : Jackson.readTree(oldContent))
+                                                        : JsonNodeFactory.instance.nullNode();
         try {
             final JsonNode newJsonNode = transformer.transformer().apply(headRevision, oldJsonNode.deepCopy());
             requireNonNull(newJsonNode, "transformer.transformer().apply() returned null");
             if (!Objects.equals(newJsonNode, oldJsonNode)) {
-                if (transformer.entryType() == EntryType.YAML) {
-                    applyPathEdit(dirCache, new InsertYaml(changePath, inserter, newJsonNode));
+                if (isYaml) {
+                    applyPathEdit(dirCache, new InsertText(changePath, inserter,
+                                                           Yaml.writeValueAsString(newJsonNode)));
                 } else {
                     applyPathEdit(dirCache, new InsertJson(changePath, inserter, newJsonNode));
                 }

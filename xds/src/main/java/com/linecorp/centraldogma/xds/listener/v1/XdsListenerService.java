@@ -70,7 +70,7 @@ public final class XdsListenerService extends XdsListenerServiceImplBase {
         final Listener listener = request.getListener().toBuilder().setName(listenerName).build();
         xdsResourceManager.push(responseObserver, group, listenerName,
                                 LISTENERS_DIRECTORY + listenerId + ".yaml",
-                                "Create listener: " + listenerName, listener, currentAuthor());
+                                "Create listener: " + listenerName, listener, currentAuthor(), true);
     }
 
     @Override
