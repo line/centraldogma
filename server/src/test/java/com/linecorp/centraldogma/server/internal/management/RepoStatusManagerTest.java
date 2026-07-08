@@ -17,6 +17,7 @@
 package com.linecorp.centraldogma.server.internal.management;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -26,16 +27,22 @@ import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.ReplicationStatus;
 import com.linecorp.centraldogma.testing.internal.ProjectManagerExtension;
 
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+
 class RepoStatusManagerTest {
 
     @RegisterExtension
     static ProjectManagerExtension pmExtension = new ProjectManagerExtension();
 
     private RepoStatusManager statusManager;
+    private MeterRegistry meterRegistry;
 
     @BeforeEach
     void setUp() {
-        statusManager = new RepoStatusManager(pmExtension.serverStatusManager(), pmExtension.projectManager());
+        meterRegistry = new SimpleMeterRegistry();
+        statusManager = new RepoStatusManager(pmExtension.serverStatusManager(), pmExtension.projectManager(),
+                                              meterRegistry);
         statusManager.initialize();
     }
 
@@ -74,5 +81,42 @@ class RepoStatusManagerTest {
         entity = statusManager.getRepoStatus("test_prj", "dogma");
         assertThat(entity).isEqualTo(
                 new RepositoryState("test_prj", "dogma", ReplicationStatus.WRITABLE, null));
+    }
+
+    @Test
+    void readOnlyStatuses_and_metrics() {
+        assertThat(statusManager.readOnlyStatuses()).isEmpty();
+        assertThat(readOnlyCount()).isZero();
+
+        statusManager.updateRepoStatus("test_prj", "test_repo", Author.DEFAULT, ReplicationStatus.READ_ONLY)
+                     .join();
+        statusManager.updateProjectStatus("test_prj2", Author.DEFAULT, ReplicationStatus.READ_ONLY).join();
+
+        assertThat(statusManager.readOnlyStatuses())
+                .extracting(RepositoryState::projectName, RepositoryState::repoName, RepositoryState::status)
+                .containsExactlyInAnyOrder(
+                        tuple("test_prj", "test_repo", ReplicationStatus.READ_ONLY),
+                        tuple("test_prj2", "dogma", ReplicationStatus.READ_ONLY));
+
+        assertThat(readOnlyCount()).isEqualTo(2);
+        assertThat(scopeGauge("test_prj", "test_repo", "repository")).isOne();
+        assertThat(scopeGauge("test_prj2", "dogma", "project")).isOne();
+
+        // Reverting to WRITABLE removes the scope from the list and the metrics.
+        statusManager.updateRepoStatus("test_prj", "test_repo", Author.DEFAULT, ReplicationStatus.WRITABLE)
+                     .join();
+        statusManager.updateProjectStatus("test_prj2", Author.DEFAULT, ReplicationStatus.WRITABLE).join();
+        assertThat(statusManager.readOnlyStatuses()).isEmpty();
+        assertThat(readOnlyCount()).isZero();
+    }
+
+    private double readOnlyCount() {
+        return meterRegistry.get("repository.read.only.count").gauge().value();
+    }
+
+    private double scopeGauge(String projectName, String repoName, String scope) {
+        return meterRegistry.get("repository.read.only")
+                            .tags("project", projectName, "repo", repoName, "scope", scope)
+                            .gauge().value();
     }
 }

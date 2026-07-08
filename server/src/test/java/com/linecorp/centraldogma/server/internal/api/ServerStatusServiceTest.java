@@ -20,6 +20,7 @@ import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.API_V
 import static net.javacrumbs.jsonunit.fluent.JsonFluentAssert.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.awaitility.Awaitility.await;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
@@ -32,6 +33,7 @@ import com.linecorp.armeria.client.logging.LoggingClient;
 import com.linecorp.armeria.common.AggregatedHttpResponse;
 import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpStatus;
+import com.linecorp.centraldogma.common.ReplicationStatus;
 import com.linecorp.centraldogma.server.internal.api.sysadmin.UpdateServerStatusRequest;
 import com.linecorp.centraldogma.server.internal.api.sysadmin.UpdateServerStatusRequest.Scope;
 import com.linecorp.centraldogma.server.management.ServerStatus;
@@ -60,6 +62,37 @@ class ServerStatusServiceTest {
         final AggregatedHttpResponse res = client.get(API_V1_PATH_PREFIX + "status").aggregate().join();
         assertThat(res.status()).isEqualTo(HttpStatus.OK);
         assertThat(res.contentUtf8()).isEqualTo("\"WRITABLE\"");
+    }
+
+    @Test
+    void readOnlyRepositories() {
+        final BlockingWebClient client = dogma.httpClient().blocking();
+
+        // No read-only repository initially (an empty result is returned as 204 No Content).
+        assertThat(client.get(API_V1_PATH_PREFIX + "status/repos/read-only").status())
+                .isEqualTo(HttpStatus.NO_CONTENT);
+
+        // Set a repository read-only.
+        dogma.client().createProject("foo").join();
+        dogma.client().createRepository("foo", "bar").join();
+        final AggregatedHttpResponse updateRes =
+                client.prepare()
+                      .put(API_V1_PATH_PREFIX + "projects/foo/repos/bar/status")
+                      .contentJson(new UpdateRepositoryStatusRequest(ReplicationStatus.READ_ONLY))
+                      .execute();
+        assertThat(updateRes.status()).isEqualTo(HttpStatus.OK);
+
+        // The read-only repository should be listed.
+        await().untilAsserted(() -> {
+            final AggregatedHttpResponse res = client.get(API_V1_PATH_PREFIX + "status/repos/read-only");
+            assertThat(res.status()).isEqualTo(HttpStatus.OK);
+            assertThatJson(res.contentUtf8()).isArray().ofLength(1);
+            assertThatJson(res.contentUtf8()).node("[0].projectName").isEqualTo("foo");
+            assertThatJson(res.contentUtf8()).node("[0].repoName").isEqualTo("bar");
+            assertThatJson(res.contentUtf8()).node("[0].status").isEqualTo("READ_ONLY");
+            // updatedAt must serialize as an ISO-8601 string, not an epoch number (regression guard).
+            assertThatJson(res.contentUtf8()).node("[0].updatedAt").isString();
+        });
     }
 
     @Test

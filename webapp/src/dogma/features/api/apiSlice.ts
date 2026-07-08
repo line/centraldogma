@@ -45,6 +45,7 @@ import {
   ServerStatusType,
   UpdateServerStatusRequest,
 } from 'dogma/features/settings/server-status/ServerStatusDto';
+import { ReplicationStatus, RepositoryStatus } from 'dogma/features/settings/repo-status/RepoStatusDto';
 import Router from 'next/router';
 import { VariableDto } from 'dogma/features/project/settings/variables/VariableDto';
 import { XdsApp, XdsClientStatus, XdsSnapshot } from 'dogma/features/xds/ControlPlaneStatusDto';
@@ -122,7 +123,7 @@ export const apiSlice = createApi({
   baseQuery: baseQueryWithReauth(() => {
     Router.push(createLoginUrl());
   }),
-  tagTypes: ['Project', 'Metadata', 'Repo', 'File', 'AppIdentity', 'Mirror', 'ServerStatus'],
+  tagTypes: ['Project', 'Metadata', 'Repo', 'File', 'AppIdentity', 'Mirror', 'ServerStatus', 'RepoStatus'],
   endpoints: (builder) => ({
     getProjects: builder.query<ProjectDto[], GetProjects>({
       async queryFn(arg, _queryApi, _extraOptions, fetchWithBQ) {
@@ -466,6 +467,21 @@ export const apiSlice = createApi({
       }),
       invalidatesTags: ['ServerStatus'],
     }),
+    getReadOnlyRepos: builder.query<RepositoryStatus[], void>({
+      query: () => '/api/v1/status/repos/read-only',
+      providesTags: ['RepoStatus'],
+    }),
+    updateRepositoryStatus: builder.mutation<
+      void,
+      { projectName: string; repoName: string; status: ReplicationStatus }
+    >({
+      query: ({ projectName, repoName, status }) => ({
+        url: `/api/v1/projects/${projectName}/repos/${repoName}/status`,
+        method: 'PUT',
+        body: { status },
+      }),
+      invalidatesTags: ['RepoStatus'],
+    }),
     getProjectCredentials: builder.query<CredentialDto[], string>({
       query: (projectName) => `/api/v1/projects/${projectName}/credentials`,
       transformResponse: (response: CredentialDto[]) => addIdFromCredentialNames(response),
@@ -684,6 +700,9 @@ export const {
   // Server Status
   useGetServerStatusQuery,
   useUpdateServerStatusMutation,
+  // Repository Status
+  useGetReadOnlyReposQuery,
+  useUpdateRepositoryStatusMutation,
   // Credential
   useGetProjectCredentialsQuery,
   useGetCredentialQuery,
