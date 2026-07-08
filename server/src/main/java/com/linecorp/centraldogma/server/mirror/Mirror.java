@@ -131,4 +131,10 @@ public interface Mirror {
      */
     MirrorResult mirror(File workDir, CommandExecutor executor, int maxNumFiles, long maxNumBytes,
                         Instant triggeredTime);
+
+    /**
+     * Closes the resources held by this {@link Mirror}, such as cached connections to the remote.
+     * The default implementation is a no-op.
+     */
+    default void close() {}
 }

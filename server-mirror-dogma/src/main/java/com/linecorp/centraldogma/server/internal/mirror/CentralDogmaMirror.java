@@ -72,6 +72,9 @@ public final class CentralDogmaMirror extends AbstractMirror {
     private final String remoteProject;
     private final String remoteRepo;
 
+    @Nullable
+    private CentralDogma remoteClient;
+
     public CentralDogmaMirror(String id, boolean enabled, Cron schedule, MirrorDirection direction,
                               Credential credential, Repository localRepo, String localPath,
                               RepositoryUri remoteUri, String remoteProject, String remoteRepo,
@@ -93,6 +96,14 @@ public final class CentralDogmaMirror extends AbstractMirror {
         return remoteRepo;
     }
 
+    // maxNumBytes comes from MirrorSchedulingService.maxNumBytesPerMirror, which is fixed at server startup.
+    private synchronized CentralDogma getOrCreateRemoteClient(long maxNumBytes) throws UnknownHostException {
+        if (remoteClient == null) {
+            remoteClient = createRemoteClient(maxNumBytes);
+        }
+        return remoteClient;
+    }
+
     private CentralDogma createRemoteClient(long maxNumBytes) throws UnknownHostException {
         final URI uri = remoteUri().uri();
         final ArmeriaCentralDogmaBuilder builder = new ArmeriaCentralDogmaBuilder();
@@ -112,7 +123,25 @@ public final class CentralDogmaMirror extends AbstractMirror {
         // TODO(minwoox) Support mTLS authentication as well.
 
         builder.clientConfigurator(cb -> cb.maxResponseLength(maxNumBytes));
+        // Mirrors run on a fixed schedule; a failed run simply retries on the next tick.
+        // Persistent health-check traffic is unnecessary and wasteful at scale.
+        builder.healthCheckIntervalMillis(0);
         return builder.build();
+    }
+
+    @Override
+    public synchronized void close() {
+        final CentralDogma client = remoteClient;
+        if (client == null) {
+            return;
+        }
+        remoteClient = null;
+        try {
+            client.close();
+        } catch (Exception e) {
+            logger.warn("Failed to close the remote CentralDogma client: {}. {}/{}/{}",
+                        remoteUri(), localRepo().parent().name(), localRepo().name(), id(), e);
+        }
     }
 
     @Override
@@ -120,7 +149,8 @@ public final class CentralDogmaMirror extends AbstractMirror {
                                                Instant triggeredTime) throws Exception {
         final Revision localHead = localRepo().normalizeNow(Revision.HEAD);
 
-        try (CentralDogma remote = createRemoteClient(maxNumBytes)) {
+        final CentralDogma remote = getOrCreateRemoteClient(maxNumBytes);
+        try {
             final CentralDogmaRepository repo = remote.forRepo(remoteProject, remoteRepo);
             // Get remote HEAD revision.
             final Revision remoteHead = repo.normalize(Revision.HEAD).join();
@@ -261,7 +291,8 @@ public final class CentralDogmaMirror extends AbstractMirror {
         final Revision localRev = localRepo().normalizeNow(Revision.HEAD);
         final String mirrorStatePath = localPath() + MIRROR_STATE_FILE_NAME;
 
-        try (CentralDogma remote = createRemoteClient(maxNumBytes)) {
+        final CentralDogma remote = getOrCreateRemoteClient(maxNumBytes);
+        try {
             final CentralDogmaRepository repo = remote.forRepo(remoteProject, remoteRepo);
             // Get remote HEAD revision.
             final Revision remoteHead = repo.normalize(Revision.HEAD).join();
