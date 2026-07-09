@@ -139,10 +139,4 @@ public interface Mirror {
      * CentralDogma-type mirrors use this; the default implementation is a no-op.
      */
     default void setBaseClientPool(ConcurrentHashMap<String, Object> baseClientPool) {}
-
-    /**
-     * Closes the resources held by this {@link Mirror}, such as cached connections to the remote.
-     * The default implementation is a no-op.
-     */
-    default void close() {}
 }
