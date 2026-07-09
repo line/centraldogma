@@ -24,10 +24,8 @@ import java.io.File;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZonedDateTime;
-import java.util.HashSet;
 import java.util.List;
 import java.util.ServiceLoader;
-import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
@@ -107,13 +105,14 @@ public final class MirrorSchedulingService implements MirroringService {
     private final String currentZone;
     private final MirrorAccessController mirrorAccessController;
     private final AtomicInteger numActiveMirrors = new AtomicInteger();
+    // Shared base-client pool for CentralDogmaMirror instances. Keyed by "host:port:tls:maxBytes".
+    // Owned here so stop() can close all entries; injected into each mirror before it runs.
+    private final ConcurrentHashMap<String, Object> baseClientPool = new ConcurrentHashMap<>();
 
     private volatile CommandExecutor commandExecutor;
     private volatile ListeningScheduledExecutorService scheduler;
     private volatile ListeningExecutorService worker;
     private volatile boolean closing;
-
-    private final ConcurrentHashMap<String, Mirror> activeMirrors = new ConcurrentHashMap<>();
 
     @Nullable
     private ZonedDateTime lastExecutionTime;
@@ -230,8 +229,16 @@ public final class MirrorSchedulingService implements MirroringService {
         } finally {
             this.scheduler = null;
             this.worker = null;
-            activeMirrors.values().forEach(Mirror::close);
-            activeMirrors.clear();
+            baseClientPool.forEach((key, client) -> {
+                if (client instanceof AutoCloseable) {
+                    try {
+                        ((AutoCloseable) client).close();
+                    } catch (Exception e) {
+                        logger.warn("Failed to close base CentralDogma client for key: {}", key, e);
+                    }
+                }
+            });
+            baseClientPool.clear();
         }
     }
 
@@ -247,9 +254,6 @@ public final class MirrorSchedulingService implements MirroringService {
 
         final ZonedDateTime currentLastExecutionTime = lastExecutionTime;
         lastExecutionTime = now;
-
-        // Track all mirror keys seen in this tick to detect deleted mirrors.
-        final Set<String> currentMirrorKeys = new HashSet<>();
 
         projectManager.list()
                       .values()
@@ -273,54 +277,30 @@ public final class MirrorSchedulingService implements MirroringService {
                               logger.warn("Failed to load the mirror list from: {}", project.name(), e);
                               return;
                           }
-                          for (Mirror freshMirror : mirrors) {
-                              if (freshMirror.schedule() == null) {
+                          for (Mirror mirror : mirrors) {
+                              if (mirror.schedule() == null) {
                                   continue;
                               }
-
-                              final String key = mirrorCacheKey(freshMirror);
-                              currentMirrorKeys.add(key);
-
-                              // Reuse the cached instance if the config is unchanged so that resources
-                              // such as the remote CentralDogma client and its DNS resolver are kept
-                              // alive across runs. Close the old instance on config change.
-                              // Note: hashString() is based on toString() which intentionally omits the
-                              // actual credential secret (e.g. access token value), so we also compare
-                              // credential via equals() which does include the secret value.
-                              final Mirror m = activeMirrors.compute(key, (k, existing) -> {
-                                  if (existing instanceof AbstractMirror &&
-                                      freshMirror instanceof AbstractMirror &&
-                                      ((AbstractMirror) existing).hashString().equals(
-                                              ((AbstractMirror) freshMirror).hashString()) &&
-                                      existing.credential().equals(freshMirror.credential())) {
-                                      return existing;
-                                  }
-                                  if (existing != null) {
-                                      existing.close();
-                                  }
-                                  return freshMirror;
-                              });
-                              // TODO(minwoox): Cache SSH client as well.
 
                               if (closing) {
                                   return;
                               }
 
                               try {
-                                  final boolean allowed = mirrorAccessController.isAllowed(m)
+                                  final boolean allowed = mirrorAccessController.isAllowed(mirror)
                                                                                 .get(5, TimeUnit.SECONDS);
                                   if (!allowed) {
-                                      mirrorListener.onDisallowed(m);
+                                      mirrorListener.onDisallowed(mirror);
                                       continue;
                                   }
                               } catch (Exception e) {
                                   logger.warn("Failed to check the access control. mirror: {}",
-                                              m, e);
+                                              mirror, e);
                                   continue;
                               }
 
                               if (zoneConfig != null) {
-                                  String pinnedZone = m.zone();
+                                  String pinnedZone = mirror.zone();
                                   if (pinnedZone == null) {
                                       // Use the first zone if the mirror does not specify a zone.
                                       pinnedZone = zoneConfig.allZones().get(0);
@@ -330,7 +310,7 @@ public final class MirrorSchedulingService implements MirroringService {
                                       if (!zoneConfig.allZones().contains(pinnedZone)) {
                                           // The mirror is pinned to an invalid zone.
                                           final MirrorTask invalidMirror =
-                                                  new MirrorTask(m, User.SYSTEM, Instant.now(),
+                                                  new MirrorTask(mirror, User.SYSTEM, Instant.now(),
                                                                  pinnedZone, true);
                                           mirrorListener.onStart(invalidMirror);
                                           mirrorListener.onError(invalidMirror, new MirrorException(
@@ -341,28 +321,16 @@ public final class MirrorSchedulingService implements MirroringService {
                                   }
                               }
                               try {
-                                  if (m.nextExecutionTime(currentLastExecutionTime).compareTo(now) < 0) {
-                                      runAsync(new MirrorTask(m, User.SYSTEM, Instant.now(),
+                                  if (mirror.nextExecutionTime(currentLastExecutionTime).compareTo(now) < 0) {
+                                      mirror.setBaseClientPool(baseClientPool);
+                                      runAsync(new MirrorTask(mirror, User.SYSTEM, Instant.now(),
                                                               currentZone, true));
                                   }
                               } catch (Exception e) {
-                                  logger.warn("Unexpected exception while mirroring: {}", m, e);
+                                  logger.warn("Unexpected exception while mirroring: {}", mirror, e);
                               }
                           }
                       });
-
-        // Close mirrors that have been deleted from the meta repository.
-        activeMirrors.entrySet().removeIf(entry -> {
-            if (!currentMirrorKeys.contains(entry.getKey())) {
-                entry.getValue().close();
-                return true;
-            }
-            return false;
-        });
-    }
-
-    private static String mirrorCacheKey(Mirror m) {
-        return m.localRepo().parent().name() + '/' + m.localRepo().name() + '/' + m.id();
     }
 
     @Override
@@ -379,7 +347,10 @@ public final class MirrorSchedulingService implements MirroringService {
                     }
                     try {
                         p.metaRepo().mirrors().get(5, TimeUnit.SECONDS)
-                         .forEach(m -> run(new MirrorTask(m, User.SYSTEM, Instant.now(), currentZone, false)));
+                         .forEach(m -> {
+                             m.setBaseClientPool(baseClientPool);
+                             run(new MirrorTask(m, User.SYSTEM, Instant.now(), currentZone, false));
+                         });
                     } catch (InterruptedException | TimeoutException | ExecutionException e) {
                         throw new IllegalStateException(
                                 "Failed to load mirror list with in 5 seconds. project: " + p.name(), e);

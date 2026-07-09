@@ -74,6 +74,14 @@ public abstract class AbstractCentralDogma implements CentralDogma {
         return blockingTaskExecutor;
     }
 
+    /**
+     * Returns the {@link MeterRegistry}, or {@code null} if none was configured.
+     */
+    @Nullable
+    protected final MeterRegistry meterRegistry() {
+        return meterRegistry;
+    }
+
     @Override
     public CentralDogmaRepository forRepo(String projectName, String repositoryName) {
         requireNonNull(projectName, "projectName");
