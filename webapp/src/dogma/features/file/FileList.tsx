@@ -9,6 +9,7 @@ import {
   MenuButton,
   MenuItem,
   MenuList,
+  Tooltip,
   useDisclosure,
 } from '@chakra-ui/react';
 import { ColumnDef, createColumnHelper } from '@tanstack/react-table';
@@ -20,6 +21,7 @@ import { CopySupport } from 'dogma/features/file/CopySupport';
 import React, { useCallback, useMemo, useState } from 'react';
 import { MdDelete } from 'react-icons/md';
 import { DeleteFileModal } from 'dogma/common/components/editor/DeleteFileModal';
+import { useReadOnly } from 'dogma/features/repo/useReadOnly';
 
 export type FileListProps<Data extends object> = {
   data: Data[];
@@ -42,6 +44,7 @@ const FileList = <Data extends object>({
 }: FileListProps<Data>) => {
   const columnHelper = createColumnHelper<FileDto>();
   const slug = `/app/projects/${projectName}/repos/${repoName}/files/${revision}${path}`;
+  const [readOnly, readOnlyHint] = useReadOnly(projectName, repoName);
 
   const { isOpen: isDeleteModalOpen, onOpen: onDeleteModalOpen, onClose: onDeleteModalClose } = useDisclosure();
   const [deletePath, setDeletePath] = useState('');
@@ -112,21 +115,36 @@ const FileList = <Data extends object>({
                 </Menu>
               </WrapItem>
             </Wrap>
-            <Button
-              onClick={() => onClickDelete(info.row.original.path)}
-              leftIcon={<MdDelete />}
-              colorScheme="red"
-              size="sm"
-            >
-              Delete
-            </Button>
+            <Tooltip label={readOnlyHint} isDisabled={!readOnly}>
+              <Box>
+                <Button
+                  onClick={() => onClickDelete(info.row.original.path)}
+                  isDisabled={readOnly}
+                  leftIcon={<MdDelete />}
+                  colorScheme="red"
+                  size="sm"
+                >
+                  Delete
+                </Button>
+              </Box>
+            </Tooltip>
           </HStack>
         ),
         header: 'Actions',
         enableSorting: false,
       }),
     ],
-    [columnHelper, copySupport, directoryPath, projectName, repoName, slug, onClickDelete],
+    [
+      columnHelper,
+      copySupport,
+      directoryPath,
+      projectName,
+      repoName,
+      slug,
+      onClickDelete,
+      readOnly,
+      readOnlyHint,
+    ],
   );
   return (
     <Box>
