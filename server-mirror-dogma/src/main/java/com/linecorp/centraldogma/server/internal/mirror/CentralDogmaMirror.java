@@ -114,6 +114,10 @@ public final class CentralDogmaMirror extends AbstractMirror {
         final URI uri = remoteUri().uri();
         final ConcurrentHashMap<String, Object> pool = baseClientPool;
 
+        final Credential cred = credential();
+        final String token = cred instanceof AccessTokenCredential ?
+                             ((AccessTokenCredential) cred).accessToken() : CsrfToken.ANONYMOUS;
+
         CentralDogma base;
         if (pool != null) {
             // Reuse or create a shared base client (MirrorSchedulingService owns the pool lifecycle).
@@ -122,7 +126,7 @@ public final class CentralDogmaMirror extends AbstractMirror {
             if (existing instanceof CentralDogma) {
                 base = (CentralDogma) existing;
             } else {
-                base = createBaseClient(uri, maxNumBytes);
+                base = createClient(uri, maxNumBytes, null);
                 final Object prev = pool.putIfAbsent(key, base);
                 if (prev instanceof CentralDogma) {
                     // Lost the race; close ours and reuse the winner.
@@ -134,19 +138,16 @@ public final class CentralDogmaMirror extends AbstractMirror {
                     base = (CentralDogma) prev;
                 }
             }
-        } else {
-            // No pool injected (tests or direct usage without the scheduler).
-            base = createBaseClient(uri, maxNumBytes);
-        }
 
-        final Credential cred = credential();
-        final String token = cred instanceof AccessTokenCredential ?
-                             ((AccessTokenCredential) cred).accessToken() : CsrfToken.ANONYMOUS;
-        // TODO(minwoox) Support mTLS authentication as well.
-        return base.withAccessToken(token);
+            // TODO(minwoox) Support mTLS authentication as well.
+            return base.withAccessToken(token);
+        }
+        // No pool injected (tests or direct usage without the scheduler).
+        return createClient(uri, maxNumBytes, token);
     }
 
-    private static CentralDogma createBaseClient(URI uri, long maxResponseLength) throws UnknownHostException {
+    private static CentralDogma createClient(URI uri, long maxResponseLength, @Nullable String token)
+            throws UnknownHostException {
         final ArmeriaCentralDogmaBuilder builder = new ArmeriaCentralDogmaBuilder();
         if (uri.getPort() > 0) {
             builder.host(uri.getHost(), uri.getPort());
@@ -158,7 +159,9 @@ public final class CentralDogmaMirror extends AbstractMirror {
         // Mirrors run on a fixed schedule; a failed run simply retries on the next tick.
         // Persistent health-check traffic is unnecessary and wasteful at scale.
         builder.healthCheckIntervalMillis(0);
-        // No accessToken here — derived clients supply per-mirror tokens via withAccessToken().
+        if (token != null) {
+            builder.accessToken(token);
+        }
         return builder.build();
     }
 
