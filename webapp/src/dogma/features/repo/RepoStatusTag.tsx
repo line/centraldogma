@@ -14,13 +14,23 @@
  * under the License.
  */
 
+import { Tag, TagLabel, TagLeftIcon } from '@chakra-ui/react';
 import { ReplicationStatus } from 'dogma/features/repo/RepoDto';
+import { GoLock, GoPencil } from 'react-icons/go';
 
-export type { ReplicationStatus };
+export type RepoStatusTagProps = {
+  status?: ReplicationStatus;
+};
 
-export type RepositoryStatus = {
-  projectName: string;
-  repoName: string;
-  status: ReplicationStatus;
-  updatedAt?: string;
+export const RepoStatusTag = ({ status }: RepoStatusTagProps) => {
+  if (!status) {
+    return null;
+  }
+  const readOnly = status === 'READ_ONLY';
+  return (
+    <Tag borderRadius="full" colorScheme={readOnly ? 'red' : 'green'} variant="subtle" size="sm">
+      <TagLeftIcon as={readOnly ? GoLock : GoPencil} />
+      <TagLabel>{readOnly ? 'Read-only' : 'Writable'}</TagLabel>
+    </Tag>
+  );
 };

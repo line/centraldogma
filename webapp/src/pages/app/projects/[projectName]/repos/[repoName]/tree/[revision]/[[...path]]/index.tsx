@@ -19,6 +19,8 @@ import { ChakraLink } from 'dogma/common/components/ChakraLink';
 import { FaHistory } from 'react-icons/fa';
 import { makeTraversalFileLinks, toFilePath } from 'dogma/util/path-util';
 import { WithRepositoryRole } from 'dogma/features/auth/RepositoryRole';
+import { useReadOnly } from 'dogma/features/repo/useReadOnly';
+import { RepoStatusTag } from 'dogma/features/repo/RepoStatusTag';
 
 const RepositoryDetailPage = () => {
   const router = useRouter();
@@ -28,6 +30,7 @@ const RepositoryDetailPage = () => {
   const filePath = router.query.path ? toFilePath(router.query.path) : '';
   const directoryPath = router.asPath;
   const dispatch = useAppDispatch();
+  const [readOnly, readOnlyHint] = useReadOnly(projectName, repoName);
 
   const copyToClipboard = async (text: string) => {
     try {
@@ -128,6 +131,7 @@ cat ${project}/${repo}${path}`;
                   Revision {revision} <InfoIcon ml={2} />
                 </Tag>
               </Tooltip>
+              {readOnly && <RepoStatusTag status="READ_ONLY" />}
               <Spacer />
             </Flex>
             <Flex gap={2}>
@@ -145,24 +149,38 @@ cat ${project}/${repo}${path}`;
               {projectName === 'dogma' ? null : (
                 <WithRepositoryRole projectName={projectName} repoName={repoName} roles={['ADMIN']}>
                   {() => (
-                    <MetadataButton
-                      href={`/app/projects/${projectName}/repos/${repoName}/settings`}
-                      props={{ size: 'sm' }}
-                      text={'Repository Settings'}
-                    />
+                    <Tooltip label={readOnlyHint} isDisabled={!readOnly}>
+                      <Box>
+                        <MetadataButton
+                          href={`/app/projects/${projectName}/repos/${repoName}/settings`}
+                          props={{ size: 'sm' }}
+                          text={'Repository Settings'}
+                          isDisabled={readOnly}
+                        />
+                      </Box>
+                    </Tooltip>
                   )}
                 </WithRepositoryRole>
               )}
               {projectName === 'dogma' || repoName === 'dogma' ? null : (
-                <Button
-                  as={Link}
-                  href={`/app/projects/${projectName}/repos/${repoName}/files/new${filePath}`}
-                  size="sm"
-                  rightIcon={<AiOutlinePlus />}
-                  colorScheme="teal"
-                >
-                  New File
-                </Button>
+                <Tooltip label={readOnlyHint} isDisabled={!readOnly}>
+                  <Box>
+                    <Button
+                      {...(readOnly
+                        ? {}
+                        : {
+                            as: Link,
+                            href: `/app/projects/${projectName}/repos/${repoName}/files/new${filePath}`,
+                          })}
+                      isDisabled={readOnly}
+                      size="sm"
+                      rightIcon={<AiOutlinePlus />}
+                      colorScheme="teal"
+                    >
+                      New File
+                    </Button>
+                  </Box>
+                </Tooltip>
               )}
             </Flex>
             <FileList

@@ -1021,7 +1021,7 @@ public class CentralDogma implements AutoCloseable {
         final ContextPathServicesBuilder apiV1ServiceBuilder = sb.contextPath(API_V1_PATH_PREFIX);
         apiV1ServiceBuilder
                 .annotatedService(new ServerStatusService(executor, statusManager, repoStatusManager))
-                .annotatedService(new ProjectServiceV1(projectApiManager, executor))
+                .annotatedService(new ProjectServiceV1(projectApiManager, executor, repoStatusManager))
                 .annotatedService(new RepositoryServiceV1(executor, mds, encryptionStorageManager,
                                                           repoStatusManager))
                 .annotatedService(new CredentialServiceV1(projectApiManager, executor))

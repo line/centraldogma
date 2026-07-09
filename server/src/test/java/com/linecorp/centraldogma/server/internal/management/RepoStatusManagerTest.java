@@ -18,6 +18,7 @@ package com.linecorp.centraldogma.server.internal.management;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
+import static org.awaitility.Awaitility.await;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -50,36 +51,34 @@ class RepoStatusManagerTest {
     void repoStatus_cruTest() {
         statusManager.updateRepoStatus("test_prj", "test_repo", Author.DEFAULT, ReplicationStatus.READ_ONLY)
                      .join();
-        RepositoryState entity = statusManager.getRepoStatus("test_prj", "test_repo");
-        assertThat(entity.status()).isEqualTo(ReplicationStatus.READ_ONLY);
+        awaitStatus("test_prj", "test_repo", ReplicationStatus.READ_ONLY);
 
         // Silently ignore the update if the status is the same as the current one.
         statusManager.updateRepoStatus("test_prj", "test_repo", Author.DEFAULT, ReplicationStatus.READ_ONLY)
                      .join();
-        entity = statusManager.getRepoStatus("test_prj", "test_repo");
-        assertThat(entity.status()).isEqualTo(ReplicationStatus.READ_ONLY);
+        assertThat(statusManager.getRepoStatus("test_prj", "test_repo").status())
+                .isEqualTo(ReplicationStatus.READ_ONLY);
 
         statusManager.updateRepoStatus("test_prj", "test_repo", Author.DEFAULT, ReplicationStatus.WRITABLE)
                      .join();
-        entity = statusManager.getRepoStatus("test_prj", "test_repo");
-        assertThat(entity).isEqualTo(
+        awaitStatus("test_prj", "test_repo", ReplicationStatus.WRITABLE);
+        assertThat(statusManager.getRepoStatus("test_prj", "test_repo")).isEqualTo(
                 new RepositoryState("test_prj", "test_repo", ReplicationStatus.WRITABLE, null));
     }
 
     @Test
     void projectStatus_cruTest() {
         statusManager.updateProjectStatus("test_prj", Author.DEFAULT, ReplicationStatus.READ_ONLY).join();
-        RepositoryState entity = statusManager.getRepoStatus("test_prj", "dogma");
-        assertThat(entity.status()).isEqualTo(ReplicationStatus.READ_ONLY);
+        awaitStatus("test_prj", "dogma", ReplicationStatus.READ_ONLY);
 
         // Silently ignore the update if the status is the same as the current one.
         statusManager.updateProjectStatus("test_prj", Author.DEFAULT, ReplicationStatus.READ_ONLY).join();
-        entity = statusManager.getRepoStatus("test_prj", "dogma");
-        assertThat(entity.status()).isEqualTo(ReplicationStatus.READ_ONLY);
+        assertThat(statusManager.getRepoStatus("test_prj", "dogma").status())
+                .isEqualTo(ReplicationStatus.READ_ONLY);
 
         statusManager.updateProjectStatus("test_prj", Author.DEFAULT, ReplicationStatus.WRITABLE).join();
-        entity = statusManager.getRepoStatus("test_prj", "dogma");
-        assertThat(entity).isEqualTo(
+        awaitStatus("test_prj", "dogma", ReplicationStatus.WRITABLE);
+        assertThat(statusManager.getRepoStatus("test_prj", "dogma")).isEqualTo(
                 new RepositoryState("test_prj", "dogma", ReplicationStatus.WRITABLE, null));
     }
 
@@ -92,11 +91,11 @@ class RepoStatusManagerTest {
                      .join();
         statusManager.updateProjectStatus("test_prj2", Author.DEFAULT, ReplicationStatus.READ_ONLY).join();
 
-        assertThat(statusManager.readOnlyStatuses())
+        await().untilAsserted(() -> assertThat(statusManager.readOnlyStatuses())
                 .extracting(RepositoryState::projectName, RepositoryState::repoName, RepositoryState::status)
                 .containsExactlyInAnyOrder(
                         tuple("test_prj", "test_repo", ReplicationStatus.READ_ONLY),
-                        tuple("test_prj2", "dogma", ReplicationStatus.READ_ONLY));
+                        tuple("test_prj2", "dogma", ReplicationStatus.READ_ONLY)));
 
         assertThat(readOnlyCount()).isEqualTo(2);
         assertThat(scopeGauge("test_prj", "test_repo", "repository")).isOne();
@@ -106,8 +105,18 @@ class RepoStatusManagerTest {
         statusManager.updateRepoStatus("test_prj", "test_repo", Author.DEFAULT, ReplicationStatus.WRITABLE)
                      .join();
         statusManager.updateProjectStatus("test_prj2", Author.DEFAULT, ReplicationStatus.WRITABLE).join();
-        assertThat(statusManager.readOnlyStatuses()).isEmpty();
+        await().untilAsserted(() -> assertThat(statusManager.readOnlyStatuses()).isEmpty());
         assertThat(readOnlyCount()).isZero();
+    }
+
+    /**
+     * A commit notifies the status listener inline, but {@link RepoStatusManager#initialize()} registers that
+     * listener asynchronously on the repository worker. An update committed before the registration lands is
+     * only picked up by the listener's initial snapshot, so wait for the cache to catch up.
+     */
+    private void awaitStatus(String projectName, String repoName, ReplicationStatus expected) {
+        await().untilAsserted(() -> assertThat(statusManager.getRepoStatus(projectName, repoName).status())
+                .isEqualTo(expected));
     }
 
     private double readOnlyCount() {

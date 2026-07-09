@@ -480,7 +480,8 @@ export const apiSlice = createApi({
         method: 'PUT',
         body: { status },
       }),
-      invalidatesTags: ['RepoStatus'],
+      // The project and repository lists carry the replication status, so they go stale as well.
+      invalidatesTags: ['RepoStatus', 'Project', 'Repo'],
     }),
     getProjectCredentials: builder.query<CredentialDto[], string>({
       query: (projectName) => `/api/v1/projects/${projectName}/credentials`,

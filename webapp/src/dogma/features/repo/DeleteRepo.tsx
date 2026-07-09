@@ -15,6 +15,8 @@ import { newNotification } from 'dogma/features/notification/notificationSlice';
 import ErrorMessageParser from 'dogma/features/services/ErrorMessageParser';
 import { useAppDispatch } from 'dogma/hooks';
 import { MdDelete } from 'react-icons/md';
+import { useReadOnly } from 'dogma/features/repo/useReadOnly';
+import { Box, Tooltip } from '@chakra-ui/react';
 
 export const DeleteRepo = ({
   projectName,
@@ -32,6 +34,7 @@ export const DeleteRepo = ({
   const { isOpen, onToggle, onClose } = useDisclosure();
   const dispatch = useAppDispatch();
   const [deleteRepo, { isLoading }] = useDeleteRepoMutation();
+  const [readOnly, readOnlyHint] = useReadOnly(projectName, repoName);
   const handleDelete = async () => {
     try {
       await deleteRepo({ projectName, repoName }).unwrap();
@@ -43,16 +46,20 @@ export const DeleteRepo = ({
   };
   return (
     <>
-      <Button
-        leftIcon={<MdDelete />}
-        colorScheme="red"
-        variant={buttonVariant}
-        size={buttonSize}
-        onClick={onToggle}
-        hidden={hidden}
-      >
-        Delete
-      </Button>
+      <Tooltip label={readOnlyHint} isDisabled={!readOnly}>
+        <Box hidden={hidden}>
+          <Button
+            leftIcon={<MdDelete />}
+            colorScheme="red"
+            variant={buttonVariant}
+            size={buttonSize}
+            onClick={onToggle}
+            isDisabled={readOnly}
+          >
+            Delete
+          </Button>
+        </Box>
+      </Tooltip>
       <Modal isOpen={isOpen} onClose={onClose}>
         <ModalOverlay />
         <ModalContent>

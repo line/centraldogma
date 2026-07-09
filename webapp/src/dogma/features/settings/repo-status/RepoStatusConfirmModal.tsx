@@ -15,6 +15,8 @@
  */
 
 import {
+  Alert,
+  AlertIcon,
   Button,
   Code,
   FormControl,
@@ -32,6 +34,9 @@ import {
 } from '@chakra-ui/react';
 import { useEffect, useState } from 'react';
 import { ReplicationStatus } from 'dogma/features/settings/repo-status/RepoStatusDto';
+
+// A project-scoped read-only entry uses the internal "dogma" repository.
+const PROJECT_SCOPE_REPO = 'dogma';
 
 interface RepoStatusConfirmModalProps {
   isOpen: boolean;
@@ -56,6 +61,8 @@ export const RepoStatusConfirmModal = ({
   const readOnly = targetStatus === 'READ_ONLY';
   const actionLabel = readOnly ? 'Make read-only' : 'Make writable';
   const colorScheme = readOnly ? 'red' : 'green';
+  const projectScope = repoName === PROJECT_SCOPE_REPO;
+  const scopeLabel = projectScope ? 'project' : 'repository';
 
   const [typed, setTyped] = useState('');
   const matched = typed === target;
@@ -80,7 +87,7 @@ export const RepoStatusConfirmModal = ({
     <Modal isOpen={isOpen} onClose={handleClose} closeOnOverlayClick={!isLoading} closeOnEsc={!isLoading}>
       <ModalOverlay />
       <ModalContent>
-        <ModalHeader>{readOnly ? 'Make repository read-only' : 'Make repository writable'}</ModalHeader>
+        <ModalHeader>{`Make ${scopeLabel} ${readOnly ? 'read-only' : 'writable'}`}</ModalHeader>
         <ModalCloseButton isDisabled={isLoading} />
         <ModalBody>
           <VStack align="stretch" spacing={3}>
@@ -91,6 +98,23 @@ export const RepoStatusConfirmModal = ({
               </Code>
               . To confirm, type the full <Code>project/repository</Code> name below.
             </Text>
+            {projectScope && (
+              <Alert status={readOnly ? 'warning' : 'info'} borderRadius="md" fontSize="sm">
+                <AlertIcon />
+                {readOnly ? (
+                  <Text>
+                    <Code>{PROJECT_SCOPE_REPO}</Code> is the internal repository of project{' '}
+                    <Code>{projectName}</Code>, so making it read-only blocks all writes to every repository in
+                    project <Code>{projectName}</Code>.
+                  </Text>
+                ) : (
+                  <Text>
+                    This clears the project-wide read-only status of <Code>{projectName}</Code>. Repositories
+                    that were made read-only individually stay read-only.
+                  </Text>
+                )}
+              </Alert>
+            )}
             <FormControl>
               <Input
                 value={typed}

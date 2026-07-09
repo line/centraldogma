@@ -15,7 +15,7 @@
  */
 
 import { ProjectRole } from 'dogma/features/auth/ProjectRole';
-import { CreatorDto } from 'dogma/features/repo/RepoDto';
+import { CreatorDto, ReplicationStatus } from 'dogma/features/repo/RepoDto';
 
 export interface ProjectDto {
   name: string;
@@ -23,4 +23,5 @@ export interface ProjectDto {
   creator?: CreatorDto;
   createdAt?: string;
   userRole?: ProjectRole;
+  status?: ReplicationStatus;
 }

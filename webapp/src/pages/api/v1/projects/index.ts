@@ -13,6 +13,7 @@ const newProject = (id: number): ProjectDto => {
     url: faker.internet.url(),
     userRole: faker.helpers.arrayElement(['OWNER', 'MEMBER', 'GUEST']),
     createdAt: faker.datatype.datetime().toString(),
+    status: 'WRITABLE',
   };
 };
 
@@ -23,13 +24,15 @@ const projects: ProjectDto[] = [
     url: '/api/v1/projects/abcd',
     userRole: 'OWNER',
     createdAt: '2022-11-02T04:16:12.444Z',
+    status: 'WRITABLE',
   },
   {
     name: 'xyz',
     creator: { name: 'System', email: 'system@localhost.localdomain' },
     url: '/api/v1/projects/xyz',
-    userRole: 'MEMBER',
+    userRole: 'OWNER',
     createdAt: '2022-11-02T04:16:03.175Z',
+    status: 'READ_ONLY',
   },
   {
     name: 'dogma',
@@ -37,6 +40,7 @@ const projects: ProjectDto[] = [
     url: '/api/v1/projects/dogma',
     userRole: 'GUEST',
     createdAt: '2022-11-02T04:16:03.175Z',
+    status: 'WRITABLE',
   },
   {
     name: 'project-removed',
@@ -69,6 +73,7 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
         },
         url: faker.internet.url(),
         createdAt: faker.datatype.datetime().toString(),
+        status: 'WRITABLE',
       });
       res.status(200).json(projects);
       break;

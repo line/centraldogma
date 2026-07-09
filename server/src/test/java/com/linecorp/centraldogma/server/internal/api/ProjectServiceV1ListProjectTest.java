@@ -128,6 +128,7 @@ class ProjectServiceV1ListProjectTest {
                 "           \"email\": \"" + TestAuthMessageUtil.USERNAME2 + "@localhost.localdomain\"" +
                 "       }," +
                 "       \"userRole\":\"OWNER\"," +
+                "       \"status\":\"WRITABLE\"," +
                 "       \"url\": \"/api/v1/projects/hyangtack\"," +
                 "       \"createdAt\": \"${json-unit.ignore}\"" +
                 "   }," +
@@ -138,6 +139,7 @@ class ProjectServiceV1ListProjectTest {
                 "           \"email\": \"" + TestAuthMessageUtil.USERNAME2 + "@localhost.localdomain\"" +
                 "       }," +
                 "        \"userRole\":\"OWNER\"," +
+                "        \"status\":\"WRITABLE\"," +
                 "       \"url\": \"/api/v1/projects/minwoox\"," +
                 "       \"createdAt\": \"${json-unit.ignore}\"" +
                 "   }," +
@@ -148,6 +150,7 @@ class ProjectServiceV1ListProjectTest {
                 "           \"email\": \"" + TestAuthMessageUtil.USERNAME2 + "@localhost.localdomain\"" +
                 "       }," +
                 "       \"userRole\":\"OWNER\"," +
+                "       \"status\":\"WRITABLE\"," +
                 "       \"url\": \"/api/v1/projects/trustin\"," +
                 "       \"createdAt\": \"${json-unit.ignore}\"" +
                 "   }," +
@@ -158,6 +161,7 @@ class ProjectServiceV1ListProjectTest {
                 "           \"email\": \"" + TestAuthMessageUtil.USERNAME + "@localhost.localdomain\"" +
                 "       }," +
                 "       \"userRole\":\"GUEST\"," +
+                "       \"status\":\"WRITABLE\"," +
                 "       \"url\": \"/api/v1/projects/jrhee17\"," +
                 "       \"createdAt\": \"${json-unit.ignore}\"" +
                 "   }" +
@@ -179,6 +183,7 @@ class ProjectServiceV1ListProjectTest {
                 "           \"email\": \"system@localhost.localdomain\"" +
                 "        }," +
                 "        \"userRole\":\"OWNER\"," +
+                "        \"status\":\"WRITABLE\"," +
                 "        \"url\": \"/api/v1/projects/@foo\"," +
                 "        \"createdAt\": \"${json-unit.ignore}\"" +
                 "   }," +
@@ -189,6 +194,7 @@ class ProjectServiceV1ListProjectTest {
                 "           \"email\": \"system@localhost.localdomain\"" +
                 "        }," +
                 "        \"userRole\":\"OWNER\"," +
+                "        \"status\":\"WRITABLE\"," +
                 "        \"url\": \"/api/v1/projects/dogma\"," +
                 "        \"createdAt\": \"${json-unit.ignore}\"" +
                 "   }," +
@@ -199,6 +205,7 @@ class ProjectServiceV1ListProjectTest {
                 "           \"email\": \"" + TestAuthMessageUtil.USERNAME2 + "@localhost.localdomain\"" +
                 "       }," +
                 "       \"userRole\":\"OWNER\"," +
+                "       \"status\":\"WRITABLE\"," +
                 "       \"url\": \"/api/v1/projects/hyangtack\"," +
                 "       \"createdAt\": \"${json-unit.ignore}\"" +
                 "   }," +
@@ -209,6 +216,7 @@ class ProjectServiceV1ListProjectTest {
                 "           \"email\": \"" + TestAuthMessageUtil.USERNAME2 + "@localhost.localdomain\"" +
                 "       }," +
                 "        \"userRole\":\"OWNER\"," +
+                "        \"status\":\"WRITABLE\"," +
                 "       \"url\": \"/api/v1/projects/minwoox\"," +
                 "       \"createdAt\": \"${json-unit.ignore}\"" +
                 "   }," +
@@ -219,6 +227,7 @@ class ProjectServiceV1ListProjectTest {
                 "           \"email\": \"" + TestAuthMessageUtil.USERNAME2 + "@localhost.localdomain\"" +
                 "       }," +
                 "       \"userRole\":\"OWNER\"," +
+                "       \"status\":\"WRITABLE\"," +
                 "       \"url\": \"/api/v1/projects/trustin\"," +
                 "       \"createdAt\": \"${json-unit.ignore}\"" +
                 "   }," +
@@ -229,6 +238,7 @@ class ProjectServiceV1ListProjectTest {
                 "           \"email\": \"" + TestAuthMessageUtil.USERNAME + "@localhost.localdomain\"" +
                 "       }," +
                 "       \"userRole\":\"OWNER\"," +
+                "       \"status\":\"WRITABLE\"," +
                 "       \"url\": \"/api/v1/projects/jrhee17\"," +
                 "       \"createdAt\": \"${json-unit.ignore}\"" +
                 "   }" +

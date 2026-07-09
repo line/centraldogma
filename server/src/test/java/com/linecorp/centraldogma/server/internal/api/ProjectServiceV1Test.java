@@ -236,6 +236,7 @@ class ProjectServiceV1Test {
                 "       \"email\": \"" + TestAuthMessageUtil.USERNAME2 + "@localhost.localdomain\"" +
                 "   }," +
                 "   \"userRole\":\"OWNER\"," +
+                "   \"status\":\"WRITABLE\"," +
                 "   \"url\": \"/api/v1/projects/bar\"," +
                 "   \"createdAt\": \"${json-unit.ignore}\"" +
                 '}';

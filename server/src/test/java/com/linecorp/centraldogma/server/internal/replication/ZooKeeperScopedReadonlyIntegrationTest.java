@@ -88,13 +88,18 @@ class ZooKeeperScopedReadonlyIntegrationTest {
         client0 = replica.servers().get(0).client();
 
         // Restore the server status to WRITABLE so that a previous test that escalated to
-        // REPLICATION_ONLY does not block project/repository creation below.
+        // REPLICATION_ONLY does not block project/repository creation below. The reset is replicated
+        // (Scope.ALL) rather than local, because a replica that has not replayed the previous
+        // REPLICATION_ONLY log entry yet would otherwise apply it after a local reset and turn read-only
+        // in the middle of this test. A replicated reset is appended after that entry, so every replica
+        // ends up WRITABLE.
+        replica.servers().get(0).blockingHttpClient()
+               .prepare()
+               .put("/api/v1/status")
+               .contentJson(new UpdateServerStatusRequest(ServerStatus.WRITABLE, Scope.ALL))
+               .execute();
         for (int i = 0; i < 3; i++) {
             final BlockingWebClient adminClient = replica.servers().get(i).blockingHttpClient();
-            adminClient.prepare()
-                       .put("/api/v1/status")
-                       .contentJson(new UpdateServerStatusRequest(ServerStatus.WRITABLE, Scope.LOCAL))
-                       .execute();
             await().untilAsserted(() -> {
                 assertThat(getServerStatus(adminClient)).isEqualTo(ServerStatus.WRITABLE);
             });

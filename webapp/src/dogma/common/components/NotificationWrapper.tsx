@@ -1,5 +1,5 @@
 import { ReactNode, useEffect } from 'react';
-import { useToast } from '@chakra-ui/react';
+import { Box, useToast } from '@chakra-ui/react';
 import { useSelector } from 'react-redux';
 import { Notification } from 'dogma/features/notification/notificationSlice';
 
@@ -14,7 +14,12 @@ export const NotificationWrapper = (props: { children: ReactNode }) => {
     if (timestamp) {
       toast({
         title,
-        description,
+        // A long error message would otherwise grow the toast past the viewport, hiding the close button.
+        description: description ? (
+          <Box maxHeight="40vh" overflowY="auto" overflowWrap="anywhere" whiteSpace="pre-wrap">
+            {description}
+          </Box>
+        ) : null,
         status: type,
         duration: 10000,
         isClosable: true,

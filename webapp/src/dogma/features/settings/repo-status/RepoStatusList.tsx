@@ -17,6 +17,8 @@
 import { createColumnHelper } from '@tanstack/react-table';
 import { useMemo } from 'react';
 import { Badge, Text } from '@chakra-ui/react';
+import { ChakraLink } from 'dogma/common/components/ChakraLink';
+import { DateWithTooltip } from 'dogma/common/components/DateWithTooltip';
 import { DataTableClientPagination } from 'dogma/common/components/table/DataTableClientPagination';
 import { RepositoryStatus } from 'dogma/features/settings/repo-status/RepoStatusDto';
 import { MakeWritable } from 'dogma/features/settings/repo-status/MakeWritable';
@@ -33,12 +35,26 @@ const RepoStatusList = ({ data }: RepoStatusListProps) => {
   const columns = useMemo(
     () => [
       columnHelper.accessor((row) => row.projectName, {
-        cell: (info) => <Text>{info.getValue()}</Text>,
+        cell: (info) => (
+          <ChakraLink href={`/app/projects/${info.getValue()}`} fontWeight="semibold">
+            {info.getValue()}
+          </ChakraLink>
+        ),
         header: 'Project',
         id: 'projectName',
       }),
       columnHelper.accessor((row) => (row.repoName === DOGMA_REPO ? '-' : row.repoName), {
-        cell: (info) => <Text>{info.getValue()}</Text>,
+        cell: (info) => {
+          const { projectName, repoName } = info.row.original;
+          if (repoName === DOGMA_REPO) {
+            return <Text>-</Text>;
+          }
+          return (
+            <ChakraLink href={`/app/projects/${projectName}/repos/${repoName}/tree/head`} fontWeight="semibold">
+              {repoName}
+            </ChakraLink>
+          );
+        },
         header: 'Repository',
         id: 'repoName',
       }),
@@ -55,7 +71,7 @@ const RepoStatusList = ({ data }: RepoStatusListProps) => {
       columnHelper.accessor((row) => row.updatedAt, {
         cell: (info) => {
           const value = info.getValue();
-          return <Text>{value ? new Date(value).toLocaleString() : '-'}</Text>;
+          return value ? <DateWithTooltip date={value} /> : <Text>-</Text>;
         },
         header: 'Updated At',
         id: 'updatedAt',
