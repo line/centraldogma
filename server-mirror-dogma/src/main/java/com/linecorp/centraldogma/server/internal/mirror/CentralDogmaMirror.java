@@ -78,9 +78,6 @@ public final class CentralDogmaMirror extends AbstractMirror {
     @Nullable
     private volatile ConcurrentHashMap<String, Object> baseClientPool;
 
-    @Nullable
-    private CentralDogma remoteClient;
-
     public CentralDogmaMirror(String id, boolean enabled, Cron schedule, MirrorDirection direction,
                               Credential credential, Repository localRepo, String localPath,
                               RepositoryUri remoteUri, String remoteProject, String remoteRepo,
@@ -113,43 +110,40 @@ public final class CentralDogmaMirror extends AbstractMirror {
     }
 
     // maxNumBytes comes from MirrorSchedulingService.maxNumBytesPerMirror, which is fixed at server startup.
-    private synchronized CentralDogma getOrCreateRemoteClient(long maxNumBytes) throws UnknownHostException {
-        if (remoteClient == null) {
-            final URI uri = remoteUri().uri();
-            final ConcurrentHashMap<String, Object> pool = baseClientPool;
+    private synchronized CentralDogma createRemoteClient(long maxNumBytes) throws UnknownHostException {
+        final URI uri = remoteUri().uri();
+        final ConcurrentHashMap<String, Object> pool = baseClientPool;
 
-            CentralDogma base;
-            if (pool != null) {
-                // Reuse or create a shared base client (MirrorSchedulingService owns the pool lifecycle).
-                final String key = baseClientPoolKey(uri);
-                final Object existing = pool.get(key);
-                if (existing instanceof CentralDogma) {
-                    base = (CentralDogma) existing;
-                } else {
-                    base = createBaseClient(uri, maxNumBytes);
-                    final Object prev = pool.putIfAbsent(key, base);
-                    if (prev instanceof CentralDogma) {
-                        // Lost the race; close ours and reuse the winner.
-                        try {
-                            base.close();
-                        } catch (Exception e) {
-                            logger.warn("Failed to close the redundant base CentralDogma client: {}", uri, e);
-                        }
-                        base = (CentralDogma) prev;
-                    }
-                }
+        CentralDogma base;
+        if (pool != null) {
+            // Reuse or create a shared base client (MirrorSchedulingService owns the pool lifecycle).
+            final String key = baseClientPoolKey(uri);
+            final Object existing = pool.get(key);
+            if (existing instanceof CentralDogma) {
+                base = (CentralDogma) existing;
             } else {
-                // No pool injected (tests or direct usage without the scheduler).
                 base = createBaseClient(uri, maxNumBytes);
+                final Object prev = pool.putIfAbsent(key, base);
+                if (prev instanceof CentralDogma) {
+                    // Lost the race; close ours and reuse the winner.
+                    try {
+                        base.close();
+                    } catch (Exception e) {
+                        logger.warn("Failed to close the redundant base CentralDogma client: {}", uri, e);
+                    }
+                    base = (CentralDogma) prev;
+                }
             }
-
-            final Credential cred = credential();
-            final String token = cred instanceof AccessTokenCredential ?
-                                 ((AccessTokenCredential) cred).accessToken() : CsrfToken.ANONYMOUS;
-            // TODO(minwoox) Support mTLS authentication as well.
-            remoteClient = base.withAccessToken(token);
+        } else {
+            // No pool injected (tests or direct usage without the scheduler).
+            base = createBaseClient(uri, maxNumBytes);
         }
-        return remoteClient;
+
+        final Credential cred = credential();
+        final String token = cred instanceof AccessTokenCredential ?
+                             ((AccessTokenCredential) cred).accessToken() : CsrfToken.ANONYMOUS;
+        // TODO(minwoox) Support mTLS authentication as well.
+        return base.withAccessToken(token);
     }
 
     private static CentralDogma createBaseClient(URI uri, long maxResponseLength) throws UnknownHostException {
@@ -169,27 +163,11 @@ public final class CentralDogmaMirror extends AbstractMirror {
     }
 
     @Override
-    public synchronized void close() {
-        final CentralDogma client = remoteClient;
-        if (client == null) {
-            return;
-        }
-        remoteClient = null;
-        try {
-            client.close();
-        } catch (Exception e) {
-            logger.warn("Failed to close the remote CentralDogma client: {}. {}/{}/{}",
-                        remoteUri(), localRepo().parent().name(), localRepo().name(), id(), e);
-        }
-    }
-
-    @Override
     protected MirrorResult mirrorLocalToRemote(File workDir, int maxNumFiles, long maxNumBytes,
                                                Instant triggeredTime) throws Exception {
         final Revision localHead = localRepo().normalizeNow(Revision.HEAD);
 
-        final CentralDogma remote = getOrCreateRemoteClient(maxNumBytes);
-        try {
+        try (CentralDogma remote = createRemoteClient(maxNumBytes)) {
             final CentralDogmaRepository repo = remote.forRepo(remoteProject, remoteRepo);
             // Get remote HEAD revision.
             final Revision remoteHead = repo.normalize(Revision.HEAD).join();
@@ -330,8 +308,7 @@ public final class CentralDogmaMirror extends AbstractMirror {
         final Revision localRev = localRepo().normalizeNow(Revision.HEAD);
         final String mirrorStatePath = localPath() + MIRROR_STATE_FILE_NAME;
 
-        final CentralDogma remote = getOrCreateRemoteClient(maxNumBytes);
-        try {
+        try (CentralDogma remote = createRemoteClient(maxNumBytes)) {
             final CentralDogmaRepository repo = remote.forRepo(remoteProject, remoteRepo);
             // Get remote HEAD revision.
             final Revision remoteHead = repo.normalize(Revision.HEAD).join();

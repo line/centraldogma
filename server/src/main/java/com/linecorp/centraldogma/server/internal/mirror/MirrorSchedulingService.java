@@ -277,8 +277,8 @@ public final class MirrorSchedulingService implements MirroringService {
                               logger.warn("Failed to load the mirror list from: {}", project.name(), e);
                               return;
                           }
-                          for (Mirror mirror : mirrors) {
-                              if (mirror.schedule() == null) {
+                          for (Mirror m : mirrors) {
+                              if (m.schedule() == null) {
                                   continue;
                               }
 
@@ -287,20 +287,20 @@ public final class MirrorSchedulingService implements MirroringService {
                               }
 
                               try {
-                                  final boolean allowed = mirrorAccessController.isAllowed(mirror)
+                                  final boolean allowed = mirrorAccessController.isAllowed(m)
                                                                                 .get(5, TimeUnit.SECONDS);
                                   if (!allowed) {
-                                      mirrorListener.onDisallowed(mirror);
+                                      mirrorListener.onDisallowed(m);
                                       continue;
                                   }
                               } catch (Exception e) {
                                   logger.warn("Failed to check the access control. mirror: {}",
-                                              mirror, e);
+                                              m, e);
                                   continue;
                               }
 
                               if (zoneConfig != null) {
-                                  String pinnedZone = mirror.zone();
+                                  String pinnedZone = m.zone();
                                   if (pinnedZone == null) {
                                       // Use the first zone if the mirror does not specify a zone.
                                       pinnedZone = zoneConfig.allZones().get(0);
@@ -310,7 +310,7 @@ public final class MirrorSchedulingService implements MirroringService {
                                       if (!zoneConfig.allZones().contains(pinnedZone)) {
                                           // The mirror is pinned to an invalid zone.
                                           final MirrorTask invalidMirror =
-                                                  new MirrorTask(mirror, User.SYSTEM, Instant.now(),
+                                                  new MirrorTask(m, User.SYSTEM, Instant.now(),
                                                                  pinnedZone, true);
                                           mirrorListener.onStart(invalidMirror);
                                           mirrorListener.onError(invalidMirror, new MirrorException(
@@ -321,13 +321,13 @@ public final class MirrorSchedulingService implements MirroringService {
                                   }
                               }
                               try {
-                                  if (mirror.nextExecutionTime(currentLastExecutionTime).compareTo(now) < 0) {
-                                      mirror.setBaseClientPool(baseClientPool);
-                                      runAsync(new MirrorTask(mirror, User.SYSTEM, Instant.now(),
+                                  if (m.nextExecutionTime(currentLastExecutionTime).compareTo(now) < 0) {
+                                      m.setBaseClientPool(baseClientPool);
+                                      runAsync(new MirrorTask(m, User.SYSTEM, Instant.now(),
                                                               currentZone, true));
                                   }
                               } catch (Exception e) {
-                                  logger.warn("Unexpected exception while mirroring: {}", mirror, e);
+                                  logger.warn("Unexpected exception while mirroring: {}", m, e);
                               }
                           }
                       });
