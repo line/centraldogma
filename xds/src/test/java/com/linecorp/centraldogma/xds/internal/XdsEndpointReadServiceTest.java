@@ -15,7 +15,7 @@
  */
 package com.linecorp.centraldogma.xds.internal;
 
-import static com.linecorp.centraldogma.server.storage.project.InternalProjectConstants.INTERNAL_PROJECT_XDS;
+import static com.linecorp.centraldogma.server.internal.storage.InternalProjectConstants.INTERNAL_PROJECT_XDS;
 import static com.linecorp.centraldogma.xds.internal.ControlPlaneService.ENDPOINTS_DIRECTORY;
 import static com.linecorp.centraldogma.xds.internal.ControlPlaneService.K8S_ENDPOINTS_DIRECTORY;
 import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.JSON_MESSAGE_MARSHALLER;

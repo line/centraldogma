@@ -15,7 +15,7 @@
  */
 package com.linecorp.centraldogma.xds.endpoint.v1;
 
-import static com.linecorp.centraldogma.server.storage.project.InternalProjectConstants.INTERNAL_PROJECT_XDS;
+import static com.linecorp.centraldogma.server.internal.storage.InternalProjectConstants.INTERNAL_PROJECT_XDS;
 import static com.linecorp.centraldogma.xds.endpoint.v1.XdsEndpointServiceTest.assertOk;
 import static com.linecorp.centraldogma.xds.endpoint.v1.XdsEndpointServiceTest.checkEndpointsViaDiscoveryRequest;
 import static com.linecorp.centraldogma.xds.internal.ControlPlaneService.ENDPOINTS_DIRECTORY;

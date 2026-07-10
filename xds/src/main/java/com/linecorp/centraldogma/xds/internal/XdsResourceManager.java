@@ -16,7 +16,7 @@
 package com.linecorp.centraldogma.xds.internal;
 
 import static com.linecorp.centraldogma.internal.Util.PROJECT_AND_REPO_NAME_PATTERN;
-import static com.linecorp.centraldogma.server.storage.project.InternalProjectConstants.INTERNAL_PROJECT_XDS;
+import static com.linecorp.centraldogma.server.internal.storage.InternalProjectConstants.INTERNAL_PROJECT_XDS;
 import static com.linecorp.centraldogma.server.storage.repository.FindOptions.FIND_ONE_WITHOUT_CONTENT;
 import static java.util.Objects.requireNonNull;
 

@@ -18,7 +18,7 @@ package com.linecorp.centraldogma.xds.k8s.v1;
 import static com.google.common.base.Strings.isNullOrEmpty;
 import static com.linecorp.centraldogma.internal.CredentialUtil.credentialName;
 import static com.linecorp.centraldogma.server.internal.admin.auth.AuthUtil.currentAuthor;
-import static com.linecorp.centraldogma.server.storage.project.InternalProjectConstants.INTERNAL_PROJECT_XDS;
+import static com.linecorp.centraldogma.server.internal.storage.InternalProjectConstants.INTERNAL_PROJECT_XDS;
 import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.RESOURCE_ID_PATTERN;
 import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.RESOURCE_ID_PATTERN_STRING;
 import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.fileName;

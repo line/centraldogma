@@ -16,7 +16,7 @@
 package com.linecorp.centraldogma.xds.k8s.v1;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
-import static com.linecorp.centraldogma.server.storage.project.InternalProjectConstants.INTERNAL_PROJECT_XDS;
+import static com.linecorp.centraldogma.server.internal.storage.InternalProjectConstants.INTERNAL_PROJECT_XDS;
 import static com.linecorp.centraldogma.xds.internal.ControlPlaneService.K8S_ENDPOINTS_DIRECTORY;
 import static com.linecorp.centraldogma.xds.internal.XdsTestUtil.createGroup;
 import static com.linecorp.centraldogma.xds.k8s.v1.XdsKubernetesService.K8S_ENDPOINT_AGGREGATORS_DIRECTORY;

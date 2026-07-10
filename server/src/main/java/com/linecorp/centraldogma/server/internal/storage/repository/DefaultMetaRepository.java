@@ -19,8 +19,8 @@ package com.linecorp.centraldogma.server.internal.storage.repository;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.linecorp.centraldogma.internal.CredentialUtil.credentialFile;
+import static com.linecorp.centraldogma.server.internal.storage.InternalProjectConstants.INTERNAL_PROJECT_XDS;
 import static com.linecorp.centraldogma.server.internal.storage.repository.MirrorConverter.converterToMirrorConfig;
-import static com.linecorp.centraldogma.server.storage.project.InternalProjectConstants.INTERNAL_PROJECT_XDS;
 import static java.util.Objects.requireNonNull;
 
 import java.util.List;

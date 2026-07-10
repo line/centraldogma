@@ -17,7 +17,7 @@
 package com.linecorp.centraldogma.server.test;
 
 import static com.linecorp.centraldogma.internal.CredentialUtil.credentialName;
-import static com.linecorp.centraldogma.server.storage.project.InternalProjectConstants.INTERNAL_PROJECT_XDS;
+import static com.linecorp.centraldogma.server.internal.storage.InternalProjectConstants.INTERNAL_PROJECT_XDS;
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.PASSWORD;
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.USERNAME;
 import static org.assertj.core.api.Assertions.assertThat;

@@ -15,7 +15,7 @@
  */
 package com.linecorp.centraldogma.xds.k8s.v1;
 
-import static com.linecorp.centraldogma.server.storage.project.InternalProjectConstants.INTERNAL_PROJECT_XDS;
+import static com.linecorp.centraldogma.server.internal.storage.InternalProjectConstants.INTERNAL_PROJECT_XDS;
 import static io.fabric8.kubernetes.client.Config.KUBERNETES_DISABLE_AUTO_CONFIG_SYSTEM_PROPERTY;
 import static java.util.Objects.requireNonNull;
 

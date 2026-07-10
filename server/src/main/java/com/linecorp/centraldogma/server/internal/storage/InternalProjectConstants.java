@@ -14,7 +14,7 @@
  * under the License.
  */
 
-package com.linecorp.centraldogma.server.storage.project;
+package com.linecorp.centraldogma.server.internal.storage;
 
 /**
  * Constants for internal project names.

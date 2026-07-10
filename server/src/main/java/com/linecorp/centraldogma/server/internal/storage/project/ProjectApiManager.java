@@ -16,7 +16,7 @@
 package com.linecorp.centraldogma.server.internal.storage.project;
 
 import static com.linecorp.centraldogma.internal.Util.INTERNAL_PROJECT_PREFIX;
-import static com.linecorp.centraldogma.server.storage.project.InternalProjectConstants.INTERNAL_PROJECT_XDS;
+import static com.linecorp.centraldogma.server.internal.storage.InternalProjectConstants.INTERNAL_PROJECT_XDS;
 import static com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer.INTERNAL_PROJECT_DOGMA;
 
 import java.time.Instant;

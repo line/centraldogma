@@ -20,7 +20,7 @@ import static com.linecorp.centraldogma.server.internal.admin.auth.AuthUtil.curr
 import static com.linecorp.centraldogma.server.internal.admin.auth.AuthUtil.getAuthor;
 import static com.linecorp.centraldogma.server.internal.api.RepositoryServiceUtil.createRepository;
 import static com.linecorp.centraldogma.server.internal.api.RepositoryServiceUtil.removeRepository;
-import static com.linecorp.centraldogma.server.storage.project.InternalProjectConstants.INTERNAL_PROJECT_XDS;
+import static com.linecorp.centraldogma.server.internal.storage.InternalProjectConstants.INTERNAL_PROJECT_XDS;
 import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.checkGroupId;
 import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.removePrefix;
 

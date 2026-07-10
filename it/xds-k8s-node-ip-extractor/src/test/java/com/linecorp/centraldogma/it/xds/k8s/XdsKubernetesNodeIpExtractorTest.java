@@ -17,7 +17,7 @@ package com.linecorp.centraldogma.it.xds.k8s;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.linecorp.centraldogma.it.xds.k8s.LabelBasedNodeIpExtractor.NODE_IP_LABEL_PROPERTY;
-import static com.linecorp.centraldogma.server.storage.project.InternalProjectConstants.INTERNAL_PROJECT_XDS;
+import static com.linecorp.centraldogma.server.internal.storage.InternalProjectConstants.INTERNAL_PROJECT_XDS;
 import static net.javacrumbs.jsonunit.fluent.JsonFluentAssert.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
