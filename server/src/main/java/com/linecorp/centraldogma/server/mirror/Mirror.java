@@ -19,6 +19,7 @@ import java.io.File;
 import java.net.URI;
 import java.time.Instant;
 import java.time.ZonedDateTime;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.jspecify.annotations.Nullable;
 
@@ -131,4 +132,11 @@ public interface Mirror {
      */
     MirrorResult mirror(File workDir, CommandExecutor executor, int maxNumFiles, long maxNumBytes,
                         Instant triggeredTime);
+
+    /**
+     * Injects the shared base-client pool managed by the mirroring scheduler. The pool maps a string key
+     * (encoding host, port, TLS flag, and maxResponseLength) to a shared base client instance. Only
+     * CentralDogma-type mirrors use this; the default implementation is a no-op.
+     */
+    default void setBaseClientPool(ConcurrentHashMap<String, Object> baseClientPool) {}
 }

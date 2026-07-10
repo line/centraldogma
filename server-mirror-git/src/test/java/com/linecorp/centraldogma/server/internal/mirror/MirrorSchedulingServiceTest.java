@@ -102,7 +102,7 @@ class MirrorSchedulingServiceTest {
         when(mr.mirrors()).thenReturn(CompletableFuture.completedFuture(ImmutableList.of(mirror)));
 
         final MirrorSchedulingService service = new MirrorSchedulingService(
-                temporaryFolder, pm, new SimpleMeterRegistry(), 1, 1, 1, null, false,
+                temporaryFolder, pm, new SimpleMeterRegistry(), 1, 1, 1, null,
                 AlwaysAllowedMirrorAccessController.INSTANCE);
         final CommandExecutor executor = mock(CommandExecutor.class);
         service.start(executor);

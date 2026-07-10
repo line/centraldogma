@@ -29,6 +29,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
@@ -52,6 +53,7 @@ import com.linecorp.centraldogma.common.MirrorException;
 import com.linecorp.centraldogma.common.PathPattern;
 import com.linecorp.centraldogma.common.RedundantChangeException;
 import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.internal.CsrfToken;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.Util;
 import com.linecorp.centraldogma.server.command.Command;
@@ -72,6 +74,10 @@ public final class CentralDogmaMirror extends AbstractMirror {
     private final String remoteProject;
     private final String remoteRepo;
 
+    // Injected by MirrorSchedulingService before each run; null only in tests / direct usage.
+    @Nullable
+    private volatile ConcurrentHashMap<String, Object> baseClientPool;
+
     public CentralDogmaMirror(String id, boolean enabled, Cron schedule, MirrorDirection direction,
                               Credential credential, Repository localRepo, String localPath,
                               RepositoryUri remoteUri, String remoteProject, String remoteRepo,
@@ -81,6 +87,11 @@ public final class CentralDogmaMirror extends AbstractMirror {
 
         this.remoteProject = requireNonNull(remoteProject, "remoteProject");
         this.remoteRepo = requireNonNull(remoteRepo, "remoteRepo");
+    }
+
+    @Override
+    public void setBaseClientPool(ConcurrentHashMap<String, Object> pool) {
+        baseClientPool = pool;
     }
 
     @VisibleForTesting
@@ -93,25 +104,64 @@ public final class CentralDogmaMirror extends AbstractMirror {
         return remoteRepo;
     }
 
-    private CentralDogma createRemoteClient(long maxNumBytes) throws UnknownHostException {
+    private static String baseClientPoolKey(URI uri) {
+        return uri.getHost() + ':' + uri.getPort() + ':' +
+               SCHEME_DOGMA_HTTPS.equals(uri.getScheme());
+    }
+
+    // maxNumBytes comes from MirrorSchedulingService.maxNumBytesPerMirror, which is fixed at server startup.
+    private synchronized CentralDogma createRemoteClient(long maxNumBytes) throws UnknownHostException {
         final URI uri = remoteUri().uri();
+        final ConcurrentHashMap<String, Object> pool = baseClientPool;
+
+        final Credential cred = credential();
+        final String token = cred instanceof AccessTokenCredential ?
+                             ((AccessTokenCredential) cred).accessToken() : CsrfToken.ANONYMOUS;
+
+        CentralDogma base;
+        if (pool != null) {
+            // Reuse or create a shared base client (MirrorSchedulingService owns the pool lifecycle).
+            final String key = baseClientPoolKey(uri);
+            final Object existing = pool.get(key);
+            if (existing instanceof CentralDogma) {
+                base = (CentralDogma) existing;
+            } else {
+                base = createClient(uri, maxNumBytes, null);
+                final Object prev = pool.putIfAbsent(key, base);
+                if (prev instanceof CentralDogma) {
+                    // Lost the race; close ours and reuse the winner.
+                    try {
+                        base.close();
+                    } catch (Exception e) {
+                        logger.warn("Failed to close the redundant base CentralDogma client: {}", uri, e);
+                    }
+                    base = (CentralDogma) prev;
+                }
+            }
+
+            // TODO(minwoox) Support mTLS authentication as well.
+            return base.withAccessToken(token);
+        }
+        // No pool injected (tests or direct usage without the scheduler).
+        return createClient(uri, maxNumBytes, token);
+    }
+
+    private static CentralDogma createClient(URI uri, long maxResponseLength, @Nullable String token)
+            throws UnknownHostException {
         final ArmeriaCentralDogmaBuilder builder = new ArmeriaCentralDogmaBuilder();
-        final int port = uri.getPort();
-        if (port > 0) {
-            builder.host(uri.getHost(), port);
+        if (uri.getPort() > 0) {
+            builder.host(uri.getHost(), uri.getPort());
         } else {
             builder.host(uri.getHost());
         }
-        if (SCHEME_DOGMA_HTTPS.equals(uri.getScheme())) {
-            builder.useTls(true);
+        builder.useTls(SCHEME_DOGMA_HTTPS.equals(uri.getScheme()));
+        builder.clientConfigurator(cb -> cb.maxResponseLength(maxResponseLength));
+        // Mirrors run on a fixed schedule; a failed run simply retries on the next tick.
+        // Persistent health-check traffic is unnecessary and wasteful at scale.
+        builder.healthCheckIntervalMillis(0);
+        if (token != null) {
+            builder.accessToken(token);
         }
-        final Credential cred = credential();
-        if (cred instanceof AccessTokenCredential) {
-            builder.accessToken(((AccessTokenCredential) cred).accessToken());
-        }
-        // TODO(minwoox) Support mTLS authentication as well.
-
-        builder.clientConfigurator(cb -> cb.maxResponseLength(maxNumBytes));
         return builder.build();
     }
 
