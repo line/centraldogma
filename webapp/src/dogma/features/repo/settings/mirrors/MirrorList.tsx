@@ -18,6 +18,8 @@ import { DeleteMirror } from 'dogma/features/repo/settings/mirrors/DeleteMirror'
 export type MirrorListProps<Data extends object> = {
   projectName: string;
   repoName?: string;
+  buildDetailUrl?: (id: string, localRepo: string) => string;
+  hideRepoColumn?: boolean;
 };
 
 const useGetMirrors = (projectName: string, repoName?: string): { data: MirrorDto[]; isLoading: boolean } => {
@@ -36,7 +38,12 @@ const useGetMirrors = (projectName: string, repoName?: string): { data: MirrorDt
   };
 };
 
-const MirrorList = <Data extends object>({ projectName, repoName }: MirrorListProps<Data>) => {
+const MirrorList = <Data extends object>({
+  projectName,
+  repoName,
+  buildDetailUrl,
+  hideRepoColumn = false,
+}: MirrorListProps<Data>) => {
   const { data } = useGetMirrors(projectName, repoName);
   const [deleteMirror, { isLoading }] = useDeleteMirrorMutation();
   const columnHelper = createColumnHelper<MirrorDto>();
@@ -45,31 +52,34 @@ const MirrorList = <Data extends object>({ projectName, repoName }: MirrorListPr
       columnHelper.accessor((row: MirrorDto) => `${row.id}`, {
         cell: (info) => {
           const id = info.getValue();
+          const href = buildDetailUrl
+            ? buildDetailUrl(id, info.row.original.localRepo)
+            : `/app/projects/${projectName}/repos/${info.row.original.localRepo}/settings/mirrors/${id}`;
           return (
-            <Link
-              href={`/app/projects/${projectName}/repos/${info.row.original.localRepo}/settings/mirrors/${id}`}
-              fontWeight="semibold"
-            >
+            <Link href={href} fontWeight="semibold">
               {id ?? 'unknown'}
             </Link>
           );
         },
         header: 'ID',
       }),
-      columnHelper.accessor((row: MirrorDto) => `${row.localRepo}`, {
-        cell: (info) => {
-          info.column;
-          const repo = info.getValue();
-          return (
-            <>
-              <Link href={`/app/projects/${projectName}/repos/${repo}/tree/head${info.row.original.localPath}`}>
-                <LabelledIcon icon={GoRepo} text={repo} />
-              </Link>
-            </>
-          );
-        },
-        header: 'Repo',
-      }),
+      ...(!hideRepoColumn
+        ? [
+            columnHelper.accessor((row: MirrorDto) => `${row.localRepo}`, {
+              cell: (info) => {
+                const repo = info.getValue();
+                return (
+                  <Link
+                    href={`/app/projects/${projectName}/repos/${repo}/tree/head${info.row.original.localPath}`}
+                  >
+                    <LabelledIcon icon={GoRepo} text={repo} />
+                  </Link>
+                );
+              },
+              header: 'Repo',
+            }),
+          ]
+        : []),
       columnHelper.accessor((row: MirrorDto) => row.remoteUrl, {
         cell: (info) => info.getValue(),
         header: 'Remote',
@@ -143,7 +153,7 @@ const MirrorList = <Data extends object>({ projectName, repoName }: MirrorListPr
         enableSorting: false,
       }),
     ],
-    [columnHelper, deleteMirror, isLoading, projectName],
+    [buildDetailUrl, columnHelper, deleteMirror, hideRepoColumn, isLoading, projectName],
   );
   return <DataTableClientPagination columns={columns as ColumnDef<MirrorDto>[]} data={data || []} />;
 };

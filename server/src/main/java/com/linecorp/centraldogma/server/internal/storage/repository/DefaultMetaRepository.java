@@ -400,6 +400,8 @@ public final class DefaultMetaRepository extends RepositoryWrapper implements Me
         });
     }
 
+    private static final String XDS_PROJECT_NAME = "@xds";
+
     private static void validateMirror(MirrorRequest mirror, @Nullable ZoneConfig zoneConfig) {
         checkArgument(!Strings.isNullOrEmpty(mirror.id()), "Mirror ID is empty");
         final String scheduleString = mirror.schedule();
@@ -415,6 +417,11 @@ public final class DefaultMetaRepository extends RepositoryWrapper implements Me
             checkArgument(zoneConfig != null, "Zone configuration is missing");
             checkArgument(zoneConfig.allZones().contains(zone),
                           "The zone '%s' is not in the zone configuration: %s", zone, zoneConfig);
+        }
+
+        if (XDS_PROJECT_NAME.equals(mirror.projectName())) {
+            checkArgument("/".equals(mirror.localPath()),
+                          "xDS mirrors must use localPath '/', but got: %s", mirror.localPath());
         }
     }
 }

@@ -90,7 +90,7 @@ public final class XdsKubernetesService extends XdsKubernetesServiceImplBase {
         }
     }
 
-    static final String K8S_ENDPOINT_AGGREGATORS_DIRECTORY = "/k8s/endpointAggregators/";
+    public static final String K8S_ENDPOINT_AGGREGATORS_DIRECTORY = "/k8s/endpointAggregators/";
     public static final Pattern AGGREGATORS_REPLCACE_PATTERN =
             Pattern.compile("(?<=/k8s)/endpointAggregators/");
 
