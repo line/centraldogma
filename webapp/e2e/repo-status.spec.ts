@@ -196,10 +196,10 @@ test.describe.serial('Repository Status', () => {
       await expect(confirm).toBeEnabled();
       await confirm.click();
 
-      // The repository now appears in the read-only list.
+      // The repository now appears in the read-only list, named by its project and repository.
       const row = page.locator('table').locator('tr', { hasText: FORM_REPO });
       await expect(row).toContainText('READ_ONLY', { timeout: 10000 });
-      await expect(row).toContainText('Repository');
+      await expect(row).toContainText(FORM_PROJECT);
     });
 
     test('reverts a read-only repository to writable from the list', async ({ page }) => {
