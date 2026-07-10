@@ -23,9 +23,6 @@ import { DataTableClientPagination } from 'dogma/common/components/table/DataTab
 import { RepositoryStatus } from 'dogma/features/settings/repo-status/RepoStatusDto';
 import { MakeWritable } from 'dogma/features/settings/repo-status/MakeWritable';
 
-// A project-scoped read-only entry uses "dogma" as its repository name.
-const DOGMA_REPO = 'dogma';
-
 export type RepoStatusListProps = {
   data: RepositoryStatus[];
 };
@@ -43,12 +40,9 @@ const RepoStatusList = ({ data }: RepoStatusListProps) => {
         header: 'Project',
         id: 'projectName',
       }),
-      columnHelper.accessor((row) => (row.repoName === DOGMA_REPO ? '-' : row.repoName), {
+      columnHelper.accessor((row) => row.repoName, {
         cell: (info) => {
           const { projectName, repoName } = info.row.original;
-          if (repoName === DOGMA_REPO) {
-            return <Text>-</Text>;
-          }
           return (
             <ChakraLink href={`/app/projects/${projectName}/repos/${repoName}/tree/head`} fontWeight="semibold">
               {repoName}
@@ -57,11 +51,6 @@ const RepoStatusList = ({ data }: RepoStatusListProps) => {
         },
         header: 'Repository',
         id: 'repoName',
-      }),
-      columnHelper.accessor((row) => (row.repoName === DOGMA_REPO ? 'Project' : 'Repository'), {
-        cell: (info) => <Badge colorScheme="purple">{info.getValue()}</Badge>,
-        header: 'Scope',
-        id: 'scope',
       }),
       columnHelper.accessor((row) => row.status, {
         cell: (info) => <Badge colorScheme="red">{info.getValue()}</Badge>,

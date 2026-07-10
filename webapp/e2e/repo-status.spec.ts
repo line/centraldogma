@@ -148,7 +148,7 @@ test.describe.serial('Repository Status', () => {
       await expect(page).toHaveURL(/\/app\/settings\/repo-status/);
     });
 
-    test('lists the read-only project with scope, status and a valid date', async ({ page }) => {
+    test('lists the read-only project with status and a valid date', async ({ page }) => {
       await page.goto('/app/settings/repo-status');
 
       await expect(page.getByText('Current Server Status:')).toBeVisible();
@@ -156,19 +156,19 @@ test.describe.serial('Repository Status', () => {
       const table = page.locator('table');
       await expect(table).toBeVisible();
 
-      // Six columns: Project, Repository, Scope, Status, Updated At, Actions.
+      // Five columns: Project, Repository, Status, Updated At, Actions.
       const headers = table.locator('th');
-      await expect(headers).toHaveCount(6);
+      await expect(headers).toHaveCount(5);
       await expect(headers.nth(0)).toContainText('Project');
       await expect(headers.nth(1)).toContainText('Repository');
-      await expect(headers.nth(2)).toContainText('Scope');
-      await expect(headers.nth(3)).toContainText('Status');
-      await expect(headers.nth(4)).toContainText('Updated At');
-      await expect(headers.nth(5)).toContainText('Actions');
+      await expect(headers.nth(2)).toContainText('Status');
+      await expect(headers.nth(3)).toContainText('Updated At');
+      await expect(headers.nth(4)).toContainText('Actions');
 
       const row = table.locator('tr', { hasText: SEED_PROJECT });
       await expect(row).toContainText('READ_ONLY');
-      await expect(row).toContainText('Project'); // project-scoped
+      // A project-scoped entry names the internal "dogma" repository.
+      await expect(row).toContainText('dogma');
       // Regression guard: a numeric epoch updatedAt would render as 1970.
       await expect(row).not.toContainText('1970');
     });

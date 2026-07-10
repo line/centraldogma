@@ -1,3 +1,4 @@
+import { within } from '@testing-library/react';
 import { renderWithProviders } from 'dogma/util/test-utils';
 import RepoStatusPage from 'pages/app/settings/repo-status';
 import { RepositoryStatus } from 'dogma/features/settings/repo-status/RepoStatusDto';
@@ -94,6 +95,25 @@ describe('RepoStatusPage', () => {
     expect(getAllByText('READ_ONLY')).toHaveLength(2);
     // Each read-only entry offers a per-row action to revert it to writable.
     expect(getAllByText('Make writable')).toHaveLength(2);
+  });
+
+  it('names the internal dogma repository of a project-scoped entry', () => {
+    (useGetReadOnlyReposQuery as jest.Mock).mockReturnValue({
+      data: mockReadOnlyRepos,
+      error: undefined,
+      isLoading: false,
+    });
+
+    const { getByText, queryByRole } = renderWithProviders(<RepoStatusPage />, {
+      preloadedState: { auth: baseAuthState },
+    });
+
+    const projectScopedRow = getByText('baz').closest('tr');
+    expect(within(projectScopedRow).getByText('dogma')).toBeInTheDocument();
+    expect(within(projectScopedRow).queryByText('-')).not.toBeInTheDocument();
+
+    // The repository name tells the scope apart, so there is no Scope column.
+    expect(queryByRole('columnheader', { name: /Scope/ })).not.toBeInTheDocument();
   });
 
   it('shows a writable message when there are no read-only repositories', () => {
