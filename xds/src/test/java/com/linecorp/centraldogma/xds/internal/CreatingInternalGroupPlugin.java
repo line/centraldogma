@@ -15,7 +15,7 @@
  */
 package com.linecorp.centraldogma.xds.internal;
 
-import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.XDS_CENTRAL_DOGMA_PROJECT;
+import static com.linecorp.centraldogma.server.storage.project.InternalProjectConstants.INTERNAL_PROJECT_XDS;
 
 import java.util.concurrent.CompletionStage;
 
@@ -36,12 +36,12 @@ public final class CreatingInternalGroupPlugin extends AllReplicasPlugin {
 
     @Override
     public void init(PluginInitContext pluginInitContext) {
-        pluginInitContext.internalProjectInitializer().initialize(XDS_CENTRAL_DOGMA_PROJECT);
+        pluginInitContext.internalProjectInitializer().initialize(INTERNAL_PROJECT_XDS);
         final MetadataService mds = new MetadataService(pluginInitContext.projectManager(),
                                                         pluginInitContext.commandExecutor(),
                                                         pluginInitContext.internalProjectInitializer());
         RepositoryServiceUtil.createRepository(pluginInitContext.commandExecutor(), mds, Author.SYSTEM,
-                                               XDS_CENTRAL_DOGMA_PROJECT, "my-group", false, null)
+                                               INTERNAL_PROJECT_XDS, "my-group", false, null)
                              .join();
     }
 

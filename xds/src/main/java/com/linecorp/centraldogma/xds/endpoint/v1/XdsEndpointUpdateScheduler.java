@@ -15,8 +15,8 @@
  */
 package com.linecorp.centraldogma.xds.endpoint.v1;
 
+import static com.linecorp.centraldogma.server.storage.project.InternalProjectConstants.INTERNAL_PROJECT_XDS;
 import static com.linecorp.centraldogma.server.storage.repository.FindOptions.FIND_ONE_WITHOUT_CONTENT;
-import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.XDS_CENTRAL_DOGMA_PROJECT;
 import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.JSON_MESSAGE_MARSHALLER;
 
 import java.io.IOException;
@@ -205,7 +205,7 @@ final class XdsEndpointUpdateScheduler {
                         toRegister.size() + " register, " + toDeregister.size() + " deregister";
                 xdsResourceManager.commandExecutor()
                                   .execute(Command.transform(
-                                          null, Author.SYSTEM, XDS_CENTRAL_DOGMA_PROJECT, group, Revision.HEAD,
+                                          null, Author.SYSTEM, INTERNAL_PROJECT_XDS, group, Revision.HEAD,
                                           commitMessage, "", Markup.PLAINTEXT, transformer))
                                   .handle((result, cause2) -> {
                                       if (cause2 != null) {

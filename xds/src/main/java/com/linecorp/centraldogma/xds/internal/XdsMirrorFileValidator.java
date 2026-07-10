@@ -15,7 +15,7 @@
  */
 package com.linecorp.centraldogma.xds.internal;
 
-import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.XDS_CENTRAL_DOGMA_PROJECT;
+import static com.linecorp.centraldogma.server.storage.project.InternalProjectConstants.INTERNAL_PROJECT_XDS;
 import static com.linecorp.centraldogma.xds.internal.ControlPlaneService.CLUSTERS_DIRECTORY;
 import static com.linecorp.centraldogma.xds.internal.ControlPlaneService.ENDPOINTS_DIRECTORY;
 import static com.linecorp.centraldogma.xds.internal.ControlPlaneService.K8S_ENDPOINTS_DIRECTORY;
@@ -53,7 +53,7 @@ public final class XdsMirrorFileValidator implements MirrorFileValidator {
 
     @Override
     public void validate(String projectName, String repoName, Change<?> change) {
-        if (!XDS_CENTRAL_DOGMA_PROJECT.equals(projectName)) {
+        if (!INTERNAL_PROJECT_XDS.equals(projectName)) {
             return;
         }
         if (change.type() == ChangeType.REMOVE) {

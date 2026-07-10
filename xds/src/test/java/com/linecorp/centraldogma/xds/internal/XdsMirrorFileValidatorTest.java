@@ -15,7 +15,7 @@
  */
 package com.linecorp.centraldogma.xds.internal;
 
-import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.XDS_CENTRAL_DOGMA_PROJECT;
+import static com.linecorp.centraldogma.server.storage.project.InternalProjectConstants.INTERNAL_PROJECT_XDS;
 import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.JSON_MESSAGE_MARSHALLER;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -111,7 +111,7 @@ class XdsMirrorFileValidatorTest {
     @Test
     void clusterFile_validContent_passes() {
         assertThatCode(() -> VALIDATOR.validate(
-                XDS_CENTRAL_DOGMA_PROJECT, REPO_NAME,
+                INTERNAL_PROJECT_XDS, REPO_NAME,
                 yamlChangeOf("/clusters/my-cluster.yaml", sampleCluster())))
                 .doesNotThrowAnyException();
     }
@@ -119,7 +119,7 @@ class XdsMirrorFileValidatorTest {
     @Test
     void listenerFile_validContent_passes() {
         assertThatCode(() -> VALIDATOR.validate(
-                XDS_CENTRAL_DOGMA_PROJECT, REPO_NAME,
+                INTERNAL_PROJECT_XDS, REPO_NAME,
                 yamlChangeOf("/listeners/my-listener.yaml", sampleListener())))
                 .doesNotThrowAnyException();
     }
@@ -127,7 +127,7 @@ class XdsMirrorFileValidatorTest {
     @Test
     void routeFile_validContent_passes() {
         assertThatCode(() -> VALIDATOR.validate(
-                XDS_CENTRAL_DOGMA_PROJECT, REPO_NAME,
+                INTERNAL_PROJECT_XDS, REPO_NAME,
                 yamlChangeOf("/routes/my-route.yaml", sampleRoute())))
                 .doesNotThrowAnyException();
     }
@@ -135,7 +135,7 @@ class XdsMirrorFileValidatorTest {
     @Test
     void endpointFile_validContent_passes() {
         assertThatCode(() -> VALIDATOR.validate(
-                XDS_CENTRAL_DOGMA_PROJECT, REPO_NAME,
+                INTERNAL_PROJECT_XDS, REPO_NAME,
                 yamlChangeOf("/endpoints/my-endpoint.yaml", sampleEndpoint())))
                 .doesNotThrowAnyException();
     }
@@ -143,7 +143,7 @@ class XdsMirrorFileValidatorTest {
     @Test
     void k8sAggregatorFile_validContent_passes() {
         assertThatCode(() -> VALIDATOR.validate(
-                XDS_CENTRAL_DOGMA_PROJECT, REPO_NAME,
+                INTERNAL_PROJECT_XDS, REPO_NAME,
                 yamlChangeOf("/k8s/endpointAggregators/agg1.yaml", sampleAggregator())))
                 .doesNotThrowAnyException();
     }
@@ -159,7 +159,7 @@ class XdsMirrorFileValidatorTest {
     @Test
     void removeChange_skipped() {
         assertThatCode(() -> VALIDATOR.validate(
-                XDS_CENTRAL_DOGMA_PROJECT, REPO_NAME,
+                INTERNAL_PROJECT_XDS, REPO_NAME,
                 Change.ofRemoval("/clusters/my-cluster.yaml")))
                 .doesNotThrowAnyException();
     }
@@ -170,7 +170,7 @@ class XdsMirrorFileValidatorTest {
                 Change.ofYamlUpsert("/clusters/bad.yaml",
                                     Jackson.readTree("{\"not_a_cluster_field\": true}"));
         assertThatThrownBy(() -> VALIDATOR.validate(
-                XDS_CENTRAL_DOGMA_PROJECT, REPO_NAME, badChange))
+                INTERNAL_PROJECT_XDS, REPO_NAME, badChange))
                 .isInstanceOf(MirrorException.class)
                 .hasMessageContaining("/clusters/bad.yaml");
     }
@@ -178,7 +178,7 @@ class XdsMirrorFileValidatorTest {
     @Test
     void typeMismatch_listenerYamlInClustersDir_rejected() {
         assertThatThrownBy(() -> VALIDATOR.validate(
-                XDS_CENTRAL_DOGMA_PROJECT, REPO_NAME,
+                INTERNAL_PROJECT_XDS, REPO_NAME,
                 yamlChangeOf("/clusters/wrong-type.yaml", sampleListener())))
                 .isInstanceOf(MirrorException.class)
                 .hasMessageContaining("/clusters/wrong-type.yaml");
@@ -187,7 +187,7 @@ class XdsMirrorFileValidatorTest {
     @Test
     void typeMismatch_clusterYamlInListenersDir_rejected() {
         assertThatThrownBy(() -> VALIDATOR.validate(
-                XDS_CENTRAL_DOGMA_PROJECT, REPO_NAME,
+                INTERNAL_PROJECT_XDS, REPO_NAME,
                 yamlChangeOf("/listeners/wrong-type.yaml", sampleCluster())))
                 .isInstanceOf(MirrorException.class)
                 .hasMessageContaining("/listeners/wrong-type.yaml");
@@ -196,7 +196,7 @@ class XdsMirrorFileValidatorTest {
     @Test
     void k8sEndpointsFile_rejected() {
         assertThatThrownBy(() -> VALIDATOR.validate(
-                XDS_CENTRAL_DOGMA_PROJECT, REPO_NAME,
+                INTERNAL_PROJECT_XDS, REPO_NAME,
                 yamlChangeOf("/k8s/endpoints/foo.yaml", sampleEndpoint())))
                 .isInstanceOf(MirrorException.class)
                 .hasMessageContaining("/k8s/endpoints/")
@@ -206,7 +206,7 @@ class XdsMirrorFileValidatorTest {
     @Test
     void unexpectedPath_rejected() {
         assertThatThrownBy(() -> VALIDATOR.validate(
-                XDS_CENTRAL_DOGMA_PROJECT, REPO_NAME,
+                INTERNAL_PROJECT_XDS, REPO_NAME,
                 Change.ofTextUpsert("/README.md", "hello")))
                 .isInstanceOf(MirrorException.class)
                 .hasMessageContaining("/README.md")
@@ -216,7 +216,7 @@ class XdsMirrorFileValidatorTest {
     @Test
     void unknownTopLevelDir_rejected() {
         assertThatThrownBy(() -> VALIDATOR.validate(
-                XDS_CENTRAL_DOGMA_PROJECT, REPO_NAME,
+                INTERNAL_PROJECT_XDS, REPO_NAME,
                 yamlChangeOf("/unknown/resource.yaml", sampleCluster())))
                 .isInstanceOf(MirrorException.class)
                 .hasMessageContaining("/unknown/resource.yaml")

@@ -20,6 +20,7 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.linecorp.centraldogma.internal.CredentialUtil.credentialFile;
 import static com.linecorp.centraldogma.internal.CredentialUtil.credentialName;
 import static com.linecorp.centraldogma.server.internal.storage.repository.MirrorConfig.DEFAULT_SCHEDULE;
+import static com.linecorp.centraldogma.server.storage.project.InternalProjectConstants.INTERNAL_PROJECT_XDS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -249,7 +250,7 @@ class DefaultMetaRepositoryWithMirrorTest {
     @Test
     void xdsMirrorWithNonRootLocalPath_isRejected() {
         final MirrorRequest badMirror = new MirrorRequest(
-                "xds-mirror", true, "@xds", DEFAULT_SCHEDULE, "REMOTE_TO_LOCAL", "some-group",
+                "xds-mirror", true, INTERNAL_PROJECT_XDS, DEFAULT_SCHEDULE, "REMOTE_TO_LOCAL", "some-group",
                 "/clusters/", "git+ssh", "git.example.com/org/repo.git", "/", "main", null, "", null);
         assertThatThrownBy(() ->
                 metaRepo.createMirrorPushCommand("some-group", badMirror, Author.SYSTEM, null, false))
@@ -260,7 +261,7 @@ class DefaultMetaRepositoryWithMirrorTest {
     @Test
     void xdsMirrorWithRootLocalPath_isAccepted() {
         final MirrorRequest validMirror = new MirrorRequest(
-                "xds-mirror", true, "@xds", DEFAULT_SCHEDULE, "REMOTE_TO_LOCAL", "some-group",
+                "xds-mirror", true, INTERNAL_PROJECT_XDS, DEFAULT_SCHEDULE, "REMOTE_TO_LOCAL", "some-group",
                 "/", "git+ssh", "git.example.com/org/repo.git", "/", "main", null, "", null);
         assertThatCode(() ->
                 metaRepo.createMirrorPushCommand("some-group", validMirror, Author.SYSTEM, null, false))

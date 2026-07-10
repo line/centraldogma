@@ -15,7 +15,7 @@
  */
 package com.linecorp.centraldogma.xds.internal;
 
-import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.XDS_CENTRAL_DOGMA_PROJECT;
+import static com.linecorp.centraldogma.server.storage.project.InternalProjectConstants.INTERNAL_PROJECT_XDS;
 import static com.linecorp.centraldogma.xds.internal.ControlPlaneService.CLUSTERS_DIRECTORY;
 import static com.linecorp.centraldogma.xds.internal.ControlPlaneService.ENDPOINTS_DIRECTORY;
 import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.JSON_MESSAGE_MARSHALLER;
@@ -197,7 +197,7 @@ class XdsYamlCompatibilityTest {
 
     private static void pushYamlCluster(String clusterId, Cluster cluster) throws Exception {
         final String content = JSON_MESSAGE_MARSHALLER.writeValueAsString(cluster);
-        dogma.client().forRepo(XDS_CENTRAL_DOGMA_PROJECT, "foo")
+        dogma.client().forRepo(INTERNAL_PROJECT_XDS, "foo")
              .commit("Add YAML cluster: " + clusterId,
                      Change.ofYamlUpsert(CLUSTERS_DIRECTORY + clusterId + ".yaml", content))
              .push().join();
@@ -206,7 +206,7 @@ class XdsYamlCompatibilityTest {
     private static void pushYamlEndpoint(String endpointId, ClusterLoadAssignment endpoint)
             throws Exception {
         final String content = JSON_MESSAGE_MARSHALLER.writeValueAsString(endpoint);
-        dogma.client().forRepo(XDS_CENTRAL_DOGMA_PROJECT, "foo")
+        dogma.client().forRepo(INTERNAL_PROJECT_XDS, "foo")
              .commit("Add YAML endpoint: " + endpointId,
                      Change.ofYamlUpsert(ENDPOINTS_DIRECTORY + endpointId + ".yaml", content))
              .push().join();
@@ -244,7 +244,7 @@ class XdsYamlCompatibilityTest {
     }
 
     private static Repository xdsRepo(String group) {
-        return dogma.projectManager().get(XDS_CENTRAL_DOGMA_PROJECT).repos().get(group);
+        return dogma.projectManager().get(INTERNAL_PROJECT_XDS).repos().get(group);
     }
 
     private static void checkClusterViaDiscovery(String clusterName, Cluster expectedCluster,

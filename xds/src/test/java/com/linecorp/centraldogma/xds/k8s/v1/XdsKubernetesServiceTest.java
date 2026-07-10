@@ -17,8 +17,8 @@ package com.linecorp.centraldogma.xds.k8s.v1;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.linecorp.centraldogma.internal.CredentialUtil.credentialName;
+import static com.linecorp.centraldogma.server.storage.project.InternalProjectConstants.INTERNAL_PROJECT_XDS;
 import static com.linecorp.centraldogma.xds.endpoint.v1.XdsEndpointServiceTest.checkEndpointsViaDiscoveryRequest;
-import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.XDS_CENTRAL_DOGMA_PROJECT;
 import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.JSON_MESSAGE_MARSHALLER;
 import static com.linecorp.centraldogma.xds.internal.XdsTestUtil.createGroup;
 import static com.linecorp.centraldogma.xds.internal.XdsTestUtil.endpoint;
@@ -148,7 +148,7 @@ class XdsKubernetesServiceTest {
     private static void putCredential() {
         final CreateCredentialRequest repoCredentialRequest = new CreateCredentialRequest(
                 "repo-credential",
-                new AccessTokenCredential(credentialName(XDS_CENTRAL_DOGMA_PROJECT, "foo", "repo-credential"),
+                new AccessTokenCredential(credentialName(INTERNAL_PROJECT_XDS, "foo", "repo-credential"),
                                           "secret")
         );
         dogma.httpClient().prepare()
@@ -158,7 +158,7 @@ class XdsKubernetesServiceTest {
         // This is needed for the backward compatibility test.
         final CreateCredentialRequest projectCredentialRequest = new CreateCredentialRequest(
                 "project-credential",
-                new AccessTokenCredential(credentialName(XDS_CENTRAL_DOGMA_PROJECT, "project-credential"),
+                new AccessTokenCredential(credentialName(INTERNAL_PROJECT_XDS, "project-credential"),
                                           "secret")
         );
         dogma.httpClient().prepare()
@@ -219,7 +219,7 @@ class XdsKubernetesServiceTest {
                 aggregator.toBuilder().setClusterName(clusterName) // cluster name is set by the service.
                           .build();
         assertAggregator(json, expectedAggregator);
-        final Repository fooGroup = dogma.projectManager().get(XDS_CENTRAL_DOGMA_PROJECT).repos().get("foo");
+        final Repository fooGroup = dogma.projectManager().get(INTERNAL_PROJECT_XDS).repos().get("foo");
         final Entry<JsonNode> entry =
                 fooGroup.get(Revision.HEAD, Query.ofJson(
                         K8S_ENDPOINT_AGGREGATORS_DIRECTORY + aggregatorId + ".json")).join();

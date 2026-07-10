@@ -26,7 +26,7 @@ const XdsCredentialViewPage = () => {
   const id = router.query.id as string | undefined;
 
   const { data, isLoading, error } = useGetRepoCredentialQuery(
-    { projectName: '@xds', repoName: group, id },
+    { projectName: '@xds', repoName: group!, id: id! },
     { skip: !group || !id },
   );
 

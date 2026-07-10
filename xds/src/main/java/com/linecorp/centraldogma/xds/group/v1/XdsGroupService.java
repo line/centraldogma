@@ -20,7 +20,7 @@ import static com.linecorp.centraldogma.server.internal.admin.auth.AuthUtil.curr
 import static com.linecorp.centraldogma.server.internal.admin.auth.AuthUtil.getAuthor;
 import static com.linecorp.centraldogma.server.internal.api.RepositoryServiceUtil.createRepository;
 import static com.linecorp.centraldogma.server.internal.api.RepositoryServiceUtil.removeRepository;
-import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.XDS_CENTRAL_DOGMA_PROJECT;
+import static com.linecorp.centraldogma.server.storage.project.InternalProjectConstants.INTERNAL_PROJECT_XDS;
 import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.checkGroupId;
 import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.removePrefix;
 
@@ -65,7 +65,7 @@ public final class XdsGroupService extends XdsGroupServiceImplBase {
         if (xdsProject.repos().exists(groupId)) {
             throw alreadyExistsException(groupId);
         }
-        createRepository(commandExecutor, mds, currentAuthor(), XDS_CENTRAL_DOGMA_PROJECT, groupId, false, null)
+        createRepository(commandExecutor, mds, currentAuthor(), INTERNAL_PROJECT_XDS, groupId, false, null)
                 .handle((unused, cause) -> {
                     if (cause != null) {
                         final Throwable peeled = Exceptions.peel(cause);
@@ -116,7 +116,7 @@ public final class XdsGroupService extends XdsGroupServiceImplBase {
                                                              .asRuntimeException());
             return;
         }
-        removeRepository(commandExecutor, mds, getAuthor(user), XDS_CENTRAL_DOGMA_PROJECT, name)
+        removeRepository(commandExecutor, mds, getAuthor(user), INTERNAL_PROJECT_XDS, name)
                 .handle((unused, cause1) -> {
                     if (cause1 != null) {
                         responseObserver.onError(

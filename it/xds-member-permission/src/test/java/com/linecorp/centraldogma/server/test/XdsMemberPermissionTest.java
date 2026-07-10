@@ -17,6 +17,7 @@
 package com.linecorp.centraldogma.server.test;
 
 import static com.linecorp.centraldogma.internal.CredentialUtil.credentialName;
+import static com.linecorp.centraldogma.server.storage.project.InternalProjectConstants.INTERNAL_PROJECT_XDS;
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.PASSWORD;
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.USERNAME;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -91,12 +92,13 @@ class XdsMemberPermissionTest {
                          .build()
                          .blocking();
 
-        assertThat(adminClient.listProjects().join()).containsOnly("dogma", "foo", "@xds");
+        assertThat(adminClient.listProjects().join()).containsOnly("dogma", "foo", INTERNAL_PROJECT_XDS);
         // The xDS project is a self-service project, so it is visible to any authenticated user even before
         // being granted a role. Other internal projects (e.g. dogma) remain hidden.
-        assertThat(nonAdminClient.listProjects().join()).containsOnly("foo", "@xds");
+        assertThat(nonAdminClient.listProjects().join()).containsOnly("foo", INTERNAL_PROJECT_XDS);
 
-        final CentralDogmaRepository adminRepo = adminClient.createRepository("@xds", "test").join();
+        final CentralDogmaRepository adminRepo = adminClient.createRepository(INTERNAL_PROJECT_XDS, "test")
+                                                            .join();
         adminRepo.commit("Add test.txt", Change.ofTextUpsert("/text.txt", "foo"))
                  .push()
                  .join();
@@ -105,18 +107,18 @@ class XdsMemberPermissionTest {
                 adminWebClient.prepare()
                               .post("/api/v1/projects/@xds/credentials")
                               .contentJson(new CreateCredentialRequest(
-                                      "test", new NoneCredential(credentialName("@xds", "test"))))
+                                      "test", new NoneCredential(credentialName(INTERNAL_PROJECT_XDS, "test"))))
                               .execute();
         assertThat(credentialResponse.status()).isEqualTo(HttpStatus.CREATED);
 
         // All CRUD operations should be blocked.
         assertThatThrownBy(() -> {
-            nonAdminClient.createRepository("@xds", "test2").join();
+            nonAdminClient.createRepository(INTERNAL_PROJECT_XDS, "test2").join();
         }).isInstanceOf(CompletionException.class)
           .hasCauseInstanceOf(PermissionException.class)
           .hasMessageContaining("You must have the MEMBER project role to access the project '@xds'.");
 
-        final CentralDogmaRepository userRepo = nonAdminClient.forRepo("@xds", "test");
+        final CentralDogmaRepository userRepo = nonAdminClient.forRepo(INTERNAL_PROJECT_XDS, "test");
         assertThatThrownBy(() -> {
             userRepo.commit("Update test.txt", Change.ofTextUpsert("/text.txt", "bar"))
                     .push()
@@ -148,7 +150,7 @@ class XdsMemberPermissionTest {
 
         // @xds project should be visible to member app identities.
         await().untilAsserted(
-                () -> assertThat(nonAdminClient.listProjects().join()).containsOnly("foo", "@xds")
+                () -> assertThat(nonAdminClient.listProjects().join()).containsOnly("foo", INTERNAL_PROJECT_XDS)
         );
         // Read and write should be granted as well.
         userRepo.commit("Update test.txt", Change.ofTextUpsert("/text.txt", "bar"))

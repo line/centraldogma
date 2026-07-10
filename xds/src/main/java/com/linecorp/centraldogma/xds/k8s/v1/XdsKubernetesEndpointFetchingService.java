@@ -16,7 +16,7 @@
 package com.linecorp.centraldogma.xds.k8s.v1;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
-import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.XDS_CENTRAL_DOGMA_PROJECT;
+import static com.linecorp.centraldogma.server.storage.project.InternalProjectConstants.INTERNAL_PROJECT_XDS;
 import static com.linecorp.centraldogma.xds.internal.ControlPlaneService.K8S_ENDPOINTS_DIRECTORY;
 import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.JSON_MESSAGE_MARSHALLER;
 import static com.linecorp.centraldogma.xds.k8s.v1.XdsKubernetesService.AGGREGATORS_REPLCACE_PATTERN;
@@ -187,7 +187,7 @@ final class XdsKubernetesEndpointFetchingService extends XdsResourceWatchingServ
         final String endpointPath = AGGREGATORS_REPLCACE_PATTERN.matcher(path).replaceFirst("/endpoints/");
         logger.info("Removing {} from {}. aggregatorName: {}", endpointPath, groupName, aggregatorName);
         commandExecutor.execute(
-                Command.push(Author.SYSTEM, XDS_CENTRAL_DOGMA_PROJECT, groupName, Revision.HEAD,
+                Command.push(Author.SYSTEM, INTERNAL_PROJECT_XDS, groupName, Revision.HEAD,
                              "Remove " + endpointPath, "",
                              Markup.PLAINTEXT, Change.ofRemoval(endpointPath))).handle((unused, cause) -> {
             if (cause != null) {
@@ -321,7 +321,7 @@ final class XdsKubernetesEndpointFetchingService extends XdsResourceWatchingServ
             }
             final Change<JsonNode> change = Change.ofJsonUpsert(fileName, jsonNode);
             commandExecutor.execute(
-                    Command.push(Author.SYSTEM, XDS_CENTRAL_DOGMA_PROJECT, groupName, Revision.HEAD,
+                    Command.push(Author.SYSTEM, INTERNAL_PROJECT_XDS, groupName, Revision.HEAD,
                                  "Add " + aggregator.getClusterName() + '.', "",
                                  Markup.PLAINTEXT, change)).handle((unused, cause) -> {
                 if (cause != null) {
