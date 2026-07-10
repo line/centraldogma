@@ -224,14 +224,9 @@ public final class RepoStatusManager {
                 statusMap.values().stream()
                          .<MultiGauge.Row<?>>map(state -> MultiGauge.Row.of(
                                  Tags.of("project", state.projectName(),
-                                         "repo", state.repoName(),
-                                         "scope", scopeOf(state)),
+                                         "repo", state.repoName()),
                                  1))
                          .collect(toImmutableList()),
                 true);
-    }
-
-    private static String scopeOf(RepositoryState state) {
-        return state.repoName().equals(Project.REPO_DOGMA) ? "project" : "repository";
     }
 }

@@ -28,7 +28,9 @@ import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.ReplicationStatus;
 import com.linecorp.centraldogma.testing.internal.ProjectManagerExtension;
 
+import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Tag;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 
 class RepoStatusManagerTest {
@@ -98,10 +100,11 @@ class RepoStatusManagerTest {
                         tuple("test_prj2", "dogma", ReplicationStatus.READ_ONLY)));
 
         assertThat(readOnlyCount()).isEqualTo(2);
-        assertThat(scopeGauge("test_prj", "test_repo", "repository")).isOne();
-        assertThat(scopeGauge("test_prj2", "dogma", "project")).isOne();
+        // A project-scoped entry is the one whose repository is "dogma".
+        assertThat(readOnlyGauge("test_prj", "test_repo")).isOne();
+        assertThat(readOnlyGauge("test_prj2", "dogma")).isOne();
 
-        // Reverting to WRITABLE removes the scope from the list and the metrics.
+        // Reverting to WRITABLE removes the entry from the list and the metrics.
         statusManager.updateRepoStatus("test_prj", "test_repo", Author.DEFAULT, ReplicationStatus.WRITABLE)
                      .join();
         statusManager.updateProjectStatus("test_prj2", Author.DEFAULT, ReplicationStatus.WRITABLE).join();
@@ -123,9 +126,15 @@ class RepoStatusManagerTest {
         return meterRegistry.get("repository.read.only.count").gauge().value();
     }
 
-    private double scopeGauge(String projectName, String repoName, String scope) {
-        return meterRegistry.get("repository.read.only")
-                            .tags("project", projectName, "repo", repoName, "scope", scope)
-                            .gauge().value();
+    /**
+     * The repository name tells the scope apart, so the gauge carries no other tag.
+     */
+    private double readOnlyGauge(String projectName, String repoName) {
+        final Gauge gauge = meterRegistry.get("repository.read.only")
+                                         .tags("project", projectName, "repo", repoName)
+                                         .gauge();
+        assertThat(gauge.getId().getTags())
+                .containsExactlyInAnyOrder(Tag.of("project", projectName), Tag.of("repo", repoName));
+        return gauge.value();
     }
 }
