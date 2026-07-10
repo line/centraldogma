@@ -26,6 +26,7 @@ import {
   ModalHeader,
   ModalOverlay,
 } from '@chakra-ui/react';
+import { ReactNode } from 'react';
 
 interface DeleteConfirmationModalProps {
   isOpen: boolean;
@@ -38,6 +39,8 @@ interface DeleteConfirmationModalProps {
   repoName?: string;
   handleDelete: () => void;
   isLoading: boolean;
+  // Optional extra content rendered below the confirmation text (e.g. a commit summary input).
+  children?: ReactNode;
 }
 
 export const DeleteConfirmationModal = ({
@@ -50,6 +53,7 @@ export const DeleteConfirmationModal = ({
   repoName,
   handleDelete,
   isLoading,
+  children,
 }: DeleteConfirmationModalProps): JSX.Element => {
   const fromName = from ?? repoName ?? projectName;
   return (
@@ -63,7 +67,7 @@ export const DeleteConfirmationModal = ({
           <Mark bg="gray.200" rounded="base" fontWeight="bold" px="1" py="1">
             {id}
           </Mark>
-          {fromName ? ` from ${fromName}` : ''}?
+          {fromName ? ` from ${fromName}` : ''}?{children}
         </ModalBody>
         <ModalFooter>
           <HStack spacing={3}>

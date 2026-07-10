@@ -70,6 +70,9 @@ message CreateKubernetesEndpointAggregatorRequest {
   // Valid pattern is "^[a-z]([a-z0-9-/]*[a-z0-9])?$"
   string aggregator_id = 2 [(google.api.field_behavior) = REQUIRED];
   KubernetesEndpointAggregator kubernetes_endpoint_aggregator = 3 [(google.api.field_behavior) = REQUIRED];
+
+  // The commit summary for this change. If not specified, a default message is used.
+  string summary = 4 [(google.api.field_behavior) = OPTIONAL];
 }
 
 message KubernetesEndpointAggregator {
@@ -150,14 +153,20 @@ message UpdateKubernetesEndpointAggregatorRequest {
   // The kubernetes_endpoint_aggregator's `name` field is used to identify the endpoint to update.
   KubernetesEndpointAggregator kubernetes_endpoint_aggregator = 1 [(google.api.field_behavior) = REQUIRED];
 
+  // The commit summary for this change. If not specified, a default message is used.
+  string summary = 2 [(google.api.field_behavior) = OPTIONAL];
+
   // TODO(minwoox): Implement these fields
-  // google.protobuf.FieldMask update_mask = 2;
+  // google.protobuf.FieldMask update_mask = 3;
   //
-  // bool allow_missing = 3;
+  // bool allow_missing = 4;
 }
 
 message DeleteKubernetesEndpointAggregatorRequest {
   string name = 1 [(google.api.field_behavior) = IDENTIFIER];
+
+  // The commit summary for this change. If not specified, a default message is used.
+  string summary = 2 [(google.api.field_behavior) = OPTIONAL];
 }
 
 message PreviewKubernetesEndpointAggregatorRequest {

@@ -492,6 +492,7 @@ const NewK8sAggregatorEditor = ({ group }: { group: string }) => {
   const [previewAggregator, { isLoading: isPreviewing }] = usePreviewK8sAggregatorMutation();
   const { isOpen: previewOpen, onOpen: openPreview, onClose: closePreview } = useDisclosure();
   const [previewResult, setPreviewResult] = useState<K8sPreviewResult | null>(null);
+  const [commitSummary, setCommitSummary] = useState('');
   const {
     register,
     control,
@@ -515,7 +516,12 @@ const NewK8sAggregatorEditor = ({ group }: { group: string }) => {
       return;
     }
     try {
-      await createAggregator({ group, aggregatorId: data.aggregatorId, body: buildBody(data) }).unwrap();
+      await createAggregator({
+        group,
+        aggregatorId: data.aggregatorId,
+        body: buildBody(data),
+        summary: commitSummary || undefined,
+      }).unwrap();
       dispatch(
         newNotification('Aggregator created', `Aggregator '${data.aggregatorId}' is created`, 'success'),
       );
@@ -548,6 +554,14 @@ const NewK8sAggregatorEditor = ({ group }: { group: string }) => {
         readOnly={false}
       />
       <Divider my={4} maxW="3xl" />
+      <FormControl mb={4} maxW="md">
+        <FormLabel>Commit summary</FormLabel>
+        <Input
+          value={commitSummary}
+          onChange={(e) => setCommitSummary(e.target.value)}
+          placeholder="Create kubernetes endpoint: ..."
+        />
+      </FormControl>
       <Flex maxW="3xl">
         <Spacer />
         <HStack spacing={3}>
@@ -596,6 +610,8 @@ const ExistingK8sAggregatorEditor = ({ group, id }: { group: string; id: string 
   const [previewResult, setPreviewResult] = useState<K8sPreviewResult | null>(null);
   // An aggregator opens in read-only view; the user must click Edit to modify it (like the resource editors).
   const [editing, setEditing] = useState(false);
+  const [commitSummary, setCommitSummary] = useState('');
+  const [deleteCommitSummary, setDeleteCommitSummary] = useState('');
   const {
     register,
     control,
@@ -615,9 +631,15 @@ const ExistingK8sAggregatorEditor = ({ group, id }: { group: string; id: string 
   const onSubmit = async (formData: FormData) => {
     const name = `groups/${group}/k8s/endpointAggregators/${id}`;
     try {
-      await updateAggregator({ group, id, body: buildBody(formData, name) }).unwrap();
+      await updateAggregator({
+        group,
+        id,
+        body: buildBody(formData, name),
+        summary: commitSummary || undefined,
+      }).unwrap();
       dispatch(newNotification('Aggregator updated', `Aggregator '${id}' is updated`, 'success'));
       setEditing(false);
+      setCommitSummary('');
     } catch (err) {
       dispatch(newNotification('Failed to update the aggregator', ErrorMessageParser.parse(err), 'error'));
     }
@@ -628,6 +650,7 @@ const ExistingK8sAggregatorEditor = ({ group, id }: { group: string; id: string 
       reset(parseToFormData(id, (data as FileContentDto).content));
     }
     setEditing(false);
+    setCommitSummary('');
   };
 
   const onPreview = async (formData: FormData) => {
@@ -643,12 +666,17 @@ const ExistingK8sAggregatorEditor = ({ group, id }: { group: string; id: string 
 
   const handleDelete = async () => {
     try {
-      await deleteAggregator({ group, id }).unwrap();
+      await deleteAggregator({ group, id, summary: deleteCommitSummary || undefined }).unwrap();
       dispatch(newNotification('Aggregator deleted', `Aggregator '${id}' is deleted`, 'success'));
       Router.push(`/app/xds/group?name=${encodeURIComponent(group)}&type=k8sAggregators`);
     } catch (err) {
       dispatch(newNotification('Failed to delete the aggregator', ErrorMessageParser.parse(err), 'error'));
     }
+  };
+
+  const handleDeleteModalClose = () => {
+    setDeleteCommitSummary('');
+    onClose();
   };
 
   return (
@@ -706,6 +734,14 @@ const ExistingK8sAggregatorEditor = ({ group, id }: { group: string; id: string 
           {editing && hasWrite && (
             <>
               <Divider my={4} maxW="3xl" />
+              <FormControl mb={4} maxW="md">
+                <FormLabel>Commit summary</FormLabel>
+                <Input
+                  value={commitSummary}
+                  onChange={(e) => setCommitSummary(e.target.value)}
+                  placeholder="Update kubernetes endpoint aggregator: ..."
+                />
+              </FormControl>
               <Flex maxW="3xl">
                 <Spacer />
                 <HStack spacing={3}>
@@ -738,13 +774,22 @@ const ExistingK8sAggregatorEditor = ({ group, id }: { group: string; id: string 
           />
           <DeleteConfirmationModal
             isOpen={isOpen}
-            onClose={onClose}
+            onClose={handleDeleteModalClose}
             type="aggregator"
             id={id}
             from={group}
             handleDelete={handleDelete}
             isLoading={isDeleting}
-          />
+          >
+            <FormControl mt={4}>
+              <FormLabel>Commit summary</FormLabel>
+              <Input
+                value={deleteCommitSummary}
+                onChange={(e) => setDeleteCommitSummary(e.target.value)}
+                placeholder="Delete kubernetes endpoint aggregator: ..."
+              />
+            </FormControl>
+          </DeleteConfirmationModal>
         </Box>
       )}
     </Deferred>

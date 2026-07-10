@@ -15,6 +15,7 @@
  */
 package com.linecorp.centraldogma.xds.listener.v1;
 
+import static com.google.common.base.Strings.isNullOrEmpty;
 import static com.linecorp.centraldogma.server.internal.admin.auth.AuthUtil.currentAuthor;
 import static com.linecorp.centraldogma.xds.internal.ControlPlaneService.LISTENERS_DIRECTORY;
 import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.RESOURCE_ID_PATTERN;
@@ -68,9 +69,11 @@ public final class XdsListenerService extends XdsListenerServiceImplBase {
         // with the format of "groups/{group}/listeners/{listener}".
         // https://github.com/aip-dev/google.aip.dev/blob/master/aip/general/0133.md#user-specified-ids
         final Listener listener = request.getListener().toBuilder().setName(listenerName).build();
+        final String createSummary =
+                isNullOrEmpty(request.getSummary()) ? "Create listener: " + listenerName : request.getSummary();
         xdsResourceManager.push(responseObserver, group, listenerName,
                                 LISTENERS_DIRECTORY + listenerId + ".json",
-                                "Create listener: " + listenerName, listener, currentAuthor(), true);
+                                createSummary, listener, currentAuthor(), true);
     }
 
     @Override
@@ -79,8 +82,10 @@ public final class XdsListenerService extends XdsListenerServiceImplBase {
         final String listenerName = listener.getName();
         final String group = checkListenerName(listenerName).group(1);
         xdsResourceManager.checkWritePermission(group);
+        final String updateSummary =
+                isNullOrEmpty(request.getSummary()) ? "Update listener: " + listenerName : request.getSummary();
         xdsResourceManager.update(responseObserver, group, listenerName,
-                                  "Update listener: " + listenerName, listener, currentAuthor());
+                                  updateSummary, listener, currentAuthor());
     }
 
     private static Matcher checkListenerName(String listenerName) {
@@ -98,7 +103,8 @@ public final class XdsListenerService extends XdsListenerServiceImplBase {
         final String listenerName = request.getName();
         final String group = checkListenerName(listenerName).group(1);
         xdsResourceManager.checkWritePermission(group);
-        xdsResourceManager.delete(responseObserver, group, listenerName, "Delete listener: " + listenerName,
-                                  currentAuthor());
+        final String deleteSummary =
+                isNullOrEmpty(request.getSummary()) ? "Delete listener: " + listenerName : request.getSummary();
+        xdsResourceManager.delete(responseObserver, group, listenerName, deleteSummary, currentAuthor());
     }
 }

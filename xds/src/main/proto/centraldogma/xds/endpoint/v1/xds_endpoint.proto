@@ -83,6 +83,9 @@ message CreateEndpointRequest {
   // Valid pattern is "^[a-z]([a-z0-9-/]*[a-z0-9])?$"
   string endpoint_id = 2 [(google.api.field_behavior) = REQUIRED];
   envoy.config.endpoint.v3.ClusterLoadAssignment endpoint = 3 [(google.api.field_behavior) = REQUIRED];
+
+  // The commit summary for this change. If not specified, a default message is used.
+  string summary = 4 [(google.api.field_behavior) = OPTIONAL];
 }
 
 message UpdateEndpointRequest {
@@ -91,22 +94,28 @@ message UpdateEndpointRequest {
 
   envoy.config.endpoint.v3.ClusterLoadAssignment endpoint = 2 [(google.api.field_behavior) = REQUIRED];
 
+  // The commit summary for this change. If not specified, a default message is used.
+  string summary = 3 [(google.api.field_behavior) = OPTIONAL];
+
   // TODO(minwoox): Add the following fields.
   // The list of fields to be updated.
-  // google.protobuf.FieldMask update_mask = 2;
+  // google.protobuf.FieldMask update_mask = 4;
 
   // If set to true, and the endpoint is not found, a new endpoint will be created.
   // In this situation, `update_mask` is ignored.
-  // bool allow_missing = 3;
+  // bool allow_missing = 5;
 }
 
 message DeleteEndpointRequest {
   // Format: groups/{group}/endpoints/{endpoint}
   string name = 1 [(google.api.field_behavior) = IDENTIFIER];
 
+  // The commit summary for this change. If not specified, a default message is used.
+  string summary = 2 [(google.api.field_behavior) = OPTIONAL];
+
   // If set to true, and the endpoint is not found, the request will succeed
   // but no action will be taken on the server
-  // bool allow_missing = 2;
+  // bool allow_missing = 3;
 }
 
 message RegisterLocalityLbEndpointRequest {

@@ -64,6 +64,9 @@ message CreateRouteRequest {
   // Valid pattern is "^[a-z]([a-z0-9-/]*[a-z0-9])?$"
   string route_id = 2 [(google.api.field_behavior) = REQUIRED];
   envoy.config.route.v3.RouteConfiguration route = 3 [(google.api.field_behavior) = REQUIRED];
+
+  // The commit summary for this change. If not specified, a default message is used.
+  string summary = 4 [(google.api.field_behavior) = OPTIONAL];
 }
 
 message UpdateRouteRequest {
@@ -71,20 +74,26 @@ message UpdateRouteRequest {
   // Format: groups/{group}/routes/{route}
   envoy.config.route.v3.RouteConfiguration route = 1 [(google.api.field_behavior) = REQUIRED];
 
+  // The commit summary for this change. If not specified, a default message is used.
+  string summary = 2 [(google.api.field_behavior) = OPTIONAL];
+
   // TODO(minwoox): Add the following fields.
   // The list of fields to be updated.
-  // google.protobuf.FieldMask update_mask = 2;
+  // google.protobuf.FieldMask update_mask = 3;
 
   // If set to true, and the route is not found, a new route will be created.
   // In this situation, `update_mask` is ignored.
-  // bool allow_missing = 3;
+  // bool allow_missing = 4;
 }
 
 message DeleteRouteRequest {
   // Format: groups/{group}/routes/{route}
   string name = 1 [(google.api.field_behavior) = IDENTIFIER];
 
+  // The commit summary for this change. If not specified, a default message is used.
+  string summary = 2 [(google.api.field_behavior) = OPTIONAL];
+
   // If set to true, and the Route is not found, the request will succeed
   // but no action will be taken on the server
-  // bool allow_missing = 2;
+  // bool allow_missing = 3;
 }
