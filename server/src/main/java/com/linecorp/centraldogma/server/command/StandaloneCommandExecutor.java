@@ -280,21 +280,34 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
         return CompletableFuture.supplyAsync(() -> {
             projectManager.remove(c.projectName());
             return null;
-        }, repositoryWorker);
+        }, repositoryWorker).thenRun(repoStatusManager::refreshReadOnlyMetrics);
     }
 
     private CompletableFuture<Void> unremoveProject(UnremoveProjectCommand c) {
         return CompletableFuture.supplyAsync(() -> {
             projectManager.unremove(c.projectName());
             return null;
-        }, repositoryWorker);
+        }, repositoryWorker).thenRun(repoStatusManager::refreshReadOnlyMetrics);
     }
 
     private CompletableFuture<Void> purgeProject(PurgeProjectCommand c) {
         return CompletableFuture.supplyAsync(() -> {
             projectManager.markForPurge(c.projectName());
             return null;
-        }, repositoryWorker);
+        }, repositoryWorker).thenCompose(unused -> {
+            if (projectManager.exists(c.projectName())) {
+                // markForPurge() was a no-op because the project was not in the removed state;
+                // keep its status so read-only enforcement is not silently defeated.
+                return CompletableFuture.<Void>completedFuture(null);
+            }
+            // Best-effort cleanup: a failure here must not fail the already-applied purge command.
+            return repoStatusManager.removeProjectStatus(c.projectName(), c.author())
+                                    .exceptionally(cause -> {
+                                        logger.warn("Failed to remove the status of the purged project: {}",
+                                                    c.projectName(), cause);
+                                        return null;
+                                    });
+        });
     }
 
     // Repository operations
@@ -331,21 +344,35 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
         return CompletableFuture.supplyAsync(() -> {
             projectManager.get(c.projectName()).repos().remove(c.repositoryName());
             return null;
-        }, repositoryWorker);
+        }, repositoryWorker).thenRun(repoStatusManager::refreshReadOnlyMetrics);
     }
 
     private CompletableFuture<Void> unremoveRepository(UnremoveRepositoryCommand c) {
         return CompletableFuture.supplyAsync(() -> {
             projectManager.get(c.projectName()).repos().unremove(c.repositoryName());
             return null;
-        }, repositoryWorker);
+        }, repositoryWorker).thenRun(repoStatusManager::refreshReadOnlyMetrics);
     }
 
     private CompletableFuture<Void> purgeRepository(PurgeRepositoryCommand c) {
         return CompletableFuture.supplyAsync(() -> {
             projectManager.get(c.projectName()).repos().markForPurge(c.repositoryName());
             return null;
-        }, repositoryWorker);
+        }, repositoryWorker).thenCompose(unused -> {
+            if (projectManager.exists(c.projectName()) &&
+                projectManager.get(c.projectName()).repos().exists(c.repositoryName())) {
+                // markForPurge() was a no-op because the repository was not in the removed state;
+                // keep its status so read-only enforcement is not silently defeated.
+                return CompletableFuture.<Void>completedFuture(null);
+            }
+            // Best-effort cleanup: a failure here must not fail the already-applied purge command.
+            return repoStatusManager.removeRepoStatus(c.projectName(), c.repositoryName(), c.author())
+                                    .exceptionally(cause -> {
+                                        logger.warn("Failed to remove the status of the purged repository:" +
+                                                    " {}/{}", c.projectName(), c.repositoryName(), cause);
+                                        return null;
+                                    });
+        });
     }
 
     private CompletableFuture<Void> migrateToEncryptedRepository(MigrateToEncryptedRepositoryCommand c) {
