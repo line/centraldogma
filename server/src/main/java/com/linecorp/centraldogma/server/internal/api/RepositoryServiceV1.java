@@ -374,7 +374,7 @@ public class RepositoryServiceV1 extends AbstractService {
                     }, ctx.blockingTaskExecutor())
                     .thenCompose(command -> executor().execute(command))
                     .thenApply(headRevision -> new RecoverRepositoryResponse(
-                            RecoverRepositoryResponse.RecoveryStatus.COMPLETED, headRevision.major()));
+                            RecoveryStatus.COMPLETED, headRevision.major()));
         }
 
         // Ask the source replica to originate the recovery via the replication log. The recovery completes
@@ -384,7 +384,7 @@ public class RepositoryServiceV1 extends AbstractService {
         return execute(Command.recoverRepositoryRequest(author, projectName, repoName, sourceServerId,
                                                         fromRevision))
                 .thenApply(unused -> new RecoverRepositoryResponse(
-                        RecoverRepositoryResponse.RecoveryStatus.REQUESTED, null));
+                        RecoveryStatus.REQUESTED, null));
     }
 
     /**

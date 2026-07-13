@@ -29,18 +29,6 @@ import com.google.common.base.MoreObjects;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public final class RecoverRepositoryResponse {
 
-    public enum RecoveryStatus {
-        /**
-         * The request landed on the source replica and the recovery has been applied.
-         */
-        COMPLETED,
-        /**
-         * The source replica has been asked over the replication log to originate the recovery
-         * asynchronously.
-         */
-        REQUESTED
-    }
-
     private final RecoveryStatus status;
     @Nullable
     private final Integer headRevision;
