@@ -46,6 +46,7 @@ import {
   UpdateServerStatusRequest,
 } from 'dogma/features/settings/server-status/ServerStatusDto';
 import { ReplicationStatus, RepositoryStatus } from 'dogma/features/settings/repo-status/RepoStatusDto';
+import { RecoverRepositoryResponse, ReplicaInfo } from 'dogma/features/settings/recovery/RecoveryDto';
 import Router from 'next/router';
 import { VariableDto } from 'dogma/features/project/settings/variables/VariableDto';
 import { XdsApp, XdsClientStatus, XdsSnapshot } from 'dogma/features/xds/ControlPlaneStatusDto';
@@ -483,6 +484,23 @@ export const apiSlice = createApi({
       // The project and repository lists carry the replication status, so they go stale as well.
       invalidatesTags: ['RepoStatus', 'Project', 'Repo'],
     }),
+    getReplicas: builder.query<ReplicaInfo[], void>({
+      query: () => '/api/v1/replicas',
+      // An empty list is returned as 204 No Content in standalone (non-replicated) mode.
+      transformResponse: (response: ReplicaInfo[] | null) => response ?? [],
+    }),
+    recoverRepository: builder.mutation<
+      RecoverRepositoryResponse,
+      { projectName: string; repoName: string; fromRevision: number; sourceServerId: number }
+    >({
+      query: ({ projectName, repoName, fromRevision, sourceServerId }) => ({
+        url: `/api/v1/projects/${projectName}/repos/${repoName}/recover`,
+        method: 'POST',
+        body: { fromRevision, sourceServerId },
+      }),
+      // Recovery rewrites the repository history on the other replicas.
+      invalidatesTags: ['Repo'],
+    }),
     getProjectCredentials: builder.query<CredentialDto[], string>({
       query: (projectName) => `/api/v1/projects/${projectName}/credentials`,
       transformResponse: (response: CredentialDto[]) => addIdFromCredentialNames(response),
@@ -704,6 +722,9 @@ export const {
   // Repository Status
   useGetReadOnlyReposQuery,
   useUpdateRepositoryStatusMutation,
+  // Repository Recovery
+  useGetReplicasQuery,
+  useRecoverRepositoryMutation,
   // Credential
   useGetProjectCredentialsQuery,
   useGetCredentialQuery,
