@@ -46,21 +46,15 @@ service XdsGroupService {
 message CreateGroupRequest {
   string group_id = 1 [(google.api.field_behavior) = REQUIRED];
   Group group = 2 [(google.api.field_behavior) = REQUIRED];
-
-  // The commit summary for this change. If not specified, a default message is used.
-  string summary = 3 [(google.api.field_behavior) = OPTIONAL];
 }
 
 message DeleteGroupRequest {
   // Format: groups/{group}
   string name = 1 [(google.api.field_behavior) = IDENTIFIER];
 
-  // The commit summary for this change. If not specified, a default message is used.
-  string summary = 2 [(google.api.field_behavior) = OPTIONAL];
-
   // If set to true, any xds Resources from this group will also be deleted.
   // (Otherwise, the request will only work if the group has no xDS resources.)
-  // bool force = 3;
+  // bool force = 2;
 }
 
 message Group {
