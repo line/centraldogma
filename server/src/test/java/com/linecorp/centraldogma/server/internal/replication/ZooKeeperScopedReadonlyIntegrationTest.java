@@ -66,6 +66,7 @@ import com.linecorp.centraldogma.server.plugin.PluginTarget;
 import com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.testing.internal.CentralDogmaReplicationExtension;
+import com.linecorp.centraldogma.testing.internal.CentralDogmaRuleDelegate;
 
 class ZooKeeperScopedReadonlyIntegrationTest {
 
@@ -413,6 +414,44 @@ class ZooKeeperScopedReadonlyIntegrationTest {
     }
 
     @Test
+    void replicationOnlyReplicaReplaysWhileSiblingRepoReadonly() {
+        // serverId == 2 in configureEach() is the fault-injected replica.
+        final CentralDogmaRuleDelegate faultReplica = replica.serverById(2);
+        final BlockingWebClient faultReplicaAdmin = faultReplica.blockingHttpClient();
+
+        // Drive TEST_REPO1 into cluster-wide repo-scope READ_ONLY, then also put the fault-injected replica
+        // into LOCAL REPLICATION_ONLY, so both read-only gates are active on it at once.
+        driveRepoIntoReadOnly(testProject1, TEST_REPO1);
+        enterReplicationOnly(faultReplicaAdmin);
+
+        // The origin pushes to the still-writable sibling repo.
+        final PushResult pushed = client0.forRepo(testProject1, TEST_REPO2)
+                                         .commit("push-to-writable-sibling",
+                                                 Change.ofJsonUpsert("/sibling.json", "{ \"b\": 1 }"))
+                                         .push()
+                                         .join();
+
+        // The replica must replay it despite the server-level REPLICATION_ONLY gate and the sibling
+        // READ_ONLY repo — neither exemption may drop the log entry.
+        final CentralDogmaRepository repo2OnReplica = faultReplica.client().forRepo(testProject1, TEST_REPO2);
+        await().ignoreExceptions().untilAsserted(() -> {
+            final Revision localHead = repo2OnReplica.normalize(Revision.HEAD).join();
+            assertThat(localHead.major()).isGreaterThanOrEqualTo(pushed.revision().major());
+        });
+        final Entry<JsonNode> entry = repo2OnReplica.file(Query.ofJson("/sibling.json")).get().join();
+        assertThat(entry.content().get("b").asInt()).isEqualTo(1);
+
+        // Neither gate flipped. Repo scopes are asserted on a writable replica, because a locally
+        // read-only replica composes its server status into every per-repo status.
+        final BlockingWebClient webClient0 = replica.servers().get(0).blockingHttpClient();
+        assertThat(getRepoStatus(webClient0, testProject1, TEST_REPO1).status())
+                .isEqualTo(ReplicationStatus.READ_ONLY);
+        assertThat(getRepoStatus(webClient0, testProject1, TEST_REPO2).status())
+                .isEqualTo(ReplicationStatus.WRITABLE);
+        assertThat(getServerStatus(faultReplicaAdmin)).isEqualTo(ServerStatus.REPLICATION_ONLY);
+    }
+
+    @Test
     void serverReadonlySupersedesRepositoryReadonly() {
         final CentralDogmaRepository victimRepo = client0.forRepo(testProject1, TEST_REPO1);
         victimRepo.commit("seed-victim", Change.ofJsonUpsert("/v.json", "{ \"v\": 1 }"))
@@ -679,6 +718,38 @@ class ZooKeeperScopedReadonlyIntegrationTest {
         // Server status is unchanged — force-push didn't undo the REPLICATION_ONLY.
         final BlockingWebClient client1 = replica.servers().get(1).blockingHttpClient();
         assertThat(getServerStatus(client1)).isEqualTo(ServerStatus.REPLICATION_ONLY);
+    }
+
+    private static void enterReplicationOnly(BlockingWebClient admin) {
+        final ResponseEntity<ServerStatus> statusResponse =
+                admin.prepare()
+                     .put("/api/v1/status")
+                     .contentJson(new UpdateServerStatusRequest(ServerStatus.REPLICATION_ONLY, Scope.LOCAL))
+                     .asJson(ServerStatus.class)
+                     .execute();
+        assertThat(statusResponse.status()).isEqualTo(HttpStatus.OK);
+        await().untilAsserted(
+                () -> assertThat(getServerStatus(admin)).isEqualTo(ServerStatus.REPLICATION_ONLY));
+    }
+
+    private static void driveRepoIntoReadOnly(String projectName, String repoName) {
+        final CentralDogmaRepository repo = client0.forRepo(projectName, repoName);
+        repo.commit("seed", Change.ofJsonUpsert("/a.json", "{ \"a\": 1 }")).push().join();
+        faultInjector.injectFault(Command.push(
+                Author.DEFAULT, projectName, repoName, Revision.HEAD,
+                "inject fault", "", Markup.PLAINTEXT,
+                ImmutableList.of(Change.ofJsonUpsert("/a.json", "{ \"a\": 3 }"))));
+        repo.commit("divergence",
+                    Change.ofJsonPatch("/a.json",
+                                       JsonPatchOperation.safeReplace("/a", new IntNode(1), new IntNode(2))))
+            .push()
+            .join();
+        // Confirm the repo-scope escalation on a writable replica; a locally read-only replica would
+        // compose its server status into every per-repo status.
+        final BlockingWebClient writableReplica = replica.servers().get(0).blockingHttpClient();
+        await().untilAsserted(() -> assertThat(
+                getRepoStatus(writableReplica, projectName, repoName).status())
+                .isEqualTo(ReplicationStatus.READ_ONLY));
     }
 
     private static RepositoryDto getRepoStatus(BlockingWebClient client, String projectName, String repoName) {

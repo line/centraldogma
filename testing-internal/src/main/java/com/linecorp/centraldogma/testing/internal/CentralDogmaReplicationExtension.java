@@ -86,6 +86,20 @@ public class CentralDogmaReplicationExtension extends AbstractAllOrEachExtension
         return dogmaCluster;
     }
 
+    /**
+     * Returns the server with the specified 1-based {@code serverId}, matching the {@code serverId} passed to
+     * {@link #configureEach(int, CentralDogmaBuilder)}. Note that {@link #servers()} is 0-based, so
+     * {@code serverById(2)} is {@code servers().get(1)}.
+     */
+    public CentralDogmaRuleDelegate serverById(int serverId) {
+        final List<CentralDogmaRuleDelegate> servers = servers();
+        if (serverId < 1 || serverId > servers.size()) {
+            throw new IllegalArgumentException(
+                    "serverId: " + serverId + " (expected: 1.." + servers.size() + ')');
+        }
+        return servers.get(serverId - 1);
+    }
+
     private List<CentralDogmaRuleDelegate> newDogmaCluster(int numReplicas) throws IOException {
         final ImmutableMap.Builder<Integer, ZooKeeperServerConfig> builder =
                 ImmutableMap.builderWithExpectedSize(numReplicas);
