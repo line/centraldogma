@@ -244,7 +244,9 @@ const RecoverRepositoryForm = () => {
         read-only first and stays read-only afterwards, until you make it writable on the Repository Status
         page.
       </Text>
-      <Flex gap={4} align="flex-end" wrap="wrap">
+      {/* The fields wrap on a narrow viewport, so the action lives on its own row and never ends up
+          floating in the middle of a wrapped one. */}
+      <Flex gap={4} align="flex-start" wrap="wrap">
         <FormControl maxW="xs">
           <FormLabel>Project</FormLabel>
           <Select<Option>
@@ -292,7 +294,7 @@ const RecoverRepositoryForm = () => {
             chakraStyles={controlStyles}
           />
         </FormControl>
-        <FormControl maxW="3xs">
+        <FormControl maxW="2xs">
           <FormLabel>Start revision</FormLabel>
           <NumberInput
             min={2}
@@ -305,8 +307,10 @@ const RecoverRepositoryForm = () => {
               <NumberDecrementStepper />
             </NumberInputStepper>
           </NumberInput>
-          <FormHelperText>Replays this revision through the source head.</FormHelperText>
+          <FormHelperText>Replayed through the source head.</FormHelperText>
         </FormControl>
+      </Flex>
+      <Flex mt="4" justify="flex-end">
         <Button colorScheme="red" onClick={handleOpen} isDisabled={!complete}>
           Recover
         </Button>
