@@ -58,6 +58,8 @@ import com.linecorp.centraldogma.common.Commit;
 import com.linecorp.centraldogma.common.RepositoryExistsException;
 import com.linecorp.centraldogma.common.RepositoryNotFoundException;
 import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.server.command.CommitResult;
+import com.linecorp.centraldogma.server.command.ReplayCommit;
 import com.linecorp.centraldogma.server.internal.JGitUtil;
 import com.linecorp.centraldogma.server.internal.storage.DirectoryBasedStorageManager;
 import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryCache;
@@ -266,6 +268,128 @@ public final class GitRepositoryManager extends DirectoryBasedStorageManager<Rep
         } catch (Throwable t) {
             logger.warn("Failed to delete the encrypted repository data for the repository '{}' " +
                         "after fallback. ", projectRepositoryName(repositoryName), t);
+        }
+    }
+
+    @Override
+    public void recoverRepository(String repositoryName, Revision resetToRevision, List<ReplayCommit> commits) {
+        requireNonNull(repositoryName, "repositoryName");
+        requireNonNull(resetToRevision, "resetToRevision");
+        requireNonNull(commits, "commits");
+        logger.info("Starting to recover the repository '{}' (reset to {}, replay {} commits).",
+                    projectRepositoryName(repositoryName), resetToRevision, commits.size());
+        final long startTime = System.nanoTime();
+        final GitRepository old = (GitRepository) get(repositoryName);
+        if (old.isEncrypted()) {
+            throw new StorageException("recovery is not supported for an encrypted repository: " +
+                                       projectRepositoryName(repositoryName));
+        }
+        if (commits.isEmpty()) {
+            return;
+        }
+
+        // Skip if the repository is already converged with the source (the source replica itself, or a
+        // healthy replica): its HEAD revision and commit id already match the last replayed commit. This
+        // keeps the source untouched and makes recovery idempotent.
+        final ReplayCommit lastCommit = commits.get(commits.size() - 1);
+        final String expectedHeadCommitId = lastCommit.expectedCommitId();
+        final Revision currentHead = old.normalizeNow(Revision.HEAD);
+        if (expectedHeadCommitId != null && currentHead.equals(lastCommit.revision())) {
+            final ObjectId currentHeadCommitId = old.commitIdDatabase().get(currentHead);
+            if (currentHeadCommitId != null && expectedHeadCommitId.equals(currentHeadCommitId.name())) {
+                logger.debug("Repository '{}' is already at {} ({}); skipping recovery.",
+                             projectRepositoryName(repositoryName), currentHead, expectedHeadCommitId);
+                return;
+            }
+        }
+
+        // Remember the current HEAD so the old repository can be restored if recovery fails.
+        final Revision originalHeadRevision = old.normalizeNow(Revision.HEAD);
+        final ObjectId originalHeadCommitId = old.commitIdDatabase().get(originalHeadRevision);
+        final ObjectId resetToCommitId = old.commitIdDatabase().get(resetToRevision);
+        final File repoDir = old.repoDir();
+
+        // Quiesce the old repository so no read observes a partially rebuilt commit-id database while the new
+        // repository is opened on the same directory.
+        old.writeLock();
+        GitRepository neo = null;
+        boolean swapped = false;
+        try {
+            // Force-move master backward to the reset revision, then reopen so that openFileRepository()
+            // rebuilds the commit-id database to match the new HEAD.
+            forceMoveMaster(old.jGitRepository(), resetToCommitId);
+            neo = openFileRepository(parent, repoDir, repositoryWorker, cache);
+
+            // Replay the source commits so every replica converges to the same commit ids.
+            for (ReplayCommit commit : commits) {
+                final Revision revision = commit.revision();
+                final CommitResult result = neo.commit(
+                        revision.backward(1), commit.timestampMillis(), commit.author(), commit.summary(),
+                        commit.detail(), commit.markup(), commit.changes(), false).join();
+                if (!revision.equals(result.revision())) {
+                    throw new StorageException("unexpected replayed revision: " + result.revision() +
+                                               " (expected: " + revision + ')');
+                }
+                final String expectedCommitId = commit.expectedCommitId();
+                if (expectedCommitId != null) {
+                    final String actualCommitId = neo.commitIdDatabase().get(revision).name();
+                    if (!expectedCommitId.equals(actualCommitId)) {
+                        throw new StorageException(
+                                "commit id mismatch while recovering '" +
+                                projectRepositoryName(repositoryName) + "' at " + revision + " (expected: " +
+                                expectedCommitId + ", actual: " + actualCommitId + "). Revisions up to " +
+                                resetToRevision + " may have diverged.");
+                    }
+                }
+            }
+
+            if (!replaceChild(repositoryName, old, neo)) {
+                throw new StorageException("failed to replace the repository after recovery: " +
+                                           projectRepositoryName(repositoryName));
+            }
+            swapped = true;
+        } catch (Throwable t) {
+            throw new StorageException("failed to recover the repository '" +
+                                       projectRepositoryName(repositoryName) + "' (reset to " +
+                                       resetToRevision + ')', t);
+        } finally {
+            if (!swapped) {
+                // Roll back so the (still diverged) old repository stays internally consistent.
+                if (neo != null) {
+                    neo.internalClose();
+                }
+                try {
+                    forceMoveMaster(old.jGitRepository(), originalHeadCommitId);
+                    old.commitIdDatabase().rebuild(old.jGitRepository());
+                    old.setHeadRevision(originalHeadRevision);
+                } catch (Throwable t2) {
+                    logger.error("Failed to roll back the repository '{}' after a failed recovery.",
+                                 projectRepositoryName(repositoryName), t2);
+                }
+            }
+            old.writeUnLock();
+        }
+
+        // Transfer listeners from the old repository to the recovered one, then close the old repository.
+        for (RepositoryListener listener : old.listeners()) {
+            neo.addListener(listener);
+        }
+        final BiConsumer<String, Repository> callback = postMigrationCallback;
+        if (callback != null) {
+            callback.accept(repositoryName, neo);
+        }
+        old.close(() -> new CentralDogmaException(
+                projectRepositoryName(repositoryName) + " is recovered. Try again."));
+        logger.info("Recovered the repository '{}' to {} in {} seconds.",
+                    projectRepositoryName(repositoryName), neo.normalizeNow(Revision.HEAD),
+                    TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startTime));
+    }
+
+    private static void forceMoveMaster(org.eclipse.jgit.lib.Repository jGitRepository, ObjectId commitId) {
+        try (RevWalk revWalk = newRevWalk(jGitRepository.newObjectReader())) {
+            GitRepository.doForceRefUpdate(jGitRepository, revWalk, R_HEADS_MASTER, commitId);
+        } catch (IOException e) {
+            throw new StorageException("failed to force-move " + R_HEADS_MASTER + " to " + commitId.name(), e);
         }
     }
 

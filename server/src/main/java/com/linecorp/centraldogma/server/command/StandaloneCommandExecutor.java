@@ -28,6 +28,7 @@ import org.slf4j.LoggerFactory;
 
 import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.centraldogma.common.ReadOnlyException;
+import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.server.auth.Session;
 import com.linecorp.centraldogma.server.auth.SessionManager;
 import com.linecorp.centraldogma.server.internal.management.RepoStatusManager;
@@ -244,6 +245,15 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
             return doExecute0(ctx, ((ForcePushCommand<T>) command).delegate());
         }
 
+        if (command instanceof RecoverRepositoryRequestCommand) {
+            // Applied as a no-op on every replica; the source replica reacts to it in the ZooKeeper layer.
+            return (CompletableFuture<T>) CompletableFuture.completedFuture(null);
+        }
+
+        if (command instanceof RecoverRepositoryCommand) {
+            return (CompletableFuture<T>) recoverRepository((RecoverRepositoryCommand) command);
+        }
+
         throw new UnsupportedOperationException(command.toString());
     }
 
@@ -430,6 +440,17 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
 
     private Repository repo(RepositoryCommand<?> c) {
         return projectManager.get(c.projectName()).repos().get(c.repositoryName());
+    }
+
+    private CompletableFuture<Revision> recoverRepository(RecoverRepositoryCommand c) {
+        return CompletableFuture.supplyAsync(() -> {
+            // The manager no-ops when the repository is already converged (the source or a healthy replica),
+            // otherwise it resets to c.resetToRevision() and replays c.commits(). The result is always the
+            // source head so every replica returns the same value (the replication log verifies equality).
+            projectManager.get(c.projectName()).repos()
+                          .recoverRepository(c.repositoryName(), c.resetToRevision(), c.commits());
+            return c.headRevision();
+        }, repositoryWorker);
     }
 
     private CompletableFuture<Void> rewrapAllKeys() {
