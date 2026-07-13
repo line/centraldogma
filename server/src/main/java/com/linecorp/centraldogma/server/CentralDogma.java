@@ -623,7 +623,7 @@ public class CentralDogma implements AutoCloseable {
         }
 
         statusManager = new ServerStatusManager(cfg.dataDir());
-        repoStatusManager = new RepoStatusManager(statusManager, pm);
+        repoStatusManager = new RepoStatusManager(statusManager, pm, meterRegistry);
         logger.info("Startup mode: {}", statusManager.serverStatus());
         final CommandExecutor executor;
         final ReplicationMethod replicationMethod = cfg.replicationConfig().method();
@@ -650,6 +650,11 @@ public class CentralDogma implements AutoCloseable {
 
         final ServerStatus initialServerStatus = statusManager.serverStatus();
         executor.setWritable(initialServerStatus.writable());
+        if (executor instanceof ZooKeeperCommandExecutor) {
+            // setWritable() on the outer executor does not reach the inner delegate, so a restarted
+            // read-only replica would leave the delegate writable. Keep them in sync.
+            ((ZooKeeperCommandExecutor) executor).unwrap().setWritable(initialServerStatus.writable());
+        }
         if (!initialServerStatus.replicating()) {
             projectInitializer.initializeInReadOnlyMode();
             repoStatusManager.initialize();
@@ -1020,8 +1025,8 @@ public class CentralDogma implements AutoCloseable {
         assert statusManager != null && repoStatusManager != null;
         final ContextPathServicesBuilder apiV1ServiceBuilder = sb.contextPath(API_V1_PATH_PREFIX);
         apiV1ServiceBuilder
-                .annotatedService(new ServerStatusService(executor, statusManager))
-                .annotatedService(new ProjectServiceV1(projectApiManager, executor))
+                .annotatedService(new ServerStatusService(executor, statusManager, repoStatusManager))
+                .annotatedService(new ProjectServiceV1(projectApiManager, executor, repoStatusManager))
                 .annotatedService(new RepositoryServiceV1(executor, mds, encryptionStorageManager,
                                                           repoStatusManager))
                 .annotatedService(new CredentialServiceV1(projectApiManager, executor))

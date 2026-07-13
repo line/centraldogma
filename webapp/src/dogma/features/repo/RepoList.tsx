@@ -2,6 +2,7 @@ import { ColumnDef, createColumnHelper } from '@tanstack/react-table';
 import { DateWithTooltip } from 'dogma/common/components/DateWithTooltip';
 import { DataTableClientPagination } from 'dogma/common/components/table/DataTableClientPagination';
 import { RepoDto } from 'dogma/features/repo/RepoDto';
+import { RepoStatusTag } from 'dogma/features/repo/RepoStatusTag';
 import { useMemo } from 'react';
 import { Author } from 'dogma/common/components/Author';
 import { RepoIcon } from 'dogma/common/components/RepoIcon';
@@ -18,6 +19,10 @@ const RepoList = <Data extends object>({ data, projectName }: RepoListProps<Data
       columnHelper.accessor((row: RepoDto) => row.name, {
         cell: (info) => <RepoIcon projectName={projectName} repoName={info.getValue()} isActive={true} />,
         header: 'Name',
+      }),
+      columnHelper.accessor((row: RepoDto) => row.status, {
+        cell: (info) => <RepoStatusTag status={info.getValue()} />,
+        header: 'Status',
       }),
       columnHelper.accessor((row: RepoDto) => row.creator.name, {
         cell: (info) => <Author name={info.getValue()} />,

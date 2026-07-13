@@ -24,6 +24,7 @@ import java.util.Objects;
 import org.jspecify.annotations.Nullable;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -39,6 +40,8 @@ public final class RepositoryState {
     private final String projectName;
     private final String repoName;
     private final ReplicationStatus status;
+    // Serialize as an ISO-8601 string to match the rest of the API (e.g. RepositoryDto.createdAt).
+    @JsonFormat(shape = JsonFormat.Shape.STRING)
     @Nullable
     private final Instant updatedAt;
 

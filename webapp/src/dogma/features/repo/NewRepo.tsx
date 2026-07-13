@@ -1,4 +1,5 @@
 import {
+  Box,
   Button,
   FormControl,
   FormErrorMessage,
@@ -13,6 +14,7 @@ import {
   PopoverHeader,
   PopoverTrigger,
   Spacer,
+  Tooltip,
   useDisclosure,
 } from '@chakra-ui/react';
 import { useAddNewRepoMutation } from 'dogma/features/api/apiSlice';
@@ -25,6 +27,7 @@ import { FetchBaseQueryError } from '@reduxjs/toolkit/query';
 import ErrorMessageParser from 'dogma/features/services/ErrorMessageParser';
 import { IoMdArrowDropdown } from 'react-icons/io';
 import { WithProjectRole } from 'dogma/features/auth/ProjectRole';
+import { PROJECT_READ_ONLY_HINT, useProjectReadOnly } from 'dogma/features/repo/useReadOnly';
 
 const ENTITY_NAME_PATTERN = /^[0-9A-Za-z](?:[-+_0-9A-Za-z.]*[0-9A-Za-z])?$/;
 
@@ -34,6 +37,7 @@ type FormData = {
 
 export const NewRepo = ({ projectName }: { projectName: string }) => {
   const [addNewRepo, { isLoading }] = useAddNewRepoMutation();
+  const projectReadOnly = useProjectReadOnly(projectName);
   const {
     register,
     handleSubmit,
@@ -61,6 +65,24 @@ export const NewRepo = ({ projectName }: { projectName: string }) => {
       dispatch(newNotification('Failed to create a new repository', ErrorMessageParser.parse(error), 'error'));
     }
   };
+
+  // A disabled button swallows pointer events, so the hint has to sit on a wrapper. The button also
+  // cannot stay a PopoverTrigger child, which would anchor the popover to that wrapper instead.
+  if (projectReadOnly) {
+    return (
+      <WithProjectRole projectName={projectName} roles={['OWNER', 'MEMBER']}>
+        {() => (
+          <Tooltip label={PROJECT_READ_ONLY_HINT}>
+            <Box>
+              <Button colorScheme="teal" size="sm" isDisabled rightIcon={<IoMdArrowDropdown />}>
+                New Repository
+              </Button>
+            </Box>
+          </Tooltip>
+        )}
+      </WithProjectRole>
+    );
+  }
 
   return (
     <WithProjectRole projectName={projectName} roles={['OWNER', 'MEMBER']}>

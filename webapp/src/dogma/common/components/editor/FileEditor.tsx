@@ -10,6 +10,7 @@ import {
   TabPanel,
   TabPanels,
   Tabs,
+  Tooltip,
   useColorMode,
   useDisclosure,
 } from '@chakra-ui/react';
@@ -32,6 +33,7 @@ import { useLocalMonaco } from 'dogma/features/file/MonacoLoader';
 import { Loading } from 'dogma/common/components/Loading';
 import { useGetFileContentQuery } from 'dogma/features/api/apiSlice';
 import ErrorMessageParser from 'dogma/features/services/ErrorMessageParser';
+import { useReadOnly } from 'dogma/features/repo/useReadOnly';
 
 export type FileEditorProps = {
   projectName: string;
@@ -73,6 +75,7 @@ const FileEditor = ({
   revision,
 }: FileEditorProps) => {
   const language = extensionToLanguageMap[extension] || extension;
+  const [repoReadOnly, readOnlyHint] = useReadOnly(projectName, repoName);
   const [tabIndex, setTabIndex] = useState(0);
   const handleTabChange = (index: number) => {
     setTabIndex(index);
@@ -166,26 +169,30 @@ const FileEditor = ({
           History
         </Button>
         {projectName !== 'dogma' && repoName !== 'dogma' && (
-          <>
-            <Button
-              onClick={switchMode}
-              leftIcon={readOnly ? <FcEditImage /> : <FcCancel />}
-              colorScheme={readOnly ? 'teal' : 'blue'}
-              variant="outline"
-              size="sm"
-            >
-              {readOnly ? 'Edit' : 'Cancel changes'}
-            </Button>
-            <Button
-              onClick={onDeleteModalOpen}
-              leftIcon={<AiOutlineDelete />}
-              colorScheme="red"
-              display={readOnly ? 'visible' : 'none'}
-              size="sm"
-            >
-              Delete
-            </Button>
-          </>
+          <Tooltip label={readOnlyHint} isDisabled={!repoReadOnly}>
+            <Flex gap={4}>
+              <Button
+                onClick={switchMode}
+                isDisabled={repoReadOnly}
+                leftIcon={readOnly ? <FcEditImage /> : <FcCancel />}
+                colorScheme={readOnly ? 'teal' : 'blue'}
+                variant="outline"
+                size="sm"
+              >
+                {readOnly ? 'Edit' : 'Cancel changes'}
+              </Button>
+              <Button
+                onClick={onDeleteModalOpen}
+                isDisabled={repoReadOnly}
+                leftIcon={<AiOutlineDelete />}
+                colorScheme="red"
+                display={readOnly ? 'visible' : 'none'}
+                size="sm"
+              >
+                Delete
+              </Button>
+            </Flex>
+          </Tooltip>
         )}
       </Flex>
       <Tabs

@@ -33,6 +33,8 @@ public interface ExecutionContext {
 
     /**
      * Returns {@code true} if the command is being executed as part of a replay.
+     * A replayed command bypasses the read-only checks so that a read-only replica keeps applying
+     * the replication log.
      */
     boolean isReplay();
 }

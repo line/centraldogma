@@ -19,12 +19,24 @@ package com.linecorp.centraldogma.server.management;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
- * The status of the server.
+ * The status of the server, expressed as a combination of the {@code writable} and {@code replicating}
+ * properties.
  */
 public enum ServerStatus {
 
+    /**
+     * The server rejects writes and stops replaying the replication log. The replica no longer follows the
+     * cluster, so it must be re-synced manually before it can safely rejoin.
+     */
     READ_ONLY(false, false),
+    /**
+     * The server rejects client writes but keeps replaying the replication log, so the replica stays in
+     * sync with the cluster while serving reads.
+     */
     REPLICATION_ONLY(false, true),
+    /**
+     * The server accepts writes and replays the replication log. This is the normal operating status.
+     */
     WRITABLE(true, true);
 
     private final boolean writable;
