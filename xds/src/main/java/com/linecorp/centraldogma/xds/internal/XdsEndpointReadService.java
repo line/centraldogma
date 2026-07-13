@@ -91,7 +91,7 @@ public final class XdsEndpointReadService {
                          .thenCompose(entries -> {
                              if (entries.isEmpty()) {
                                  // Delegate to get() so the caller receives a proper EntryNotFoundException.
-                                 return repository.get(Revision.HEAD, pathBase + ".json")
+                                 return repository.get(Revision.HEAD, pathBase + ".yaml")
                                                   .thenApply(XdsEndpointReadService::toNode);
                              }
                              return CompletableFuture.completedFuture(

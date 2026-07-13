@@ -19,7 +19,6 @@ import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.XDS_CENT
 import static com.linecorp.centraldogma.xds.internal.ControlPlaneService.ENDPOINTS_DIRECTORY;
 import static com.linecorp.centraldogma.xds.internal.ControlPlaneService.K8S_ENDPOINTS_DIRECTORY;
 import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.JSON_MESSAGE_MARSHALLER;
-import static com.linecorp.centraldogma.xds.internal.XdsTestUtil.createEndpoint;
 import static com.linecorp.centraldogma.xds.internal.XdsTestUtil.createGroup;
 import static com.linecorp.centraldogma.xds.internal.XdsTestUtil.loadAssignment;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -56,8 +55,7 @@ class XdsEndpointReadServiceTest {
     void listEndpoints_jsonFileAppearsWithJsonType() throws Exception {
         final ClusterLoadAssignment endpoint =
                 loadAssignment("groups/" + GROUP + "/endpoints/list-json", "127.0.0.1", 8080);
-        assertThat(createEndpoint("groups/" + GROUP, "list-json", endpoint, dogma.httpClient())
-                           .status()).isSameAs(HttpStatus.OK);
+        pushJsonEndpoint("list-json", endpoint);
 
         final AggregatedHttpResponse response = listEndpoints();
         assertThat(response.status()).isSameAs(HttpStatus.OK);
@@ -89,8 +87,7 @@ class XdsEndpointReadServiceTest {
     void listEndpoints_mixedJsonAndYamlBothAppear() throws Exception {
         final ClusterLoadAssignment jsonEndpoint =
                 loadAssignment("groups/" + GROUP + "/endpoints/list-mix-json", "127.0.0.1", 8082);
-        assertThat(createEndpoint("groups/" + GROUP, "list-mix-json", jsonEndpoint, dogma.httpClient())
-                           .status()).isSameAs(HttpStatus.OK);
+        pushJsonEndpoint("list-mix-json", jsonEndpoint);
 
         final ClusterLoadAssignment yamlEndpoint =
                 loadAssignment("groups/" + GROUP + "/endpoints/list-mix-yaml", "127.0.0.1", 8083);
@@ -132,8 +129,7 @@ class XdsEndpointReadServiceTest {
     void getEndpoint_jsonFileReturnsContentWithJsonType() throws Exception {
         final ClusterLoadAssignment endpoint =
                 loadAssignment("groups/" + GROUP + "/endpoints/get-json", "127.0.0.1", 8090);
-        assertThat(createEndpoint("groups/" + GROUP, "get-json", endpoint, dogma.httpClient())
-                           .status()).isSameAs(HttpStatus.OK);
+        pushJsonEndpoint("get-json", endpoint);
 
         final AggregatedHttpResponse response = getEndpoint("get-json");
         assertThat(response.status()).isSameAs(HttpStatus.OK);
@@ -221,6 +217,16 @@ class XdsEndpointReadServiceTest {
         return dogma.httpClient()
                     .get("/api/v1/xds/groups/" + GROUP + "/k8s/endpoints/" + id)
                     .aggregate().join();
+    }
+
+    private static void pushJsonEndpoint(String endpointId, ClusterLoadAssignment endpoint)
+            throws Exception {
+        dogma.client().forRepo(XDS_CENTRAL_DOGMA_PROJECT, GROUP)
+             .commit("Add JSON endpoint: " + endpointId,
+                     Change.ofJsonUpsert(ENDPOINTS_DIRECTORY + endpointId + ".json",
+                                         Jackson.readTree(
+                                                 JSON_MESSAGE_MARSHALLER.writeValueAsString(endpoint))))
+             .push().join();
     }
 
     private static void pushYamlEndpoint(String endpointId, ClusterLoadAssignment endpoint)

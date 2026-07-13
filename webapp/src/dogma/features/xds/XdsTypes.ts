@@ -48,17 +48,17 @@ export interface GroupDto {
 
 export interface XdsResourceDto {
   // The resource id, i.e. the file path under the type directory without the
-  // leading '/{type}/' prefix and the trailing '.json' suffix.
+  // leading '/{type}/' prefix and the trailing file extension (.yaml or .json).
   id: string;
-  // The full repository path, e.g. '/clusters/foo.json'.
+  // The full repository path, e.g. '/clusters/foo.yaml'.
   path: string;
   revision: number;
 }
 
-// The full xDS resource name derived from its repository path, e.g. group 'foo' + '/clusters/c1.json'
+// The full xDS resource name derived from its repository path, e.g. group 'foo' + '/clusters/c1.yaml'
 // becomes 'groups/foo/clusters/c1'. This matches the `name` the server assigns to CDS/LDS/RDS resources.
 export function resourceName(group: string, path: string): string {
-  return `groups/${group}${path.replace(/\.json$/, '')}`;
+  return `groups/${group}${path.replace(/\.(json|yaml)$/, '')}`;
 }
 
 // A starter template offered when creating a new resource of each type.
