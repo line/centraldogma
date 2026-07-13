@@ -937,14 +937,20 @@ public final class ZooKeeperCommandExecutor
                 return;
             }
             logger.info("Originating a recovery of {} as the source replica: {}", repoName, recoverCommand);
-            execute(recoverCommand).handle((revision, cause) -> {
-                if (cause != null) {
-                    logger.error("Failed to originate a recovery of {}.", repoName, cause);
-                } else {
-                    logger.info("Successfully originated a recovery of {}. head: {}", repoName, revision);
-                }
-                return null;
-            });
+            try {
+                execute(recoverCommand).handle((revision, cause) -> {
+                    if (cause != null) {
+                        logger.error("Failed to originate a recovery of {}.", repoName, cause);
+                    } else {
+                        logger.info("Successfully originated a recovery of {}. head: {}", repoName,
+                                    revision);
+                    }
+                    return null;
+                });
+            } catch (Throwable t) {
+                // execute() throws synchronously when the executor is stopping or the server is read-only.
+                logger.error("Failed to originate a recovery of {}.", repoName, t);
+            }
         });
     }
 

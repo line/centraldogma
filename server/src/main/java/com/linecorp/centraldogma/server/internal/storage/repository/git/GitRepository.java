@@ -34,6 +34,7 @@ import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executor;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
@@ -169,6 +170,7 @@ class GitRepository implements Repository {
     @VisibleForTesting
     final CommitWatchers commitWatchers = new CommitWatchers();
     private final AtomicReference<Supplier<CentralDogmaException>> closePending = new AtomicReference<>();
+    private final AtomicBoolean closeScheduled = new AtomicBoolean();
     private final CompletableFuture<Void> closeFuture = new CompletableFuture<>();
     private final List<RepositoryListener> listeners = new CopyOnWriteArrayList<>();
 
@@ -232,7 +234,8 @@ class GitRepository implements Repository {
      */
     void close(Supplier<CentralDogmaException> failureCauseSupplier) {
         requireNonNull(failureCauseSupplier, "failureCauseSupplier");
-        if (closePending.compareAndSet(null, failureCauseSupplier)) {
+        closePending.compareAndSet(null, failureCauseSupplier);
+        if (closeScheduled.compareAndSet(false, true)) {
             repositoryWorker.execute(() -> {
                 // MUST acquire gcLock first to prevent a dead lock
                 rwLock.writeLock().lock();
@@ -242,7 +245,7 @@ class GitRepository implements Repository {
                     try {
                         rwLock.writeLock().unlock();
                     } finally {
-                        commitWatchers.close(failureCauseSupplier);
+                        commitWatchers.close(closePending.get());
                         closeFuture.complete(null);
                     }
                 }
@@ -250,6 +253,17 @@ class GitRepository implements Repository {
         }
 
         closeFuture.join();
+    }
+
+    /**
+     * Marks this repository as closed so that a new or lock-blocked read fails fast with the given cause,
+     * without releasing the underlying resources yet. {@link #close(Supplier)} must still be called
+     * afterwards. Unlike {@link #close(Supplier)}, this never blocks, so it is safe to call while holding
+     * the write lock.
+     */
+    void markClosePending(Supplier<CentralDogmaException> failureCauseSupplier) {
+        requireNonNull(failureCauseSupplier, "failureCauseSupplier");
+        closePending.compareAndSet(null, failureCauseSupplier);
     }
 
     static void closeRepository(@Nullable CommitIdDatabase commitIdDatabase,

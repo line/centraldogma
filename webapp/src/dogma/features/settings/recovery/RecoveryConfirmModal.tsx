@@ -89,15 +89,15 @@ export const RecoveryConfirmModal = ({
               <Code fontWeight="bold" colorScheme="red">
                 {target}
               </Code>{' '}
-              on every replica other than the source (server {sourceServerId}, <Code>{sourceHost}</Code>):
-              each one is reset to revision {fromRevision - 1} and replays the source&apos;s commits up to
-              its head. The source repository itself is never modified.
+              on every replica other than the source (server {sourceServerId}, <Code>{sourceHost}</Code>): each
+              one is reset to revision {fromRevision - 1} and replays the source&apos;s commits up to its head.
+              The source repository itself is never modified.
             </Text>
             <Alert status="warning" borderRadius="md" fontSize="sm">
               <AlertIcon />
               <Text>
-                Commits that exist only on a non-source replica are discarded. Make sure server{' '}
-                {sourceServerId} really holds the history you want to keep.
+                Commits that exist only on a non-source replica are discarded. Make sure server {sourceServerId}{' '}
+                really holds the history you want to keep.
               </Text>
             </Alert>
             <Text>
@@ -108,6 +108,7 @@ export const RecoveryConfirmModal = ({
                 value={typed}
                 onChange={(e) => setTyped(e.target.value)}
                 placeholder={target}
+                aria-label="Type the full project/repository name to confirm"
                 autoFocus
                 autoComplete="off"
                 onKeyDown={(e) => {

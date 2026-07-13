@@ -306,6 +306,12 @@ public final class GitRepositoryManager extends DirectoryBasedStorageManager<Rep
 
         // Remember the current HEAD so the old repository can be restored if recovery fails.
         final Revision originalHeadRevision = old.normalizeNow(Revision.HEAD);
+        if (resetToRevision.major() > originalHeadRevision.major()) {
+            throw new StorageException(
+                    "cannot recover " + projectRepositoryName(repositoryName) + ": the local head " +
+                    originalHeadRevision + " is below the reset revision " + resetToRevision +
+                    "; this replica is missing the shared base history.");
+        }
         final ObjectId originalHeadCommitId = old.commitIdDatabase().get(originalHeadRevision);
         final ObjectId resetToCommitId = old.commitIdDatabase().get(resetToRevision);
         final File repoDir = old.repoDir();
@@ -349,6 +355,10 @@ public final class GitRepositoryManager extends DirectoryBasedStorageManager<Rep
                                            projectRepositoryName(repositoryName));
             }
             swapped = true;
+            // The old instance shares the on-disk state that was just rewritten, so a reader that was
+            // blocked on its lock must fail fast instead of reading through the stale instance.
+            old.markClosePending(() -> new CentralDogmaException(
+                    projectRepositoryName(repositoryName) + " is recovered. Try again."));
         } catch (Throwable t) {
             throw new StorageException("failed to recover the repository '" +
                                        projectRepositoryName(repositoryName) + "' (reset to " +
@@ -357,7 +367,12 @@ public final class GitRepositoryManager extends DirectoryBasedStorageManager<Rep
             if (!swapped) {
                 // Roll back so the (still diverged) old repository stays internally consistent.
                 if (neo != null) {
-                    neo.internalClose();
+                    try {
+                        neo.internalClose();
+                    } catch (Throwable t2) {
+                        logger.warn("Failed to close the partially recovered repository '{}'.",
+                                    projectRepositoryName(repositoryName), t2);
+                    }
                 }
                 try {
                     forceMoveMaster(old.jGitRepository(), originalHeadCommitId);
@@ -404,6 +419,11 @@ public final class GitRepositoryManager extends DirectoryBasedStorageManager<Rep
                                        projectRepositoryName(repositoryName));
         }
         final Revision headRevision = repo.normalizeNow(Revision.HEAD);
+        if (headRevision.major() < 2) {
+            throw new IllegalArgumentException(
+                    "the repository has no replayable revision: " + projectRepositoryName(repositoryName) +
+                    " (head: " + headRevision + ')');
+        }
         final int from = fromRevision.major();
         if (fromRevision.isRelative() || from < 2 || from > headRevision.major()) {
             throw new IllegalArgumentException(

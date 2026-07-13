@@ -192,6 +192,23 @@ public final class RepoStatusManager {
         return projectName + '/' + repoName;
     }
 
+    /**
+     * Returns {@code true} if the repository or its project is read-only by the replicated repository or
+     * project scope. Unlike {@link #isWritable(String, String)}, the per-replica server status is not
+     * consulted, so the answer is identical on every replica at the same replication-log position.
+     */
+    public boolean isRepoOrProjectReadOnly(String projectName, String repoName) {
+        final RepositoryState projectState = statusMap.get(getKey(projectName, Project.REPO_DOGMA));
+        if (projectState != null && projectState.status() == ReplicationStatus.READ_ONLY) {
+            return true;
+        }
+        if (repoName.equals(Project.REPO_DOGMA)) {
+            return false;
+        }
+        final RepositoryState repoState = statusMap.get(getKey(projectName, repoName));
+        return repoState != null && repoState.status() == ReplicationStatus.READ_ONLY;
+    }
+
     public boolean isWritable(String projectName, String repoName) {
         if (!statusManager.serverStatus().writable()) {
             return false;

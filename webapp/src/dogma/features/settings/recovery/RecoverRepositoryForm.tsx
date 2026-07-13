@@ -93,7 +93,9 @@ const RecoverRepositoryForm = () => {
   const complete = project != null && repo != null && source != null && fromRevision >= 2;
 
   const handleOpen = () => {
+    // Clear the previous attempt's feedback so a stale banner cannot describe a different target.
     setErrorMessage(null);
+    setLastResult(null);
     onOpen();
   };
 
@@ -122,8 +124,10 @@ const RecoverRepositoryForm = () => {
         dispatch(
           newNotification(
             'Repository recovery requested',
-            `Server ${source.value} originates the recovery of ${project.value}/${repo.value} ` +
-              'asynchronously. Verify convergence on the Repository Status page, then make it writable.',
+            `Server ${source.value} was asked to originate the recovery of ` +
+              `${project.value}/${repo.value} asynchronously (best effort). Confirm the repository head ` +
+              'matches the source before making it writable; a failure is only reported in the source ' +
+              "replica's log.",
             'success',
           ),
         );
@@ -158,9 +162,9 @@ const RecoverRepositoryForm = () => {
       </Heading>
       <Text fontSize="sm" color="gray.500" mb="4">
         Designates one replica&apos;s repository as the source of truth: every other replica resets to just
-        before the start revision and replays the source&apos;s commits up to its head. The repository must
-        be read-only first and stays read-only afterwards, until you make it writable on the Repository
-        Status page.
+        before the start revision and replays the source&apos;s commits up to its head. The repository must be
+        read-only first and stays read-only afterwards, until you make it writable on the Repository Status
+        page.
       </Text>
       <Flex gap={4} align="flex-end" wrap="wrap">
         <FormControl maxW="xs">
@@ -241,7 +245,8 @@ const RecoverRepositoryForm = () => {
             ? `Recovery of ${lastResult.target} completed at revision ${lastResult.response.headRevision}. ` +
               'Verify it on the Repository Status page, then make it writable.'
             : `Recovery of ${lastResult.target} was requested; the source replica originates it ` +
-              'asynchronously. Verify convergence on the Repository Status page, then make it writable.'}
+              'asynchronously (best effort). Confirm the repository head matches the source before making ' +
+              "it writable — a failure is only reported in the source replica's log."}
         </Alert>
       )}
       {complete && (

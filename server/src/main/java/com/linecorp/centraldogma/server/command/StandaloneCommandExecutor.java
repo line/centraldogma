@@ -444,6 +444,16 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
 
     private CompletableFuture<Revision> recoverRepository(RecoverRepositoryCommand c) {
         return CompletableFuture.supplyAsync(() -> {
+            // Re-verify the read-only precondition at apply time: a command that made the repository
+            // writable again (and any push after it) is ordered before this one in the replication log, so
+            // proceeding would silently discard those commits. The check uses only the replicated
+            // repository/project scope, so every replica decides identically; on the originating source it
+            // fails before the command is stored, so the recovery aborts cleanly.
+            if (!repoStatusManager.isRepoOrProjectReadOnly(c.projectName(), c.repositoryName())) {
+                throw new IllegalStateException(
+                        "cannot recover " + c.projectName() + '/' + c.repositoryName() +
+                        "; the repository is no longer read-only. Make it read-only and retry.");
+            }
             // The manager no-ops when the repository is already converged (the source or a healthy replica),
             // otherwise it resets to c.resetToRevision() and replays c.commits(). The result is always the
             // source head so every replica returns the same value (the replication log verifies equality).

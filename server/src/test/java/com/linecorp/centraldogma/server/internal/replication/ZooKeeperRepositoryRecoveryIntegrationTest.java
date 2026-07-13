@@ -17,6 +17,7 @@
 package com.linecorp.centraldogma.server.internal.replication;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.awaitility.Awaitility.await;
 
 import java.util.concurrent.CompletionStage;
@@ -50,6 +51,7 @@ import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.server.CentralDogmaConfig;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
+import com.linecorp.centraldogma.server.command.ReplayCommit;
 import com.linecorp.centraldogma.server.command.RepositoryCommand;
 import com.linecorp.centraldogma.server.command.StandaloneCommandExecutor;
 import com.linecorp.centraldogma.server.internal.api.RecoverRepositoryRequest;
@@ -124,7 +126,73 @@ class ZooKeeperRepositoryRecoveryIntegrationTest {
         assertThat(response.contentUtf8()).contains("\"COMPLETED\"");
         assertThat(response.contentUtf8()).contains("\"headRevision\":3");
 
+        // Recovery is idempotent: running it again converges to the same head and changes nothing.
+        final AggregatedHttpResponse second =
+                recover(adminClientOf(SOURCE_SERVER_ID), new RecoverRepositoryRequest(3, SOURCE_SERVER_ID));
+        assertThat(second.status()).isEqualTo(HttpStatus.OK);
+        assertThat(second.contentUtf8()).contains("\"COMPLETED\"");
+        assertThat(second.contentUtf8()).contains("\"headRevision\":3");
+
         assertClusterConvergedAndUsable();
+    }
+
+    @Test
+    void recoverRejectedForOutOfRangeFromRevision() {
+        driveRepoIntoDivergedReadOnly();
+
+        // The source head is r3, so replaying from r99 is impossible; the direct path surfaces it as 400.
+        final AggregatedHttpResponse response =
+                recover(adminClientOf(SOURCE_SERVER_ID), new RecoverRepositoryRequest(99, SOURCE_SERVER_ID));
+        assertThat(response.status()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(response.contentUtf8()).contains("fromRevision");
+    }
+
+    @Test
+    void recoverAbortsWhenRepositoryIsNotReadOnly() {
+        // Bypass the endpoint precondition and apply the command directly: the apply-time re-check must
+        // reject it, so a recovery can never silently discard commits of a writable repository.
+        final CentralDogmaRepository repo = client0.forRepo(testProject, TEST_REPO);
+        repo.commit("seed", Change.ofJsonUpsert("/a.json", "{ \"a\": 1 }")).push().join();
+        final Revision headBefore = repo.normalize(Revision.HEAD).join();
+
+        final Command<Revision> recoverCommand = Command.recoverRepository(
+                Author.SYSTEM, testProject, TEST_REPO, SOURCE_SERVER_ID, new Revision(1), new Revision(2),
+                ImmutableList.of(new ReplayCommit(
+                        new Revision(2), 2000L, Author.SYSTEM, "seed", "", Markup.PLAINTEXT,
+                        ImmutableList.of(Change.ofJsonUpsert("/a.json", "{ \"a\": 9 }")), null)));
+        assertThatThrownBy(() -> faultInjector.zkExecute(recoverCommand))
+                .hasStackTraceContaining("no longer read-only");
+
+        // Nothing changed and the repository stays writable.
+        assertThat(repo.normalize(Revision.HEAD).join()).isEqualTo(headBefore);
+        assertThat(jsonValueOn(SOURCE_SERVER_ID, "a")).isEqualTo(1);
+        assertThat(getRepoStatus(adminClientOf(SOURCE_SERVER_ID), testProject, TEST_REPO).status())
+                .isEqualTo(ReplicationStatus.WRITABLE);
+        repo.commit("after", Change.ofJsonUpsert("/a.json", "{ \"a\": 2 }")).push().join();
+    }
+
+    @Test
+    void replicasEndpointListsClusterRoster() {
+        for (int serverId = 1; serverId <= 3; serverId++) {
+            final ResponseEntity<JsonNode> response = adminClientOf(serverId)
+                    .prepare()
+                    .get("/api/v1/replicas")
+                    .asJson(JsonNode.class)
+                    .execute();
+            assertThat(response.status()).isEqualTo(HttpStatus.OK);
+            final JsonNode replicas = response.content();
+            assertThat(replicas.size()).isEqualTo(3);
+            int currentCount = 0;
+            for (JsonNode replica : replicas) {
+                assertThat(replica.get("host").asText()).isNotEmpty();
+                if (replica.get("current").asBoolean()) {
+                    currentCount++;
+                    // The replica marked as current is the one that served the request.
+                    assertThat(replica.get("serverId").asInt()).isEqualTo(serverId);
+                }
+            }
+            assertThat(currentCount).isEqualTo(1);
+        }
     }
 
     @Test
@@ -298,6 +366,14 @@ class ZooKeeperRepositoryRecoveryIntegrationTest {
     private static final class FaultInjector implements Plugin {
 
         private StandaloneCommandExecutor commandExecutor;
+        private CommandExecutor zkCommandExecutor;
+
+        /**
+         * Originates the command through the fault-injected replica's replicated executor.
+         */
+        <T> T zkExecute(Command<T> command) {
+            return zkCommandExecutor.execute(command).join();
+        }
 
         /**
          * Applies the command directly on the fault-injected replica's local storage, bypassing the
@@ -331,7 +407,7 @@ class ZooKeeperRepositoryRecoveryIntegrationTest {
 
         @Override
         public CompletionStage<Void> start(PluginContext context) {
-            final CommandExecutor zkCommandExecutor = context.commandExecutor();
+            zkCommandExecutor = context.commandExecutor();
             commandExecutor =
                     (StandaloneCommandExecutor) ((ZooKeeperCommandExecutor) zkCommandExecutor).unwrap();
             return UnmodifiableFuture.completedFuture(null);

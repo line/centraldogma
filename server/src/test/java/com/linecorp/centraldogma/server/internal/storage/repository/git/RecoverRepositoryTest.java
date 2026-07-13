@@ -24,7 +24,6 @@ import static org.mockito.Mockito.mock;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.ForkJoinPool;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -36,14 +35,12 @@ import com.google.common.util.concurrent.MoreExecutors;
 
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
-import com.linecorp.centraldogma.common.Commit;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.server.command.ReplayCommit;
 import com.linecorp.centraldogma.server.storage.StorageException;
 import com.linecorp.centraldogma.server.storage.encryption.NoopEncryptionStorageManager;
 import com.linecorp.centraldogma.server.storage.project.Project;
-import com.linecorp.centraldogma.server.storage.repository.DiffResultType;
 
 class RecoverRepositoryTest {
 
@@ -60,11 +57,11 @@ class RecoverRepositoryTest {
     void skipsWhenAlreadyConverged() {
         final GitRepositoryManager mgr = newRepositoryManager();
         final GitRepository repo = (GitRepository) mgr.create(REPO, Author.SYSTEM);
-        pushRevisions(repo, 2, 5);
+        pushMixedRevisions(repo);
 
         final Revision head = repo.normalizeNow(Revision.HEAD);
         final String headId = commitId(repo, head);
-        final List<ReplayCommit> payload = buildPayload(repo, 3, 5);
+        final List<ReplayCommit> payload = mgr.buildRecoveryPayload(REPO, new Revision(3));
 
         // The source (and any healthy replica) is already at the target -> recovery is a no-op and the
         // GitRepository instance is left untouched (not swapped).
@@ -78,27 +75,34 @@ class RecoverRepositoryTest {
     void resetsAndReplaysToConverge() {
         final GitRepositoryManager mgr = newRepositoryManager();
         final GitRepository source = (GitRepository) mgr.create(REPO, Author.SYSTEM);
-        pushRevisions(source, 2, 5);
+        pushMixedRevisions(source);
 
-        // Capture the source-of-truth head and per-revision commit ids, then build the replay payload.
+        // Capture the source-of-truth head and per-revision commit ids, then build the replay payload
+        // through the production path.
         final Revision sourceHead = source.normalizeNow(Revision.HEAD); // r5
         final String sourceHeadId = commitId(source, sourceHead);
+        final String sourceId3 = commitId(source, new Revision(3));
         final String sourceId4 = commitId(source, new Revision(4));
-        final List<ReplayCommit> payload = buildPayload(source, 3, 5);
+        final List<ReplayCommit> payload = mgr.buildRecoveryPayload(REPO, new Revision(3));
 
         // Diverge: push a 6th revision with different content so the repository is ahead of the payload.
         source.commit(new Revision(5), 6000L, Author.SYSTEM, "diverged", "", Markup.PLAINTEXT,
                       ImmutableList.of(Change.ofTextUpsert("/f.txt", "diverged")), false).join();
         assertThat(source.normalizeNow(Revision.HEAD)).isEqualTo(new Revision(6));
 
-        // Recover: reset to r2 and replay r3..r5 -> converge back to the exact source commit ids, dropping r6.
+        // Recover: reset to r2 and replay r3..r5 (a multi-file commit, a JSON commit and a removal)
+        // -> converge back to the exact source commit ids, dropping r6.
         mgr.recoverRepository(REPO, new Revision(2), payload);
 
         final GitRepository recovered = (GitRepository) mgr.get(REPO);
         assertThat(recovered).isNotSameAs(source); // the instance was swapped
         assertThat(recovered.normalizeNow(Revision.HEAD)).isEqualTo(sourceHead); // r5, not r6
-        assertThat(commitId(recovered, sourceHead)).isEqualTo(sourceHeadId);
+        assertThat(commitId(recovered, new Revision(3))).isEqualTo(sourceId3);
         assertThat(commitId(recovered, new Revision(4))).isEqualTo(sourceId4);
+        assertThat(commitId(recovered, sourceHead)).isEqualTo(sourceHeadId);
+        // The replayed content matches the source history: /f.txt was removed at r5 and /g.txt remains.
+        assertThat(recovered.getOrNull(sourceHead, "/f.txt").join()).isNull();
+        assertThat(recovered.getOrNull(sourceHead, "/g.txt").join().contentAsText()).isEqualTo("g\n");
         // The diverged r6 no longer exists.
         assertThatThrownBy(() -> recovered.commitIdDatabase().get(new Revision(6)))
                 .isInstanceOf(Exception.class);
@@ -108,16 +112,16 @@ class RecoverRepositoryTest {
     void rollsBackWhenACommitIdDoesNotMatch() {
         final GitRepositoryManager mgr = newRepositoryManager();
         final GitRepository repo = (GitRepository) mgr.create(REPO, Author.SYSTEM);
-        pushRevisions(repo, 2, 5);
+        pushMixedRevisions(repo);
+        final List<ReplayCommit> payload = new ArrayList<>(mgr.buildRecoveryPayload(REPO, new Revision(3)));
 
         // Diverge so recovery does not short-circuit as already-converged.
         repo.commit(new Revision(5), 6000L, Author.SYSTEM, "diverged", "", Markup.PLAINTEXT,
-                    ImmutableList.of(Change.ofTextUpsert("/f.txt", "diverged")), false).join();
+                    ImmutableList.of(Change.ofTextUpsert("/g.txt", "diverged")), false).join();
         final Revision headBefore = repo.normalizeNow(Revision.HEAD); // r6
         final String headIdBefore = commitId(repo, headBefore);
 
         // Corrupt the expected commit id of the last replayed commit so the apply detects divergence.
-        final List<ReplayCommit> payload = buildPayload(repo, 3, 5);
         final ReplayCommit last = payload.get(payload.size() - 1);
         payload.set(payload.size() - 1, new ReplayCommit(
                 last.revision(), last.timestampMillis(), last.author(), last.summary(), last.detail(),
@@ -131,33 +135,46 @@ class RecoverRepositoryTest {
         assertThat(afterFailure.normalizeNow(Revision.HEAD)).isEqualTo(headBefore);
         assertThat(commitId(afterFailure, headBefore)).isEqualTo(headIdBefore);
         // A subsequent read still works (the commit-id database is consistent).
-        assertThat(afterFailure.getOrNull(headBefore, "/f.txt").join().contentAsText()).isEqualTo("diverged\n");
+        assertThat(afterFailure.getOrNull(headBefore, "/g.txt").join().contentAsText())
+                .isEqualTo("diverged\n");
     }
 
-    private void pushRevisions(GitRepository repo, int from, int to) {
-        for (int i = from; i <= to; i++) {
-            repo.commit(new Revision(i - 1), i * 1000L, Author.SYSTEM, "summary" + i, "detail" + i,
-                        Markup.PLAINTEXT, ImmutableList.of(Change.ofTextUpsert("/f.txt", "v" + i)), false)
-                .join();
-        }
+    @Test
+    void rejectsAnOutOfRangeFromRevision() {
+        final GitRepositoryManager mgr = newRepositoryManager();
+        final GitRepository repo = (GitRepository) mgr.create(REPO, Author.SYSTEM);
+        pushMixedRevisions(repo); // head == r5
+
+        assertThatThrownBy(() -> mgr.buildRecoveryPayload(REPO, new Revision(1)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("[2, 5]");
+        assertThatThrownBy(() -> mgr.buildRecoveryPayload(REPO, new Revision(6)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("[2, 5]");
+        assertThatThrownBy(() -> mgr.buildRecoveryPayload(REPO, new Revision(-1)))
+                .isInstanceOf(IllegalArgumentException.class);
+
+        // A repository with only its creation commit has nothing to replay.
+        mgr.create("empty_repo", Author.SYSTEM);
+        assertThatThrownBy(() -> mgr.buildRecoveryPayload("empty_repo", new Revision(2)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("no replayable revision");
     }
 
     /**
-     * Builds the replay payload for {@code from..to} the same way {@code RecoveryPayloadBuilder} does.
+     * Pushes r2..r5 covering the change shapes recovery must replay byte-identically: a text upsert (r2),
+     * a multi-file commit (r3), a JSON upsert (r4) and a removal (r5).
      */
-    private static List<ReplayCommit> buildPayload(GitRepository repo, int from, int to) {
-        final List<ReplayCommit> payload = new ArrayList<>();
-        for (int i = from; i <= to; i++) {
-            final Revision revision = new Revision(i);
-            final List<Commit> commits = repo.history(revision, revision, "/**").join();
-            final Commit commit = commits.get(0);
-            final Map<String, Change<?>> changes =
-                    repo.diff(new Revision(i - 1), revision, "/**", DiffResultType.PATCH_TO_TEXT_UPSERT).join();
-            payload.add(new ReplayCommit(revision, commit.when(), commit.author(), commit.summary(),
-                                         commit.detail(), commit.markup(), changes.values(),
-                                         commitId(repo, revision)));
-        }
-        return payload;
+    private static void pushMixedRevisions(GitRepository repo) {
+        repo.commit(new Revision(1), 2000L, Author.SYSTEM, "add f", "detail2", Markup.PLAINTEXT,
+                    ImmutableList.of(Change.ofTextUpsert("/f.txt", "v2")), false).join();
+        repo.commit(new Revision(2), 3000L, Author.SYSTEM, "add g and h", "detail3", Markup.PLAINTEXT,
+                    ImmutableList.of(Change.ofTextUpsert("/g.txt", "g"),
+                                     Change.ofTextUpsert("/h.txt", "h")), false).join();
+        repo.commit(new Revision(3), 4000L, Author.SYSTEM, "add json", "detail4", Markup.PLAINTEXT,
+                    ImmutableList.of(Change.ofJsonUpsert("/a.json", "{ \"a\": 1 }")), false).join();
+        repo.commit(new Revision(4), 5000L, Author.SYSTEM, "remove f", "detail5", Markup.PLAINTEXT,
+                    ImmutableList.of(Change.ofRemoval("/f.txt")), false).join();
     }
 
     private static String commitId(GitRepository repo, Revision revision) {

@@ -305,17 +305,25 @@ public class RepositoryServiceV1 extends AbstractService {
      * replicas converge to identical commit IDs. The source repository is never modified.
      *
      * <p>Replicated (ZooKeeper) mode only. The repository must be read-only before recovery so that no new
-     * commit can be originated while the recovery is in flight, and it stays read-only afterwards; the
-     * operator verifies convergence and then makes it writable again.
+     * commit can be originated while the recovery is in flight (the precondition is re-verified when the
+     * command is applied), and it stays read-only afterwards; the operator verifies convergence and then
+     * makes it writable again. Note that a force-push races recovery deliberately — it bypasses read-only,
+     * so a force-pushed commit that lands between the payload build and the apply is discarded by the
+     * replay.
+     *
+     * <p>When the request lands on a non-source replica, {@code REQUESTED} only means the source replica
+     * was asked over the replication log; the recovery itself runs asynchronously and best-effort — its
+     * failure is reported in the source replica's log. Recovery should not run during a rolling upgrade:
+     * a replica that does not know the recovery commands yet skips them and turns read-only.
      */
     @Post("/projects/{projectName}/repos/{repoName}/recover")
     @Consumes("application/json")
     @RequiresSystemAdministrator
-    public CompletableFuture<Map<String, Object>> recover(ServiceRequestContext ctx,
-                                                          Project project,
-                                                          Repository repository,
-                                                          Author author,
-                                                          RecoverRepositoryRequest request) {
+    public CompletableFuture<RecoverRepositoryResponse> recover(ServiceRequestContext ctx,
+                                                                Project project,
+                                                                Repository repository,
+                                                                Author author,
+                                                                RecoverRepositoryRequest request) {
         rejectIfDogmaProject(project);
         if (!(executor() instanceof ZooKeeperCommandExecutor)) {
             throw new IllegalArgumentException(
@@ -359,8 +367,8 @@ public class RepositoryServiceV1 extends AbstractService {
                                                          fromRevision.backward(1), headRevision, commits);
                     }, ctx.blockingTaskExecutor())
                     .thenCompose(command -> executor().execute(command))
-                    .thenApply(headRevision -> ImmutableMap.of("status", "COMPLETED",
-                                                               "headRevision", headRevision.major()));
+                    .thenApply(headRevision -> new RecoverRepositoryResponse(
+                            RecoverRepositoryResponse.RecoveryStatus.COMPLETED, headRevision.major()));
         }
 
         // Ask the source replica to originate the recovery via the replication log. The recovery completes
@@ -369,7 +377,8 @@ public class RepositoryServiceV1 extends AbstractService {
                     projectName, repoName, fromRevision, sourceServerId);
         return execute(Command.recoverRepositoryRequest(author, projectName, repoName, sourceServerId,
                                                         fromRevision))
-                .thenApply(unused -> ImmutableMap.of("status", "REQUESTED"));
+                .thenApply(unused -> new RecoverRepositoryResponse(
+                        RecoverRepositoryResponse.RecoveryStatus.REQUESTED, null));
     }
 
     /**
