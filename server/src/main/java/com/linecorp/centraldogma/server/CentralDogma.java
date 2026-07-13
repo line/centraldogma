@@ -650,6 +650,11 @@ public class CentralDogma implements AutoCloseable {
 
         final ServerStatus initialServerStatus = statusManager.serverStatus();
         executor.setWritable(initialServerStatus.writable());
+        if (executor instanceof ZooKeeperCommandExecutor) {
+            // setWritable() on the outer executor does not reach the inner delegate, so a restarted
+            // read-only replica would leave the delegate writable. Keep them in sync.
+            ((ZooKeeperCommandExecutor) executor).unwrap().setWritable(initialServerStatus.writable());
+        }
         if (!initialServerStatus.replicating()) {
             projectInitializer.initializeInReadOnlyMode();
             repoStatusManager.initialize();
