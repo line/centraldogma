@@ -229,6 +229,22 @@ class ZooKeeperRepositoryRecoveryIntegrationTest {
         assertThat(response.contentUtf8()).contains("sourceServerId");
     }
 
+    @Test
+    void recoverRejectedForInternalRepository() {
+        // Internal repository content is written by content transformers, so it cannot be reproduced
+        // byte-identically by a replay.
+        final AggregatedHttpResponse response =
+                adminClientOf(SOURCE_SERVER_ID)
+                        .prepare()
+                        .post("/api/v1/projects/{project}/repos/{repo}/recover")
+                        .pathParam("project", testProject)
+                        .pathParam("repo", "dogma")
+                        .contentJson(new RecoverRepositoryRequest(2, SOURCE_SERVER_ID))
+                        .execute();
+        assertThat(response.status()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(response.contentUtf8()).contains("internal repository");
+    }
+
     /**
      * Produces the recovery scenario: the fault-injected replica applies an extra commit directly (not via
      * the replication log), so replaying the next replicated commit fails there and the repository goes

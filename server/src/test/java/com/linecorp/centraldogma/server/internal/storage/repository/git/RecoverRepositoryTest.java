@@ -162,6 +162,25 @@ class RecoverRepositoryTest {
     }
 
     /**
+     * The payload crosses the replication log as one entry and is materialized in memory by every
+     * replica, so its size must be bounded.
+     */
+    @Test
+    void rejectsAnOversizedRecoveryPayload() {
+        GitRepositoryManager.validateRecoveryPayloadSize("p/r", GitRepositoryManager.MAX_RECOVERY_COMMITS,
+                                                         GitRepositoryManager.MAX_RECOVERY_PAYLOAD_BYTES);
+
+        assertThatThrownBy(() -> GitRepositoryManager.validateRecoveryPayloadSize(
+                "p/r", GitRepositoryManager.MAX_RECOVERY_COMMITS + 1, 0))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("too many revisions");
+        assertThatThrownBy(() -> GitRepositoryManager.validateRecoveryPayloadSize(
+                "p/r", 1, GitRepositoryManager.MAX_RECOVERY_PAYLOAD_BYTES + 1))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("larger than");
+    }
+
+    /**
      * Pushes r2..r5 covering the change shapes recovery must replay byte-identically: a text upsert (r2),
      * a multi-file commit (r3), a JSON upsert (r4) and a removal (r5).
      */

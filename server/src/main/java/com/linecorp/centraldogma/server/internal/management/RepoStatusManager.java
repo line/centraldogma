@@ -22,6 +22,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.jspecify.annotations.Nullable;
@@ -36,8 +37,10 @@ import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.CentralDogmaException;
 import com.linecorp.centraldogma.common.ChangeConflictException;
 import com.linecorp.centraldogma.common.Entry;
+import com.linecorp.centraldogma.common.ProjectNotFoundException;
 import com.linecorp.centraldogma.common.RedundantChangeException;
 import com.linecorp.centraldogma.common.ReplicationStatus;
+import com.linecorp.centraldogma.common.RepositoryNotFoundException;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.internal.storage.repository.crud.CrudContext;
@@ -46,6 +49,7 @@ import com.linecorp.centraldogma.server.internal.storage.repository.crud.Standal
 import com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
+import com.linecorp.centraldogma.server.storage.repository.HasRevision;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 import com.linecorp.centraldogma.server.storage.repository.RepositoryListener;
 
@@ -196,17 +200,39 @@ public final class RepoStatusManager {
      * Returns {@code true} if the repository or its project is read-only by the replicated repository or
      * project scope. Unlike {@link #isWritable(String, String)}, the per-replica server status is not
      * consulted, so the answer is identical on every replica at the same replication-log position.
+     *
+     * <p>A read-only answer from the in-memory cache is authoritative, but a writable answer is
+     * re-verified against the replicated status files: the cache is loaded by an asynchronously
+     * registered listener, so it can still be empty while the replication log is replayed after a
+     * restart, and answering "writable" from an unloaded cache would make this replica disagree with
+     * the rest of the cluster.
      */
     public boolean isRepoOrProjectReadOnly(String projectName, String repoName) {
-        final RepositoryState projectState = statusMap.get(getKey(projectName, Project.REPO_DOGMA));
-        if (projectState != null && projectState.status() == ReplicationStatus.READ_ONLY) {
+        if (isCachedReadOnly(projectName, Project.REPO_DOGMA) || isCachedReadOnly(projectName, repoName)) {
             return true;
         }
-        if (repoName.equals(Project.REPO_DOGMA)) {
-            return false;
+        return isStoredReadOnly(projectName, Project.REPO_DOGMA) ||
+               (!repoName.equals(Project.REPO_DOGMA) && isStoredReadOnly(projectName, repoName));
+    }
+
+    private boolean isCachedReadOnly(String projectName, String repoName) {
+        final RepositoryState state = statusMap.get(getKey(projectName, repoName));
+        return state != null && state.status() == ReplicationStatus.READ_ONLY;
+    }
+
+    private boolean isStoredReadOnly(String projectName, String repoName) {
+        final HasRevision<RepositoryState> state;
+        try {
+            state = crudOperation().find(crudContext(projectName), repoName).join();
+        } catch (CompletionException e) {
+            final Throwable peeled = Exceptions.peel(e);
+            if (peeled instanceof ProjectNotFoundException || peeled instanceof RepositoryNotFoundException) {
+                // The internal status storage does not exist yet, so no status was ever replicated.
+                return false;
+            }
+            throw e;
         }
-        final RepositoryState repoState = statusMap.get(getKey(projectName, repoName));
-        return repoState != null && repoState.status() == ReplicationStatus.READ_ONLY;
+        return state != null && state.object().status() == ReplicationStatus.READ_ONLY;
     }
 
     public boolean isWritable(String projectName, String repoName) {

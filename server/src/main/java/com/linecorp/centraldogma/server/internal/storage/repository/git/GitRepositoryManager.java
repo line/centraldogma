@@ -345,7 +345,9 @@ public final class GitRepositoryManager extends DirectoryBasedStorageManager<Rep
                                 "commit id mismatch while recovering '" +
                                 projectRepositoryName(repositoryName) + "' at " + revision + " (expected: " +
                                 expectedCommitId + ", actual: " + actualCommitId + "). Revisions up to " +
-                                resetToRevision + " may have diverged.");
+                                resetToRevision + " may have diverged, or the content is not reproducible " +
+                                "byte-identically (e.g. written by a content transformer); the repository " +
+                                "was rolled back.");
                     }
                 }
             }
@@ -431,19 +433,58 @@ public final class GitRepositoryManager extends DirectoryBasedStorageManager<Rep
                     headRevision.major() + "])");
         }
 
+        final int commitCount = headRevision.major() - from + 1;
+        validateRecoveryPayloadSize(projectRepositoryName(repositoryName), commitCount, 0);
+        long payloadBytes = 0;
         final ImmutableList.Builder<ReplayCommit> commits =
-                ImmutableList.builderWithExpectedSize(headRevision.major() - from + 1);
+                ImmutableList.builderWithExpectedSize(commitCount);
         for (int i = from; i <= headRevision.major(); i++) {
             final Revision revision = new Revision(i);
             final Commit commit = repo.history(revision, revision, Repository.ALL_PATH).join().get(0);
             final Map<String, Change<?>> changes =
                     repo.diff(revision.backward(1), revision, Repository.ALL_PATH,
                               DiffResultType.PATCH_TO_TEXT_UPSERT).join();
+            for (Change<?> change : changes.values()) {
+                payloadBytes += estimateSize(change);
+            }
+            validateRecoveryPayloadSize(projectRepositoryName(repositoryName), commitCount, payloadBytes);
             commits.add(new ReplayCommit(revision, commit.when(), commit.author(), commit.summary(),
                                          commit.detail(), commit.markup(), changes.values(),
                                          repo.commitIdDatabase().get(revision).name()));
         }
         return commits.build();
+    }
+
+    // The payload crosses the replication log as a single entry and is materialized in memory by every
+    // replica, so an unbounded payload could exhaust the heap cluster-wide and stall replication.
+    @VisibleForTesting
+    static final int MAX_RECOVERY_COMMITS = 10_000;
+    @VisibleForTesting
+    static final long MAX_RECOVERY_PAYLOAD_BYTES = 64 * 1024 * 1024;
+
+    @VisibleForTesting
+    static void validateRecoveryPayloadSize(String name, int commitCount, long payloadBytes) {
+        if (commitCount > MAX_RECOVERY_COMMITS) {
+            throw new IllegalArgumentException(
+                    "the recovery of " + name + " spans too many revisions: " + commitCount +
+                    " (maximum: " + MAX_RECOVERY_COMMITS + "). Recover from a later revision.");
+        }
+        if (payloadBytes > MAX_RECOVERY_PAYLOAD_BYTES) {
+            throw new IllegalArgumentException(
+                    "the recovery payload of " + name + " is larger than " + MAX_RECOVERY_PAYLOAD_BYTES +
+                    " bytes. Recover from a later revision.");
+        }
+    }
+
+    private static long estimateSize(Change<?> change) {
+        final Object content = change.content();
+        long size = change.path().length();
+        if (content instanceof String) {
+            size += ((String) content).length();
+        } else if (content != null) {
+            size += content.toString().length();
+        }
+        return size;
     }
 
     @Override

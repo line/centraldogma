@@ -325,6 +325,12 @@ public class RepositoryServiceV1 extends AbstractService {
                                                                 Author author,
                                                                 RecoverRepositoryRequest request) {
         rejectIfDogmaProject(project);
+        if (Project.isInternalRepo(repository.name())) {
+            // Internal repository content is written by content transformers without text normalization,
+            // so a replay cannot reproduce it byte-identically.
+            throw new IllegalArgumentException(
+                    "Cannot recover an internal repository: " + project.name() + '/' + repository.name());
+        }
         if (!(executor() instanceof ZooKeeperCommandExecutor)) {
             throw new IllegalArgumentException(
                     "Repository recovery is only supported in replicated (ZooKeeper) mode.");

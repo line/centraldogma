@@ -245,6 +245,33 @@ class RepoStatusManagerTest {
     }
 
     /**
+     * The read-only re-check of a replayed recovery must not trust a cold cache: after a restart the
+     * status listener (and its initial snapshot) may not have landed yet while the replication log is
+     * already being replayed, and answering "writable" from an empty cache would make the replica abort
+     * a recovery the rest of the cluster applied.
+     */
+    @Test
+    void readOnlyCheckFallsBackToStoredStatusWhenCacheIsCold() {
+        statusManager.updateRepoStatus("cold_prj", "repo", Author.DEFAULT, ReplicationStatus.READ_ONLY)
+                     .join();
+        statusManager.updateProjectStatus("cold_prj2", Author.DEFAULT, ReplicationStatus.READ_ONLY).join();
+        try {
+            // A fresh manager whose listener was never registered has an empty cache; the answer must
+            // come from the replicated status files.
+            final RepoStatusManager coldManager = new RepoStatusManager(
+                    pmExtension.serverStatusManager(), pmExtension.projectManager(),
+                    new SimpleMeterRegistry());
+            assertThat(coldManager.isRepoOrProjectReadOnly("cold_prj", "repo")).isTrue();
+            assertThat(coldManager.isRepoOrProjectReadOnly("cold_prj2", "any_repo")).isTrue();
+            assertThat(coldManager.isRepoOrProjectReadOnly("cold_prj", "writable_repo")).isFalse();
+            assertThat(coldManager.isRepoOrProjectReadOnly("unknown_prj", "repo")).isFalse();
+        } finally {
+            statusManager.removeRepoStatus("cold_prj", "repo", Author.DEFAULT).join();
+            statusManager.removeProjectStatus("cold_prj2", Author.DEFAULT).join();
+        }
+    }
+
+    /**
      * A commit notifies the status listener inline, but {@link RepoStatusManager#initialize()} registers that
      * listener asynchronously on the repository worker. An update committed before the registration lands is
      * only picked up by the listener's initial snapshot, so wait for the cache to catch up.

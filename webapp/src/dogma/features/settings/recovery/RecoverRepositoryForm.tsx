@@ -79,11 +79,16 @@ const RecoverRepositoryForm = () => {
   const { data: repos = [], isFetching: reposFetching } = useGetReposQuery(project?.value ?? '', {
     skip: !project,
   });
-  const { data: replicas = [] } = useGetReplicasQuery();
+  // Recovery is an incident-time tool: never trust a session-old cached roster.
+  const { data: replicas = [] } = useGetReplicasQuery(undefined, { refetchOnMountOrArgChange: true });
   const [recoverRepository, { isLoading: submitting }] = useRecoverRepositoryMutation();
 
   const projectOptions: Option[] = projects.map((p: ProjectDto) => ({ value: p.name, label: p.name }));
-  const repoOptions: Option[] = repos.map((r: RepoDto) => ({ value: r.name, label: r.name }));
+  const repoOptions: Option[] = repos
+    // Internal repositories cannot be recovered: their content is written by content transformers
+    // without text normalization, so a replay cannot reproduce it byte-identically.
+    .filter((r: RepoDto) => r.name !== 'meta' && r.name !== 'dogma')
+    .map((r: RepoDto) => ({ value: r.name, label: r.name }));
   const sourceOptions: SourceOption[] = replicas.map((replica: ReplicaInfo) => ({
     value: replica.serverId,
     label: `Server ${replica.serverId} — ${replica.host}${replica.current ? ' (this server)' : ''}`,
@@ -100,7 +105,7 @@ const RecoverRepositoryForm = () => {
   };
 
   const handleConfirm = async () => {
-    if (!complete) {
+    if (!complete || submitting) {
       return;
     }
     try {

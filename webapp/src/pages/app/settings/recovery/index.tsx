@@ -21,7 +21,14 @@ import { useGetReplicasQuery } from 'dogma/features/api/apiSlice';
 import RecoverRepositoryForm from 'dogma/features/settings/recovery/RecoverRepositoryForm';
 
 const RepositoryRecoveryPage = () => {
-  const { data: replicas, error, isLoading } = useGetReplicasQuery();
+  // Recovery is an incident-time tool: never trust a session-old cached roster.
+  const {
+    data: replicas,
+    error,
+    isLoading,
+  } = useGetReplicasQuery(undefined, {
+    refetchOnMountOrArgChange: true,
+  });
 
   return (
     <SettingView currentTab="Repository Recovery">

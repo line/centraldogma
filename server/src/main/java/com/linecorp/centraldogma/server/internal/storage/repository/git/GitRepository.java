@@ -237,7 +237,6 @@ class GitRepository implements Repository {
         closePending.compareAndSet(null, failureCauseSupplier);
         if (closeScheduled.compareAndSet(false, true)) {
             repositoryWorker.execute(() -> {
-                // MUST acquire gcLock first to prevent a dead lock
                 rwLock.writeLock().lock();
                 try {
                     closeRepository(commitIdDatabase, jGitRepository);
