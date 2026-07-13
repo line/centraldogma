@@ -2,6 +2,7 @@ import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { renderWithProviders } from 'dogma/util/test-utils';
 import RecoverRepositoryForm, {
+  buildVerificationScript,
   conciseErrorMessage,
 } from 'dogma/features/settings/recovery/RecoverRepositoryForm';
 import {
@@ -75,6 +76,45 @@ const fillForm = async () => {
   await userEvent.selectOptions(screen.getByTestId('recovery-repo-select'), 'bar');
   await userEvent.selectOptions(screen.getByTestId('recovery-source-select'), '2');
 };
+
+describe('buildVerificationScript', () => {
+  const result = {
+    projectName: 'foo',
+    repoName: 'bar',
+    sourceServerId: 2,
+    response: { status: 'REQUESTED' as const },
+  };
+  const replicas = [
+    { serverId: 1, host: 'replica1.example.com', current: true },
+    { serverId: 2, host: 'replica2.example.com', current: false },
+  ];
+
+  afterEach(() => {
+    delete process.env.NEXT_PUBLIC_HOST;
+  });
+
+  it('skips certificate verification over https, where a replica is reached by its own host name', () => {
+    process.env.NEXT_PUBLIC_HOST = 'https://dogma.example.com';
+    const script = buildVerificationScript(result, replicas);
+    // No explicit port: https defaults to 443.
+    expect(script).toContain(
+      'curl -sk -H "Authorization: Bearer $CD_TOKEN" ' +
+        'https://replica1.example.com:443/api/v1/projects/foo/repos/bar | jq .headRevision  # server 1',
+    );
+    expect(script).toContain('# -k skips certificate verification');
+  });
+
+  it('does not skip certificate verification over http', () => {
+    process.env.NEXT_PUBLIC_HOST = 'http://dogma.example.com:36462';
+    const script = buildVerificationScript(result, replicas);
+    expect(script).toContain(
+      'curl -s -H "Authorization: Bearer $CD_TOKEN" ' +
+        'http://replica2.example.com:36462/api/v1/projects/foo/repos/bar | jq .headRevision  ' +
+        '# server 2 (source)',
+    );
+    expect(script).not.toContain('-k');
+  });
+});
 
 describe('conciseErrorMessage', () => {
   it('drops the Java stack trace a system administrator receives', () => {
@@ -196,16 +236,21 @@ describe('RecoverRepositoryForm', () => {
     await userEvent.type(confirmInput, 'foo/bar');
     await userEvent.click(modalRecoverButton());
 
-    // One curl per replica against the recovered repository, keeping the page authority in the URL and
-    // dialing the replica via --connect-to, with the source replica marked.
-    const script = (await screen.findByText(/CD_TOKEN=/)).textContent ?? '';
-    expect(script).toContain('--connect-to localhost:36462:replica1.example.com:36462');
-    expect(script).toContain('--connect-to localhost:36462:replica2.example.com:36462');
-    expect(script).toContain('-H "Authorization: Bearer $CD_TOKEN" http://localhost:36462');
-    expect(script).toContain('curl -sk'); // the certificate-skipping alternative is mentioned
-    expect(script).toContain('/api/v1/projects/foo/repos/bar');
-    expect(script).toContain('# server 1');
-    expect(script).toContain('# server 2 (source)');
+    // One curl per replica against the recovered repository, with the source replica marked. The page
+    // is served over http here, so no certificate to skip. The script is syntax-highlighted, so read
+    // the element's text rather than matching a single text node.
+    const script = (await screen.findByTestId('recovery-verification-script')).textContent ?? '';
+    expect(script).toContain('CD_TOKEN=');
+    expect(script).toContain(
+      'curl -s -H "Authorization: Bearer $CD_TOKEN" ' +
+        'http://replica1.example.com:36462/api/v1/projects/foo/repos/bar | jq .headRevision  # server 1',
+    );
+    expect(script).toContain(
+      'curl -s -H "Authorization: Bearer $CD_TOKEN" ' +
+        'http://replica2.example.com:36462/api/v1/projects/foo/repos/bar | jq .headRevision  ' +
+        '# server 2 (source)',
+    );
+    expect(script).not.toContain('-sk');
     expect(screen.getByRole('button', { name: /Copy/ })).toBeInTheDocument();
   });
 });

@@ -36,6 +36,9 @@ import {
   useDisclosure,
 } from '@chakra-ui/react';
 import { OptionBase, Select } from 'chakra-react-select';
+import Prism from 'prismjs';
+import 'prismjs/components/prism-bash';
+import 'prismjs/themes/prism.css';
 import { useEffect, useState } from 'react';
 import {
   useGetProjectsQuery,
@@ -93,29 +96,29 @@ export function conciseErrorMessage(error: unknown): string {
  * source replica's log, so this is how an administrator verifies convergence before making the
  * repository writable again.
  *
- * <p>Each curl keeps this page's authority in the URL (so TLS certificate validation and virtual-host
- * routing keep working) and dials one replica directly via {@code --connect-to}.
+ * <p>Over HTTPS each curl adds {@code -k}: it reaches a replica by its own host name, which a
+ * certificate issued for the load balancer's name does not cover.
  */
 export function buildVerificationScript(result: RecoveryResult, replicas: ReplicaInfo[]): string {
   const { projectName, repoName, sourceServerId } = result;
   const origin = process.env.NEXT_PUBLIC_HOST || window.location.origin;
   const url = new URL(origin);
+  const https = url.protocol === 'https:';
   // Without an explicit port, assume 443 for https and the Central Dogma default port for http.
-  const port = url.port || (url.protocol === 'https:' ? '443' : '36462');
-  const authority = `${url.hostname}:${port}`;
-  const repoUrl = `${url.protocol}//${authority}/api/v1/projects/${projectName}/repos/${repoName}`;
+  const port = url.port || (https ? '443' : '36462');
   const lines = [
     'CD_TOKEN=<paste your access token>',
     `# Every replica must report the same head revision of ${projectName}/${repoName} as the source ` +
       `(server ${sourceServerId}).`,
-    "# --connect-to dials one replica per request while keeping this page's authority for TLS and",
-    `# virtual-host routing; adjust the replica port if a replica does not listen on :${port}.`,
-    `# (Alternatively skip certificate verification: curl -sk ${url.protocol}//<replica-host>:${port}/...)`,
+    ...(https
+      ? ['# -k skips certificate verification, since each replica is reached by its own host name.']
+      : []),
+    `# Adjust the port if a replica does not listen on :${port}.`,
     ...replicas.map((replica) => {
       const marker = replica.serverId === sourceServerId ? ' (source)' : '';
       return (
-        `curl -s --connect-to ${authority}:${replica.host}:${port} ` +
-        `-H "Authorization: Bearer $CD_TOKEN" ${repoUrl}` +
+        `curl -s${https ? 'k' : ''} -H "Authorization: Bearer $CD_TOKEN" ` +
+        `${url.protocol}//${replica.host}:${port}/api/v1/projects/${projectName}/repos/${repoName}` +
         ` | jq .headRevision  # server ${replica.serverId}${marker}`
       );
     }),
@@ -338,15 +341,17 @@ const RecoverRepositoryForm = () => {
           </Flex>
           <Code
             as="pre"
+            data-testid="recovery-verification-script"
             display="block"
             whiteSpace="pre"
             overflowX="auto"
             p="3"
             fontSize="xs"
             borderRadius="md"
-          >
-            {verificationScript}
-          </Code>
+            dangerouslySetInnerHTML={{
+              __html: Prism.highlight(verificationScript, Prism.languages.bash, 'bash'),
+            }}
+          />
         </Box>
       )}
       {complete && (
