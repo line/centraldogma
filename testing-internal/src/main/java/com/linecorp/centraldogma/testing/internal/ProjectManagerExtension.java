@@ -172,8 +172,10 @@ public class ProjectManagerExtension extends AbstractAllOrEachExtension {
      * Override this method to customize a {@link CommandExecutor}.
      */
     protected CommandExecutor newCommandExecutor(ProjectManager projectManager, Executor worker, File dataDir) {
+        final RepoStatusManager repoStatusManager =
+                new RepoStatusManager(serverStatusManager, projectManager, NoopMeterRegistry.get());
         return new StandaloneCommandExecutor(projectManager, worker, serverStatusManager,
-                                             new RepoStatusManager(serverStatusManager, projectManager), null,
+                                             repoStatusManager, null,
                                              NoopEncryptionStorageManager.INSTANCE, null, null, null,
                                              null);
     }

@@ -7,10 +7,13 @@ import RepoList from 'dogma/features/repo/RepoList';
 import { useRouter } from 'next/router';
 import { FiBox } from 'react-icons/fi';
 import { ProjectSettingsButton } from 'dogma/common/components/ProjectSettingsButton';
+import { RepoStatusTag } from 'dogma/features/repo/RepoStatusTag';
+import { useProjectReadOnly } from 'dogma/features/repo/useReadOnly';
 
 const ProjectDetailPage = () => {
   const router = useRouter();
   const projectName = router.query.projectName as string;
+  const projectReadOnly = useProjectReadOnly(projectName);
   const {
     data: repoData,
     isLoading,
@@ -32,6 +35,7 @@ const ProjectDetailPage = () => {
                 <Box>{projectName}</Box>
               </HStack>
             </Heading>
+            {projectReadOnly && <RepoStatusTag status="READ_ONLY" />}
           </Flex>
           <Tabs variant="enclosed-colored" size="lg">
             <TabList>

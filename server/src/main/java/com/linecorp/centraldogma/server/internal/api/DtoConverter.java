@@ -45,9 +45,10 @@ import com.linecorp.centraldogma.server.storage.repository.Repository;
  */
 final class DtoConverter {
 
-    public static ProjectDto newProjectDto(Project project, ProjectRole userRole) {
+    public static ProjectDto newProjectDto(Project project, ProjectRole userRole, ReplicationStatus status) {
         requireNonNull(project, "project");
-        return new ProjectDto(project.name(), project.author(), userRole, project.creationTimeMillis());
+        return new ProjectDto(project.name(), project.author(), userRole, project.creationTimeMillis(),
+                              status);
     }
 
     public static RepositoryDto newRepositoryDto(Repository repository, ReplicationStatus status) {

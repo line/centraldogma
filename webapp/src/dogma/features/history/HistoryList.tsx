@@ -1,6 +1,6 @@
 import { createColumnHelper, PaginationState } from '@tanstack/react-table';
 import { HistoryDto } from 'dogma/features/history/HistoryDto';
-import { Badge, Box, Button, HStack, Icon, useDisclosure } from '@chakra-ui/react';
+import { Badge, Box, Button, HStack, Icon, Tooltip, useDisclosure } from '@chakra-ui/react';
 import { ChakraLink } from 'dogma/common/components/ChakraLink';
 import { DateWithTooltip } from 'dogma/common/components/DateWithTooltip';
 import { ReactElement, useMemo, useState } from 'react';
@@ -11,6 +11,7 @@ import { VscGitCommit } from 'react-icons/vsc';
 import CompareButton from 'dogma/common/components/CompareButton';
 import { RevertCommitModal } from 'dogma/features/history/RevertCommitModal';
 import { WithRepositoryRole } from 'dogma/features/auth/RepositoryRole';
+import { useReadOnly } from 'dogma/features/repo/useReadOnly';
 
 export type HistoryListProps = {
   projectName: string;
@@ -39,6 +40,7 @@ const HistoryList = ({
 }: HistoryListProps) => {
   const { isOpen, onOpen, onClose } = useDisclosure();
   const [targetRevision, setTargetRevision] = useState<number>(headRevision);
+  const [readOnly, readOnlyHint] = useReadOnly(projectName, repoName);
   const columnHelper = createColumnHelper<HistoryDto>();
   const columns = useMemo(
     () => [
@@ -82,18 +84,22 @@ const HistoryList = ({
             {!filePath && (
               <WithRepositoryRole projectName={projectName} repoName={repoName} roles={['WRITE', 'ADMIN']}>
                 {() => (
-                  <Button
-                    size={'sm'}
-                    colorScheme={'red'}
-                    variant={'outline'}
-                    isDisabled={info.row.original.revision === headRevision}
-                    onClick={() => {
-                      setTargetRevision(info.row.original.revision);
-                      onOpen();
-                    }}
-                  >
-                    Revert
-                  </Button>
+                  <Tooltip label={readOnlyHint} isDisabled={!readOnly}>
+                    <Box>
+                      <Button
+                        size={'sm'}
+                        colorScheme={'red'}
+                        variant={'outline'}
+                        isDisabled={readOnly || info.row.original.revision === headRevision}
+                        onClick={() => {
+                          setTargetRevision(info.row.original.revision);
+                          onOpen();
+                        }}
+                      >
+                        Revert
+                      </Button>
+                    </Box>
+                  </Tooltip>
                 )}
               </WithRepositoryRole>
             )}
@@ -110,7 +116,7 @@ const HistoryList = ({
         header: 'Timestamp',
       }),
     ],
-    [columnHelper, projectName, repoName, filePath, isDirectory, headRevision, onOpen],
+    [columnHelper, projectName, repoName, filePath, isDirectory, headRevision, onOpen, readOnly, readOnlyHint],
   );
 
   return (

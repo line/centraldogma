@@ -16,6 +16,7 @@
 
 package com.linecorp.centraldogma.server.internal.api.sysadmin;
 
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 import com.linecorp.armeria.common.HttpStatus;
@@ -29,6 +30,8 @@ import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.internal.api.AbstractService;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresSystemAdministrator;
 import com.linecorp.centraldogma.server.internal.api.sysadmin.UpdateServerStatusRequest.Scope;
+import com.linecorp.centraldogma.server.internal.management.RepoStatusManager;
+import com.linecorp.centraldogma.server.internal.management.RepositoryState;
 import com.linecorp.centraldogma.server.internal.management.ServerStatusManager;
 import com.linecorp.centraldogma.server.internal.replication.ZooKeeperCommandExecutor;
 import com.linecorp.centraldogma.server.management.ServerStatus;
@@ -38,10 +41,13 @@ import com.linecorp.centraldogma.server.management.ServerStatus;
 public final class ServerStatusService extends AbstractService {
 
     private final ServerStatusManager serverStatusManager;
+    private final RepoStatusManager repoStatusManager;
 
-    public ServerStatusService(CommandExecutor executor, ServerStatusManager serverStatusManager) {
+    public ServerStatusService(CommandExecutor executor, ServerStatusManager serverStatusManager,
+                               RepoStatusManager repoStatusManager) {
         super(executor);
         this.serverStatusManager = serverStatusManager;
+        this.repoStatusManager = repoStatusManager;
     }
 
     /**
@@ -52,6 +58,17 @@ public final class ServerStatusService extends AbstractService {
     @Get("/status")
     public ServerStatus status() {
         return ServerStatus.of(executor().isWritable(), executor().isStarted());
+    }
+
+    /**
+     * GET /status/repos/read-only
+     *
+     * <p>Returns the projects and repositories that are currently read-only. A project-scoped entry uses
+     * {@code dogma} as its repository name.
+     */
+    @Get("/status/repos/read-only")
+    public List<RepositoryState> readOnlyRepositories() {
+        return repoStatusManager.readOnlyStatuses();
     }
 
     /**

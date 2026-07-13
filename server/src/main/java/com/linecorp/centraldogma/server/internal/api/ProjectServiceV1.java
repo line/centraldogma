@@ -45,12 +45,14 @@ import com.linecorp.armeria.server.annotation.ResponseConverter;
 import com.linecorp.armeria.server.annotation.StatusCode;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.ProjectRole;
+import com.linecorp.centraldogma.common.ReplicationStatus;
 import com.linecorp.centraldogma.internal.api.v1.CreateProjectRequest;
 import com.linecorp.centraldogma.internal.api.v1.ProjectDto;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresProjectRole;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresSystemAdministrator;
 import com.linecorp.centraldogma.server.internal.api.converter.CreateApiResponseConverter;
+import com.linecorp.centraldogma.server.internal.management.RepoStatusManager;
 import com.linecorp.centraldogma.server.internal.storage.project.ProjectApiManager;
 import com.linecorp.centraldogma.server.metadata.AppIdentityRegistration;
 import com.linecorp.centraldogma.server.metadata.Member;
@@ -67,10 +69,21 @@ import com.linecorp.centraldogma.server.storage.project.Project;
 public class ProjectServiceV1 extends AbstractService {
 
     private final ProjectApiManager projectApiManager;
+    private final RepoStatusManager repoStatusManager;
 
-    public ProjectServiceV1(ProjectApiManager projectApiManager, CommandExecutor executor) {
+    public ProjectServiceV1(ProjectApiManager projectApiManager, CommandExecutor executor,
+                            RepoStatusManager repoStatusManager) {
         super(executor);
         this.projectApiManager = requireNonNull(projectApiManager, "projectApiManager");
+        this.repoStatusManager = requireNonNull(repoStatusManager, "repoStatusManager");
+    }
+
+    /**
+     * Returns the replication status of the project itself, which is stored in the {@code dogma} repository
+     * of the project.
+     */
+    private ReplicationStatus projectStatus(String projectName) {
+        return repoStatusManager.getRepoStatus(projectName, Project.REPO_DOGMA).status();
     }
 
     /**
@@ -92,7 +105,8 @@ public class ProjectServiceV1 extends AbstractService {
 
         return CompletableFuture.supplyAsync(() -> {
             return projectApiManager.listProjects(user).values().stream()
-                                    .map(project -> newProjectDto(project, getUserRole(project, user)))
+                                    .map(project -> newProjectDto(project, getUserRole(project, user),
+                                                                  projectStatus(project.name())))
                                     .collect(toImmutableList());
         }, executor);
     }
@@ -140,7 +154,7 @@ public class ProjectServiceV1 extends AbstractService {
     public CompletableFuture<ProjectDto> createProject(CreateProjectRequest request, Author author, User user) {
         return projectApiManager.createProject(request.name(), author).handle(returnOrThrow(() -> {
             final Project project = projectApiManager.getProject(request.name(), user);
-            return newProjectDto(project, ProjectRole.OWNER);
+            return newProjectDto(project, ProjectRole.OWNER, projectStatus(project.name()));
         }));
     }
 
@@ -196,6 +210,7 @@ public class ProjectServiceV1 extends AbstractService {
         checkUnremoveArgument(node);
         return projectApiManager.unremoveProject(projectName, author)
                                 .handle(returnOrThrow(() -> newProjectDto(
-                                        projectApiManager.getProject(projectName, user), ProjectRole.OWNER)));
+                                        projectApiManager.getProject(projectName, user), ProjectRole.OWNER,
+                                        projectStatus(projectName))));
     }
 }

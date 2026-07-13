@@ -16,7 +16,10 @@
 
 package com.linecorp.centraldogma.server.internal.management;
 
+import static com.google.common.collect.ImmutableList.toImmutableList;
+
 import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -27,6 +30,7 @@ import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonMappingException;
+import com.google.common.collect.ImmutableList;
 
 import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.centraldogma.common.Author;
@@ -43,6 +47,11 @@ import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 import com.linecorp.centraldogma.server.storage.repository.RepositoryListener;
+
+import io.micrometer.core.instrument.Gauge;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.MultiGauge;
+import io.micrometer.core.instrument.Tags;
 
 /**
  * Manages the replication status of repositories and projects. The replication status is stored in a special
@@ -65,11 +74,17 @@ public final class RepoStatusManager {
     @Nullable
     private final StandaloneCrudOperation<RepositoryState> crudRepository;
     private final ServerStatusManager statusManager;
+    private final MultiGauge readOnlyScopeGauge;
 
-    public RepoStatusManager(ServerStatusManager statusManager, ProjectManager pm) {
+    public RepoStatusManager(ServerStatusManager statusManager, ProjectManager pm,
+                             MeterRegistry meterRegistry) {
         this.pm = pm;
         this.statusManager = statusManager;
         crudRepository = new StandaloneCrudOperation<>(RepositoryState.class, pm);
+
+        // read-only scope metrics
+        Gauge.builder("repository.read.only.count", statusMap, Map::size).register(meterRegistry);
+        readOnlyScopeGauge = MultiGauge.builder("repository.read.only").register(meterRegistry);
     }
 
     public void initialize() {
@@ -92,6 +107,7 @@ public final class RepoStatusManager {
                     statusMap.put(getKey(repoState.projectName(), repoState.repoName()), repoState);
                 }
             }
+            updateReadOnlyScopeMetrics();
         }));
     }
 
@@ -131,6 +147,15 @@ public final class RepoStatusManager {
             return repoStatus;
         }
         return new RepositoryState(projectName, repoName, ReplicationStatus.WRITABLE, null);
+    }
+
+    /**
+     * Returns the {@link RepositoryState}s of all projects and repositories that are currently not
+     * {@link ReplicationStatus#WRITABLE}. A project-scoped read-only entry uses {@link Project#REPO_DOGMA}
+     * as its repository name.
+     */
+    public List<RepositoryState> readOnlyStatuses() {
+        return ImmutableList.copyOf(statusMap.values());
     }
 
     @Nullable
@@ -192,5 +217,16 @@ public final class RepoStatusManager {
         final String targetPath = PATH_PREFIX + projectName + '/';
         return new CrudContext(InternalProjectInitializer.INTERNAL_PROJECT_DOGMA,
                                Project.REPO_DOGMA, targetPath);
+    }
+
+    private void updateReadOnlyScopeMetrics() {
+        readOnlyScopeGauge.register(
+                statusMap.values().stream()
+                         .<MultiGauge.Row<?>>map(state -> MultiGauge.Row.of(
+                                 Tags.of("project", state.projectName(),
+                                         "repo", state.repoName()),
+                                 1))
+                         .collect(toImmutableList()),
+                true);
     }
 }

@@ -48,6 +48,8 @@ import { FaFilter, FaTrashAlt } from 'react-icons/fa';
 import { ChevronDownIcon } from '@chakra-ui/icons';
 import { ProjectFilterType, setProjectFilter } from 'dogma/features/filter/filterSlice';
 import { ProjectOwnersModal } from 'dogma/features/project/ProjectOwnersModal';
+import { RepoStatusTag } from 'dogma/features/repo/RepoStatusTag';
+import { PROJECT_READ_ONLY_HINT } from 'dogma/features/repo/useReadOnly';
 import { UserDto } from '../auth/UserDto';
 import { UserRole } from '../../common/components/UserRole';
 
@@ -119,6 +121,11 @@ export const Projects = () => {
           ),
         header: 'Name',
       }),
+      columnHelper.accessor((row: ProjectDto) => row.status, {
+        id: 'status',
+        cell: (info) => <RepoStatusTag status={info.getValue()} />,
+        header: 'Status',
+      }),
       columnHelper.accessor((row: ProjectDto) => row.creator?.name, {
         id: 'creator',
         cell: (info) =>
@@ -176,6 +183,22 @@ export const Projects = () => {
           if (info.row.original.createdAt) {
             const userRole = info.row.original.userRole;
             if (userRole === 'OWNER') {
+              if (info.row.original.status === 'READ_ONLY') {
+                // A disabled anchor is still clickable, so the link is dropped when disabled.
+                return (
+                  <Tooltip label={PROJECT_READ_ONLY_HINT} fontSize="md">
+                    <Box display="inline-block">
+                      <IconButton
+                        icon={<FcServices />}
+                        variant="ghost"
+                        colorScheme="teal"
+                        aria-label="Project Settings"
+                        isDisabled
+                      />
+                    </Box>
+                  </Tooltip>
+                );
+              }
               return (
                 <ChakraLink href={`/app/projects/${info.getValue()}/settings`}>
                   <Tooltip label="Project settings" fontSize="md">

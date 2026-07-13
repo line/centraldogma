@@ -134,10 +134,11 @@ public abstract class AbstractCommandExecutor implements CommandExecutor {
         if (!isStarted()) {
             throw new ReadOnlyException("running in read-only mode. command: " + command);
         }
-        if (!writable && !(command instanceof SystemAdministrativeCommand)) {
+        if (!writable && !ctx.isReplay() && !(command instanceof SystemAdministrativeCommand)) {
             // Reject all commands except for AdministrativeCommand when the replica is in read-only mode.
             // AdministrativeCommand is allowed because it is used to change the read-only mode or migrate
             // metadata under maintenance mode.
+            // A replayed command is exempted; rejecting it would drop the log entry and diverge this replica.
             throw new ReadOnlyException("running in read-only mode. command: " + command);
         }
 

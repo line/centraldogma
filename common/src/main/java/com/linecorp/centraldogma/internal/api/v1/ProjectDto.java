@@ -34,6 +34,7 @@ import com.google.common.base.MoreObjects.ToStringHelper;
 
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.ProjectRole;
+import com.linecorp.centraldogma.common.ReplicationStatus;
 
 @JsonInclude(Include.NON_NULL)
 public class ProjectDto {
@@ -52,6 +53,9 @@ public class ProjectDto {
     @Nullable
     private String createdAt;
 
+    @Nullable
+    private ReplicationStatus status;
+
     public ProjectDto(String name) {
         this.name = requireNonNull(name, "name");
     }
@@ -62,20 +66,24 @@ public class ProjectDto {
                       @JsonProperty("creator") @Nullable Author creator,
                       @JsonProperty("url") @Nullable String url,
                       @JsonProperty("userRole") @Nullable ProjectRole userRole,
-                      @JsonProperty("createdAt") @Nullable String createdAt) {
+                      @JsonProperty("createdAt") @Nullable String createdAt,
+                      @JsonProperty("status") @Nullable ReplicationStatus status) {
         this.name = requireNonNull(name, "name");
         this.creator = creator;
         this.url = url;
         this.userRole = userRole;
         this.createdAt = createdAt;
+        this.status = status;
     }
 
-    public ProjectDto(String name, Author creator, ProjectRole userRole, long creationTimeMillis) {
+    public ProjectDto(String name, Author creator, ProjectRole userRole, long creationTimeMillis,
+                      ReplicationStatus status) {
         this.name = requireNonNull(name, "name");
         this.creator = requireNonNull(creator, "creator");
         createdAt = ISO_INSTANT.format(Instant.ofEpochMilli(creationTimeMillis));
         url = PROJECTS_PREFIX + '/' + name;
         this.userRole = requireNonNull(userRole, "userRole");
+        this.status = requireNonNull(status, "status");
     }
 
     @JsonProperty("name")
@@ -105,6 +113,12 @@ public class ProjectDto {
     @JsonProperty("createdAt")
     public String createdAt() {
         return createdAt;
+    }
+
+    @Nullable
+    @JsonProperty("status")
+    public ReplicationStatus status() {
+        return status;
     }
 
     @Override

@@ -27,7 +27,7 @@ interface SettingsViewProps {
   children: ReactNode;
 }
 
-type TabName = 'Mirror Access Control' | 'Application Identities' | 'Server Status';
+type TabName = 'Mirror Access Control' | 'Application Identities' | 'Server Status' | 'Repository Status';
 
 export interface TapInfo {
   name: TabName;
@@ -39,6 +39,7 @@ const TABS: TapInfo[] = [
   { name: 'Application Identities', path: 'app-identities', admin: false },
   { name: 'Mirror Access Control', path: 'mirror-access', admin: true },
   { name: 'Server Status', path: 'server-status', admin: true },
+  { name: 'Repository Status', path: 'repo-status', admin: true },
 ];
 
 const SettingView = ({ currentTab, children }: SettingsViewProps) => {

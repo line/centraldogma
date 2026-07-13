@@ -37,6 +37,7 @@ import com.linecorp.centraldogma.common.EntryType;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.ReadOnlyException;
 import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.server.internal.command.DefaultExecutionContext;
 import com.linecorp.centraldogma.server.management.ServerStatus;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
 import com.linecorp.centraldogma.testing.internal.ProjectManagerExtension;
@@ -132,6 +133,29 @@ class StandaloneCommandExecutorTest {
                                                       .contentAsJson();
         assertThat(json.get("a").asText()).isEqualTo("b");
         executor.execute(Command.updateServerStatus(ServerStatus.WRITABLE)).join();
+        assertThat(executor.isWritable()).isTrue();
+    }
+
+    @Test
+    void shouldApplyReplayedCommandWithReadOnly() {
+        final StandaloneCommandExecutor executor = (StandaloneCommandExecutor) extension.executor();
+        executor.execute(Command.updateServerStatus(ServerStatus.REPLICATION_ONLY)).join();
+        assertThat(executor.isWritable()).isFalse();
+
+        try {
+            final Change<JsonNode> change = Change.ofJsonUpsert("/replayed.json", "{\"a\": \"b\"}");
+            final Command<Revision> push = Command.push(
+                    Author.SYSTEM, TEST_PRJ, TEST_REPO, Revision.HEAD, "", "", Markup.PLAINTEXT, change);
+            // A client push is rejected while the executor is not writable.
+            assertThatThrownBy(() -> executor.execute(push))
+                    .isInstanceOf(ReadOnlyException.class)
+                    .hasMessageContaining("running in read-only mode.");
+            // The same push must still be applied when replayed from the replication log.
+            final Revision revision = executor.execute(new DefaultExecutionContext(true), push).join();
+            assertThat(revision).isEqualTo(new Revision(2));
+        } finally {
+            executor.execute(Command.updateServerStatus(ServerStatus.WRITABLE)).join();
+        }
         assertThat(executor.isWritable()).isTrue();
     }
 
