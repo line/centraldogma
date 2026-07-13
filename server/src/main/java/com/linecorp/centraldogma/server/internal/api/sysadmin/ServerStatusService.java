@@ -16,8 +16,12 @@
 
 package com.linecorp.centraldogma.server.internal.api.sysadmin;
 
+import static com.google.common.collect.ImmutableList.toImmutableList;
+
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+
+import com.google.common.collect.ImmutableList;
 
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.server.HttpStatusException;
@@ -69,6 +73,25 @@ public final class ServerStatusService extends AbstractService {
     @Get("/status/repos/read-only")
     public List<RepositoryState> readOnlyRepositories() {
         return repoStatusManager.readOnlyStatuses();
+    }
+
+    /**
+     * GET /replicas
+     *
+     * <p>Returns the replicas of the cluster from the static replication configuration, marking the one
+     * that served this request as {@code current}. Returns an empty list when the server is not running
+     * in replicated (ZooKeeper) mode.
+     */
+    @Get("/replicas")
+    public List<ReplicaInfo> replicas() {
+        if (!(executor() instanceof ZooKeeperCommandExecutor)) {
+            return ImmutableList.of();
+        }
+        final ZooKeeperCommandExecutor zkExecutor = (ZooKeeperCommandExecutor) executor();
+        return zkExecutor.replicationConfig().servers().entrySet().stream()
+                         .map(entry -> new ReplicaInfo(entry.getKey(), entry.getValue().host(),
+                                                       entry.getKey() == zkExecutor.replicaId()))
+                         .collect(toImmutableList());
     }
 
     /**

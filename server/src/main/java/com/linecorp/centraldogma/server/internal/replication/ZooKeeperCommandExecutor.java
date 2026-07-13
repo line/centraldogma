@@ -93,6 +93,8 @@ import com.linecorp.centraldogma.server.command.ExecutionContext;
 import com.linecorp.centraldogma.server.command.ForcePushCommand;
 import com.linecorp.centraldogma.server.command.NormalizableCommit;
 import com.linecorp.centraldogma.server.command.ProjectCommand;
+import com.linecorp.centraldogma.server.command.RecoverRepositoryCommand;
+import com.linecorp.centraldogma.server.command.RecoverRepositoryRequestCommand;
 import com.linecorp.centraldogma.server.command.RepositoryCommand;
 import com.linecorp.centraldogma.server.command.UpdateServerStatusCommand;
 import com.linecorp.centraldogma.server.internal.command.DefaultExecutionContext;
@@ -147,6 +149,9 @@ public final class ZooKeeperCommandExecutor
 
     @Nullable
     private final String zone;
+
+    @Nullable
+    private final RecoveryPayloadBuilder recoveryPayloadBuilder;
 
     // Failing to acquire a lock is a critical problem, so we wait as much as we can.
     private long lockTimeoutNanos = TimeUnit.MINUTES.toNanos(1);
@@ -377,12 +382,14 @@ public final class ZooKeeperCommandExecutor
                                     File dataDir, CommandExecutor delegate,
                                     MeterRegistry meterRegistry,
                                     @Nullable String zone,
+                                    @Nullable RecoveryPayloadBuilder recoveryPayloadBuilder,
                                     @Nullable Consumer<CommandExecutor> onTakeLeadership,
                                     @Nullable Consumer<CommandExecutor> onReleaseLeadership,
                                     @Nullable Consumer<CommandExecutor> onTakeZoneLeadership,
                                     @Nullable Consumer<CommandExecutor> onReleaseZoneLeadership) {
         super(onTakeLeadership, onReleaseLeadership, onTakeZoneLeadership, onReleaseZoneLeadership);
 
+        this.recoveryPayloadBuilder = recoveryPayloadBuilder;
         this.cfg = requireNonNull(cfg, "cfg");
         requireNonNull(dataDir, "dataDir");
         revisionFile = new File(dataDir.getAbsolutePath() + File.separatorChar + "last_revision");
@@ -427,6 +434,13 @@ public final class ZooKeeperCommandExecutor
     @Override
     public int replicaId() {
         return cfg.serverId();
+    }
+
+    /**
+     * Returns the replication configuration of this cluster.
+     */
+    public ZooKeeperReplicationConfig replicationConfig() {
+        return cfg;
     }
 
     public CommandExecutor unwrap() {
@@ -842,6 +856,9 @@ public final class ZooKeeperCommandExecutor
                 if (command instanceof UpdateServerStatusCommand) {
                     updateZkCommandStatusLater((UpdateServerStatusCommand) command);
                 }
+                if (command instanceof RecoverRepositoryRequestCommand) {
+                    reactToRecoveryRequestLater((RecoverRepositoryRequestCommand) command);
+                }
             } catch (Throwable t) {
                 try {
                     // Skip the failed log so the remaining logs can still be replayed.
@@ -890,6 +907,45 @@ public final class ZooKeeperCommandExecutor
         } else {
             statusManager().updateStatus(command);
         }
+    }
+
+    /**
+     * Reacts to a replayed {@link RecoverRepositoryRequestCommand}. Only the replica whose server ID matches
+     * the source server ID reacts, by building a self-contained {@link RecoverRepositoryCommand} from its
+     * local storage and originating it via the replication log. The reaction runs off the replay thread
+     * because originating a command replays pending logs by itself.
+     */
+    private void reactToRecoveryRequestLater(RecoverRepositoryRequestCommand command) {
+        if (command.sourceServerId() != replicaId()) {
+            return;
+        }
+        final RecoveryPayloadBuilder recoveryPayloadBuilder = this.recoveryPayloadBuilder;
+        if (recoveryPayloadBuilder == null) {
+            logger.error("Cannot originate a recovery for {}/{}; no {} is configured.",
+                         command.projectName(), command.repositoryName(),
+                         RecoveryPayloadBuilder.class.getSimpleName());
+            return;
+        }
+        final String repoName = command.projectName() + '/' + command.repositoryName();
+        ForkJoinPool.commonPool().execute(() -> {
+            final Command<Revision> recoverCommand;
+            try {
+                recoverCommand = recoveryPayloadBuilder.build(command);
+            } catch (Throwable t) {
+                logger.error("Failed to build the recovery payload of {}; recovery is not originated.",
+                             repoName, t);
+                return;
+            }
+            logger.info("Originating a recovery of {} as the source replica: {}", repoName, recoverCommand);
+            execute(recoverCommand).handle((revision, cause) -> {
+                if (cause != null) {
+                    logger.error("Failed to originate a recovery of {}.", repoName, cause);
+                } else {
+                    logger.info("Successfully originated a recovery of {}. head: {}", repoName, revision);
+                }
+                return null;
+            });
+        });
     }
 
     @Override

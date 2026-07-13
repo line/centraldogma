@@ -102,6 +102,11 @@ public class RepositoryManagerWrapper implements RepositoryManager {
     }
 
     @Override
+    public List<ReplayCommit> buildRecoveryPayload(String repositoryName, Revision fromRevision) {
+        return delegate.buildRecoveryPayload(repositoryName, fromRevision);
+    }
+
+    @Override
     public void close(Supplier<CentralDogmaException> failureCauseSupplier) {
         delegate.close(failureCauseSupplier);
     }

@@ -51,6 +51,14 @@ public interface RepositoryManager extends StorageManager<Repository> {
     void recoverRepository(String repositoryName, Revision resetToRevision, List<ReplayCommit> commits);
 
     /**
+     * Builds the {@link ReplayCommit}s of {@code fromRevision..HEAD} of the specified repository, to be
+     * carried by a {@link com.linecorp.centraldogma.server.command.RecoverRepositoryCommand}. Invoked only
+     * on the source replica of a recovery. {@code fromRevision} must be an absolute revision greater than 1
+     * and not greater than the HEAD revision.
+     */
+    List<ReplayCommit> buildRecoveryPayload(String repositoryName, Revision fromRevision);
+
+    /**
      * Sets a callback that is invoked after a repository is migrated or fallen back.
      * The callback receives the repository name and the new {@link Repository} instance.
      */

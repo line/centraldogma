@@ -131,6 +131,14 @@ class ServerStatusServiceTest {
     }
 
     @Test
+    void replicas_emptyInStandaloneMode() {
+        final BlockingWebClient client = dogma.httpClient().blocking();
+        // An empty list is returned as 204 No Content in standalone (non-replicated) mode.
+        assertThat(client.get(API_V1_PATH_PREFIX + "replicas").status())
+                .isEqualTo(HttpStatus.NO_CONTENT);
+    }
+
+    @Test
     void updateStatus_setUnwritable() {
         final AggregatedHttpResponse res = updateStatus(ServerStatus.REPLICATION_ONLY);
 

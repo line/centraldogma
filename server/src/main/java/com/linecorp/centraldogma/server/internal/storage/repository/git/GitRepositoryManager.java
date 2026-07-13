@@ -50,6 +50,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.ImmutableList;
 
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.CentralDogmaException;
@@ -391,6 +392,38 @@ public final class GitRepositoryManager extends DirectoryBasedStorageManager<Rep
         } catch (IOException e) {
             throw new StorageException("failed to force-move " + R_HEADS_MASTER + " to " + commitId.name(), e);
         }
+    }
+
+    @Override
+    public List<ReplayCommit> buildRecoveryPayload(String repositoryName, Revision fromRevision) {
+        requireNonNull(repositoryName, "repositoryName");
+        requireNonNull(fromRevision, "fromRevision");
+        final GitRepository repo = (GitRepository) get(repositoryName);
+        if (repo.isEncrypted()) {
+            throw new StorageException("recovery is not supported for an encrypted repository: " +
+                                       projectRepositoryName(repositoryName));
+        }
+        final Revision headRevision = repo.normalizeNow(Revision.HEAD);
+        final int from = fromRevision.major();
+        if (fromRevision.isRelative() || from < 2 || from > headRevision.major()) {
+            throw new IllegalArgumentException(
+                    "fromRevision: " + fromRevision + " (expected: an absolute revision in [2, " +
+                    headRevision.major() + "])");
+        }
+
+        final ImmutableList.Builder<ReplayCommit> commits =
+                ImmutableList.builderWithExpectedSize(headRevision.major() - from + 1);
+        for (int i = from; i <= headRevision.major(); i++) {
+            final Revision revision = new Revision(i);
+            final Commit commit = repo.history(revision, revision, Repository.ALL_PATH).join().get(0);
+            final Map<String, Change<?>> changes =
+                    repo.diff(revision.backward(1), revision, Repository.ALL_PATH,
+                              DiffResultType.PATCH_TO_TEXT_UPSERT).join();
+            commits.add(new ReplayCommit(revision, commit.when(), commit.author(), commit.summary(),
+                                         commit.detail(), commit.markup(), changes.values(),
+                                         repo.commitIdDatabase().get(revision).name()));
+        }
+        return commits.build();
     }
 
     @Override

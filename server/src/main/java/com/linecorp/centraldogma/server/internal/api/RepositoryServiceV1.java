@@ -60,12 +60,14 @@ import com.linecorp.centraldogma.internal.api.v1.CreateRepositoryRequest;
 import com.linecorp.centraldogma.internal.api.v1.RepositoryDto;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
+import com.linecorp.centraldogma.server.command.ReplayCommit;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresProjectRole;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresRepositoryRole;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresSystemAdministrator;
 import com.linecorp.centraldogma.server.internal.api.converter.CreateApiResponseConverter;
 import com.linecorp.centraldogma.server.internal.management.RepoStatusManager;
 import com.linecorp.centraldogma.server.internal.management.RepositoryState;
+import com.linecorp.centraldogma.server.internal.replication.ZooKeeperCommandExecutor;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
 import com.linecorp.centraldogma.server.metadata.User;
 import com.linecorp.centraldogma.server.storage.encryption.EncryptionStorageManager;
@@ -292,6 +294,82 @@ public class RepositoryServiceV1 extends AbstractService {
         final ReplicationStatus newStatus = statusRequest.status();
         return updateRepositoryStatus(author, project, repository, newStatus)
                 .thenApply(state -> newRepositoryDto(repository, newStatus));
+    }
+
+    /**
+     * POST /projects/{projectName}/repos/{repoName}/recover
+     *
+     * <p>Recovers the repository from a diverged state, using the repository of the replica whose server ID
+     * is {@code sourceServerId} as the single source of truth: every other replica resets its repository to
+     * just before {@code fromRevision} and replays the source's commits up to the source's head, so all
+     * replicas converge to identical commit IDs. The source repository is never modified.
+     *
+     * <p>Replicated (ZooKeeper) mode only. The repository must be read-only before recovery so that no new
+     * commit can be originated while the recovery is in flight, and it stays read-only afterwards; the
+     * operator verifies convergence and then makes it writable again.
+     */
+    @Post("/projects/{projectName}/repos/{repoName}/recover")
+    @Consumes("application/json")
+    @RequiresSystemAdministrator
+    public CompletableFuture<Map<String, Object>> recover(ServiceRequestContext ctx,
+                                                          Project project,
+                                                          Repository repository,
+                                                          Author author,
+                                                          RecoverRepositoryRequest request) {
+        rejectIfDogmaProject(project);
+        if (!(executor() instanceof ZooKeeperCommandExecutor)) {
+            throw new IllegalArgumentException(
+                    "Repository recovery is only supported in replicated (ZooKeeper) mode.");
+        }
+        if (repository.isEncrypted()) {
+            throw new IllegalArgumentException(
+                    "Recovery is not supported for an encrypted repository: " +
+                    project.name() + '/' + repository.name());
+        }
+        final ZooKeeperCommandExecutor zkExecutor = (ZooKeeperCommandExecutor) executor();
+        final int sourceServerId = request.sourceServerId();
+        if (!zkExecutor.replicationConfig().servers().containsKey(sourceServerId)) {
+            throw new IllegalArgumentException(
+                    "sourceServerId: " + sourceServerId + " (expected: one of " +
+                    zkExecutor.replicationConfig().servers().keySet() + ')');
+        }
+        if (getReplicationStatus(repository) != ReplicationStatus.READ_ONLY) {
+            throw new IllegalArgumentException(
+                    "The repository must be read-only before recovery so that no new commit can be " +
+                    "originated while the recovery is in flight: " +
+                    project.name() + '/' + repository.name());
+        }
+
+        final String projectName = project.name();
+        final String repoName = repository.name();
+        final Revision fromRevision = new Revision(request.fromRevision());
+        ctx.setRequestTimeoutMillis(Long.MAX_VALUE); // Disable the request timeout for recovery.
+
+        if (zkExecutor.replicaId() == sourceServerId) {
+            // This replica is the source of truth; build the payload from the local storage and originate
+            // the recovery command directly.
+            logger.info("Originating a recovery of {}/{} from revision {} as the source replica.",
+                        projectName, repoName, fromRevision);
+            return CompletableFuture
+                    .supplyAsync(() -> {
+                        final List<ReplayCommit> commits =
+                                project.repos().buildRecoveryPayload(repoName, fromRevision);
+                        final Revision headRevision = commits.get(commits.size() - 1).revision();
+                        return Command.recoverRepository(author, projectName, repoName, sourceServerId,
+                                                         fromRevision.backward(1), headRevision, commits);
+                    }, ctx.blockingTaskExecutor())
+                    .thenCompose(command -> executor().execute(command))
+                    .thenApply(headRevision -> ImmutableMap.of("status", "COMPLETED",
+                                                               "headRevision", headRevision.major()));
+        }
+
+        // Ask the source replica to originate the recovery via the replication log. The recovery completes
+        // asynchronously; the operator verifies convergence on the repository status.
+        logger.info("Requesting a recovery of {}/{} from revision {} to the source replica {}.",
+                    projectName, repoName, fromRevision, sourceServerId);
+        return execute(Command.recoverRepositoryRequest(author, projectName, repoName, sourceServerId,
+                                                        fromRevision))
+                .thenApply(unused -> ImmutableMap.of("status", "REQUESTED"));
     }
 
     /**

@@ -81,7 +81,7 @@ final class Replica {
             protected <T> CompletableFuture<T> doExecute(ExecutionContext ctx, Command<T> command) {
                 return (CompletableFuture<T>) delegate.apply(command);
             }
-        }, meterRegistry, null, null, null, null, null);
+        }, meterRegistry, null, null, null, null, null, null);
         commandExecutor.setLockTimeoutMillis(10000);
 
         startFuture = start ? commandExecutor.start() : null;
