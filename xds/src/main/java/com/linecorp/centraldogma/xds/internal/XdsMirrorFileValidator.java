@@ -69,6 +69,10 @@ public final class XdsMirrorFileValidator implements MirrorFileValidator {
                     " are managed by the Kubernetes controller and cannot be created via mirroring");
         }
 
+        if (!filePath.endsWith(".yaml")) {
+            throw new MirrorException("file must be ends with '.yaml'. file: " + filePath);
+        }
+
         final Message.Builder builder = builderForPath(filePath);
         if (builder == null) {
             throw new MirrorException(
