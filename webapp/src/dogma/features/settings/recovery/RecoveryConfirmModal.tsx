@@ -91,7 +91,8 @@ export const RecoveryConfirmModal = ({
               </Code>{' '}
               on every replica other than the source (server {sourceServerId}, <Code>{sourceHost}</Code>): each
               one is reset to revision {fromRevision - 1} and replays the source&apos;s commits up to its head.
-              The source repository itself is never modified.
+              The source keeps its own history. Each replica applies this when it replays the recovery, so the
+              cluster converges asynchronously.
             </Text>
             <Alert status="warning" borderRadius="md" fontSize="sm">
               <AlertIcon />

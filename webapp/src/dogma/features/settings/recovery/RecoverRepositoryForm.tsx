@@ -91,10 +91,13 @@ export function conciseErrorMessage(error: unknown): string {
 }
 
 /**
- * Builds a copy-pastable shell script that compares the head revision of the recovered repository on
- * every replica. A REQUESTED recovery completes asynchronously and its failure is only reported in the
- * source replica's log, so this is how an administrator verifies convergence before making the
- * repository writable again.
+ * Builds a copy-pastable shell script that compares the head of the recovered repository on every
+ * replica. The replicas other than the source apply the recovery when they replay it, and a failure is
+ * only reported in the source replica's log, so this is how an administrator confirms convergence before
+ * making the repository writable again.
+ *
+ * <p>It compares the head *commit ID*, not the revision: diverged replicas of the same repository always
+ * report the same revision, so a revision alone can never tell them apart.
  *
  * <p>Over HTTPS each curl adds {@code -k}: it reaches a replica by its own host name, which a
  * certificate issued for the load balancer's name does not cover.
@@ -106,20 +109,24 @@ export function buildVerificationScript(result: RecoveryResult, replicas: Replic
   const https = url.protocol === 'https:';
   // Without an explicit port, assume 443 for https and the Central Dogma default port for http.
   const port = url.port || (https ? '443' : '36462');
+  const duplicated = new Set(replicas.map((replica) => replica.host)).size < replicas.length;
   const lines = [
     'CD_TOKEN=<paste your access token>',
-    `# Every replica must report the same head revision of ${projectName}/${repoName} as the source ` +
+    `# Every replica must report the same head commitId for ${projectName}/${repoName} as the source ` +
       `(server ${sourceServerId}).`,
+    '# The revision alone proves nothing: diverged replicas report the same revision.',
     ...(https
       ? ['# -k skips certificate verification, since each replica is reached by its own host name.']
       : []),
-    `# Adjust the port if a replica does not listen on :${port}.`,
+    ...(duplicated
+      ? ["# WARNING: replicas share a host name here, so set each replica's own port below."]
+      : [`# Adjust the port if a replica does not listen on :${port}.`]),
     ...replicas.map((replica) => {
       const marker = replica.serverId === sourceServerId ? ' (source)' : '';
       return (
         `curl -s${https ? 'k' : ''} -H "Authorization: Bearer $CD_TOKEN" ` +
-        `${url.protocol}//${replica.host}:${port}/api/v1/projects/${projectName}/repos/${repoName}` +
-        ` | jq .headRevision  # server ${replica.serverId}${marker}`
+        `${url.protocol}//${replica.host}:${port}/api/v1/projects/${projectName}/repos/${repoName}/head` +
+        ` | jq -c  # server ${replica.serverId}${marker}`
       );
     }),
     `# A failed recovery is only reported in the log of the source replica (server ${sourceServerId}).`,
@@ -162,10 +169,9 @@ const RecoverRepositoryForm = () => {
 
   const complete = project != null && repo != null && source != null && fromRevision >= 2;
 
-  const verificationScript =
-    lastResult != null && lastResult.response.status === 'REQUESTED'
-      ? buildVerificationScript(lastResult, replicas)
-      : '';
+  // Neither outcome means the cluster converged: the replicas other than the source apply the recovery
+  // when they replay it. So the verification script belongs to both.
+  const verificationScript = lastResult != null ? buildVerificationScript(lastResult, replicas) : '';
   const { onCopy, hasCopied, setValue: setClipboardValue } = useClipboard(verificationScript);
   // useClipboard captures only the initial value; track the current script.
   useEffect(() => setClipboardValue(verificationScript), [verificationScript, setClipboardValue]);
@@ -194,29 +200,18 @@ const RecoverRepositoryForm = () => {
         sourceServerId: source.value,
         response,
       });
-      if (response.status === 'COMPLETED') {
-        dispatch(
-          newNotification(
-            'Repository recovered',
-            `${project.value}/${repo.value} converged to revision ${response.headRevision} of server ` +
-              `${source.value}. Verify it on the Repository Status page, then make it writable.`,
-            'success',
-          ),
-        );
-      } else {
-        dispatch(
-          newNotification(
-            'Repository recovery requested',
-            `Server ${source.value} was asked to originate the recovery of ` +
-              `${project.value}/${repo.value} asynchronously (best effort). Confirm the repository head ` +
-              'matches the source before making it writable; a failure is only reported in the source ' +
-              "replica's log.",
-            'success',
-          ),
-        );
-      }
+      dispatch(
+        newNotification(
+          response.status === 'COMPLETED' ? 'Recovery originated' : 'Recovery requested',
+          `Confirm every replica reports the source's head commit with the script below before making ` +
+            `${project.value}/${repo.value} writable.`,
+          'success',
+        ),
+      );
       onClose();
+      setProject(null);
       setRepo(null);
+      setSource(null);
     } catch (error) {
       // Keep the modal open and show the reason inline; the toast alone is too transient for a
       // destructive operation.
@@ -231,6 +226,19 @@ const RecoverRepositoryForm = () => {
       ...baseStyles,
       backgroundColor: colorMode === 'light' ? 'white' : 'whiteAlpha.50',
     }),
+  };
+
+  // Prism ships a light theme: its translucent white token backgrounds render as boxes on a dark
+  // surface, and its comment and string colours are too dim to read there.
+  const scriptStyles = {
+    '.token.operator, .token.entity, .token.url': { background: 'transparent' },
+    ...(colorMode === 'dark'
+      ? {
+          '.token.comment, .token.prolog, .token.doctype, .token.cdata': { color: 'gray.400' },
+          '.token.string, .token.attr-value': { color: 'green.300' },
+          '.token.operator, .token.entity, .token.url': { color: 'gray.300', background: 'transparent' },
+        }
+      : {}),
   };
 
   return (
@@ -310,34 +318,36 @@ const RecoverRepositoryForm = () => {
           <FormHelperText>Replayed through the source head.</FormHelperText>
         </FormControl>
       </Flex>
-      <Flex mt="4" justify="flex-end">
+      <Alert status="info" borderRadius="md" fontSize="sm" mt="4">
+        <AlertIcon />
+        The repository must be read-only before recovery, so no new commit can be written while it runs.
+        Encrypted and internal repositories are not supported.
+      </Alert>
+      <Flex mt="4">
         <Button colorScheme="red" onClick={handleOpen} isDisabled={!complete}>
           Recover
         </Button>
       </Flex>
-      <Alert status="info" borderRadius="md" fontSize="sm" mt="4">
-        <AlertIcon />
-        The repository must be read-only before recovery, so no new commit can be written while it runs.
-        Encrypted repositories are not supported.
-      </Alert>
       {lastResult && (
         <Alert status="success" borderRadius="md" fontSize="sm" mt="4">
           <AlertIcon />
           {lastResult.response.status === 'COMPLETED'
-            ? `Recovery of ${lastResult.projectName}/${lastResult.repoName} completed at revision ` +
-              `${lastResult.response.headRevision}. Verify it on the Repository Status page, then make ` +
-              'it writable.'
-            : `Recovery of ${lastResult.projectName}/${lastResult.repoName} was requested; the source ` +
-              'replica originates it asynchronously (best effort). Verify with the script below that ' +
-              'every replica reports the same head revision before making the repository writable — a ' +
-              "failure is only reported in the source replica's log."}
+            ? `Server ${lastResult.sourceServerId} originated the recovery of ` +
+              `${lastResult.projectName}/${lastResult.repoName} at revision ` +
+              `${lastResult.response.headRevision}. The other replicas apply it asynchronously when they ` +
+              'replay it, so the cluster has not converged yet.'
+            : `Server ${lastResult.sourceServerId} was asked to originate the recovery of ` +
+              `${lastResult.projectName}/${lastResult.repoName} asynchronously (best effort); a failure ` +
+              "is only reported in that replica's log."}{' '}
+          Confirm every replica reports the source&apos;s head commit with the script below, then make the
+          repository writable on the Repository Status page.
         </Alert>
       )}
-      {lastResult && lastResult.response.status === 'REQUESTED' && (
+      {lastResult && (
         <Box mt="2">
           <Flex justify="space-between" align="center" mb="1">
             <Text fontSize="sm" fontWeight="bold">
-              Check the head revision of every replica:
+              Check the head commit of every replica:
             </Text>
             <Button size="xs" onClick={onCopy}>
               {hasCopied ? 'Copied' : 'Copy'}
@@ -352,6 +362,7 @@ const RecoverRepositoryForm = () => {
             p="3"
             fontSize="xs"
             borderRadius="md"
+            sx={scriptStyles}
             dangerouslySetInnerHTML={{
               __html: Prism.highlight(verificationScript, Prism.languages.bash, 'bash'),
             }}

@@ -21,12 +21,13 @@ package com.linecorp.centraldogma.server.internal.api;
  */
 public enum RecoveryStatus {
     /**
-     * The request landed on the source replica and the recovery has been applied.
+     * The request landed on the source replica, which originated the recovery. The other replicas apply
+     * it when they replay it from the replication log, so this does not mean the cluster has converged.
      */
     COMPLETED,
     /**
      * The source replica has been asked over the replication log to originate the recovery
-     * asynchronously.
+     * asynchronously, best-effort: a failure is only reported in the source replica's log.
      */
     REQUESTED
 }

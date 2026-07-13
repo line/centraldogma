@@ -31,6 +31,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.io.Files;
 import com.google.common.util.concurrent.MoreExecutors;
 
 import com.linecorp.centraldogma.common.Author;
@@ -163,21 +164,51 @@ class RecoverRepositoryTest {
 
     /**
      * The payload crosses the replication log as one entry and is materialized in memory by every
-     * replica, so its size must be bounded.
+     * replica, so buildRecoveryPayload() itself must refuse to build an unbounded one.
      */
     @Test
     void rejectsAnOversizedRecoveryPayload() {
-        GitRepositoryManager.validateRecoveryPayloadSize("p/r", GitRepositoryManager.MAX_RECOVERY_COMMITS,
-                                                         GitRepositoryManager.MAX_RECOVERY_PAYLOAD_BYTES);
+        final GitRepositoryManager mgr = newRepositoryManager();
+        final GitRepository repo = (GitRepository) mgr.create(REPO, Author.SYSTEM);
+        pushMixedRevisions(repo); // head == r5, so r3..r5 is 3 commits
 
-        assertThatThrownBy(() -> GitRepositoryManager.validateRecoveryPayloadSize(
-                "p/r", GitRepositoryManager.MAX_RECOVERY_COMMITS + 1, 0))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("too many revisions");
-        assertThatThrownBy(() -> GitRepositoryManager.validateRecoveryPayloadSize(
-                "p/r", 1, GitRepositoryManager.MAX_RECOVERY_PAYLOAD_BYTES + 1))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("larger than");
+        final int commitLimit = GitRepositoryManager.maxRecoveryCommits;
+        final long byteLimit = GitRepositoryManager.maxRecoveryPayloadBytes;
+        try {
+            GitRepositoryManager.maxRecoveryCommits = 2;
+            assertThatThrownBy(() -> mgr.buildRecoveryPayload(REPO, new Revision(3)))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("too many revisions");
+            // Two commits fit.
+            assertThat(mgr.buildRecoveryPayload(REPO, new Revision(4))).hasSize(2);
+
+            GitRepositoryManager.maxRecoveryCommits = commitLimit;
+            GitRepositoryManager.maxRecoveryPayloadBytes = 1;
+            assertThatThrownBy(() -> mgr.buildRecoveryPayload(REPO, new Revision(3)))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("larger than");
+        } finally {
+            GitRepositoryManager.maxRecoveryCommits = commitLimit;
+            GitRepositoryManager.maxRecoveryPayloadBytes = byteLimit;
+        }
+    }
+
+    @Test
+    void rejectsAReplicaMissingTheResetBase() {
+        final GitRepositoryManager mgr = newRepositoryManager();
+        final GitRepository source = (GitRepository) mgr.create(REPO, Author.SYSTEM);
+        pushMixedRevisions(source); // head == r5
+        final List<ReplayCommit> payload = mgr.buildRecoveryPayload(REPO, new Revision(5));
+
+        // A replica whose head is below the reset revision (r4) lacks the shared base history.
+        final GitRepositoryManager lagging = newRepositoryManager(Files.createTempDir());
+        final GitRepository laggingRepo = (GitRepository) lagging.create(REPO, Author.SYSTEM);
+        laggingRepo.commit(new Revision(1), 2000L, Author.SYSTEM, "add f", "d", Markup.PLAINTEXT,
+                           ImmutableList.of(Change.ofTextUpsert("/f.txt", "v2")), false).join();
+
+        assertThatThrownBy(() -> lagging.recoverRepository(REPO, new Revision(4), payload))
+                .isInstanceOf(StorageException.class)
+                .hasMessageContaining("missing the shared base history");
     }
 
     /**
@@ -201,9 +232,13 @@ class RecoverRepositoryTest {
     }
 
     private GitRepositoryManager newRepositoryManager() {
+        return newRepositoryManager(tempDir.toFile());
+    }
+
+    private static GitRepositoryManager newRepositoryManager(java.io.File rootDir) {
         final Project mock = mock(Project.class);
         lenient().when(mock.name()).thenReturn("test_project");
-        return new GitRepositoryManager(mock, tempDir.toFile(), ForkJoinPool.commonPool(),
+        return new GitRepositoryManager(mock, rootDir, ForkJoinPool.commonPool(),
                                         MoreExecutors.directExecutor(), null,
                                         NoopEncryptionStorageManager.INSTANCE);
     }

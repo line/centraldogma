@@ -215,7 +215,7 @@ class ZooKeeperRepositoryRecoveryIntegrationTest {
         // payload build.
         final AggregatedHttpResponse response =
                 recover(adminClientOf(SOURCE_SERVER_ID), new RecoverRepositoryRequest(2, SOURCE_SERVER_ID));
-        assertThat(response.status()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(response.status()).isEqualTo(HttpStatus.CONFLICT);
         assertThat(response.contentUtf8()).contains("read-only");
     }
 
@@ -241,7 +241,7 @@ class ZooKeeperRepositoryRecoveryIntegrationTest {
                         .pathParam("repo", "dogma")
                         .contentJson(new RecoverRepositoryRequest(2, SOURCE_SERVER_ID))
                         .execute();
-        assertThat(response.status()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(response.status()).isEqualTo(HttpStatus.FORBIDDEN);
         assertThat(response.contentUtf8()).contains("internal repository");
     }
 
@@ -287,12 +287,14 @@ class ZooKeeperRepositoryRecoveryIntegrationTest {
      * with no new read-only escalation.
      */
     private void assertClusterConvergedAndUsable() {
-        // Every replica converges to the source content at the source head.
+        // Every replica converges to the source content at the source head. Two replicas of a diverged
+        // repository share the head revision, so the commit ID is what actually proves convergence.
         for (int serverId = 1; serverId <= 3; serverId++) {
             final int id = serverId;
             await().ignoreExceptions().untilAsserted(() -> {
                 assertThat(headRevisionOn(id).major()).isEqualTo(3);
                 assertThat(jsonValueOn(id, "a")).isEqualTo(2);
+                assertThat(headCommitIdOn(id)).isEqualTo(headCommitIdOn(SOURCE_SERVER_ID));
             });
         }
 
@@ -334,6 +336,38 @@ class ZooKeeperRepositoryRecoveryIntegrationTest {
                      .pathParam("repo", TEST_REPO)
                      .contentJson(request)
                      .execute();
+    }
+
+    /**
+     * Returns the head commit ID of the repository as reported by the given replica. A diverged replica
+     * holds a different commit at the same revision, so this is the only value that distinguishes them.
+     */
+    private String headCommitIdOn(int serverId) {
+        final ResponseEntity<JsonNode> response =
+                adminClientOf(serverId)
+                        .prepare()
+                        .get("/api/v1/projects/{project}/repos/{repo}/head")
+                        .pathParam("project", testProject)
+                        .pathParam("repo", TEST_REPO)
+                        .asJson(JsonNode.class)
+                        .execute();
+        assertThat(response.status()).isEqualTo(HttpStatus.OK);
+        return response.content().get("commitId").asText();
+    }
+
+    @Test
+    void headEndpointDistinguishesADivergedReplica() {
+        driveRepoIntoDivergedReadOnly();
+
+        // Same head revision on both replicas...
+        assertThat(headRevisionOn(DIVERGED_SERVER_ID)).isEqualTo(headRevisionOn(SOURCE_SERVER_ID));
+        // ...but a different commit, which is exactly what makes the revision alone useless for
+        // verifying a recovery.
+        assertThat(headCommitIdOn(DIVERGED_SERVER_ID)).isNotEqualTo(headCommitIdOn(SOURCE_SERVER_ID));
+
+        recover(adminClientOf(SOURCE_SERVER_ID), new RecoverRepositoryRequest(3, SOURCE_SERVER_ID));
+        await().ignoreExceptions().untilAsserted(() -> assertThat(headCommitIdOn(DIVERGED_SERVER_ID))
+                .isEqualTo(headCommitIdOn(SOURCE_SERVER_ID)));
     }
 
     private Revision headRevisionOn(int serverId) {

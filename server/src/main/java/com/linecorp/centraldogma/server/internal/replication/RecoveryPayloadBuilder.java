@@ -20,6 +20,7 @@ import static java.util.Objects.requireNonNull;
 
 import java.util.List;
 
+import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.RecoverRepositoryCommand;
@@ -49,12 +50,26 @@ public final class RecoveryPayloadBuilder {
      */
     public Command<Revision> build(RecoverRepositoryRequestCommand request) {
         requireNonNull(request, "request");
+        return build(request.author(), request.projectName(), request.repositoryName(),
+                     request.sourceServerId(), request.fromRevision());
+    }
+
+    /**
+     * Builds a {@link RecoverRepositoryCommand} that carries the commits of {@code fromRevision..HEAD} of
+     * the local repository. The reset revision and the head revision are derived here, so that a recovery
+     * originated directly by the source replica and one originated in reaction to a request are built by
+     * the same rules.
+     */
+    public Command<Revision> build(Author author, String projectName, String repositoryName,
+                                   int sourceServerId, Revision fromRevision) {
+        requireNonNull(author, "author");
+        requireNonNull(projectName, "projectName");
+        requireNonNull(repositoryName, "repositoryName");
+        requireNonNull(fromRevision, "fromRevision");
         final List<ReplayCommit> commits =
-                projectManager.get(request.projectName()).repos()
-                              .buildRecoveryPayload(request.repositoryName(), request.fromRevision());
+                projectManager.get(projectName).repos().buildRecoveryPayload(repositoryName, fromRevision);
         final Revision headRevision = commits.get(commits.size() - 1).revision();
-        return Command.recoverRepository(request.author(), request.projectName(), request.repositoryName(),
-                                         request.sourceServerId(), request.fromRevision().backward(1),
-                                         headRevision, commits);
+        return Command.recoverRepository(author, projectName, repositoryName, sourceServerId,
+                                         fromRevision.backward(1), headRevision, commits);
     }
 }

@@ -258,9 +258,7 @@ class RepoStatusManagerTest {
         try {
             // A fresh manager whose listener was never registered has an empty cache; the answer must
             // come from the replicated status files.
-            final RepoStatusManager coldManager = new RepoStatusManager(
-                    pmExtension.serverStatusManager(), pmExtension.projectManager(),
-                    new SimpleMeterRegistry());
+            final RepoStatusManager coldManager = newColdManager();
             assertThat(coldManager.isRepoOrProjectReadOnly("cold_prj", "repo")).isTrue();
             assertThat(coldManager.isRepoOrProjectReadOnly("cold_prj2", "any_repo")).isTrue();
             assertThat(coldManager.isRepoOrProjectReadOnly("cold_prj", "writable_repo")).isFalse();
@@ -269,6 +267,41 @@ class RepoStatusManagerTest {
             statusManager.removeRepoStatus("cold_prj", "repo", Author.DEFAULT).join();
             statusManager.removeProjectStatus("cold_prj2", Author.DEFAULT).join();
         }
+    }
+
+    /**
+     * The purge-time cleanup must not trust the cold cache either: a replica that replays a purge before
+     * the status listener's initial snapshot lands would otherwise keep the status file forever, while
+     * its peers delete it - leaving its internal dogma repository behind the rest of the cluster.
+     */
+    @Test
+    void purgeCleanupDoesNotTrustAColdCache() {
+        statusManager.updateRepoStatus("cold_purge", "repo", Author.DEFAULT, ReplicationStatus.READ_ONLY)
+                     .join();
+        statusManager.updateProjectStatus("cold_purge2", Author.DEFAULT, ReplicationStatus.READ_ONLY).join();
+        awaitStatus("cold_purge", "repo", ReplicationStatus.READ_ONLY);
+        awaitStatus("cold_purge2", "dogma", ReplicationStatus.READ_ONLY);
+
+        // A manager whose listener was never registered has an empty cache; it must still delete the
+        // replicated status files.
+        final RepoStatusManager coldManager = newColdManager();
+        coldManager.removeRepoStatus("cold_purge", "repo", Author.DEFAULT).join();
+        coldManager.removeProjectStatus("cold_purge2", Author.DEFAULT).join();
+
+        // Assert through another cold manager, whose empty cache forces the answer to come from the
+        // replicated status files: they are gone, so the purge really deleted them.
+        final RepoStatusManager reader = newColdManager();
+        assertThat(reader.isRepoOrProjectReadOnly("cold_purge", "repo")).isFalse();
+        assertThat(reader.isRepoOrProjectReadOnly("cold_purge2", "any_repo")).isFalse();
+    }
+
+    /**
+     * Returns a manager whose {@link RepoStatusManager#initialize()} was never called, so its status cache
+     * stays empty and every answer must come from the replicated status files.
+     */
+    private RepoStatusManager newColdManager() {
+        return new RepoStatusManager(pmExtension.serverStatusManager(), pmExtension.projectManager(),
+                                     new SimpleMeterRegistry());
     }
 
     /**

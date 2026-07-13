@@ -298,8 +298,8 @@ public final class GitRepositoryManager extends DirectoryBasedStorageManager<Rep
         if (expectedHeadCommitId != null && currentHead.equals(lastCommit.revision())) {
             final ObjectId currentHeadCommitId = old.commitIdDatabase().get(currentHead);
             if (currentHeadCommitId != null && expectedHeadCommitId.equals(currentHeadCommitId.name())) {
-                logger.debug("Repository '{}' is already at {} ({}); skipping recovery.",
-                             projectRepositoryName(repositoryName), currentHead, expectedHeadCommitId);
+                logger.info("Repository '{}' is already converged at {} ({}); nothing to recover.",
+                            projectRepositoryName(repositoryName), currentHead, expectedHeadCommitId);
                 return;
             }
         }
@@ -388,16 +388,23 @@ public final class GitRepositoryManager extends DirectoryBasedStorageManager<Rep
             old.writeUnLock();
         }
 
-        // Transfer listeners from the old repository to the recovered one, then close the old repository.
-        for (RepositoryListener listener : old.listeners()) {
-            neo.addListener(listener);
+        // The swap already succeeded, so the recovery must be reported as successful and the old
+        // repository must be released even if a listener transfer or the callback fails.
+        try {
+            for (RepositoryListener listener : old.listeners()) {
+                neo.addListener(listener);
+            }
+            final BiConsumer<String, Repository> callback = postMigrationCallback;
+            if (callback != null) {
+                callback.accept(repositoryName, neo);
+            }
+        } catch (Throwable t) {
+            logger.warn("Failed to hand over the listeners of the recovered repository '{}'.",
+                        projectRepositoryName(repositoryName), t);
+        } finally {
+            old.close(() -> new CentralDogmaException(
+                    projectRepositoryName(repositoryName) + " is recovered. Try again."));
         }
-        final BiConsumer<String, Repository> callback = postMigrationCallback;
-        if (callback != null) {
-            callback.accept(repositoryName, neo);
-        }
-        old.close(() -> new CentralDogmaException(
-                projectRepositoryName(repositoryName) + " is recovered. Try again."));
         logger.info("Recovered the repository '{}' to {} in {} seconds.",
                     projectRepositoryName(repositoryName), neo.normalizeNow(Revision.HEAD),
                     TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startTime));
@@ -458,20 +465,19 @@ public final class GitRepositoryManager extends DirectoryBasedStorageManager<Rep
     // The payload crosses the replication log as a single entry and is materialized in memory by every
     // replica, so an unbounded payload could exhaust the heap cluster-wide and stall replication.
     @VisibleForTesting
-    static final int MAX_RECOVERY_COMMITS = 10_000;
+    static int maxRecoveryCommits = 10_000;
     @VisibleForTesting
-    static final long MAX_RECOVERY_PAYLOAD_BYTES = 64 * 1024 * 1024;
+    static long maxRecoveryPayloadBytes = 64 * 1024 * 1024;
 
-    @VisibleForTesting
-    static void validateRecoveryPayloadSize(String name, int commitCount, long payloadBytes) {
-        if (commitCount > MAX_RECOVERY_COMMITS) {
+    private void validateRecoveryPayloadSize(String name, int commitCount, long payloadBytes) {
+        if (commitCount > maxRecoveryCommits) {
             throw new IllegalArgumentException(
                     "the recovery of " + name + " spans too many revisions: " + commitCount +
-                    " (maximum: " + MAX_RECOVERY_COMMITS + "). Recover from a later revision.");
+                    " (maximum: " + maxRecoveryCommits + "). Recover from a later revision.");
         }
-        if (payloadBytes > MAX_RECOVERY_PAYLOAD_BYTES) {
+        if (payloadBytes > maxRecoveryPayloadBytes) {
             throw new IllegalArgumentException(
-                    "the recovery payload of " + name + " is larger than " + MAX_RECOVERY_PAYLOAD_BYTES +
+                    "the recovery payload of " + name + " is larger than " + maxRecoveryPayloadBytes +
                     " bytes. Recover from a later revision.");
         }
     }

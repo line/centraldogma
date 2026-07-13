@@ -22,7 +22,6 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.jspecify.annotations.Nullable;
@@ -223,8 +222,10 @@ public final class RepoStatusManager {
     private boolean isStoredReadOnly(String projectName, String repoName) {
         final HasRevision<RepositoryState> state;
         try {
+            // The storage lookup throws synchronously, so peel a RuntimeException rather than only a
+            // CompletionException.
             state = crudOperation().find(crudContext(projectName), repoName).join();
-        } catch (CompletionException e) {
+        } catch (RuntimeException e) {
             final Throwable peeled = Exceptions.peel(e);
             if (peeled instanceof ProjectNotFoundException || peeled instanceof RepositoryNotFoundException) {
                 // The internal status storage does not exist yet, so no status was ever replicated.
@@ -265,16 +266,16 @@ public final class RepoStatusManager {
     }
 
     /**
-     * Deletes the replication status file of the specified repository, if it is read-only.
-     * Called when a repository is purged so that the cache and metrics do not leak the removed entry.
+     * Deletes the replication status file of the specified repository. Called when a repository is purged
+     * so that neither the status nor its metrics leak the removed entry.
+     *
+     * <p>The deletion is never gated on the in-memory cache: the cache is loaded by an asynchronously
+     * registered listener, so it can still be empty while the replication log is replayed after a
+     * restart, and skipping the deletion then would leave this replica's status storage — and hence its
+     * {@code dogma/dogma} repository — behind the rest of the cluster. Deleting a status file that does
+     * not exist is a no-op on every replica.
      */
     public CompletableFuture<Void> removeRepoStatus(String projectName, String repoName, Author author) {
-        final String key = getKey(projectName, repoName);
-        if (!statusMap.containsKey(key)) {
-            // Not read-only in the cache; nothing to evict. (A writable status file, if any, is
-            // harmless: it is filtered out of the read-only list/metrics and never re-marks a repo.)
-            return CompletableFuture.completedFuture(null);
-        }
         final String description = "Delete the replication status of '" + projectName + '/' + repoName + '\'';
         return crudOperation().delete(crudContext(projectName), repoName, author, description)
                               .handle((revision, cause) -> {
@@ -284,10 +285,10 @@ public final class RepoStatusManager {
                                             peeled instanceof RedundantChangeException)) {
                                           return Exceptions.throwUnsafely(peeled);
                                       }
-                                      // The status file was already removed; still evict the cache below.
+                                      // The status file does not exist; still evict the cache below.
                                   }
                                   // The listener does not observe deletions, so evict directly.
-                                  statusMap.remove(key);
+                                  statusMap.remove(getKey(projectName, repoName));
                                   refreshReadOnlyMetrics();
                                   return null;
                               });
@@ -295,14 +296,15 @@ public final class RepoStatusManager {
 
     /**
      * Deletes all replication status files of the specified project, if any. Called when a project is
-     * purged so that the cache and metrics do not leak the removed entries.
+     * purged so that neither the statuses nor their metrics leak the removed entries. The entries are
+     * enumerated from the replicated status files rather than the in-memory cache, which can still be
+     * empty while the replication log is replayed after a restart.
      */
     public CompletableFuture<Void> removeProjectStatus(String projectName, Author author) {
-        final String prefix = projectName + '/';
-        final List<String> repoNames = statusMap.keySet().stream()
-                                                 .filter(key -> key.startsWith(prefix))
-                                                 .map(key -> key.substring(prefix.length()))
-                                                 .collect(toImmutableList());
+        final List<String> repoNames =
+                crudOperation().findAll(crudContext(projectName)).join().stream()
+                               .map(state -> state.object().repoName())
+                               .collect(toImmutableList());
         // Clean up each repository independently so a single failure does not skip the rest.
         CompletableFuture<Void> future = CompletableFuture.completedFuture(null);
         for (String repoName : repoNames) {

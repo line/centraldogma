@@ -99,7 +99,7 @@ describe('buildVerificationScript', () => {
     // No explicit port: https defaults to 443.
     expect(script).toContain(
       'curl -sk -H "Authorization: Bearer $CD_TOKEN" ' +
-        'https://replica1.example.com:443/api/v1/projects/foo/repos/bar | jq .headRevision  # server 1',
+        'https://replica1.example.com:443/api/v1/projects/foo/repos/bar/head | jq -c  # server 1',
     );
     expect(script).toContain('# -k skips certificate verification');
   });
@@ -109,10 +109,12 @@ describe('buildVerificationScript', () => {
     const script = buildVerificationScript(result, replicas);
     expect(script).toContain(
       'curl -s -H "Authorization: Bearer $CD_TOKEN" ' +
-        'http://replica2.example.com:36462/api/v1/projects/foo/repos/bar | jq .headRevision  ' +
-        '# server 2 (source)',
+        'http://replica2.example.com:36462/api/v1/projects/foo/repos/bar/head | jq -c  # server 2 (source)',
     );
     expect(script).not.toContain('-k');
+    // A revision alone cannot detect a divergence, so the script must compare the commit ID.
+    expect(script).toContain('commitId');
+    expect(script).not.toContain('.headRevision');
   });
 });
 
@@ -214,7 +216,7 @@ describe('RecoverRepositoryForm', () => {
     expect(screen.getByPlaceholderText('foo/bar')).toBeInTheDocument();
   });
 
-  it('shows a persistent success message after a completed recovery', async () => {
+  it('does not claim convergence on the COMPLETED path, and still offers the script', async () => {
     renderForm();
     recoverTrigger.mockReturnValue({
       unwrap: () => Promise.resolve({ status: 'COMPLETED', headRevision: 3 }),
@@ -225,7 +227,11 @@ describe('RecoverRepositoryForm', () => {
     await userEvent.type(confirmInput, 'foo/bar');
     await userEvent.click(modalRecoverButton());
 
-    expect(await screen.findByText(/Recovery of foo\/bar completed at revision 3/)).toBeInTheDocument();
+    // COMPLETED only means the source originated the recovery; the others apply it asynchronously.
+    expect(await screen.findByText(/has not converged yet/)).toBeInTheDocument();
+    // The verification script must be offered on this path too.
+    const script = (await screen.findByTestId('recovery-verification-script')).textContent ?? '';
+    expect(script).toContain('/head');
   });
 
   it('shows a copyable per-replica head verification script after a REQUESTED recovery', async () => {
@@ -243,12 +249,11 @@ describe('RecoverRepositoryForm', () => {
     expect(script).toContain('CD_TOKEN=');
     expect(script).toContain(
       'curl -s -H "Authorization: Bearer $CD_TOKEN" ' +
-        'http://replica1.example.com:36462/api/v1/projects/foo/repos/bar | jq .headRevision  # server 1',
+        'http://replica1.example.com:36462/api/v1/projects/foo/repos/bar/head | jq -c  # server 1',
     );
     expect(script).toContain(
       'curl -s -H "Authorization: Bearer $CD_TOKEN" ' +
-        'http://replica2.example.com:36462/api/v1/projects/foo/repos/bar | jq .headRevision  ' +
-        '# server 2 (source)',
+        'http://replica2.example.com:36462/api/v1/projects/foo/repos/bar/head | jq -c  # server 2 (source)',
     );
     expect(script).not.toContain('-sk');
     expect(screen.getByRole('button', { name: /Copy/ })).toBeInTheDocument();
