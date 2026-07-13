@@ -772,19 +772,14 @@ public final class ZooKeeperCommandExecutor
     }
 
     private long getLastReplayedRevision() throws Exception {
-        final FileInputStream fis;
-        try {
-            fis = new FileInputStream(revisionFile);
-        } catch (FileNotFoundException ignored) {
-            return -1;
-        }
-
-        try (BufferedReader br = new BufferedReader(new InputStreamReader(fis))) {
+        try (BufferedReader br = new BufferedReader(new InputStreamReader(new FileInputStream(revisionFile)))) {
             final String l = br.readLine();
             if (l == null) {
                 return -1;
             }
             return Long.parseLong(l.trim());
+        } catch (FileNotFoundException ignored) {
+            return -1;
         }
     }
 
