@@ -163,4 +163,23 @@ describe('RecoverRepositoryForm', () => {
 
     expect(await screen.findByText(/Recovery of foo\/bar completed at revision 3/)).toBeInTheDocument();
   });
+
+  it('shows a copyable per-replica head verification script after a REQUESTED recovery', async () => {
+    renderForm(); // The default mock resolves with REQUESTED.
+    await fillForm();
+    await userEvent.click(recoverButton());
+    const confirmInput = screen.getByPlaceholderText('foo/bar');
+    await userEvent.type(confirmInput, 'foo/bar');
+    await userEvent.click(modalRecoverButton());
+
+    // One curl per replica against the recovered repository, with the source replica marked.
+    const script = (await screen.findByText(/CD_TOKEN=/)).textContent ?? '';
+    expect(script).toContain('curl -s -H "Authorization: Bearer $CD_TOKEN"');
+    expect(script).toContain('replica1.example.com');
+    expect(script).toContain('replica2.example.com');
+    expect(script).toContain('/api/v1/projects/foo/repos/bar');
+    expect(script).toContain('# server 1');
+    expect(script).toContain('# server 2 (source)');
+    expect(screen.getByRole('button', { name: /Copy/ })).toBeInTheDocument();
+  });
 });

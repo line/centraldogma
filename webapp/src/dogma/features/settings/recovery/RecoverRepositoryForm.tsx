@@ -19,6 +19,7 @@ import {
   AlertIcon,
   Box,
   Button,
+  Code,
   Flex,
   FormControl,
   FormHelperText,
@@ -30,11 +31,12 @@ import {
   NumberInputField,
   NumberInputStepper,
   Text,
+  useClipboard,
   useColorMode,
   useDisclosure,
 } from '@chakra-ui/react';
 import { OptionBase, Select } from 'chakra-react-select';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   useGetProjectsQuery,
   useGetReplicasQuery,
@@ -60,6 +62,42 @@ interface SourceOption extends OptionBase {
   host: string;
 }
 
+interface RecoveryResult {
+  projectName: string;
+  repoName: string;
+  sourceServerId: number;
+  response: RecoverRepositoryResponse;
+}
+
+/**
+ * Builds a copy-pastable shell script that compares the head revision of the recovered repository on
+ * every replica. A REQUESTED recovery completes asynchronously and its failure is only reported in the
+ * source replica's log, so this is how an administrator verifies convergence before making the
+ * repository writable again.
+ */
+export function buildVerificationScript(result: RecoveryResult, replicas: ReplicaInfo[]): string {
+  const { projectName, repoName, sourceServerId } = result;
+  const origin = process.env.NEXT_PUBLIC_HOST || window.location.origin;
+  const url = new URL(origin);
+  const port = url.port || (url.protocol === 'https:' ? '443' : '80');
+  const lines = [
+    'CD_TOKEN=<paste your access token>',
+    `# Every replica must report the same head revision of ${projectName}/${repoName} as the source ` +
+      `(server ${sourceServerId}).`,
+    `# Adjust the scheme/port if a replica does not listen on ${url.protocol}//<host>:${port}.`,
+    ...replicas.map((replica) => {
+      const marker = replica.serverId === sourceServerId ? ' (source)' : '';
+      return (
+        `curl -s -H "Authorization: Bearer $CD_TOKEN" ` +
+        `${url.protocol}//${replica.host}:${port}/api/v1/projects/${projectName}/repos/${repoName}` +
+        ` | jq .headRevision  # server ${replica.serverId}${marker}`
+      );
+    }),
+    `# A failed recovery is only reported in the log of the source replica (server ${sourceServerId}).`,
+  ];
+  return lines.join('\n');
+}
+
 const RecoverRepositoryForm = () => {
   const { colorMode } = useColorMode();
   const { isOpen, onOpen, onClose } = useDisclosure();
@@ -71,9 +109,7 @@ const RecoverRepositoryForm = () => {
   const [fromRevision, setFromRevision] = useState(2);
   // Inline feedback, so the outcome stays visible even after the transient toast is gone.
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [lastResult, setLastResult] = useState<{ target: string; response: RecoverRepositoryResponse } | null>(
-    null,
-  );
+  const [lastResult, setLastResult] = useState<RecoveryResult | null>(null);
 
   const { data: projects = [], isLoading: projectsLoading } = useGetProjectsQuery({ systemAdmin: false });
   const { data: repos = [], isFetching: reposFetching } = useGetReposQuery(project?.value ?? '', {
@@ -97,6 +133,14 @@ const RecoverRepositoryForm = () => {
 
   const complete = project != null && repo != null && source != null && fromRevision >= 2;
 
+  const verificationScript =
+    lastResult != null && lastResult.response.status === 'REQUESTED'
+      ? buildVerificationScript(lastResult, replicas)
+      : '';
+  const { onCopy, hasCopied, setValue: setClipboardValue } = useClipboard(verificationScript);
+  // useClipboard captures only the initial value; track the current script.
+  useEffect(() => setClipboardValue(verificationScript), [verificationScript, setClipboardValue]);
+
   const handleOpen = () => {
     // Clear the previous attempt's feedback so a stale banner cannot describe a different target.
     setErrorMessage(null);
@@ -115,7 +159,12 @@ const RecoverRepositoryForm = () => {
         fromRevision,
         sourceServerId: source.value,
       }).unwrap();
-      setLastResult({ target: `${project.value}/${repo.value}`, response });
+      setLastResult({
+        projectName: project.value,
+        repoName: repo.value,
+        sourceServerId: source.value,
+        response,
+      });
       if (response.status === 'COMPLETED') {
         dispatch(
           newNotification(
@@ -247,12 +296,37 @@ const RecoverRepositoryForm = () => {
         <Alert status="success" borderRadius="md" fontSize="sm" mt="4">
           <AlertIcon />
           {lastResult.response.status === 'COMPLETED'
-            ? `Recovery of ${lastResult.target} completed at revision ${lastResult.response.headRevision}. ` +
-              'Verify it on the Repository Status page, then make it writable.'
-            : `Recovery of ${lastResult.target} was requested; the source replica originates it ` +
-              'asynchronously (best effort). Confirm the repository head matches the source before making ' +
-              "it writable — a failure is only reported in the source replica's log."}
+            ? `Recovery of ${lastResult.projectName}/${lastResult.repoName} completed at revision ` +
+              `${lastResult.response.headRevision}. Verify it on the Repository Status page, then make ` +
+              'it writable.'
+            : `Recovery of ${lastResult.projectName}/${lastResult.repoName} was requested; the source ` +
+              'replica originates it asynchronously (best effort). Verify with the script below that ' +
+              'every replica reports the same head revision before making the repository writable — a ' +
+              "failure is only reported in the source replica's log."}
         </Alert>
+      )}
+      {lastResult && lastResult.response.status === 'REQUESTED' && (
+        <Box mt="2">
+          <Flex justify="space-between" align="center" mb="1">
+            <Text fontSize="sm" fontWeight="bold">
+              Check the head revision of every replica:
+            </Text>
+            <Button size="xs" onClick={onCopy}>
+              {hasCopied ? 'Copied' : 'Copy'}
+            </Button>
+          </Flex>
+          <Code
+            as="pre"
+            display="block"
+            whiteSpace="pre"
+            overflowX="auto"
+            p="3"
+            fontSize="xs"
+            borderRadius="md"
+          >
+            {verificationScript}
+          </Code>
+        </Box>
       )}
       {complete && (
         <RecoveryConfirmModal
