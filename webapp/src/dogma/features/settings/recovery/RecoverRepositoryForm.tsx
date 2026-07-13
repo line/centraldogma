@@ -70,26 +70,52 @@ interface RecoveryResult {
 }
 
 /**
+ * Returns the reason of a rejected recovery without the Java stack trace the server sends to a system
+ * administrator, which would otherwise bury the message that matters.
+ */
+export function conciseErrorMessage(error: unknown): string {
+  const parsed = ErrorMessageParser.parse(error);
+  const lines: string[] = [];
+  for (const line of parsed.split('\n')) {
+    // A stack frame, or the exception class repeating the message that was already shown.
+    if (/^\s+at\s/.test(line) || /^\s*(?:[a-z][\w$]*\.)+[A-Z][\w$]*(?:Exception|Error)\b/.test(line)) {
+      break;
+    }
+    lines.push(line);
+  }
+  const concise = lines.join('\n').trim();
+  return concise || parsed;
+}
+
+/**
  * Builds a copy-pastable shell script that compares the head revision of the recovered repository on
  * every replica. A REQUESTED recovery completes asynchronously and its failure is only reported in the
  * source replica's log, so this is how an administrator verifies convergence before making the
  * repository writable again.
+ *
+ * <p>Each curl keeps this page's authority in the URL (so TLS certificate validation and virtual-host
+ * routing keep working) and dials one replica directly via {@code --connect-to}.
  */
 export function buildVerificationScript(result: RecoveryResult, replicas: ReplicaInfo[]): string {
   const { projectName, repoName, sourceServerId } = result;
   const origin = process.env.NEXT_PUBLIC_HOST || window.location.origin;
   const url = new URL(origin);
-  const port = url.port || (url.protocol === 'https:' ? '443' : '80');
+  // Without an explicit port, assume 443 for https and the Central Dogma default port for http.
+  const port = url.port || (url.protocol === 'https:' ? '443' : '36462');
+  const authority = `${url.hostname}:${port}`;
+  const repoUrl = `${url.protocol}//${authority}/api/v1/projects/${projectName}/repos/${repoName}`;
   const lines = [
     'CD_TOKEN=<paste your access token>',
     `# Every replica must report the same head revision of ${projectName}/${repoName} as the source ` +
       `(server ${sourceServerId}).`,
-    `# Adjust the scheme/port if a replica does not listen on ${url.protocol}//<host>:${port}.`,
+    "# --connect-to dials one replica per request while keeping this page's authority for TLS and",
+    `# virtual-host routing; adjust the replica port if a replica does not listen on :${port}.`,
+    `# (Alternatively skip certificate verification: curl -sk ${url.protocol}//<replica-host>:${port}/...)`,
     ...replicas.map((replica) => {
       const marker = replica.serverId === sourceServerId ? ' (source)' : '';
       return (
-        `curl -s -H "Authorization: Bearer $CD_TOKEN" ` +
-        `${url.protocol}//${replica.host}:${port}/api/v1/projects/${projectName}/repos/${repoName}` +
+        `curl -s --connect-to ${authority}:${replica.host}:${port} ` +
+        `-H "Authorization: Bearer $CD_TOKEN" ${repoUrl}` +
         ` | jq .headRevision  # server ${replica.serverId}${marker}`
       );
     }),
@@ -191,14 +217,9 @@ const RecoverRepositoryForm = () => {
     } catch (error) {
       // Keep the modal open and show the reason inline; the toast alone is too transient for a
       // destructive operation.
-      setErrorMessage(ErrorMessageParser.parse(error));
-      dispatch(
-        newNotification(
-          `Failed to recover ${project.value}/${repo.value}`,
-          ErrorMessageParser.parse(error),
-          'error',
-        ),
-      );
+      const reason = conciseErrorMessage(error);
+      setErrorMessage(reason);
+      dispatch(newNotification(`Failed to recover ${project.value}/${repo.value}`, reason, 'error'));
     }
   };
 

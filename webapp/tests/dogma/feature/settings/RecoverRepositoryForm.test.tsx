@@ -1,7 +1,9 @@
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { renderWithProviders } from 'dogma/util/test-utils';
-import RecoverRepositoryForm from 'dogma/features/settings/recovery/RecoverRepositoryForm';
+import RecoverRepositoryForm, {
+  conciseErrorMessage,
+} from 'dogma/features/settings/recovery/RecoverRepositoryForm';
 import {
   useGetProjectsQuery,
   useGetReplicasQuery,
@@ -73,6 +75,28 @@ const fillForm = async () => {
   await userEvent.selectOptions(screen.getByTestId('recovery-repo-select'), 'bar');
   await userEvent.selectOptions(screen.getByTestId('recovery-source-select'), '2');
 };
+
+describe('conciseErrorMessage', () => {
+  it('drops the Java stack trace a system administrator receives', () => {
+    // The server answers a system administrator with the message and a verbose stack trace.
+    const error = {
+      data: {
+        message: 'The repository must be read-only before recovery: foo/bar',
+        detail:
+          'java.lang.IllegalArgumentException: The repository must be read-only before recovery: foo/bar\n' +
+          '\tat com.linecorp.centraldogma.server.internal.api.RepositoryServiceV1.recover(' +
+          'RepositoryServiceV1.java:354)\n' +
+          '\tat com.linecorp.armeria.internal.server.annotation.DefaultAnnotatedService.invoke(' +
+          'DefaultAnnotatedService.java:475)',
+      },
+    };
+    expect(conciseErrorMessage(error)).toBe('The repository must be read-only before recovery: foo/bar');
+  });
+
+  it('keeps a message that carries no stack trace', () => {
+    expect(conciseErrorMessage({ data: { message: 'boom' } })).toBe('boom');
+  });
+});
 
 describe('RecoverRepositoryForm', () => {
   beforeEach(() => jest.clearAllMocks());
@@ -172,11 +196,13 @@ describe('RecoverRepositoryForm', () => {
     await userEvent.type(confirmInput, 'foo/bar');
     await userEvent.click(modalRecoverButton());
 
-    // One curl per replica against the recovered repository, with the source replica marked.
+    // One curl per replica against the recovered repository, keeping the page authority in the URL and
+    // dialing the replica via --connect-to, with the source replica marked.
     const script = (await screen.findByText(/CD_TOKEN=/)).textContent ?? '';
-    expect(script).toContain('curl -s -H "Authorization: Bearer $CD_TOKEN"');
-    expect(script).toContain('replica1.example.com');
-    expect(script).toContain('replica2.example.com');
+    expect(script).toContain('--connect-to localhost:36462:replica1.example.com:36462');
+    expect(script).toContain('--connect-to localhost:36462:replica2.example.com:36462');
+    expect(script).toContain('-H "Authorization: Bearer $CD_TOKEN" http://localhost:36462');
+    expect(script).toContain('curl -sk'); // the certificate-skipping alternative is mentioned
     expect(script).toContain('/api/v1/projects/foo/repos/bar');
     expect(script).toContain('# server 1');
     expect(script).toContain('# server 2 (source)');
