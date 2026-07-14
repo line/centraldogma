@@ -26,6 +26,7 @@ import {
   MdHistory,
   MdDashboard,
   MdAccountTree,
+  MdSync,
 } from 'react-icons/md';
 import { TbServer2, TbRouteSquare } from 'react-icons/tb';
 import { SiKubernetes } from 'react-icons/si';
@@ -80,6 +81,7 @@ const SECTION_ICONS: Record<XdsSection, IconType> = {
   permissions: MdLockOutline,
   dangerZone: MdWarningAmber,
   history: MdHistory,
+  mirroring: MdSync,
 };
 
 export const Sidebar = () => {
@@ -168,6 +170,15 @@ export const Sidebar = () => {
             label="History"
             icon={SECTION_ICONS.history}
             active={section === 'history'}
+          />
+        )}
+        {/* Mirror configuration for the group's backing repository, visible only to admins. */}
+        {!endpointsOnly && isAdmin && (
+          <NavItem
+            href={`/app/xds/group?name=${encodeURIComponent(group)}&type=mirroring`}
+            label="Mirroring"
+            icon={SECTION_ICONS.mirroring}
+            active={section === 'mirroring'}
           />
         )}
         {/* Credentials and Permissions manage group-level access, so they are shown only to group admins. */}

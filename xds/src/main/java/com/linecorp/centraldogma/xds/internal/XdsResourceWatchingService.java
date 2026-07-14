@@ -32,6 +32,7 @@ import com.google.common.collect.ImmutableList.Builder;
 import com.google.common.collect.Sets;
 
 import com.linecorp.centraldogma.common.Change;
+import com.linecorp.centraldogma.common.ChangeType;
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.EntryType;
 import com.linecorp.centraldogma.common.RepositoryNotFoundException;
@@ -222,8 +223,8 @@ public abstract class XdsResourceWatchingService {
             for (Change<?> change : changes.values()) {
                 final String path = change.path();
                 switch (change.type()) {
-                    case UPSERT_JSON:
                     case UPSERT_YAML:
+                    case UPSERT_JSON:
                         try {
                             handleXdsResource(path, (JsonNode) change.content(), groupName);
                         } catch (Throwable t) {
@@ -232,6 +233,15 @@ public abstract class XdsResourceWatchingService {
                         }
                         break;
                     case REMOVE:
+                        // Skip if this is an atomic .json → .yaml migration commit: the .json is being
+                        // removed while the same resource is upserted as .yaml in the same diff.
+                        if (path.endsWith(".json")) {
+                            final String base = path.substring(0, path.length() - 5);
+                            final Change<?> counterpart = changes.get(base + ".yaml");
+                            if (counterpart != null && counterpart.type() != ChangeType.REMOVE) {
+                                break;
+                            }
+                        }
                         onFileRemoved(groupName, path);
                         break;
                     default:

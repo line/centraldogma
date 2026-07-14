@@ -18,7 +18,7 @@ package com.linecorp.centraldogma.xds.k8s.v1;
 import static com.google.common.base.Strings.isNullOrEmpty;
 import static com.linecorp.centraldogma.internal.CredentialUtil.credentialName;
 import static com.linecorp.centraldogma.server.internal.admin.auth.AuthUtil.currentAuthor;
-import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.XDS_CENTRAL_DOGMA_PROJECT;
+import static com.linecorp.centraldogma.server.internal.storage.InternalProjectConstants.INTERNAL_PROJECT_XDS;
 import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.RESOURCE_ID_PATTERN;
 import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.RESOURCE_ID_PATTERN_STRING;
 import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.fileName;
@@ -90,7 +90,7 @@ public final class XdsKubernetesService extends XdsKubernetesServiceImplBase {
         }
     }
 
-    static final String K8S_ENDPOINT_AGGREGATORS_DIRECTORY = "/k8s/endpointAggregators/";
+    public static final String K8S_ENDPOINT_AGGREGATORS_DIRECTORY = "/k8s/endpointAggregators/";
     public static final Pattern AGGREGATORS_REPLCACE_PATTERN =
             Pattern.compile("(?<=/k8s)/endpointAggregators/");
 
@@ -138,7 +138,7 @@ public final class XdsKubernetesService extends XdsKubernetesServiceImplBase {
                                          .asRuntimeException();
         }
         final Author author = currentAuthor();
-        final String fileName = K8S_ENDPOINT_AGGREGATORS_DIRECTORY + aggregatorId + ".json";
+        final String fileName = K8S_ENDPOINT_AGGREGATORS_DIRECTORY + aggregatorId + ".yaml";
         final String createSummary =
                 isNullOrEmpty(request.getSummary()) ? "Create kubernetes endpoint: " + kubernetesEndpointName
                                                     : request.getSummary();
@@ -312,7 +312,7 @@ public final class XdsKubernetesService extends XdsKubernetesServiceImplBase {
         }
         final CompletableFuture<Config> future = new CompletableFuture<>();
         // xDS only support repository credential so try using it first.
-        metaRepository.credential(credentialName(XDS_CENTRAL_DOGMA_PROJECT, group, credentialId))
+        metaRepository.credential(credentialName(INTERNAL_PROJECT_XDS, group, credentialId))
                       .thenAccept(credential -> {
                           if (!(credential instanceof AccessTokenCredential)) {
                               future.completeExceptionally(new IllegalArgumentException(
@@ -326,7 +326,7 @@ public final class XdsKubernetesService extends XdsKubernetesServiceImplBase {
                           final Throwable peeled = Exceptions.peel(cause);
                           if (peeled instanceof EntryNotFoundException) {
                               // Try to use the legacy project credential for backward compatibility.
-                              metaRepository.credential(credentialName(XDS_CENTRAL_DOGMA_PROJECT, credentialId))
+                              metaRepository.credential(credentialName(INTERNAL_PROJECT_XDS, credentialId))
                                             .handle((credential, cause1) -> {
                                                 if (cause1 != null) {
                                                     future.completeExceptionally(cause1);

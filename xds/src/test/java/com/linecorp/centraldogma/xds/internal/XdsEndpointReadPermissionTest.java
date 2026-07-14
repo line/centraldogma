@@ -79,14 +79,14 @@ final class XdsEndpointReadPermissionTest {
         final AggregatedHttpResponse list =
                 reader.get("/api/v1/xds/groups/foo/endpoints").aggregate().join();
         assertThat(list.status()).isEqualTo(HttpStatus.OK);
-        assertThat(list.contentUtf8()).contains("/endpoints/e1.json");
+        assertThat(list.contentUtf8()).contains("/endpoints/e1.yaml");
 
         final AggregatedHttpResponse get =
                 reader.get("/api/v1/xds/groups/foo/endpoints/e1").aggregate().join();
         assertThat(get.status()).isEqualTo(HttpStatus.OK);
-        assertThat(get.contentUtf8()).contains("/endpoints/e1.json").contains("127.0.0.1");
+        assertThat(get.contentUtf8()).contains("/endpoints/e1.yaml").contains("127.0.0.1");
 
-        final String clusterPath = "/api/v1/projects/@xds/repos/foo/contents/clusters/c1.json?revision=head";
+        final String clusterPath = "/api/v1/projects/@xds/repos/foo/contents/clusters/c1.yaml?revision=head";
         final AggregatedHttpResponse cluster = reader.get(clusterPath).aggregate().join();
         assertThat(cluster.status()).isEqualTo(HttpStatus.FORBIDDEN);
 

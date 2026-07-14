@@ -17,14 +17,16 @@ package com.linecorp.centraldogma.xds.k8s.v1;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.linecorp.centraldogma.internal.CredentialUtil.credentialName;
+import static com.linecorp.centraldogma.server.internal.storage.InternalProjectConstants.INTERNAL_PROJECT_XDS;
 import static com.linecorp.centraldogma.xds.endpoint.v1.XdsEndpointServiceTest.checkEndpointsViaDiscoveryRequest;
-import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.XDS_CENTRAL_DOGMA_PROJECT;
+import static com.linecorp.centraldogma.xds.internal.ControlPlaneService.K8S_ENDPOINTS_DIRECTORY;
 import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.JSON_MESSAGE_MARSHALLER;
 import static com.linecorp.centraldogma.xds.internal.XdsTestUtil.createGroup;
 import static com.linecorp.centraldogma.xds.internal.XdsTestUtil.endpoint;
 import static com.linecorp.centraldogma.xds.k8s.v1.XdsKubernetesService.K8S_ENDPOINT_AGGREGATORS_DIRECTORY;
 import static net.javacrumbs.jsonunit.fluent.JsonFluentAssert.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -53,9 +55,11 @@ import com.linecorp.armeria.common.HttpMethod;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.MediaType;
 import com.linecorp.armeria.common.RequestHeaders;
+import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.credential.CreateCredentialRequest;
 import com.linecorp.centraldogma.server.internal.credential.AccessTokenCredential;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
@@ -148,7 +152,7 @@ class XdsKubernetesServiceTest {
     private static void putCredential() {
         final CreateCredentialRequest repoCredentialRequest = new CreateCredentialRequest(
                 "repo-credential",
-                new AccessTokenCredential(credentialName(XDS_CENTRAL_DOGMA_PROJECT, "foo", "repo-credential"),
+                new AccessTokenCredential(credentialName(INTERNAL_PROJECT_XDS, "foo", "repo-credential"),
                                           "secret")
         );
         dogma.httpClient().prepare()
@@ -158,7 +162,7 @@ class XdsKubernetesServiceTest {
         // This is needed for the backward compatibility test.
         final CreateCredentialRequest projectCredentialRequest = new CreateCredentialRequest(
                 "project-credential",
-                new AccessTokenCredential(credentialName(XDS_CENTRAL_DOGMA_PROJECT, "project-credential"),
+                new AccessTokenCredential(credentialName(INTERNAL_PROJECT_XDS, "project-credential"),
                                           "secret")
         );
         dogma.httpClient().prepare()
@@ -219,11 +223,11 @@ class XdsKubernetesServiceTest {
                 aggregator.toBuilder().setClusterName(clusterName) // cluster name is set by the service.
                           .build();
         assertAggregator(json, expectedAggregator);
-        final Repository fooGroup = dogma.projectManager().get(XDS_CENTRAL_DOGMA_PROJECT).repos().get("foo");
+        final Repository fooGroup = dogma.projectManager().get(INTERNAL_PROJECT_XDS).repos().get("foo");
         final Entry<JsonNode> entry =
-                fooGroup.get(Revision.HEAD, Query.ofJson(
-                        K8S_ENDPOINT_AGGREGATORS_DIRECTORY + aggregatorId + ".json")).join();
-        assertAggregator(entry.contentAsText(), expectedAggregator);
+                fooGroup.get(Revision.HEAD, Query.ofYaml(
+                        K8S_ENDPOINT_AGGREGATORS_DIRECTORY + aggregatorId + ".yaml")).join();
+        assertAggregator(Jackson.writeValueAsString(entry.content()), expectedAggregator);
         final ClusterLoadAssignment loadAssignment = clusterLoadAssignment(clusterName, 30000);
         checkEndpointsViaDiscoveryRequest(dogma.httpClient().uri(), loadAssignment, clusterName);
 
@@ -232,10 +236,11 @@ class XdsKubernetesServiceTest {
         // so that endpoints are not updated one by one.
         final Entry<JsonNode> clusterEntry =
                 fooGroup.get(entry.revision().forward(1),
-                             Query.ofJson("/k8s/endpoints/" + aggregatorId + ".json"))
+                             Query.ofYaml("/k8s/endpoints/" + aggregatorId + ".yaml"))
                         .join();
         final ClusterLoadAssignment.Builder clusterLoadAssignmentBuilder = ClusterLoadAssignment.newBuilder();
-        JSON_MESSAGE_MARSHALLER.mergeValue(clusterEntry.contentAsText(), clusterLoadAssignmentBuilder);
+        JSON_MESSAGE_MARSHALLER.mergeValue(Jackson.writeValueAsString(clusterEntry.content()),
+                                           clusterLoadAssignmentBuilder);
         assertThat(clusterLoadAssignmentBuilder.build()).isEqualTo(loadAssignment);
 
         dispatcher.queue().forEach(req -> {
@@ -369,6 +374,46 @@ class XdsKubernetesServiceTest {
         assertOk(response);
         assertThat(response.contentUtf8()).isEqualTo("{}");
         checkEndpointsViaDiscoveryRequest(dogma.httpClient().uri(), null, clusterName);
+    }
+
+    @Test
+    void createAggregator_migratesLegacyJsonEndpoint() throws IOException {
+        final String aggregatorId = "k8s-mig-cluster/1";
+        final String clusterName = "groups/foo/k8s/clusters/" + aggregatorId;
+        final Repository fooGroup =
+                dogma.projectManager().get(INTERNAL_PROJECT_XDS).repos().get("foo");
+
+        // Pre-push a legacy .json endpoint file — simulates an old server that wrote .json.
+        final String legacyJsonPath = K8S_ENDPOINTS_DIRECTORY + aggregatorId + ".json";
+        final ClusterLoadAssignment legacyEndpoints = clusterLoadAssignment(clusterName, 30000);
+        final JsonNode legacyJsonNode = Jackson.readTree(
+                JSON_MESSAGE_MARSHALLER.writeValueAsString(legacyEndpoints));
+        dogma.client().forRepo(INTERNAL_PROJECT_XDS, "foo")
+             .commit("Add legacy k8s JSON endpoint", Change.ofJsonUpsert(legacyJsonPath, legacyJsonNode))
+             .push().join();
+
+        // Create the aggregator — pushK8sEndpoints will atomically remove the .json and upsert .yaml.
+        final KubernetesEndpointAggregator aggregator = aggregator(aggregatorId, "repo-credential");
+        assertOk(createAggregator(aggregator, aggregatorId));
+
+        // Wait until the migration commit lands (the next revision after the aggregator config commit).
+        final Entry<JsonNode> aggEntry =
+                fooGroup.get(Revision.HEAD,
+                             Query.ofYaml(K8S_ENDPOINT_AGGREGATORS_DIRECTORY + aggregatorId + ".yaml"))
+                        .join();
+        await().until(() -> fooGroup.normalizeNow(Revision.HEAD)
+                                    .equals(aggEntry.revision().forward(1)));
+
+        final Entry<JsonNode> endpointEntry =
+                fooGroup.getOrNull(Revision.HEAD,
+                                   Query.ofYaml(K8S_ENDPOINTS_DIRECTORY + aggregatorId + ".yaml"))
+                        .join();
+        assertThat(endpointEntry).isNotNull();
+
+        // The legacy .json file must be absent after atomic migration.
+        assertThat(fooGroup.getOrNull(Revision.HEAD, Query.ofJson(legacyJsonPath)).join()).isNull();
+
+        assertOk(deleteAggregator0(aggregator.getName()));
     }
 
     private static AggregatedHttpResponse deleteAggregator0(String aggregatorName) {

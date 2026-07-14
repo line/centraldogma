@@ -22,7 +22,7 @@ import { useGetGroupHistoryQuery, useGetResourceQuery } from 'dogma/features/xds
 
 // The aggregator writes its generated endpoints to this path; reading it tells us whether (and when) the
 // aggregator has produced endpoints from Kubernetes.
-const generatedPath = (id: string) => `/k8s/endpoints/${id}.json`;
+const generatedPath = (id: string) => `/k8s/endpoints/${id}.yaml`;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function countEndpoints(content: any): { localities: number; endpoints: number } {
@@ -46,10 +46,16 @@ export const K8sAggregatorStatus = ({ group, id }: { group: string; id: string }
     { refetchOnMountOrArgChange: true },
   );
   const { data: history } = useGetGroupHistoryQuery({ group, filePath: generatedPath(id), maxCommits: 1 });
+  // Pre-migration servers store the endpoint file under .json; fall back to that path if .yaml has
+  // no history yet (i.e. the aggregator has not yet pushed after the YAML migration was deployed).
+  const { data: legacyHistory } = useGetGroupHistoryQuery(
+    { group, filePath: `/k8s/endpoints/${id}.json`, maxCommits: 1 },
+    { skip: !history || history.length > 0 },
+  );
 
   const notSynced = (error as FetchBaseQueryError | undefined)?.status === 404;
   const { localities, endpoints } = useMemo(() => countEndpoints(data?.content), [data]);
-  const lastCommit = history?.[0];
+  const lastCommit = history?.[0] ?? legacyHistory?.[0];
   const resourceHref =
     `/app/xds/resource?group=${encodeURIComponent(group)}&type=endpoints` +
     `&id=${encodeURIComponent(id)}&k8s=true`;

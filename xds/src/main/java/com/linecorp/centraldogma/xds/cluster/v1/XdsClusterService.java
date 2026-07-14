@@ -81,7 +81,7 @@ public final class XdsClusterService extends XdsClusterServiceImplBase {
                          .build();
         final String createSummary = isNullOrEmpty(request.getSummary()) ?
                                      "Create cluster: " + clusterName : request.getSummary();
-        xdsResourceManager.push(responseObserver, group, clusterName, CLUSTERS_DIRECTORY + clusterId + ".json",
+        xdsResourceManager.push(responseObserver, group, clusterName, CLUSTERS_DIRECTORY + clusterId + ".yaml",
                                 createSummary, cluster, currentAuthor(), true);
     }
 

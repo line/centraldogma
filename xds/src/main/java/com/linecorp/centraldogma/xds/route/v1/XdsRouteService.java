@@ -71,7 +71,7 @@ public final class XdsRouteService extends XdsRouteServiceImplBase {
         final RouteConfiguration route = request.getRoute().toBuilder().setName(routeName).build();
         final String createSummary = isNullOrEmpty(request.getSummary()) ?
                                      "Create route: " + routeName : request.getSummary();
-        xdsResourceManager.push(responseObserver, group, routeName, ROUTES_DIRECTORY + routeId + ".json",
+        xdsResourceManager.push(responseObserver, group, routeName, ROUTES_DIRECTORY + routeId + ".yaml",
                                 createSummary, route, currentAuthor(), true);
     }
 

@@ -132,7 +132,7 @@ public final class XdsEndpointService extends XdsEndpointServiceImplBase {
     }
 
     private static String fileName(String endpointId) {
-        return ENDPOINTS_DIRECTORY + endpointId + ".json";
+        return ENDPOINTS_DIRECTORY + endpointId + ".yaml";
     }
 
     @Override

@@ -72,7 +72,7 @@ public final class XdsListenerService extends XdsListenerServiceImplBase {
         final String createSummary =
                 isNullOrEmpty(request.getSummary()) ? "Create listener: " + listenerName : request.getSummary();
         xdsResourceManager.push(responseObserver, group, listenerName,
-                                LISTENERS_DIRECTORY + listenerId + ".json",
+                                LISTENERS_DIRECTORY + listenerId + ".yaml",
                                 createSummary, listener, currentAuthor(), true);
     }
 

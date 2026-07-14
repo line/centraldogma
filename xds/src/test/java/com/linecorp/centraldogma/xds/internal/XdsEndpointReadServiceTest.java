@@ -15,11 +15,10 @@
  */
 package com.linecorp.centraldogma.xds.internal;
 
-import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.XDS_CENTRAL_DOGMA_PROJECT;
+import static com.linecorp.centraldogma.server.internal.storage.InternalProjectConstants.INTERNAL_PROJECT_XDS;
 import static com.linecorp.centraldogma.xds.internal.ControlPlaneService.ENDPOINTS_DIRECTORY;
 import static com.linecorp.centraldogma.xds.internal.ControlPlaneService.K8S_ENDPOINTS_DIRECTORY;
 import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.JSON_MESSAGE_MARSHALLER;
-import static com.linecorp.centraldogma.xds.internal.XdsTestUtil.createEndpoint;
 import static com.linecorp.centraldogma.xds.internal.XdsTestUtil.createGroup;
 import static com.linecorp.centraldogma.xds.internal.XdsTestUtil.loadAssignment;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -56,8 +55,7 @@ class XdsEndpointReadServiceTest {
     void listEndpoints_jsonFileAppearsWithJsonType() throws Exception {
         final ClusterLoadAssignment endpoint =
                 loadAssignment("groups/" + GROUP + "/endpoints/list-json", "127.0.0.1", 8080);
-        assertThat(createEndpoint("groups/" + GROUP, "list-json", endpoint, dogma.httpClient())
-                           .status()).isSameAs(HttpStatus.OK);
+        pushJsonEndpoint("list-json", endpoint);
 
         final AggregatedHttpResponse response = listEndpoints();
         assertThat(response.status()).isSameAs(HttpStatus.OK);
@@ -89,8 +87,7 @@ class XdsEndpointReadServiceTest {
     void listEndpoints_mixedJsonAndYamlBothAppear() throws Exception {
         final ClusterLoadAssignment jsonEndpoint =
                 loadAssignment("groups/" + GROUP + "/endpoints/list-mix-json", "127.0.0.1", 8082);
-        assertThat(createEndpoint("groups/" + GROUP, "list-mix-json", jsonEndpoint, dogma.httpClient())
-                           .status()).isSameAs(HttpStatus.OK);
+        pushJsonEndpoint("list-mix-json", jsonEndpoint);
 
         final ClusterLoadAssignment yamlEndpoint =
                 loadAssignment("groups/" + GROUP + "/endpoints/list-mix-yaml", "127.0.0.1", 8083);
@@ -132,8 +129,7 @@ class XdsEndpointReadServiceTest {
     void getEndpoint_jsonFileReturnsContentWithJsonType() throws Exception {
         final ClusterLoadAssignment endpoint =
                 loadAssignment("groups/" + GROUP + "/endpoints/get-json", "127.0.0.1", 8090);
-        assertThat(createEndpoint("groups/" + GROUP, "get-json", endpoint, dogma.httpClient())
-                           .status()).isSameAs(HttpStatus.OK);
+        pushJsonEndpoint("get-json", endpoint);
 
         final AggregatedHttpResponse response = getEndpoint("get-json");
         assertThat(response.status()).isSameAs(HttpStatus.OK);
@@ -223,9 +219,19 @@ class XdsEndpointReadServiceTest {
                     .aggregate().join();
     }
 
+    private static void pushJsonEndpoint(String endpointId, ClusterLoadAssignment endpoint)
+            throws Exception {
+        dogma.client().forRepo(INTERNAL_PROJECT_XDS, GROUP)
+             .commit("Add JSON endpoint: " + endpointId,
+                     Change.ofJsonUpsert(ENDPOINTS_DIRECTORY + endpointId + ".json",
+                                         Jackson.readTree(
+                                                 JSON_MESSAGE_MARSHALLER.writeValueAsString(endpoint))))
+             .push().join();
+    }
+
     private static void pushYamlEndpoint(String endpointId, ClusterLoadAssignment endpoint)
             throws Exception {
-        dogma.client().forRepo(XDS_CENTRAL_DOGMA_PROJECT, GROUP)
+        dogma.client().forRepo(INTERNAL_PROJECT_XDS, GROUP)
              .commit("Add YAML endpoint: " + endpointId,
                      Change.ofYamlUpsert(ENDPOINTS_DIRECTORY + endpointId + ".yaml",
                                          JSON_MESSAGE_MARSHALLER.writeValueAsString(endpoint)))
@@ -234,7 +240,7 @@ class XdsEndpointReadServiceTest {
 
     private static void pushJsonK8sEndpoint(String endpointId, ClusterLoadAssignment endpoint)
             throws Exception {
-        dogma.client().forRepo(XDS_CENTRAL_DOGMA_PROJECT, GROUP)
+        dogma.client().forRepo(INTERNAL_PROJECT_XDS, GROUP)
              .commit("Add JSON k8s endpoint: " + endpointId,
                      Change.ofJsonUpsert(K8S_ENDPOINTS_DIRECTORY + endpointId + ".json",
                                          Jackson.readTree(
@@ -244,7 +250,7 @@ class XdsEndpointReadServiceTest {
 
     private static void pushYamlK8sEndpoint(String endpointId, ClusterLoadAssignment endpoint)
             throws Exception {
-        dogma.client().forRepo(XDS_CENTRAL_DOGMA_PROJECT, GROUP)
+        dogma.client().forRepo(INTERNAL_PROJECT_XDS, GROUP)
              .commit("Add YAML k8s endpoint: " + endpointId,
                      Change.ofYamlUpsert(K8S_ENDPOINTS_DIRECTORY + endpointId + ".yaml",
                                          JSON_MESSAGE_MARSHALLER.writeValueAsString(endpoint)))

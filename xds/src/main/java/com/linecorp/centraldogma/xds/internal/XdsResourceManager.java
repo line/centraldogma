@@ -16,8 +16,8 @@
 package com.linecorp.centraldogma.xds.internal;
 
 import static com.linecorp.centraldogma.internal.Util.PROJECT_AND_REPO_NAME_PATTERN;
+import static com.linecorp.centraldogma.server.internal.storage.InternalProjectConstants.INTERNAL_PROJECT_XDS;
 import static com.linecorp.centraldogma.server.storage.repository.FindOptions.FIND_ONE_WITHOUT_CONTENT;
-import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.XDS_CENTRAL_DOGMA_PROJECT;
 import static java.util.Objects.requireNonNull;
 
 import java.io.IOException;
@@ -27,6 +27,7 @@ import java.util.function.Consumer;
 import java.util.regex.Pattern;
 
 import org.curioswitch.common.protobuf.json.MessageMarshaller;
+import org.jspecify.annotations.Nullable;
 import org.reflections.Reflections;
 import org.reflections.scanners.SubTypesScanner;
 
@@ -199,17 +200,18 @@ public final class XdsResourceManager {
                                     .asRuntimeException());
                     return null;
                 }
-                doPush(responseObserver, group, resourceName, fileName, summary, resource, author, true);
+                doPush(responseObserver, group, resourceName, fileName, summary, resource, author, true, null);
                 return null;
             });
             return;
         }
-        doPush(responseObserver, group, resourceName, fileName, summary, resource, author, false);
+        doPush(responseObserver, group, resourceName, fileName, summary, resource, author, false, null);
     }
 
     private <T extends Message> void doPush(
             StreamObserver<T> responseObserver, String group, String resourceName, String fileName,
-            String summary, T resource, Author author, boolean create) {
+            String summary, T resource, Author author, boolean create,
+            @Nullable String legacyFileToRemove) {
         final Change<JsonNode> change;
         try {
             final String jsonText = JSON_MESSAGE_MARSHALLER.writeValueAsString(resource);
@@ -227,8 +229,11 @@ public final class XdsResourceManager {
                     "failed to convert message to JSON: " + resource, e)).asRuntimeException());
             return;
         }
-        commandExecutor.execute(Command.push(author, XDS_CENTRAL_DOGMA_PROJECT, group, Revision.HEAD,
-                                             summary, "", Markup.PLAINTEXT, ImmutableList.of(change)))
+        final ImmutableList<Change<?>> changes =
+                legacyFileToRemove != null ? ImmutableList.of(Change.ofRemoval(legacyFileToRemove), change)
+                                           : ImmutableList.of(change);
+        commandExecutor.execute(Command.push(author, INTERNAL_PROJECT_XDS, group, Revision.HEAD,
+                                             summary, "", Markup.PLAINTEXT, changes))
                        .handle((unused, cause) -> {
                            if (cause != null) {
                                final Throwable peeled = Exceptions.peel(cause);
@@ -246,7 +251,6 @@ public final class XdsResourceManager {
                                    responseObserver.onCompleted();
                                    return null;
                                }
-
                                responseObserver.onError(cause);
                                return null;
                            }
@@ -258,7 +262,7 @@ public final class XdsResourceManager {
 
     public static String fileName(String group, String resourceName) {
         // Remove groups/{group}
-        return resourceName.substring(7 + group.length()) + ".json";
+        return resourceName.substring(7 + group.length()) + ".yaml";
     }
 
     public <T extends Message> void update(StreamObserver<T> responseObserver, String group,
@@ -269,9 +273,12 @@ public final class XdsResourceManager {
     public <T extends Message> void update(StreamObserver<T> responseObserver, String group,
                                            String resourceName, String fileName, String summary, T resource,
                                            Author author) {
-        updateOrDelete(responseObserver, group, resourceName, fileName, resolvedFileName ->
-                       push(responseObserver, group, resourceName, resolvedFileName,
-                            summary, resource, author, false));
+        updateOrDelete(responseObserver, group, resourceName, fileName, resolvedFileName -> {
+            final String legacyFileToRemove = resolvedFileName.endsWith(".json") ? resolvedFileName : null;
+            final String targetFileName = legacyFileToRemove != null ? fileName : resolvedFileName;
+            doPush(responseObserver, group, resourceName, targetFileName, summary, resource, author, false,
+                   legacyFileToRemove);
+        });
     }
 
     public void delete(StreamObserver<Empty> responseObserver, String group,
@@ -282,7 +289,7 @@ public final class XdsResourceManager {
     public void delete(StreamObserver<Empty> responseObserver, String group,
                        String resourceName, String fileName, String summary, Author author) {
         updateOrDelete(responseObserver, group, resourceName, fileName, resolvedFileName ->
-                commandExecutor.execute(Command.push(author, XDS_CENTRAL_DOGMA_PROJECT, group,
+                commandExecutor.execute(Command.push(author, INTERNAL_PROJECT_XDS, group,
                                                      Revision.HEAD, summary, "", Markup.PLAINTEXT,
                                                      ImmutableList.of(Change.ofRemoval(resolvedFileName))))
                                .handle((unused, cause) -> {
@@ -310,9 +317,9 @@ public final class XdsResourceManager {
                 return null;
             }
             if (entries.isEmpty()) {
-                // TODO(minwoox): implement allowMissing.
-                responseObserver.onError(Status.NOT_FOUND.withDescription("Resource not found: " + resourceName)
-                                                         .asRuntimeException());
+                responseObserver.onError(
+                        Status.NOT_FOUND.withDescription("Resource not found: " + resourceName)
+                                        .asRuntimeException());
                 return null;
             }
             final String resolvedFileName = entries.keySet().iterator().next();

@@ -119,7 +119,7 @@ final class XdsWritePermissionTest {
 
     private static HttpStatus getClusterStatus(WebClient client, String group, String clusterId) {
         return client.get("/api/v1/projects/@xds/repos/" + group + "/contents/clusters/" + clusterId +
-                          ".json?revision=head")
+                          ".yaml?revision=head")
                      .aggregate().join().status();
     }
 
