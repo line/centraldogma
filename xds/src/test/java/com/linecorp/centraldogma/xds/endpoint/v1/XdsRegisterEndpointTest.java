@@ -32,6 +32,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.google.protobuf.UInt32Value;
 
 import com.linecorp.armeria.common.AggregatedHttpResponse;
@@ -41,7 +42,9 @@ import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.MediaType;
 import com.linecorp.armeria.common.RequestHeaders;
 import com.linecorp.centraldogma.common.Change;
+import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
@@ -251,6 +254,58 @@ public class XdsRegisterEndpointTest {
         return dogma.httpClient().execute(headers,
                                           JSON_MESSAGE_MARSHALLER.writeValueAsString(localityLbEndpoint))
                     .aggregate();
+    }
+
+    @Test
+    void registerAndDeregisterMigratesLegacyJsonFile() throws Exception {
+        // Simulate a server that previously stored the endpoint file as .json (before the YAML migration).
+        final String endpointId = "legacy-json-reg-ep/1";
+        final String clusterName = "groups/foo/clusters/" + endpointId;
+        final String endpointName = "groups/foo/endpoints/" + endpointId;
+        final Locality locality = Locality.newBuilder().setRegion("rgn1").setZone("z1").build();
+        final LbEndpoint initialEndpoint = endpoint("127.0.0.1", 9900);
+        final ClusterLoadAssignment initialAssignment =
+                ClusterLoadAssignment.newBuilder()
+                                     .setClusterName(clusterName)
+                                     .addEndpoints(LocalityLbEndpoints.newBuilder()
+                                                                       .setLocality(locality)
+                                                                       .addLbEndpoints(initialEndpoint))
+                                     .build();
+        final JsonNode jsonNode = Jackson.readTree(
+                JSON_MESSAGE_MARSHALLER.writeValueAsString(initialAssignment));
+        dogma.client().forRepo(INTERNAL_PROJECT_XDS, "foo")
+             .commit("Add legacy JSON endpoint",
+                     Change.ofJsonUpsert(ENDPOINTS_DIRECTORY + endpointId + ".json", jsonNode))
+             .push().join();
+
+        final Repository fooRepository =
+                dogma.projectManager().get(INTERNAL_PROJECT_XDS).repos().get("foo");
+
+        // Register a new endpoint — flush() discovers the .json file and migrates it to .yaml atomically.
+        final LocalityLbEndpoint newEndpoint =
+                LocalityLbEndpoint.newBuilder()
+                                  .setLocality(locality)
+                                  .setLbEndpoint(endpoint("127.0.0.1", 9901))
+                                  .build();
+        assertOk(registerOrDeregister(endpointName, newEndpoint, true));
+
+        // After migration: .yaml must exist and .json must be absent.
+        assertThat(fooRepository.getOrNull(
+                           Revision.HEAD,
+                           Query.ofJson(ENDPOINTS_DIRECTORY + endpointId + ".json")).join())
+                .isNull();
+        assertThat(fooRepository.getOrNull(
+                           Revision.HEAD,
+                           Query.ofYaml(ENDPOINTS_DIRECTORY + endpointId + ".yaml")).join())
+                .isNotNull();
+
+        // Deregister the initial endpoint — the file is now .yaml, so this takes the normal transform path.
+        final LocalityLbEndpoint toDeregister =
+                LocalityLbEndpoint.newBuilder()
+                                  .setLocality(locality)
+                                  .setLbEndpoint(initialEndpoint)
+                                  .build();
+        assertOk(registerOrDeregister(endpointName, toDeregister, false));
     }
 
     private static ClusterLoadAssignment loadAssignment(String clusterName, Locality locality,

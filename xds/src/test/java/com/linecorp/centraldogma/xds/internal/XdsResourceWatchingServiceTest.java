@@ -210,6 +210,13 @@ class XdsResourceWatchingServiceTest {
               .push().join();
         assertThat(queue.take()).isEqualTo("/a.json removed");
         assertThat(queue.take()).isEqualTo("diff handled: bar");
+
+        // YAML files are also handled (new format).
+        client.forRepo("foo", "bar").commit("Add a YAML file", Change.ofYamlUpsert("/c.yaml", "key: value"))
+              .push().join();
+        assertThat(queue.take()).isEqualTo("handleXdsResource: /c.yaml");
+        assertThat(queue.take()).isEqualTo("diff handled: bar");
+
         client.removeRepository("foo", "bar").join();
         assertThat(queue.take()).isEqualTo("bar removed");
     }

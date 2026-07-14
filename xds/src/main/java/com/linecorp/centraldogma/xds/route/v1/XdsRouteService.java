@@ -68,7 +68,7 @@ public final class XdsRouteService extends XdsRouteServiceImplBase {
         // with the format of "groups/{group}/routes/{route}".
         // https://github.com/aip-dev/google.aip.dev/blob/master/aip/general/0133.md#user-specified-ids
         final RouteConfiguration route = request.getRoute().toBuilder().setName(routeName).build();
-        xdsResourceManager.push(responseObserver, group, routeName, ROUTES_DIRECTORY + routeId + ".json",
+        xdsResourceManager.push(responseObserver, group, routeName, ROUTES_DIRECTORY + routeId + ".yaml",
                                 "Create route: " + routeName, route, currentAuthor(), true);
     }
 
