@@ -24,10 +24,15 @@ import static org.mockito.Mockito.mock;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.io.TempDir;
 
 import com.google.common.collect.ImmutableList;
@@ -38,11 +43,15 @@ import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.common.RevisionNotFoundException;
 import com.linecorp.centraldogma.server.command.ReplayCommit;
 import com.linecorp.centraldogma.server.storage.StorageException;
 import com.linecorp.centraldogma.server.storage.encryption.NoopEncryptionStorageManager;
 import com.linecorp.centraldogma.server.storage.project.Project;
 
+// A recovery that deadlocks would otherwise hang the build until the CI job is killed, which says nothing
+// about which test broke.
+@Timeout(60)
 class RecoverRepositoryTest {
 
     private static final String REPO = "test_repo";
@@ -106,7 +115,41 @@ class RecoverRepositoryTest {
         assertThat(recovered.getOrNull(sourceHead, "/g.txt").join().contentAsText()).isEqualTo("g\n");
         // The diverged r6 no longer exists.
         assertThatThrownBy(() -> recovered.commitIdDatabase().get(new Revision(6)))
-                .isInstanceOf(Exception.class);
+                .isInstanceOf(RevisionNotFoundException.class);
+    }
+
+    /**
+     * A recovery is applied on a repository-worker thread, so it must never wait for another
+     * repository-worker task: the pool is fixed-size, and a read of the repository being recovered parks a
+     * worker on the write lock the recovery holds. Driving it through a one-thread pool deadlocks outright
+     * if any step hops back onto the pool. The other tests here cannot catch this - they pass a
+     * ForkJoinPool, whose join() spawns a compensation thread and papers over the self-dependency.
+     */
+    @Test
+    void recoveryNeverWaitsOnTheRepositoryWorkerPool() throws Exception {
+        final ExecutorService repositoryWorker = Executors.newFixedThreadPool(1);
+        try {
+            final Project project = mock(Project.class);
+            lenient().when(project.name()).thenReturn("test_project");
+            final GitRepositoryManager mgr = new GitRepositoryManager(
+                    project, tempDir.toFile(), repositoryWorker, MoreExecutors.directExecutor(), null,
+                    NoopEncryptionStorageManager.INSTANCE);
+            final GitRepository repo = (GitRepository) mgr.create(REPO, Author.SYSTEM);
+            pushMixedRevisions(repo);
+            final List<ReplayCommit> payload = mgr.buildRecoveryPayload(REPO, new Revision(3));
+
+            // Diverge, so the recovery resets and replays instead of short-circuiting as converged.
+            repo.commit(new Revision(5), 6000L, Author.SYSTEM, "diverged", "", Markup.PLAINTEXT,
+                        ImmutableList.of(Change.ofTextUpsert("/g.txt", "diverged")), false).join();
+
+            // Apply it the way StandaloneCommandExecutor does: from the repository worker.
+            final Future<Boolean> recovered = repositoryWorker.submit(
+                    () -> mgr.recoverRepository(REPO, new Revision(2), payload));
+            assertThat(recovered.get(30, TimeUnit.SECONDS)).isTrue();
+            assertThat(mgr.get(REPO).normalizeNow(Revision.HEAD)).isEqualTo(new Revision(5));
+        } finally {
+            repositoryWorker.shutdownNow();
+        }
     }
 
     @Test

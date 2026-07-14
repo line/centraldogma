@@ -50,6 +50,7 @@ import com.linecorp.centraldogma.server.storage.repository.CacheableCall;
 import com.linecorp.centraldogma.server.storage.repository.DiffResultType;
 import com.linecorp.centraldogma.server.storage.repository.FindOption;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
+import com.linecorp.centraldogma.server.storage.repository.RepositoryHead;
 import com.linecorp.centraldogma.server.storage.repository.RepositoryListener;
 
 final class CachingRepository implements Repository {
@@ -63,6 +64,11 @@ final class CachingRepository implements Repository {
     CachingRepository(Repository repo, RepositoryCache cache) {
         this.repo = requireNonNull(repo, "repo");
         this.cache = requireNonNull(cache, "cache");
+    }
+
+    @Override
+    public RepositoryHead head() {
+        return repo.head();
     }
 
     @Override

@@ -17,7 +17,6 @@
 package com.linecorp.centraldogma.server.internal.replication;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.awaitility.Awaitility.await;
 
 import java.util.concurrent.CompletionStage;
@@ -25,6 +24,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -51,7 +51,6 @@ import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.server.CentralDogmaConfig;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
-import com.linecorp.centraldogma.server.command.ReplayCommit;
 import com.linecorp.centraldogma.server.command.RepositoryCommand;
 import com.linecorp.centraldogma.server.command.StandaloneCommandExecutor;
 import com.linecorp.centraldogma.server.internal.api.RecoverRepositoryRequest;
@@ -70,6 +69,7 @@ import com.linecorp.centraldogma.testing.internal.CentralDogmaReplicationExtensi
  * designated source replica's history — through both the direct (endpoint on the source) and the
  * request-and-react (endpoint on a non-source replica) paths.
  */
+@Timeout(120)
 class ZooKeeperRepositoryRecoveryIntegrationTest {
 
     private static final String TEST_REPO = "test-repo";
@@ -148,30 +148,6 @@ class ZooKeeperRepositoryRecoveryIntegrationTest {
     }
 
     @Test
-    void recoverAbortsWhenRepositoryIsNotReadOnly() {
-        // Bypass the endpoint precondition and apply the command directly: the apply-time re-check must
-        // reject it, so a recovery can never silently discard commits of a writable repository.
-        final CentralDogmaRepository repo = client0.forRepo(testProject, TEST_REPO);
-        repo.commit("seed", Change.ofJsonUpsert("/a.json", "{ \"a\": 1 }")).push().join();
-        final Revision headBefore = repo.normalize(Revision.HEAD).join();
-
-        final Command<Revision> recoverCommand = Command.recoverRepository(
-                Author.SYSTEM, testProject, TEST_REPO, SOURCE_SERVER_ID, new Revision(1), new Revision(2),
-                ImmutableList.of(new ReplayCommit(
-                        new Revision(2), 2000L, Author.SYSTEM, "seed", "", Markup.PLAINTEXT,
-                        ImmutableList.of(Change.ofJsonUpsert("/a.json", "{ \"a\": 9 }")), null)));
-        assertThatThrownBy(() -> faultInjector.zkExecute(recoverCommand))
-                .hasStackTraceContaining("no longer read-only");
-
-        // Nothing changed and the repository stays writable.
-        assertThat(repo.normalize(Revision.HEAD).join()).isEqualTo(headBefore);
-        assertThat(jsonValueOn(SOURCE_SERVER_ID, "a")).isEqualTo(1);
-        assertThat(getRepoStatus(adminClientOf(SOURCE_SERVER_ID), testProject, TEST_REPO).status())
-                .isEqualTo(ReplicationStatus.WRITABLE);
-        repo.commit("after", Change.ofJsonUpsert("/a.json", "{ \"a\": 2 }")).push().join();
-    }
-
-    @Test
     void replicasEndpointListsClusterRoster() {
         for (int serverId = 1; serverId <= 3; serverId++) {
             final ResponseEntity<JsonNode> response = adminClientOf(serverId)
@@ -209,6 +185,14 @@ class ZooKeeperRepositoryRecoveryIntegrationTest {
         assertClusterConvergedAndUsable();
     }
 
+    /**
+     * The read-only precondition is checked here, when the recovery is originated, and deliberately not
+     * again when the command is applied. The status lives under a different execution path than this
+     * command, so an operator making the repository writable again races the replay: replicas would
+     * disagree on an apply-time check, and a replica that failed it would skip the log entry for good and
+     * stay diverged in silence. The apply is instead a pure function of the payload, so every replica
+     * reaches the same state - at the documented cost of discarding a commit that raced the recovery.
+     */
     @Test
     void recoverRejectedWhileWritable() {
         // The repository is writable; recovery must be rejected so that no concurrent push can race the

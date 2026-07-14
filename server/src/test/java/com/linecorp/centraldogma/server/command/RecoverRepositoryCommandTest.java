@@ -42,7 +42,7 @@ class RecoverRepositoryCommandTest {
                                                  ImmutableList.of(
                                                          Change.ofTextUpsert("/memo.txt", "Bon voyage!"),
                                                          Change.ofRemoval("/old.txt")),
-                                                 null),
+                                                 "1111111111111111111111111111111111111111"),
                                 new ReplayCommit(new Revision(4), 6789L, Author.SYSTEM,
                                                  "summary4", "", Markup.PLAINTEXT,
                                                  ImmutableList.of(Change.ofTextUpsert("/memo.txt", "v4")),
@@ -77,7 +77,8 @@ class RecoverRepositoryCommandTest {
                 "    }, {" +
                 "      \"type\": \"REMOVE\"," +
                 "      \"path\": \"/old.txt\"" +
-                "    }]" +
+                "    }]," +
+                "    \"expectedCommitId\": \"1111111111111111111111111111111111111111\"" +
                 "  }, {" +
                 "    \"revision\": 4," +
                 "    \"timestampMillis\": 6789," +

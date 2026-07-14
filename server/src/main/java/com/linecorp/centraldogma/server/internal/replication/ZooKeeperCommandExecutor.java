@@ -161,6 +161,8 @@ public final class ZooKeeperCommandExecutor
     private volatile RetryPolicy retryPolicy = RETRY_POLICY_NEVER;
     private volatile ExecutorService executor;
     private volatile ExecutorService logWatcherExecutor;
+    @Nullable
+    private volatile ExecutorService recoveryOriginatorExecutor;
     private volatile PathChildrenCache logWatcher;
     private volatile OldLogRemover oldLogRemover;
     private volatile ExecutorService leaderSelectorExecutor;
@@ -487,6 +489,15 @@ public final class ZooKeeperCommandExecutor
             logWatcher.getListenable().addListener(this, MoreExecutors.directExecutor());
             logWatcher.start();
 
+            // Building a recovery payload blocks for as long as it takes to read the whole replayed range,
+            // so it gets a thread of its own rather than one of the few ForkJoinPool.commonPool() threads
+            // that the rest of the JVM shares.
+            recoveryOriginatorExecutor = ExecutorServiceMetrics.monitor(
+                    meterRegistry,
+                    Executors.newSingleThreadExecutor(
+                            new DefaultThreadFactory("recovery-originator", true)),
+                    "recoveryOriginator");
+
             // Start the leader selection.
             oldLogRemover = new OldLogRemover();
             leaderSelectorExecutor = ExecutorServiceMetrics.monitor(
@@ -706,6 +717,11 @@ public final class ZooKeeperCommandExecutor
         listenerInfo = null;
         logger.info("Stopping the worker threads");
         boolean interrupted = shutdown(executor);
+        final ExecutorService recoveryOriginatorExecutor = this.recoveryOriginatorExecutor;
+        if (recoveryOriginatorExecutor != null) {
+            interrupted |= shutdown(recoveryOriginatorExecutor);
+            this.recoveryOriginatorExecutor = null;
+        }
         logger.info("Stopped the worker threads");
 
         try {
@@ -926,8 +942,14 @@ public final class ZooKeeperCommandExecutor
                          RecoveryPayloadBuilder.class.getSimpleName());
             return;
         }
+        final ExecutorService recoveryOriginatorExecutor = this.recoveryOriginatorExecutor;
+        if (recoveryOriginatorExecutor == null) {
+            logger.warn("Cannot originate a recovery for {}/{}; the replica is stopping.",
+                        command.projectName(), command.repositoryName());
+            return;
+        }
         final String repoName = command.projectName() + '/' + command.repositoryName();
-        ForkJoinPool.commonPool().execute(() -> {
+        recoveryOriginatorExecutor.execute(() -> {
             final Command<Revision> recoverCommand;
             try {
                 recoverCommand = recoveryPayloadBuilder.build(command);

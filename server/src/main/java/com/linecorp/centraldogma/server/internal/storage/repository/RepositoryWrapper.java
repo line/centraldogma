@@ -45,6 +45,7 @@ import com.linecorp.centraldogma.server.storage.repository.DiffResultType;
 import com.linecorp.centraldogma.server.storage.repository.EntryTransformer;
 import com.linecorp.centraldogma.server.storage.repository.FindOption;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
+import com.linecorp.centraldogma.server.storage.repository.RepositoryHead;
 import com.linecorp.centraldogma.server.storage.repository.RepositoryListener;
 
 public class RepositoryWrapper implements Repository {
@@ -58,6 +59,11 @@ public class RepositoryWrapper implements Repository {
     @SuppressWarnings("unchecked")
     public final <T extends Repository> T unwrap() {
         return (T) repo;
+    }
+
+    @Override
+    public RepositoryHead head() {
+        return unwrap().head();
     }
 
     @Override

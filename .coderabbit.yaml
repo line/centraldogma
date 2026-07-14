@@ -5,3 +5,7 @@ reviews:
     enabled: true
     drafts: true
     ignore_title_keywords: ["WIP"]
+    # A feature branch collects its pull requests on an integration branch before it is merged into
+    # main, so review those pull requests too, not only the ones that target the default branch.
+    base_branches:
+      - ".*"

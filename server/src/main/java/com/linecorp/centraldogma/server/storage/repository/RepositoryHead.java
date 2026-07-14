@@ -14,7 +14,7 @@
  * under the License.
  */
 
-package com.linecorp.centraldogma.server.internal.api;
+package com.linecorp.centraldogma.server.storage.repository;
 
 import static java.util.Objects.requireNonNull;
 
@@ -24,20 +24,27 @@ import com.google.common.base.MoreObjects;
 import com.linecorp.centraldogma.common.Revision;
 
 /**
- * The head of a repository on the replica that served the request, identified by both its revision and
- * its commit ID. Two replicas of the same repository share a revision even when they have diverged, so
- * only the commit ID proves that they hold the same history.
+ * The head of a repository on a single replica, identified by both its revision and its commit ID. The
+ * two are read together so that they always describe the same commit. Replicas of the same repository may
+ * report the same revision even when their histories have diverged, so only the commit ID proves that they
+ * hold the same history.
  */
 public final class RepositoryHead {
 
     private final Revision revision;
     private final String commitId;
 
+    /**
+     * Creates a new instance.
+     */
     public RepositoryHead(Revision revision, String commitId) {
         this.revision = requireNonNull(revision, "revision");
         this.commitId = requireNonNull(commitId, "commitId");
     }
 
+    /**
+     * Returns the head revision.
+     */
     @JsonProperty("revision")
     public Revision revision() {
         return revision;

@@ -22,15 +22,12 @@ import static com.linecorp.centraldogma.server.internal.api.DtoConverter.newRepo
 import static com.linecorp.centraldogma.server.internal.api.HttpApiUtil.checkUnremoveArgument;
 import static java.util.Objects.requireNonNull;
 
-import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Function;
 
-import org.eclipse.jgit.lib.Constants;
-import org.eclipse.jgit.lib.ObjectId;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,6 +41,7 @@ import com.linecorp.armeria.common.logging.RequestOnlyLog;
 import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.armeria.common.util.UnmodifiableFuture;
 import com.linecorp.armeria.server.ServiceRequestContext;
+import com.linecorp.armeria.server.annotation.Blocking;
 import com.linecorp.armeria.server.annotation.Consumes;
 import com.linecorp.armeria.server.annotation.Delete;
 import com.linecorp.armeria.server.annotation.Get;
@@ -73,12 +71,12 @@ import com.linecorp.centraldogma.server.internal.replication.RecoveryPayloadBuil
 import com.linecorp.centraldogma.server.internal.replication.ZooKeeperCommandExecutor;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
 import com.linecorp.centraldogma.server.metadata.User;
-import com.linecorp.centraldogma.server.storage.StorageException;
 import com.linecorp.centraldogma.server.storage.encryption.EncryptionStorageManager;
 import com.linecorp.centraldogma.server.storage.encryption.WrappedDekDetails;
 import com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
+import com.linecorp.centraldogma.server.storage.repository.RepositoryHead;
 
 import io.micrometer.core.instrument.Tag;
 
@@ -307,27 +305,15 @@ public class RepositoryServiceV1 extends AbstractService {
      * GET /projects/{projectName}/repos/{repoName}/head
      *
      * <p>Returns the head of the repository <em>on the replica that served the request</em>, identified by
-     * both its revision and its commit ID. Two replicas of the same repository always share a revision,
-     * even when their histories have diverged, so only the commit ID proves that they hold the same
-     * history. It is how an administrator confirms that a recovery converged before making the repository
-     * writable again.
+     * both its revision and its commit ID. Diverged replicas may report the same revision, so a matching
+     * revision proves nothing; only the commit ID proves that they hold the same history. It is how an
+     * administrator confirms that a recovery converged before making the repository writable again.
      */
     @Get("/projects/{projectName}/repos/{repoName}/head")
     @RequiresSystemAdministrator
+    @Blocking
     public RepositoryHead head(Repository repository) {
-        final Revision headRevision = repository.normalizeNow(Revision.HEAD);
-        final ObjectId commitId;
-        try {
-            commitId = repository.jGitRepository().resolve(Constants.R_HEADS + Constants.MASTER);
-        } catch (IOException e) {
-            throw new StorageException("failed to resolve the head commit of " +
-                                       repository.parent().name() + '/' + repository.name(), e);
-        }
-        if (commitId == null) {
-            throw new StorageException("no head commit in " +
-                                       repository.parent().name() + '/' + repository.name());
-        }
-        return new RepositoryHead(headRevision, commitId.name());
+        return repository.head();
     }
 
     /**

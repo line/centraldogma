@@ -84,6 +84,15 @@ public interface Repository {
     org.eclipse.jgit.lib.Repository jGitRepository();
 
     /**
+     * Returns the head of this repository: its head {@link Revision} together with the ID of the commit
+     * that revision points at, read as one so the two always describe the same commit. Blocks while the
+     * repository is being rewritten, and fails once it has been replaced.
+     */
+    default RepositoryHead head() {
+        throw new UnsupportedOperationException();
+    }
+
+    /**
      * Returns the parent {@link Project} of this {@link Repository}.
      */
     Project parent();

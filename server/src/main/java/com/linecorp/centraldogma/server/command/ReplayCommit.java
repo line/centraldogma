@@ -21,8 +21,6 @@ import static java.util.Objects.requireNonNull;
 import java.util.List;
 import java.util.Objects;
 
-import org.jspecify.annotations.Nullable;
-
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -49,7 +47,6 @@ public final class ReplayCommit {
     private final String detail;
     private final Markup markup;
     private final List<Change<?>> changes;
-    @Nullable
     private final String expectedCommitId;
 
     /**
@@ -63,7 +60,7 @@ public final class ReplayCommit {
                         @JsonProperty("detail") String detail,
                         @JsonProperty("markup") Markup markup,
                         @JsonProperty("changes") Iterable<Change<?>> changes,
-                        @JsonProperty("expectedCommitId") @Nullable String expectedCommitId) {
+                        @JsonProperty("expectedCommitId") String expectedCommitId) {
         this.revision = requireNonNull(revision, "revision");
         this.timestampMillis = timestampMillis;
         this.author = requireNonNull(author, "author");
@@ -71,7 +68,7 @@ public final class ReplayCommit {
         this.detail = requireNonNull(detail, "detail");
         this.markup = requireNonNull(markup, "markup");
         this.changes = ImmutableList.copyOf(requireNonNull(changes, "changes"));
-        this.expectedCommitId = expectedCommitId;
+        this.expectedCommitId = requireNonNull(expectedCommitId, "expectedCommitId");
     }
 
     /**
@@ -131,9 +128,10 @@ public final class ReplayCommit {
     }
 
     /**
-     * Returns the commit id the replayed commit is expected to produce, or {@code null} if unknown.
+     * Returns the commit id the replayed commit must produce. A replica that produces a different one
+     * aborts the recovery instead of writing a history that diverges from the source, so this is what
+     * makes a recovery verifiable rather than merely hopeful.
      */
-    @Nullable
     @JsonProperty
     public String expectedCommitId() {
         return expectedCommitId;

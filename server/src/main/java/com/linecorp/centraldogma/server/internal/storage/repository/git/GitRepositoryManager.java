@@ -50,6 +50,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Utf8;
 import com.google.common.collect.ImmutableList;
 
 import com.linecorp.centraldogma.common.Author;
@@ -273,7 +274,8 @@ public final class GitRepositoryManager extends DirectoryBasedStorageManager<Rep
     }
 
     @Override
-    public void recoverRepository(String repositoryName, Revision resetToRevision, List<ReplayCommit> commits) {
+    public boolean recoverRepository(String repositoryName, Revision resetToRevision,
+                                     List<ReplayCommit> commits) {
         requireNonNull(repositoryName, "repositoryName");
         requireNonNull(resetToRevision, "resetToRevision");
         requireNonNull(commits, "commits");
@@ -286,7 +288,7 @@ public final class GitRepositoryManager extends DirectoryBasedStorageManager<Rep
                                        projectRepositoryName(repositoryName));
         }
         if (commits.isEmpty()) {
-            return;
+            return false;
         }
 
         // Skip if the repository is already converged with the source (the source replica itself, or a
@@ -295,12 +297,12 @@ public final class GitRepositoryManager extends DirectoryBasedStorageManager<Rep
         final ReplayCommit lastCommit = commits.get(commits.size() - 1);
         final String expectedHeadCommitId = lastCommit.expectedCommitId();
         final Revision currentHead = old.normalizeNow(Revision.HEAD);
-        if (expectedHeadCommitId != null && currentHead.equals(lastCommit.revision())) {
+        if (currentHead.equals(lastCommit.revision())) {
             final ObjectId currentHeadCommitId = old.commitIdDatabase().get(currentHead);
             if (currentHeadCommitId != null && expectedHeadCommitId.equals(currentHeadCommitId.name())) {
                 logger.info("Repository '{}' is already converged at {} ({}); nothing to recover.",
                             projectRepositoryName(repositoryName), currentHead, expectedHeadCommitId);
-                return;
+                return false;
             }
         }
 
@@ -328,27 +330,31 @@ public final class GitRepositoryManager extends DirectoryBasedStorageManager<Rep
             neo = openFileRepository(parent, repoDir, repositoryWorker, cache);
 
             // Replay the source commits so every replica converges to the same commit ids.
+            //
+            // The commits are applied on this thread rather than through the asynchronous commit(), which
+            // dispatches to the repository worker: this method already runs on a repository-worker thread
+            // and holds the write lock of the repository it is replacing, so a read of that repository
+            // parks another worker thread on the lock. Waiting here for a task queued back to the same
+            // pool would deadlock it once every worker is parked.
             for (ReplayCommit commit : commits) {
                 final Revision revision = commit.revision();
-                final CommitResult result = neo.commit(
+                final CommitResult result = neo.blockingCommit(
                         revision.backward(1), commit.timestampMillis(), commit.author(), commit.summary(),
-                        commit.detail(), commit.markup(), commit.changes(), false).join();
+                        commit.detail(), commit.markup(), commit.changes());
                 if (!revision.equals(result.revision())) {
                     throw new StorageException("unexpected replayed revision: " + result.revision() +
                                                " (expected: " + revision + ')');
                 }
                 final String expectedCommitId = commit.expectedCommitId();
-                if (expectedCommitId != null) {
-                    final String actualCommitId = neo.commitIdDatabase().get(revision).name();
-                    if (!expectedCommitId.equals(actualCommitId)) {
-                        throw new StorageException(
-                                "commit id mismatch while recovering '" +
-                                projectRepositoryName(repositoryName) + "' at " + revision + " (expected: " +
-                                expectedCommitId + ", actual: " + actualCommitId + "). Revisions up to " +
-                                resetToRevision + " may have diverged, or the content is not reproducible " +
-                                "byte-identically (e.g. written by a content transformer); the repository " +
-                                "was rolled back.");
-                    }
+                final String actualCommitId = neo.commitIdDatabase().get(revision).name();
+                if (!expectedCommitId.equals(actualCommitId)) {
+                    throw new StorageException(
+                            "commit id mismatch while recovering '" +
+                            projectRepositoryName(repositoryName) + "' at " + revision + " (expected: " +
+                            expectedCommitId + ", actual: " + actualCommitId + "). Revisions up to " +
+                            resetToRevision + " may have diverged, or the content is not reproducible " +
+                            "byte-identically (e.g. written by a content transformer); the repository " +
+                            "was rolled back.");
                 }
             }
 
@@ -367,10 +373,12 @@ public final class GitRepositoryManager extends DirectoryBasedStorageManager<Rep
                                        resetToRevision + ')', t);
         } finally {
             if (!swapped) {
-                // Roll back so the (still diverged) old repository stays internally consistent.
+                // Roll back so the (still diverged) old repository stays internally consistent. Both closes
+                // run on this thread: the write lock of `old` is still held, so waiting for the repository
+                // worker here would deadlock it.
                 if (neo != null) {
                     try {
-                        neo.internalClose();
+                        neo.closeInline(() -> new CentralDogmaException("should never reach here"));
                     } catch (Throwable t2) {
                         logger.warn("Failed to close the partially recovered repository '{}'.",
                                     projectRepositoryName(repositoryName), t2);
@@ -379,9 +387,15 @@ public final class GitRepositoryManager extends DirectoryBasedStorageManager<Rep
                 try {
                     forceMoveMaster(old.jGitRepository(), originalHeadCommitId);
                     old.commitIdDatabase().rebuild(old.jGitRepository());
-                    old.setHeadRevision(originalHeadRevision);
                 } catch (Throwable t2) {
-                    logger.error("Failed to roll back the repository '{}' after a failed recovery.",
+                    // The reset already rewrote the commit-id database that `old` shares, so a failed
+                    // rollback leaves it inconsistent with the repository. Fail every read through this
+                    // instance rather than serving a half-rewritten history; a restart rebuilds it.
+                    old.markClosePending(() -> new CentralDogmaException(
+                            projectRepositoryName(repositoryName) + " is corrupted by a failed recovery " +
+                            "rollback. Restart this replica to rebuild it."));
+                    logger.error("Failed to roll back the repository '{}' after a failed recovery. " +
+                                 "It is left unreadable until this replica is restarted.",
                                  projectRepositoryName(repositoryName), t2);
                 }
             }
@@ -402,12 +416,13 @@ public final class GitRepositoryManager extends DirectoryBasedStorageManager<Rep
             logger.warn("Failed to hand over the listeners of the recovered repository '{}'.",
                         projectRepositoryName(repositoryName), t);
         } finally {
-            old.close(() -> new CentralDogmaException(
+            old.closeInline(() -> new CentralDogmaException(
                     projectRepositoryName(repositoryName) + " is recovered. Try again."));
         }
         logger.info("Recovered the repository '{}' to {} in {} seconds.",
                     projectRepositoryName(repositoryName), neo.normalizeNow(Revision.HEAD),
                     TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startTime));
+        return true;
     }
 
     private static void forceMoveMaster(org.eclipse.jgit.lib.Repository jGitRepository, ObjectId commitId) {
@@ -482,13 +497,15 @@ public final class GitRepositoryManager extends DirectoryBasedStorageManager<Rep
         }
     }
 
+    // Counts UTF-8 bytes rather than chars, so that non-ASCII content is not under-counted several-fold.
+    // JSON escaping is not counted, so this stays a lower bound on the serialized size.
     private static long estimateSize(Change<?> change) {
         final Object content = change.content();
-        long size = change.path().length();
+        long size = Utf8.encodedLength(change.path());
         if (content instanceof String) {
-            size += ((String) content).length();
+            size += Utf8.encodedLength((String) content);
         } else if (content != null) {
-            size += content.toString().length();
+            size += Utf8.encodedLength(content.toString());
         }
         return size;
     }

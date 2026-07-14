@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Function;
 
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
@@ -30,6 +31,7 @@ import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonMappingException;
+import com.spotify.futures.CompletableFutures;
 
 import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.centraldogma.common.Author;
@@ -195,45 +197,9 @@ public final class RepoStatusManager {
         return projectName + '/' + repoName;
     }
 
-    /**
-     * Returns {@code true} if the repository or its project is read-only by the replicated repository or
-     * project scope. Unlike {@link #isWritable(String, String)}, the per-replica server status is not
-     * consulted, so the answer is identical on every replica at the same replication-log position.
-     *
-     * <p>A read-only answer from the in-memory cache is authoritative, but a writable answer is
-     * re-verified against the replicated status files: the cache is loaded by an asynchronously
-     * registered listener, so it can still be empty while the replication log is replayed after a
-     * restart, and answering "writable" from an unloaded cache would make this replica disagree with
-     * the rest of the cluster.
-     */
-    public boolean isRepoOrProjectReadOnly(String projectName, String repoName) {
-        if (isCachedReadOnly(projectName, Project.REPO_DOGMA) || isCachedReadOnly(projectName, repoName)) {
-            return true;
-        }
-        return isStoredReadOnly(projectName, Project.REPO_DOGMA) ||
-               (!repoName.equals(Project.REPO_DOGMA) && isStoredReadOnly(projectName, repoName));
-    }
-
-    private boolean isCachedReadOnly(String projectName, String repoName) {
-        final RepositoryState state = statusMap.get(getKey(projectName, repoName));
-        return state != null && state.status() == ReplicationStatus.READ_ONLY;
-    }
-
-    private boolean isStoredReadOnly(String projectName, String repoName) {
-        final HasRevision<RepositoryState> state;
-        try {
-            // The storage lookup throws synchronously, so peel a RuntimeException rather than only a
-            // CompletionException.
-            state = crudOperation().find(crudContext(projectName), repoName).join();
-        } catch (RuntimeException e) {
-            final Throwable peeled = Exceptions.peel(e);
-            if (peeled instanceof ProjectNotFoundException || peeled instanceof RepositoryNotFoundException) {
-                // The internal status storage does not exist yet, so no status was ever replicated.
-                return false;
-            }
-            throw e;
-        }
-        return state != null && state.object().status() == ReplicationStatus.READ_ONLY;
+    private static boolean isStorageAbsent(Throwable cause) {
+        final Throwable peeled = Exceptions.peel(cause);
+        return peeled instanceof ProjectNotFoundException || peeled instanceof RepositoryNotFoundException;
     }
 
     public boolean isWritable(String projectName, String repoName) {
@@ -299,23 +265,46 @@ public final class RepoStatusManager {
      * purged so that neither the statuses nor their metrics leak the removed entries. The entries are
      * enumerated from the replicated status files rather than the in-memory cache, which can still be
      * empty while the replication log is replayed after a restart.
+     *
+     * <p>The status files are read asynchronously. Never block on the returned future from the repository
+     * worker, which is the executor the read itself is scheduled on.
      */
     public CompletableFuture<Void> removeProjectStatus(String projectName, Author author) {
-        final List<String> repoNames =
-                crudOperation().findAll(crudContext(projectName)).join().stream()
-                               .map(state -> state.object().repoName())
-                               .collect(toImmutableList());
-        // Clean up each repository independently so a single failure does not skip the rest.
-        CompletableFuture<Void> future = CompletableFuture.completedFuture(null);
-        for (String repoName : repoNames) {
-            future = future.thenCompose(unused -> removeRepoStatus(projectName, repoName, author)
-                    .exceptionally(cause -> {
-                        logger.warn("Failed to remove the replication status of '{}/{}'.",
-                                    projectName, repoName, cause);
-                        return null;
-                    }));
+        final CompletableFuture<List<HasRevision<RepositoryState>>> statesFuture;
+        try {
+            statesFuture = crudOperation().findAll(crudContext(projectName));
+        } catch (RuntimeException e) {
+            return completedIfStatusStorageAbsent(e);
         }
-        return future;
+        return statesFuture.handle((states, cause) -> {
+            if (cause != null) {
+                return RepoStatusManager.<Void>completedIfStatusStorageAbsent(cause);
+            }
+            // Clean up each repository independently so a single failure does not skip the rest.
+            CompletableFuture<Void> future = CompletableFuture.completedFuture(null);
+            for (HasRevision<RepositoryState> state : states) {
+                final String repoName = state.object().repoName();
+                future = future.thenCompose(unused -> removeRepoStatus(projectName, repoName, author)
+                        .exceptionally(repoCause -> {
+                            logger.warn("Failed to remove the replication status of '{}/{}'.",
+                                        projectName, repoName, repoCause);
+                            return null;
+                        }));
+            }
+            return future;
+        }).thenCompose(Function.identity());
+    }
+
+    /**
+     * Returns a future completed with {@code null} if the cause only means that the internal status
+     * storage does not exist yet, so no status was ever replicated; a failed future otherwise. The
+     * lookup may fail either synchronously or through the returned future, so both are funnelled here.
+     */
+    private static <T> CompletableFuture<T> completedIfStatusStorageAbsent(Throwable cause) {
+        if (isStorageAbsent(cause)) {
+            return CompletableFuture.completedFuture(null);
+        }
+        return CompletableFutures.exceptionallyCompletedFuture(cause);
     }
 
     private static CrudContext crudContext(String projectName) {

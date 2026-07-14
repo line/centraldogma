@@ -33,11 +33,16 @@ import com.linecorp.centraldogma.common.Revision;
 
 /**
  * A {@link Command} which recovers a diverged repository from a source replica. It is originated by the
- * source replica (the single source of truth) and applied on every replica: the source replica leaves its
- * own repository untouched, while every other replica resets its git repository and commit-id database to
- * {@link #resetToRevision()} and replays {@link #commits()} up to {@link #headRevision()}. Because the
- * replayed commits carry the original author, timestamp and self-contained changes, all replicas converge to
- * identical commit ids.
+ * source replica (the single source of truth) and applied identically on every replica, itself included: a
+ * replica already converged with {@link #commits()} is left untouched, and every other one resets its git
+ * repository and commit-id database to {@link #resetToRevision()} and replays {@link #commits()} up to
+ * {@link #headRevision()}. Because the replayed commits carry the original author, timestamp and
+ * self-contained changes, a replay reproduces the source's commit ids; each one is verified against
+ * {@link ReplayCommit#expectedCommitId()}, and a mismatch aborts the recovery and rolls the replica back.
+ *
+ * <p>The convergence check is by content, not by replica: the source is normally the replica that is
+ * already converged, but a commit that lands on it between the payload build and the apply (a force push,
+ * which read-only does not block) makes the source replay over itself too, discarding that commit.
  *
  * <p>This is a {@link RepositoryCommand} so that it is scoped to a single repository (lock scope and
  * read-only failure blast radius) and is not rejected while the repository/project is read-only.
@@ -66,8 +71,9 @@ public final class RecoverRepositoryCommand extends RepositoryCommand<Revision> 
     }
 
     /**
-     * Returns the ZooKeeper server ID of the source replica whose repository is used as the source of truth.
-     * The replica whose ID matches this value leaves its own repository untouched.
+     * Returns the ZooKeeper server ID of the source replica whose repository the {@link #commits()} were
+     * taken from. It records where a recovery came from; it is not consulted when the command is applied,
+     * which decides by content (see the class javadoc).
      */
     @JsonProperty
     public int sourceServerId() {

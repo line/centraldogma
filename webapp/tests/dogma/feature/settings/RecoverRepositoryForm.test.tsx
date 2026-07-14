@@ -97,24 +97,39 @@ describe('buildVerificationScript', () => {
     process.env.NEXT_PUBLIC_HOST = 'https://dogma.example.com';
     const script = buildVerificationScript(result, replicas);
     // No explicit port: https defaults to 443.
-    expect(script).toContain(
-      'curl -sk -H "Authorization: Bearer $CD_TOKEN" ' +
-        'https://replica1.example.com:443/api/v1/projects/foo/repos/bar/head | jq -c  # server 1',
-    );
-    expect(script).toContain('# -k skips certificate verification');
+    expect(script).toContain("REPLICAS='1=replica1.example.com:443 2=replica2.example.com:443'");
+    expect(script).toContain('curl -sfk -m 10 -H "Authorization: Bearer $CD_TOKEN"');
+    expect(script).toContain('"https://$addr/api/v1/projects/foo/repos/bar/head"');
   });
 
   it('does not skip certificate verification over http', () => {
     process.env.NEXT_PUBLIC_HOST = 'http://dogma.example.com:36462';
     const script = buildVerificationScript(result, replicas);
-    expect(script).toContain(
-      'curl -s -H "Authorization: Bearer $CD_TOKEN" ' +
-        'http://replica2.example.com:36462/api/v1/projects/foo/repos/bar/head | jq -c  # server 2 (source)',
-    );
-    expect(script).not.toContain('-k');
+    expect(script).toContain("REPLICAS='1=replica1.example.com:36462 2=replica2.example.com:36462'");
+    expect(script).toContain('curl -sf -m 10 -H "Authorization: Bearer $CD_TOKEN"');
+    expect(script).not.toContain('-sfk');
     // A revision alone cannot detect a divergence, so the script must compare the commit ID.
     expect(script).toContain('commitId');
     expect(script).not.toContain('.headRevision');
+  });
+
+  // A token is required, so an unauthenticated curl answers 401 with a body that has no commitId. Printing
+  // nothing there would read exactly like a converged replica, so the script must name the failure.
+  it('reports an unreachable replica instead of printing nothing', () => {
+    process.env.NEXT_PUBLIC_HOST = 'http://dogma.example.com:36462';
+    const script = buildVerificationScript(result, replicas);
+    // -f makes curl exit non-zero (and print no body) on 4xx/5xx, and the fallback names it.
+    expect(script).toContain('-sf');
+    expect(script).toContain('${commit:-REQUEST FAILED}');
+    expect(script).toContain('REQUEST FAILED is not a pass');
+  });
+
+  // The placeholder is unquoted bash metacharacters, so an unquoted assignment is a syntax error the
+  // moment the operator pastes it.
+  it('quotes the token placeholder', () => {
+    process.env.NEXT_PUBLIC_HOST = 'http://dogma.example.com:36462';
+    const script = buildVerificationScript(result, replicas);
+    expect(script).toContain("CD_TOKEN='<paste a system administrator token>'");
   });
 });
 
@@ -246,16 +261,11 @@ describe('RecoverRepositoryForm', () => {
     // is served over http here, so no certificate to skip. The script is syntax-highlighted, so read
     // the element's text rather than matching a single text node.
     const script = (await screen.findByTestId('recovery-verification-script')).textContent ?? '';
-    expect(script).toContain('CD_TOKEN=');
-    expect(script).toContain(
-      'curl -s -H "Authorization: Bearer $CD_TOKEN" ' +
-        'http://replica1.example.com:36462/api/v1/projects/foo/repos/bar/head | jq -c  # server 1',
-    );
-    expect(script).toContain(
-      'curl -s -H "Authorization: Bearer $CD_TOKEN" ' +
-        'http://replica2.example.com:36462/api/v1/projects/foo/repos/bar/head | jq -c  # server 2 (source)',
-    );
-    expect(script).not.toContain('-sk');
+    expect(script).toContain("CD_TOKEN='<paste a system administrator token>'");
+    expect(script).toContain("REPLICAS='1=replica1.example.com:36462 2=replica2.example.com:36462'");
+    expect(script).toContain('"http://$addr/api/v1/projects/foo/repos/bar/head"');
+    expect(script).toContain('Server 2 is the source');
+    expect(script).not.toContain('-sfk');
     expect(screen.getByRole('button', { name: /Copy/ })).toBeInTheDocument();
   });
 });

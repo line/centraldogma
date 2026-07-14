@@ -107,31 +107,29 @@ export function buildVerificationScript(result: RecoveryResult, replicas: Replic
   const origin = process.env.NEXT_PUBLIC_HOST || window.location.origin;
   const url = new URL(origin);
   const https = url.protocol === 'https:';
-  // Without an explicit port, assume 443 for https and the Central Dogma default port for http.
+  // The replica list carries no port, so seed each address from the URL this page was served on and let the
+  // operator correct the ones that differ. Assume the Central Dogma default port when the URL has none.
   const port = url.port || (https ? '443' : '36462');
-  const duplicated = new Set(replicas.map((replica) => replica.host)).size < replicas.length;
-  const lines = [
-    'CD_TOKEN=<paste your access token>',
-    `# Every replica must report the same head commitId for ${projectName}/${repoName} as the source ` +
-      `(server ${sourceServerId}).`,
-    '# The revision alone proves nothing: diverged replicas report the same revision.',
-    ...(https
-      ? ['# -k skips certificate verification, since each replica is reached by its own host name.']
-      : []),
-    ...(duplicated
-      ? ["# WARNING: replicas share a host name here, so set each replica's own port below."]
-      : [`# Adjust the port if a replica does not listen on :${port}.`]),
-    ...replicas.map((replica) => {
-      const marker = replica.serverId === sourceServerId ? ' (source)' : '';
-      return (
-        `curl -s${https ? 'k' : ''} -H "Authorization: Bearer $CD_TOKEN" ` +
-        `${url.protocol}//${replica.host}:${port}/api/v1/projects/${projectName}/repos/${repoName}/head` +
-        ` | jq -c  # server ${replica.serverId}${marker}`
-      );
-    }),
-    `# A failed recovery is only reported in the log of the source replica (server ${sourceServerId}).`,
-  ];
-  return lines.join('\n');
+  const addresses = replicas.map((replica) => `${replica.serverId}=${replica.host}:${port}`).join(' ');
+  return [
+    "CD_TOKEN='<paste a system administrator token>'",
+    `# Address of each replica, as serverId=host:port. Server ${sourceServerId} is the source.`,
+    '# The replica list carries no port, so correct any that differs.',
+    `REPLICAS='${addresses}'`,
+    '',
+    `# Every replica of ${projectName}/${repoName} must report the same head commit ID as the source.`,
+    '# The revision proves nothing: diverged replicas report the same revision.',
+    'for replica in $REPLICAS; do',
+    '  id="${replica%%=*}"; addr="${replica#*=}"',
+    `  commit=$(curl -sf${https ? 'k' : ''} -m 10 -H "Authorization: Bearer $CD_TOKEN" \\`,
+    `    "${url.protocol}//$addr/api/v1/projects/${projectName}/repos/${repoName}/head" \\`,
+    "    | jq -r '.commitId // empty')",
+    '  echo "server $id  $addr  ${commit:-REQUEST FAILED}"',
+    'done',
+    '',
+    '# Converged only if every line shows the same commit ID. REQUEST FAILED is not a pass: that replica',
+    `# was not reached. A failed recovery is reported only in the log of the source (server ${sourceServerId}).`,
+  ].join('\n');
 }
 
 const RecoverRepositoryForm = () => {
