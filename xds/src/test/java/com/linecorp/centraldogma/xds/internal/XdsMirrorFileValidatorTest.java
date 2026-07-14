@@ -207,9 +207,9 @@ class XdsMirrorFileValidatorTest {
     void unexpectedPath_rejected() {
         assertThatThrownBy(() -> VALIDATOR.validate(
                 INTERNAL_PROJECT_XDS, REPO_NAME,
-                Change.ofTextUpsert("/README.md", "hello")))
+                Change.ofTextUpsert("/README.yaml", "hello")))
                 .isInstanceOf(MirrorException.class)
-                .hasMessageContaining("/README.md")
+                .hasMessageContaining("/README.yaml")
                 .hasMessageContaining("unexpected file path");
     }
 
