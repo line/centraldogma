@@ -117,7 +117,7 @@ class AggregatingMultipleKubernetesTest {
 
     @Test
     void aggregateMultipleKubernetes() throws Exception {
-        final String aggregatorId = "foo-k8s-cluster/1";
+        final String aggregatorId = "foo-k8s-cluster.1";
         final String clusterName = "groups/foo/k8s/clusters/" + aggregatorId;
         final KubernetesEndpointAggregator aggregator = aggregator(aggregatorId);
         final AggregatedHttpResponse response = createAggregator(aggregator, aggregatorId, dogma.httpClient());
@@ -140,7 +140,7 @@ class AggregatingMultipleKubernetesTest {
                 K8S_ENDPOINTS_DIRECTORY + aggregatorId + ".yaml")).join();
         assertThatJson(endpointEntry.content()).isEqualTo(
                 '{' +
-                "  \"clusterName\": \"groups/foo/k8s/clusters/foo-k8s-cluster/1\"," +
+                "  \"clusterName\": \"groups/foo/k8s/clusters/foo-k8s-cluster.1\"," +
                 "  \"endpoints\": [ {" +
                 "    \"locality\": {" +
                 "      \"zone\": \"zone1\"" +
@@ -213,7 +213,7 @@ class AggregatingMultipleKubernetesTest {
                 K8S_ENDPOINTS_DIRECTORY + aggregatorId + ".yaml")).join();
         assertThatJson(endpointEntry1.content()).isEqualTo(
                 '{' +
-                "  \"clusterName\": \"groups/foo/k8s/clusters/foo-k8s-cluster/1\"," +
+                "  \"clusterName\": \"groups/foo/k8s/clusters/foo-k8s-cluster.1\"," +
                 "  \"endpoints\": [ {" +
                 "    \"locality\": {" +
                 "      \"zone\": \"zone1\"" +
@@ -279,7 +279,7 @@ class AggregatingMultipleKubernetesTest {
                 K8S_ENDPOINTS_DIRECTORY + aggregatorId + ".yaml")).join();
         assertThatJson(endpointEntry2.content()).isEqualTo(
                 '{' +
-                "  \"clusterName\": \"groups/foo/k8s/clusters/foo-k8s-cluster/1\"," +
+                "  \"clusterName\": \"groups/foo/k8s/clusters/foo-k8s-cluster.1\"," +
                 "  \"endpoints\": [ {" +
                 "    \"locality\": {" +
                 "      \"zone\": \"zone1\"" +

@@ -63,7 +63,8 @@ import ErrorMessageParser from 'dogma/features/services/ErrorMessageParser';
 import { K8sAggregatorStatus } from 'dogma/features/xds/K8sAggregatorStatus';
 
 // Matches the server-side resource id pattern (XdsResourceManager.RESOURCE_ID_PATTERN_STRING).
-const AGGREGATOR_ID_PATTERN = /^[a-z](?:[a-z0-9-_/]*[a-z0-9])?$/;
+// Dots are allowed (e.g. "my-service.v1"), but slashes are not.
+const AGGREGATOR_ID_PATTERN = /^[a-z](?:[a-z0-9_.-]*[a-z0-9])?$/;
 
 interface PropertyForm {
   key: string;
@@ -450,9 +451,16 @@ const AggregatorFormFields = ({
         <Input
           placeholder="e.g. my-service"
           isReadOnly={idReadOnly || readOnly}
-          {...register('aggregatorId', { required: true, pattern: AGGREGATOR_ID_PATTERN })}
+          {...register('aggregatorId', {
+            required: true,
+            // Skip the pattern check for existing resources: the ID is immutable and may contain
+            // slashes that were allowed before this validation was introduced.
+            pattern: idReadOnly ? undefined : AGGREGATOR_ID_PATTERN,
+          })}
         />
-        <FormErrorMessage>ID must match [a-z](?:[a-z0-9-_/]*[a-z0-9])?</FormErrorMessage>
+        <FormErrorMessage>
+          ID must match [a-z](?:[a-z0-9_.-]*[a-z0-9])? (dots allowed, slashes not allowed)
+        </FormErrorMessage>
       </FormControl>
 
       {fields.map((field, index) => (

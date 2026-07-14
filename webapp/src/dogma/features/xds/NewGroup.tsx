@@ -41,7 +41,8 @@ type FormData = {
 };
 
 // A group id is also a repository name, so it follows the same naming rule.
-const GROUP_ID_PATTERN = /^[a-z](?:[a-z0-9-_]*[a-z0-9])?$/;
+// Dots are allowed (e.g. "my.group"), but slashes are not.
+const GROUP_ID_PATTERN = /^[a-z](?:[a-z0-9_.-]*[a-z0-9])?$/;
 
 export const NewGroup = () => {
   const {
@@ -88,7 +89,8 @@ export const NewGroup = () => {
               />
               {errors.groupId && (
                 <FormErrorMessage>
-                  Group ID must match the pattern [a-z](?:[a-z0-9-_]*[a-z0-9])?
+                  Group ID must match the pattern [a-z](?:[a-z0-9_.-]*[a-z0-9])? (lowercase letters, digits,
+                  hyphens, underscores, and dots are allowed)
                 </FormErrorMessage>
               )}
             </FormControl>

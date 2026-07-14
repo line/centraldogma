@@ -19,8 +19,8 @@ import static com.google.common.base.Strings.isNullOrEmpty;
 import static com.linecorp.centraldogma.internal.CredentialUtil.credentialName;
 import static com.linecorp.centraldogma.server.internal.admin.auth.AuthUtil.currentAuthor;
 import static com.linecorp.centraldogma.server.internal.storage.InternalProjectConstants.INTERNAL_PROJECT_XDS;
+import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.LEGACY_RESOURCE_ID_PATTERN_STRING;
 import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.RESOURCE_ID_PATTERN;
-import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.RESOURCE_ID_PATTERN_STRING;
 import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.fileName;
 import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.removePrefix;
 
@@ -95,7 +95,8 @@ public final class XdsKubernetesService extends XdsKubernetesServiceImplBase {
             Pattern.compile("(?<=/k8s)/endpointAggregators/");
 
     public static final Pattern K8S_ENDPOINT_AGGREGATORS_NAME_PATTERN = Pattern.compile(
-            "^groups/([^/]+)" + K8S_ENDPOINT_AGGREGATORS_DIRECTORY + '(' + RESOURCE_ID_PATTERN_STRING + ")$");
+            "^groups/([^/]+)" + K8S_ENDPOINT_AGGREGATORS_DIRECTORY +
+            '(' + LEGACY_RESOURCE_ID_PATTERN_STRING + ")$");
 
     public static final CompletableFuture<?>[] EMPTY_FUTURES = new CompletableFuture[0];
 

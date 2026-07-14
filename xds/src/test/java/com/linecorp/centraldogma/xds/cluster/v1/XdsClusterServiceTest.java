@@ -72,15 +72,19 @@ class XdsClusterServiceTest {
                                                         dogma.httpClient());
         assertThat(response.status()).isSameAs(HttpStatus.BAD_REQUEST);
 
-        response = createCluster("groups/non-existent-group", "foo-cluster/1", cluster, dogma.httpClient());
+        // Slashes are no longer allowed in new resource IDs.
+        response = createCluster("groups/foo", "foo-cluster/invalid", cluster, dogma.httpClient());
+        assertThat(response.status()).isSameAs(HttpStatus.BAD_REQUEST);
+
+        response = createCluster("groups/non-existent-group", "foo-cluster.1", cluster, dogma.httpClient());
         assertThat(response.status()).isSameAs(HttpStatus.NOT_FOUND);
 
-        response = createCluster("groups/foo", "foo-cluster/1", cluster, dogma.httpClient());
+        response = createCluster("groups/foo", "foo-cluster.1", cluster, dogma.httpClient());
         assertOk(response);
         final Cluster.Builder clusterBuilder = Cluster.newBuilder();
         JSON_MESSAGE_MARSHALLER.mergeValue(response.contentUtf8(), clusterBuilder);
         final Cluster actualCluster = clusterBuilder.build();
-        final String clusterName = "groups/foo/clusters/foo-cluster/1";
+        final String clusterName = "groups/foo/clusters/foo-cluster.1";
         assertThat(actualCluster).isEqualTo(cluster.toBuilder()
                                                    .setName(clusterName)
                                                    .setRespectDnsTtl(true)
@@ -88,7 +92,7 @@ class XdsClusterServiceTest {
         checkResourceViaDiscoveryRequest(actualCluster, clusterName, true);
 
         // Create the same cluster again.
-        response = createCluster("groups/foo", "foo-cluster/1", cluster, dogma.httpClient());
+        response = createCluster("groups/foo", "foo-cluster.1", cluster, dogma.httpClient());
         assertThat(response.status()).isSameAs(HttpStatus.CONFLICT);
         assertThat(response.headers().get("grpc-status"))
                 .isEqualTo(Integer.toString(Status.ALREADY_EXISTS.getCode().value()));
@@ -142,16 +146,16 @@ class XdsClusterServiceTest {
     @Test
     void updateClusterViaHttp() throws Exception {
         final Cluster cluster = cluster("this_cluster_name_will_be_ignored_and_replaced", 1);
-        AggregatedHttpResponse response = updateCluster("groups/foo", "foo-cluster/2",
+        AggregatedHttpResponse response = updateCluster("groups/foo", "foo-cluster.2",
                                                         cluster, dogma.httpClient());
         assertThat(response.status()).isSameAs(HttpStatus.NOT_FOUND);
 
-        response = createCluster("groups/foo", "foo-cluster/2", cluster, dogma.httpClient());
+        response = createCluster("groups/foo", "foo-cluster.2", cluster, dogma.httpClient());
         assertOk(response);
         final Cluster.Builder clusterBuilder = Cluster.newBuilder();
         JSON_MESSAGE_MARSHALLER.mergeValue(response.contentUtf8(), clusterBuilder);
         final Cluster actualCluster = clusterBuilder.build();
-        final String clusterName = "groups/foo/clusters/foo-cluster/2";
+        final String clusterName = "groups/foo/clusters/foo-cluster.2";
         assertThat(actualCluster).isEqualTo(cluster.toBuilder()
                                                    .setName(clusterName)
                                                    .setRespectDnsTtl(true)
@@ -164,7 +168,7 @@ class XdsClusterServiceTest {
                                                .setName(clusterName)
                                                .setRespectDnsTtl(false)
                                                .build();
-        response = updateCluster("groups/foo", "foo-cluster/2", updatingCluster, dogma.httpClient());
+        response = updateCluster("groups/foo", "foo-cluster.2", updatingCluster, dogma.httpClient());
         assertOk(response);
         final Cluster.Builder clusterBuilder2 = Cluster.newBuilder();
         JSON_MESSAGE_MARSHALLER.mergeValue(response.contentUtf8(), clusterBuilder2);
@@ -173,18 +177,18 @@ class XdsClusterServiceTest {
         checkResourceViaDiscoveryRequest(actualCluster2, clusterName, true);
 
         // Can update with the same cluster again.
-        response = updateCluster("groups/foo", "foo-cluster/2", updatingCluster, dogma.httpClient());
+        response = updateCluster("groups/foo", "foo-cluster.2", updatingCluster, dogma.httpClient());
         assertOk(response);
     }
 
     @Test
     void deleteClusterViaHttp() throws Exception {
-        final String clusterName = "groups/foo/clusters/foo-cluster/3/4";
+        final String clusterName = "groups/foo/clusters/foo-cluster.3.4";
         AggregatedHttpResponse response = deleteCluster(clusterName);
         assertThat(response.status()).isSameAs(HttpStatus.NOT_FOUND);
 
         final Cluster cluster = cluster("this_cluster_name_will_be_ignored_and_replaced", 1);
-        response = createCluster("groups/foo", "foo-cluster/3/4", cluster, dogma.httpClient());
+        response = createCluster("groups/foo", "foo-cluster.3.4", cluster, dogma.httpClient());
         assertOk(response);
 
         final Cluster actualCluster = cluster.toBuilder()
@@ -214,9 +218,9 @@ class XdsClusterServiceTest {
                 HttpHeaderNames.AUTHORIZATION, "Bearer anonymous").build(XdsClusterServiceBlockingStub.class);
         final Cluster cluster = cluster("this_cluster_name_will_be_ignored_and_replaced", 1);
         Cluster response = client.createCluster(CreateClusterRequest.newBuilder().setParent("groups/foo")
-                                                                    .setClusterId("foo-cluster/5/6")
+                                                                    .setClusterId("foo-cluster.5.6")
                                                                     .setCluster(cluster).build());
-        final String clusterName = "groups/foo/clusters/foo-cluster/5/6";
+        final String clusterName = "groups/foo/clusters/foo-cluster.5.6";
         assertThat(response).isEqualTo(cluster.toBuilder()
                                               .setName(clusterName)
                                               .setRespectDnsTtl(true)
