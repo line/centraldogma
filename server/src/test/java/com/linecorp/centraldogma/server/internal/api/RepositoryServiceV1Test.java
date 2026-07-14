@@ -313,6 +313,29 @@ class RepositoryServiceV1Test {
         assertThat(credential.status()).isSameAs(HttpStatus.CREATED);
     }
 
+    @Test
+    void recoverRepository_gating() {
+        final String repoName = "recoverRepo";
+        assertThat(createRepository(systemAdminClient, repoName).status()).isEqualTo(HttpStatus.CREATED);
+
+        // A non-admin user cannot start a recovery.
+        final AggregatedHttpResponse userRes =
+                userClient.blocking().prepare()
+                          .post(REPOS_PREFIX + '/' + repoName + "/recover")
+                          .contentJson(new RecoverRepositoryRequest(2, 1))
+                          .execute();
+        assertThat(userRes.status()).isEqualTo(HttpStatus.FORBIDDEN);
+
+        // Recovery is rejected in standalone (non-replicated) mode.
+        final AggregatedHttpResponse adminRes =
+                systemAdminClient.blocking().prepare()
+                                 .post(REPOS_PREFIX + '/' + repoName + "/recover")
+                                 .contentJson(new RecoverRepositoryRequest(2, 1))
+                                 .execute();
+        assertThat(adminRes.status()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(adminRes.contentUtf8()).contains("replicated");
+    }
+
     private static ResponseEntity<RepositoryDto> updateStatus(ReplicationStatus status, String repoName) {
         final BlockingWebClient client = systemAdminClient.blocking();
         return client.prepare()

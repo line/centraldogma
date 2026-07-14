@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Function;
 
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
@@ -30,13 +31,17 @@ import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonMappingException;
-import com.google.common.collect.ImmutableList;
+import com.spotify.futures.CompletableFutures;
 
 import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.centraldogma.common.Author;
+import com.linecorp.centraldogma.common.CentralDogmaException;
+import com.linecorp.centraldogma.common.ChangeConflictException;
 import com.linecorp.centraldogma.common.Entry;
+import com.linecorp.centraldogma.common.ProjectNotFoundException;
 import com.linecorp.centraldogma.common.RedundantChangeException;
 import com.linecorp.centraldogma.common.ReplicationStatus;
+import com.linecorp.centraldogma.common.RepositoryNotFoundException;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.internal.storage.repository.crud.CrudContext;
@@ -45,6 +50,7 @@ import com.linecorp.centraldogma.server.internal.storage.repository.crud.Standal
 import com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
+import com.linecorp.centraldogma.server.storage.repository.HasRevision;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 import com.linecorp.centraldogma.server.storage.repository.RepositoryListener;
 
@@ -83,7 +89,8 @@ public final class RepoStatusManager {
         crudRepository = new StandaloneCrudOperation<>(RepositoryState.class, pm);
 
         // read-only scope metrics
-        Gauge.builder("repository.read.only.count", statusMap, Map::size).register(meterRegistry);
+        Gauge.builder("repository.read.only.count", this, RepoStatusManager::activeReadOnlyCount)
+             .register(meterRegistry);
         readOnlyScopeGauge = MultiGauge.builder("repository.read.only").register(meterRegistry);
     }
 
@@ -91,6 +98,9 @@ public final class RepoStatusManager {
         final Repository dogmaRepo = pm.get(InternalProjectInitializer.INTERNAL_PROJECT_DOGMA).repos()
                                        .get(Project.REPO_DOGMA);
         dogmaRepo.addListener(RepositoryListener.of("/status/**/*.json", entries -> {
+            // This snapshot only ever contains files that still exist, so a stale/late-delivered
+            // snapshot must never evict a key it does not observe. Deletions on purge are therefore
+            // applied directly by removeRepoStatus/removeProjectStatus, not reconciled here.
             for (Entry<?> entry : entries.values()) {
                 final RepositoryState repoState;
                 try {
@@ -107,7 +117,7 @@ public final class RepoStatusManager {
                     statusMap.put(getKey(repoState.projectName(), repoState.repoName()), repoState);
                 }
             }
-            updateReadOnlyScopeMetrics();
+            refreshReadOnlyMetrics();
         }));
     }
 
@@ -155,7 +165,10 @@ public final class RepoStatusManager {
      * as its repository name.
      */
     public List<RepositoryState> readOnlyStatuses() {
-        return ImmutableList.copyOf(statusMap.values());
+        // Hide entries whose project/repository was removed; the preserved file restores it on unremove.
+        return statusMap.values().stream()
+                        .filter(state -> isActive(state.projectName(), state.repoName()))
+                        .collect(toImmutableList());
     }
 
     @Nullable
@@ -182,6 +195,11 @@ public final class RepoStatusManager {
 
     private static String getKey(String projectName, String repoName) {
         return projectName + '/' + repoName;
+    }
+
+    private static boolean isStorageAbsent(Throwable cause) {
+        final Throwable peeled = Exceptions.peel(cause);
+        return peeled instanceof ProjectNotFoundException || peeled instanceof RepositoryNotFoundException;
     }
 
     public boolean isWritable(String projectName, String repoName) {
@@ -213,20 +231,133 @@ public final class RepoStatusManager {
         return updateRepoStatus(projectName, Project.REPO_DOGMA, author, newStatus);
     }
 
+    /**
+     * Deletes the replication status file of the specified repository. Called when a repository is purged
+     * so that neither the status nor its metrics leak the removed entry.
+     *
+     * <p>The deletion is never gated on the in-memory cache: the cache is loaded by an asynchronously
+     * registered listener, so it can still be empty while the replication log is replayed after a
+     * restart, and skipping the deletion then would leave this replica's status storage — and hence its
+     * {@code dogma/dogma} repository — behind the rest of the cluster. Deleting a status file that does
+     * not exist is a no-op on every replica.
+     */
+    public CompletableFuture<Void> removeRepoStatus(String projectName, String repoName, Author author) {
+        final String description = "Delete the replication status of '" + projectName + '/' + repoName + '\'';
+        return crudOperation().delete(crudContext(projectName), repoName, author, description)
+                              .handle((revision, cause) -> {
+                                  if (cause != null) {
+                                      final Throwable peeled = Exceptions.peel(cause);
+                                      if (!(peeled instanceof ChangeConflictException ||
+                                            peeled instanceof RedundantChangeException)) {
+                                          return Exceptions.throwUnsafely(peeled);
+                                      }
+                                      // The status file does not exist; still evict the cache below.
+                                  }
+                                  // The listener does not observe deletions, so evict directly.
+                                  statusMap.remove(getKey(projectName, repoName));
+                                  refreshReadOnlyMetrics();
+                                  return null;
+                              });
+    }
+
+    /**
+     * Deletes all replication status files of the specified project, if any. Called when a project is
+     * purged so that neither the statuses nor their metrics leak the removed entries. The entries are
+     * enumerated from the replicated status files rather than the in-memory cache, which can still be
+     * empty while the replication log is replayed after a restart.
+     *
+     * <p>The status files are read asynchronously. Never block on the returned future from the repository
+     * worker, which is the executor the read itself is scheduled on.
+     */
+    public CompletableFuture<Void> removeProjectStatus(String projectName, Author author) {
+        final CompletableFuture<List<HasRevision<RepositoryState>>> statesFuture;
+        try {
+            statesFuture = crudOperation().findAll(crudContext(projectName));
+        } catch (RuntimeException e) {
+            return completedIfStatusStorageAbsent(e);
+        }
+        return statesFuture.handle((states, cause) -> {
+            if (cause != null) {
+                return RepoStatusManager.<Void>completedIfStatusStorageAbsent(cause);
+            }
+            // Clean up each repository independently so a single failure does not skip the rest.
+            CompletableFuture<Void> future = CompletableFuture.completedFuture(null);
+            for (HasRevision<RepositoryState> state : states) {
+                final String repoName = state.object().repoName();
+                future = future.thenCompose(unused -> removeRepoStatus(projectName, repoName, author)
+                        .exceptionally(repoCause -> {
+                            logger.warn("Failed to remove the replication status of '{}/{}'.",
+                                        projectName, repoName, repoCause);
+                            return null;
+                        }));
+            }
+            return future;
+        }).thenCompose(Function.identity());
+    }
+
+    /**
+     * Returns a future completed with {@code null} if the cause only means that the internal status
+     * storage does not exist yet, so no status was ever replicated; a failed future otherwise. The
+     * lookup may fail either synchronously or through the returned future, so both are funnelled here.
+     */
+    private static <T> CompletableFuture<T> completedIfStatusStorageAbsent(Throwable cause) {
+        if (isStorageAbsent(cause)) {
+            return CompletableFuture.completedFuture(null);
+        }
+        return CompletableFutures.exceptionallyCompletedFuture(cause);
+    }
+
     private static CrudContext crudContext(String projectName) {
         final String targetPath = PATH_PREFIX + projectName + '/';
         return new CrudContext(InternalProjectInitializer.INTERNAL_PROJECT_DOGMA,
                                Project.REPO_DOGMA, targetPath);
     }
 
-    private void updateReadOnlyScopeMetrics() {
-        readOnlyScopeGauge.register(
-                statusMap.values().stream()
-                         .<MultiGauge.Row<?>>map(state -> MultiGauge.Row.of(
-                                 Tags.of("project", state.projectName(),
-                                         "repo", state.repoName()),
-                                 1))
-                         .collect(toImmutableList()),
-                true);
+    /**
+     * Re-registers the {@code repository.read.only} gauge. Invoked by the repository listener on
+     * status changes and by the command executor when a repository/project is removed, restored or
+     * purged (which change {@link #isActive} without touching the status files).
+     */
+    public synchronized void refreshReadOnlyMetrics() {
+        try {
+            readOnlyScopeGauge.register(
+                    statusMap.values().stream()
+                             .filter(state -> isActive(state.projectName(), state.repoName()))
+                             .<MultiGauge.Row<?>>map(state -> MultiGauge.Row.of(
+                                     Tags.of("project", state.projectName(),
+                                             "repo", state.repoName()),
+                                     1))
+                             .collect(toImmutableList()),
+                    true);
+        } catch (Exception e) {
+            // Never let a metrics refresh failure propagate into the command that triggered it.
+            logger.warn("Failed to refresh the read-only scope metrics.", e);
+        }
+    }
+
+    private double activeReadOnlyCount() {
+        return statusMap.values().stream()
+                        .filter(state -> isActive(state.projectName(), state.repoName()))
+                        .count();
+    }
+
+    /**
+     * Returns {@code true} if the project and repository of a read-only entry still exist, i.e. they
+     * have not been soft-removed or purged.
+     */
+    private boolean isActive(String projectName, String repoName) {
+        try {
+            if (!pm.exists(projectName)) {
+                return false;
+            }
+            if (Project.REPO_DOGMA.equals(repoName)) {
+                // Project-scoped entry; the project itself exists.
+                return true;
+            }
+            return pm.get(projectName).repos().exists(repoName);
+        } catch (CentralDogmaException e) {
+            // The project/repository was removed concurrently; treat it as inactive.
+            return false;
+        }
     }
 }

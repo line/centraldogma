@@ -171,6 +171,7 @@ import com.linecorp.centraldogma.server.internal.mirror.DefaultMirrorAccessContr
 import com.linecorp.centraldogma.server.internal.mirror.DefaultMirroringServicePlugin;
 import com.linecorp.centraldogma.server.internal.mirror.MirrorAccessControl;
 import com.linecorp.centraldogma.server.internal.mirror.MirrorRunner;
+import com.linecorp.centraldogma.server.internal.replication.RecoveryPayloadBuilder;
 import com.linecorp.centraldogma.server.internal.replication.ZooKeeperCommandExecutor;
 import com.linecorp.centraldogma.server.internal.storage.project.DefaultProjectManager;
 import com.linecorp.centraldogma.server.internal.storage.project.ProjectApiManager;
@@ -963,7 +964,7 @@ public class CentralDogma implements AutoCloseable {
                                               sessionManager, encryptionStorageManager,
                         /* onTakeLeadership */ null, /* onReleaseLeadership */ null,
                         /* onTakeZoneLeadership */ null, /* onReleaseZoneLeadership */ null),
-                meterRegistry, zone,
+                meterRegistry, zone, new RecoveryPayloadBuilder(pm),
                 onTakeLeadership, onReleaseLeadership,
                 onTakeZoneLeadership, onReleaseZoneLeadership);
     }
@@ -1028,7 +1029,8 @@ public class CentralDogma implements AutoCloseable {
                 .annotatedService(new ServerStatusService(executor, statusManager, repoStatusManager))
                 .annotatedService(new ProjectServiceV1(projectApiManager, executor, repoStatusManager))
                 .annotatedService(new RepositoryServiceV1(executor, mds, encryptionStorageManager,
-                                                          repoStatusManager))
+                                                          repoStatusManager,
+                                                          new RecoveryPayloadBuilder(pm)))
                 .annotatedService(new CredentialServiceV1(projectApiManager, executor))
                 .annotatedService(new VariableServiceV1(pm, executor));
         if (LOGBACK_ENABLED) {

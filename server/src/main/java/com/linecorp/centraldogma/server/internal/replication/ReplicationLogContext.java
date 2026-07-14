@@ -17,7 +17,6 @@
 package com.linecorp.centraldogma.server.internal.replication;
 
 import java.util.Arrays;
-import java.util.Base64;
 import java.util.Objects;
 
 import org.jspecify.annotations.Nullable;
@@ -89,7 +88,8 @@ final class ReplicationLogContext {
                           .add("replayRevision", replayRevision)
                           .add("meta", meta)
                           .add("log", log)
-                          .add("bytes", bytes == null ? null : Base64.getEncoder().encodeToString(bytes))
+                          // A recovery payload can be tens of megabytes; never dump it into a log line.
+                          .add("bytes", bytes == null ? null : bytes.length + " bytes")
                           .toString();
     }
 }

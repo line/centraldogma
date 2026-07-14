@@ -50,6 +50,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Utf8;
+import com.google.common.collect.ImmutableList;
 
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.CentralDogmaException;
@@ -58,6 +60,8 @@ import com.linecorp.centraldogma.common.Commit;
 import com.linecorp.centraldogma.common.RepositoryExistsException;
 import com.linecorp.centraldogma.common.RepositoryNotFoundException;
 import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.server.command.CommitResult;
+import com.linecorp.centraldogma.server.command.ReplayCommit;
 import com.linecorp.centraldogma.server.internal.JGitUtil;
 import com.linecorp.centraldogma.server.internal.storage.DirectoryBasedStorageManager;
 import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryCache;
@@ -267,6 +271,243 @@ public final class GitRepositoryManager extends DirectoryBasedStorageManager<Rep
             logger.warn("Failed to delete the encrypted repository data for the repository '{}' " +
                         "after fallback. ", projectRepositoryName(repositoryName), t);
         }
+    }
+
+    @Override
+    public boolean recoverRepository(String repositoryName, Revision resetToRevision,
+                                     List<ReplayCommit> commits) {
+        requireNonNull(repositoryName, "repositoryName");
+        requireNonNull(resetToRevision, "resetToRevision");
+        requireNonNull(commits, "commits");
+        logger.info("Starting to recover the repository '{}' (reset to {}, replay {} commits).",
+                    projectRepositoryName(repositoryName), resetToRevision, commits.size());
+        final long startTime = System.nanoTime();
+        final GitRepository old = (GitRepository) get(repositoryName);
+        if (old.isEncrypted()) {
+            throw new StorageException("recovery is not supported for an encrypted repository: " +
+                                       projectRepositoryName(repositoryName));
+        }
+        if (commits.isEmpty()) {
+            return false;
+        }
+
+        // Skip if the repository is already converged with the source (the source replica itself, or a
+        // healthy replica): its HEAD revision and commit id already match the last replayed commit. This
+        // keeps the source untouched and makes recovery idempotent.
+        final ReplayCommit lastCommit = commits.get(commits.size() - 1);
+        final String expectedHeadCommitId = lastCommit.expectedCommitId();
+        final Revision currentHead = old.normalizeNow(Revision.HEAD);
+        if (currentHead.equals(lastCommit.revision())) {
+            final ObjectId currentHeadCommitId = old.commitIdDatabase().get(currentHead);
+            if (currentHeadCommitId != null && expectedHeadCommitId.equals(currentHeadCommitId.name())) {
+                logger.info("Repository '{}' is already converged at {} ({}); nothing to recover.",
+                            projectRepositoryName(repositoryName), currentHead, expectedHeadCommitId);
+                return false;
+            }
+        }
+
+        // Remember the current HEAD so the old repository can be restored if recovery fails.
+        final Revision originalHeadRevision = old.normalizeNow(Revision.HEAD);
+        if (resetToRevision.major() > originalHeadRevision.major()) {
+            throw new StorageException(
+                    "cannot recover " + projectRepositoryName(repositoryName) + ": the local head " +
+                    originalHeadRevision + " is below the reset revision " + resetToRevision +
+                    "; this replica is missing the shared base history.");
+        }
+        final ObjectId originalHeadCommitId = old.commitIdDatabase().get(originalHeadRevision);
+        final ObjectId resetToCommitId = old.commitIdDatabase().get(resetToRevision);
+        final File repoDir = old.repoDir();
+
+        // Quiesce the old repository so no read observes a partially rebuilt commit-id database while the new
+        // repository is opened on the same directory.
+        old.writeLock();
+        GitRepository neo = null;
+        boolean swapped = false;
+        try {
+            // Force-move master backward to the reset revision, then reopen so that openFileRepository()
+            // rebuilds the commit-id database to match the new HEAD.
+            forceMoveMaster(old.jGitRepository(), resetToCommitId);
+            neo = openFileRepository(parent, repoDir, repositoryWorker, cache);
+
+            // Replay the source commits so every replica converges to the same commit ids.
+            //
+            // The commits are applied on this thread rather than through the asynchronous commit(), which
+            // dispatches to the repository worker: this method already runs on a repository-worker thread
+            // and holds the write lock of the repository it is replacing, so a read of that repository
+            // parks another worker thread on the lock. Waiting here for a task queued back to the same
+            // pool would deadlock it once every worker is parked.
+            for (ReplayCommit commit : commits) {
+                final Revision revision = commit.revision();
+                final CommitResult result = neo.blockingCommit(
+                        revision.backward(1), commit.timestampMillis(), commit.author(), commit.summary(),
+                        commit.detail(), commit.markup(), commit.changes());
+                if (!revision.equals(result.revision())) {
+                    throw new StorageException("unexpected replayed revision: " + result.revision() +
+                                               " (expected: " + revision + ')');
+                }
+                final String expectedCommitId = commit.expectedCommitId();
+                final String actualCommitId = neo.commitIdDatabase().get(revision).name();
+                if (!expectedCommitId.equals(actualCommitId)) {
+                    throw new StorageException(
+                            "commit id mismatch while recovering '" +
+                            projectRepositoryName(repositoryName) + "' at " + revision + " (expected: " +
+                            expectedCommitId + ", actual: " + actualCommitId + "). Revisions up to " +
+                            resetToRevision + " may have diverged, or the content is not reproducible " +
+                            "byte-identically (e.g. written by a content transformer); the repository " +
+                            "was rolled back.");
+                }
+            }
+
+            if (!replaceChild(repositoryName, old, neo)) {
+                throw new StorageException("failed to replace the repository after recovery: " +
+                                           projectRepositoryName(repositoryName));
+            }
+            swapped = true;
+            // The old instance shares the on-disk state that was just rewritten, so a reader that was
+            // blocked on its lock must fail fast instead of reading through the stale instance.
+            old.markClosePending(() -> new CentralDogmaException(
+                    projectRepositoryName(repositoryName) + " is recovered. Try again."));
+        } catch (Throwable t) {
+            throw new StorageException("failed to recover the repository '" +
+                                       projectRepositoryName(repositoryName) + "' (reset to " +
+                                       resetToRevision + ')', t);
+        } finally {
+            if (!swapped) {
+                // Roll back so the (still diverged) old repository stays internally consistent. Both closes
+                // run on this thread: the write lock of `old` is still held, so waiting for the repository
+                // worker here would deadlock it.
+                if (neo != null) {
+                    try {
+                        neo.closeInline(() -> new CentralDogmaException("should never reach here"));
+                    } catch (Throwable t2) {
+                        logger.warn("Failed to close the partially recovered repository '{}'.",
+                                    projectRepositoryName(repositoryName), t2);
+                    }
+                }
+                try {
+                    forceMoveMaster(old.jGitRepository(), originalHeadCommitId);
+                    old.commitIdDatabase().rebuild(old.jGitRepository());
+                } catch (Throwable t2) {
+                    // The reset already rewrote the commit-id database that `old` shares, so a failed
+                    // rollback leaves it inconsistent with the repository. Fail every read through this
+                    // instance rather than serving a half-rewritten history; a restart rebuilds it.
+                    old.markClosePending(() -> new CentralDogmaException(
+                            projectRepositoryName(repositoryName) + " is corrupted by a failed recovery " +
+                            "rollback. Restart this replica to rebuild it."));
+                    logger.error("Failed to roll back the repository '{}' after a failed recovery. " +
+                                 "It is left unreadable until this replica is restarted.",
+                                 projectRepositoryName(repositoryName), t2);
+                }
+            }
+            old.writeUnLock();
+        }
+
+        // The swap already succeeded, so the recovery must be reported as successful and the old
+        // repository must be released even if a listener transfer or the callback fails.
+        try {
+            for (RepositoryListener listener : old.listeners()) {
+                neo.addListener(listener);
+            }
+            final BiConsumer<String, Repository> callback = postMigrationCallback;
+            if (callback != null) {
+                callback.accept(repositoryName, neo);
+            }
+        } catch (Throwable t) {
+            logger.warn("Failed to hand over the listeners of the recovered repository '{}'.",
+                        projectRepositoryName(repositoryName), t);
+        } finally {
+            old.closeInline(() -> new CentralDogmaException(
+                    projectRepositoryName(repositoryName) + " is recovered. Try again."));
+        }
+        logger.info("Recovered the repository '{}' to {} in {} seconds.",
+                    projectRepositoryName(repositoryName), neo.normalizeNow(Revision.HEAD),
+                    TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startTime));
+        return true;
+    }
+
+    private static void forceMoveMaster(org.eclipse.jgit.lib.Repository jGitRepository, ObjectId commitId) {
+        try (RevWalk revWalk = newRevWalk(jGitRepository.newObjectReader())) {
+            GitRepository.doForceRefUpdate(jGitRepository, revWalk, R_HEADS_MASTER, commitId);
+        } catch (IOException e) {
+            throw new StorageException("failed to force-move " + R_HEADS_MASTER + " to " + commitId.name(), e);
+        }
+    }
+
+    @Override
+    public List<ReplayCommit> buildRecoveryPayload(String repositoryName, Revision fromRevision) {
+        requireNonNull(repositoryName, "repositoryName");
+        requireNonNull(fromRevision, "fromRevision");
+        final GitRepository repo = (GitRepository) get(repositoryName);
+        if (repo.isEncrypted()) {
+            throw new StorageException("recovery is not supported for an encrypted repository: " +
+                                       projectRepositoryName(repositoryName));
+        }
+        final Revision headRevision = repo.normalizeNow(Revision.HEAD);
+        if (headRevision.major() < 2) {
+            throw new IllegalArgumentException(
+                    "the repository has no replayable revision: " + projectRepositoryName(repositoryName) +
+                    " (head: " + headRevision + ')');
+        }
+        final int from = fromRevision.major();
+        if (fromRevision.isRelative() || from < 2 || from > headRevision.major()) {
+            throw new IllegalArgumentException(
+                    "fromRevision: " + fromRevision + " (expected: an absolute revision in [2, " +
+                    headRevision.major() + "])");
+        }
+
+        final int commitCount = headRevision.major() - from + 1;
+        validateRecoveryPayloadSize(projectRepositoryName(repositoryName), commitCount, 0);
+        long payloadBytes = 0;
+        final ImmutableList.Builder<ReplayCommit> commits =
+                ImmutableList.builderWithExpectedSize(commitCount);
+        for (int i = from; i <= headRevision.major(); i++) {
+            final Revision revision = new Revision(i);
+            final Commit commit = repo.history(revision, revision, Repository.ALL_PATH).join().get(0);
+            final Map<String, Change<?>> changes =
+                    repo.diff(revision.backward(1), revision, Repository.ALL_PATH,
+                              DiffResultType.PATCH_TO_TEXT_UPSERT).join();
+            for (Change<?> change : changes.values()) {
+                payloadBytes += estimateSize(change);
+            }
+            validateRecoveryPayloadSize(projectRepositoryName(repositoryName), commitCount, payloadBytes);
+            commits.add(new ReplayCommit(revision, commit.when(), commit.author(), commit.summary(),
+                                         commit.detail(), commit.markup(), changes.values(),
+                                         repo.commitIdDatabase().get(revision).name()));
+        }
+        return commits.build();
+    }
+
+    // The payload crosses the replication log as a single entry and is materialized in memory by every
+    // replica, so an unbounded payload could exhaust the heap cluster-wide and stall replication.
+    @VisibleForTesting
+    static int maxRecoveryCommits = 10_000;
+    @VisibleForTesting
+    static long maxRecoveryPayloadBytes = 64 * 1024 * 1024;
+
+    private void validateRecoveryPayloadSize(String name, int commitCount, long payloadBytes) {
+        if (commitCount > maxRecoveryCommits) {
+            throw new IllegalArgumentException(
+                    "the recovery of " + name + " spans too many revisions: " + commitCount +
+                    " (maximum: " + maxRecoveryCommits + "). Recover from a later revision.");
+        }
+        if (payloadBytes > maxRecoveryPayloadBytes) {
+            throw new IllegalArgumentException(
+                    "the recovery payload of " + name + " is larger than " + maxRecoveryPayloadBytes +
+                    " bytes. Recover from a later revision.");
+        }
+    }
+
+    // Counts UTF-8 bytes rather than chars, so that non-ASCII content is not under-counted several-fold.
+    // JSON escaping is not counted, so this stays a lower bound on the serialized size.
+    private static long estimateSize(Change<?> change) {
+        final Object content = change.content();
+        long size = Utf8.encodedLength(change.path());
+        if (content instanceof String) {
+            size += Utf8.encodedLength((String) content);
+        } else if (content != null) {
+            size += Utf8.encodedLength(content.toString());
+        }
+        return size;
     }
 
     @Override

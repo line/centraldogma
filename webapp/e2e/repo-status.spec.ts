@@ -232,5 +232,17 @@ test.describe.serial('Repository Status', () => {
       // The repository leaves the read-only list.
       await expect(table.locator('tr', { hasText: FORM_REPO })).toHaveCount(0, { timeout: 10000 });
     });
+
+    test('hides the Repository Recovery tab in standalone mode', async ({ page }) => {
+      // The e2e backend is a single standalone server, so /api/v1/replicas is empty and the
+      // ZooKeeper-only recovery tab must not be offered.
+      await page.goto('/app/settings/repo-status');
+      await expect(page.getByRole('tab', { name: 'Repository Status' })).toBeVisible();
+      await expect(page.getByRole('tab', { name: 'Repository Recovery' })).toHaveCount(0);
+
+      // Navigating to the page directly explains why the feature is unavailable.
+      await page.goto('/app/settings/recovery');
+      await expect(page.getByText(/only available when the server runs in replicated/)).toBeVisible();
+    });
   });
 });

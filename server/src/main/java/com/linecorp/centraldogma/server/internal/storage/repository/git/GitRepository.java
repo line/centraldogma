@@ -34,6 +34,7 @@ import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executor;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
@@ -106,6 +107,7 @@ import com.linecorp.centraldogma.server.storage.repository.DiffResultType;
 import com.linecorp.centraldogma.server.storage.repository.FindOption;
 import com.linecorp.centraldogma.server.storage.repository.FindOptions;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
+import com.linecorp.centraldogma.server.storage.repository.RepositoryHead;
 import com.linecorp.centraldogma.server.storage.repository.RepositoryListener;
 
 /**
@@ -169,6 +171,7 @@ class GitRepository implements Repository {
     @VisibleForTesting
     final CommitWatchers commitWatchers = new CommitWatchers();
     private final AtomicReference<Supplier<CentralDogmaException>> closePending = new AtomicReference<>();
+    private final AtomicBoolean closeScheduled = new AtomicBoolean();
     private final CompletableFuture<Void> closeFuture = new CompletableFuture<>();
     private final List<RepositoryListener> listeners = new CopyOnWriteArrayList<>();
 
@@ -232,9 +235,9 @@ class GitRepository implements Repository {
      */
     void close(Supplier<CentralDogmaException> failureCauseSupplier) {
         requireNonNull(failureCauseSupplier, "failureCauseSupplier");
-        if (closePending.compareAndSet(null, failureCauseSupplier)) {
+        closePending.compareAndSet(null, failureCauseSupplier);
+        if (closeScheduled.compareAndSet(false, true)) {
             repositoryWorker.execute(() -> {
-                // MUST acquire gcLock first to prevent a dead lock
                 rwLock.writeLock().lock();
                 try {
                     closeRepository(commitIdDatabase, jGitRepository);
@@ -242,7 +245,7 @@ class GitRepository implements Repository {
                     try {
                         rwLock.writeLock().unlock();
                     } finally {
-                        commitWatchers.close(failureCauseSupplier);
+                        commitWatchers.close(closePending.get());
                         closeFuture.complete(null);
                     }
                 }
@@ -250,6 +253,42 @@ class GitRepository implements Repository {
         }
 
         closeFuture.join();
+    }
+
+    /**
+     * Closes this repository on the calling thread instead of dispatching to the repository worker. A
+     * recovery runs on a repository-worker thread, so {@link #close(Supplier)} would make it wait for a task
+     * queued back to the same pool, which deadlocks once every worker is busy.
+     */
+    void closeInline(Supplier<CentralDogmaException> failureCauseSupplier) {
+        requireNonNull(failureCauseSupplier, "failureCauseSupplier");
+        closePending.compareAndSet(null, failureCauseSupplier);
+        if (closeScheduled.compareAndSet(false, true)) {
+            rwLock.writeLock().lock();
+            try {
+                closeRepository(commitIdDatabase, jGitRepository);
+            } finally {
+                try {
+                    rwLock.writeLock().unlock();
+                } finally {
+                    commitWatchers.close(closePending.get());
+                    closeFuture.complete(null);
+                }
+            }
+        } else {
+            closeFuture.join();
+        }
+    }
+
+    /**
+     * Marks this repository as closed so that a new or lock-blocked read fails fast with the given cause,
+     * without releasing the underlying resources yet. {@link #close(Supplier)} must still be called
+     * afterwards. Unlike {@link #close(Supplier)}, this never blocks, so it is safe to call while holding
+     * the write lock.
+     */
+    void markClosePending(Supplier<CentralDogmaException> failureCauseSupplier) {
+        requireNonNull(failureCauseSupplier, "failureCauseSupplier");
+        closePending.compareAndSet(null, failureCauseSupplier);
     }
 
     static void closeRepository(@Nullable CommitIdDatabase commitIdDatabase,
@@ -282,6 +321,19 @@ class GitRepository implements Repository {
     @Override
     public org.eclipse.jgit.lib.Repository jGitRepository() {
         return jGitRepository;
+    }
+
+    @Override
+    public RepositoryHead head() {
+        readLock();
+        try {
+            // A recovery force-moves master and rebuilds the commit-id database of the directory this
+            // instance is open on, so the pair is only coherent under the read lock.
+            final Revision headRevision = this.headRevision;
+            return new RepositoryHead(headRevision, commitIdDatabase.get(headRevision).name());
+        } finally {
+            readUnlock();
+        }
     }
 
     @Override
@@ -913,6 +965,18 @@ class GitRepository implements Repository {
     }
 
     /**
+     * Commits on the calling thread instead of dispatching to the repository worker. A recovery replays
+     * its commits from a repository-worker thread while it holds the write lock of the repository it is
+     * replacing, so blocking on a task queued back to that same pool would deadlock it.
+     */
+    CommitResult blockingCommit(Revision baseRevision, long commitTimeMillis, Author author, String summary,
+                                String detail, Markup markup, Iterable<Change<?>> changes) {
+        final CommitExecutor commitExecutor =
+                new CommitExecutor(this, commitTimeMillis, author, summary, detail, markup, false);
+        return commitExecutor.execute(baseRevision, normBaseRevision -> changes);
+    }
+
+    /**
      * Removes {@code \r} and appends {@code \n} on the last line if it does not end with {@code \n}.
      */
     static String sanitizeText(String text) {
@@ -942,6 +1006,33 @@ class GitRepository implements Repository {
                 break;
             default:
                 throw new StorageException("unexpected refUpdate state: " + res);
+        }
+    }
+
+    /**
+     * Force-updates {@code ref} to {@code commitId}, allowing a non-fast-forward (backward) move. Used by
+     * repository recovery to reset {@code refs/heads/master} to an earlier revision.
+     */
+    static void doForceRefUpdate(org.eclipse.jgit.lib.Repository jGitRepository, RevWalk revWalk,
+                                 String ref, ObjectId commitId) throws IOException {
+        if (ref.startsWith(Constants.R_TAGS)) {
+            throw new StorageException("Using a tag is not allowed. ref: " + ref);
+        }
+
+        final RefUpdate refUpdate = jGitRepository.updateRef(ref);
+        refUpdate.setNewObjectId(commitId);
+        refUpdate.setForceUpdate(true);
+
+        final Result res = refUpdate.update(revWalk);
+        switch (res) {
+            case NEW:
+            case FAST_FORWARD:
+            case FORCED:
+            case NO_CHANGE:
+                // Expected
+                break;
+            default:
+                throw new StorageException("unexpected forced refUpdate state: " + res);
         }
     }
 
