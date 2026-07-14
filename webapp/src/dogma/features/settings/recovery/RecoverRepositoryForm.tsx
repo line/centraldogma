@@ -107,15 +107,23 @@ export function buildVerificationScript(result: RecoveryResult, replicas: Replic
   const origin = process.env.NEXT_PUBLIC_HOST || window.location.origin;
   const url = new URL(origin);
   const https = url.protocol === 'https:';
-  // The replica list carries no port, so seed each address from the URL this page was served on and let the
-  // operator correct the ones that differ. Assume the Central Dogma default port when the URL has none.
+  // The roster carries no port, so every address is seeded from the URL this page was served on and the
+  // operator corrects the rest. When that collapses two replicas onto one address, the script would poll the
+  // same server twice and report a convergence it never checked, so say so rather than let it read as a pass.
   const port = url.port || (https ? '443' : '36462');
-  const addresses = replicas.map((replica) => `${replica.serverId}=${replica.host}:${port}`).join(' ');
+  const entries = replicas.map((replica) => `${replica.serverId}=${replica.host}:${port}`);
+  const collided = new Set(replicas.map((replica) => replica.host)).size < replicas.length;
   return [
     "CD_TOKEN='<paste a system administrator token>'",
     `# Address of each replica, as serverId=host:port. Server ${sourceServerId} is the source.`,
-    '# The replica list carries no port, so correct any that differs.',
-    `REPLICAS='${addresses}'`,
+    ...(collided
+      ? [
+          '# WARNING: replicas share a host, so they were all given the same port and some entries below',
+          '# now point at the SAME server. Give each its own port first, or this check will poll one',
+          '# replica twice and wrongly look converged.',
+        ]
+      : ['# The roster carries no port, so the ports are a guess. Correct any that differs.']),
+    `REPLICAS='${entries.join(' ')}'`,
     '',
     `# Every replica of ${projectName}/${repoName} must report the same head commit ID as the source.`,
     '# The revision proves nothing: diverged replicas report the same revision.',
@@ -126,6 +134,8 @@ export function buildVerificationScript(result: RecoveryResult, replicas: Replic
     "    | jq -r '.commitId // empty')",
     '  echo "server $id  $addr  ${commit:-REQUEST FAILED}"',
     'done',
+    "dupes=$(printf '%s\\n' $REPLICAS | cut -d= -f2 | sort | uniq -d)",
+    '[ -z "$dupes" ] || echo "WARNING: polled twice, so this proves nothing: $dupes"',
     '',
     '# Converged only if every line shows the same commit ID. REQUEST FAILED is not a pass: that replica',
     `# was not reached. A failed recovery is reported only in the log of the source (server ${sourceServerId}).`,

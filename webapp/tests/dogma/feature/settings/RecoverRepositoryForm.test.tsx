@@ -124,6 +124,30 @@ describe('buildVerificationScript', () => {
     expect(script).toContain('REQUEST FAILED is not a pass');
   });
 
+  // The roster carries no port, so every address is seeded from the browser's. Two replicas behind one
+  // host then collapse onto one address, and the script would poll that server twice and look converged.
+  it('warns when two replicas are seeded with the same address', () => {
+    process.env.NEXT_PUBLIC_HOST = 'http://dogma.example.com:36462';
+    const sameHost = [
+      { serverId: 1, host: 'dogma.example.com', current: true },
+      { serverId: 2, host: 'dogma.example.com', current: false },
+    ];
+    const script = buildVerificationScript(result, sameHost);
+    expect(script).toContain('# WARNING: replicas share a host');
+    expect(script).toContain('wrongly look converged');
+    // And the script defends itself, in case the warning is skimmed past.
+    expect(script).toContain('sort | uniq -d');
+    expect(script).toContain('WARNING: polled twice, so this proves nothing');
+  });
+
+  it('does not warn when every replica has its own address', () => {
+    process.env.NEXT_PUBLIC_HOST = 'http://dogma.example.com:36462';
+    const script = buildVerificationScript(result, replicas);
+    expect(script).not.toContain('# WARNING: replicas share a host');
+    // The runtime guard is always emitted; it just stays silent when the addresses are distinct.
+    expect(script).toContain('sort | uniq -d');
+  });
+
   // The placeholder is unquoted bash metacharacters, so an unquoted assignment is a syntax error the
   // moment the operator pastes it.
   it('quotes the token placeholder', () => {
