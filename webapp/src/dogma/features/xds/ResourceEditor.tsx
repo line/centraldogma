@@ -65,7 +65,7 @@ import { newNotification } from 'dogma/features/notification/notificationSlice';
 import ErrorMessageParser from 'dogma/features/services/ErrorMessageParser';
 
 // Dots are allowed (e.g. "my-service.v1"), but slashes are not.
-const RESOURCE_ID_PATTERN = /^[a-z](?:[a-z0-9-_.]*[a-z0-9])?$/;
+const RESOURCE_ID_PATTERN = /^[a-z](?:[a-z0-9_.-]*[a-z0-9])?$/;
 
 function parseJsonOrNotify(dispatch: ReturnType<typeof useAppDispatch>, value: string): object | null {
   try {
@@ -99,7 +99,7 @@ const NewResourceEditor = ({ group, type }: { group: string; type: XdsResourceTy
       dispatch(
         newNotification(
           'Invalid ID',
-          `${meta.label} ID must match [a-z](?:[a-z0-9-_.]*[a-z0-9])? (dots allowed, slashes not allowed)`,
+          `${meta.label} ID must match [a-z](?:[a-z0-9_.-]*[a-z0-9])? (dots allowed, slashes not allowed)`,
           'error',
         ),
       );
@@ -135,7 +135,7 @@ const NewResourceEditor = ({ group, type }: { group: string; type: XdsResourceTy
         <FormLabel>{meta.label} ID</FormLabel>
         <Input value={id} onChange={(e) => setId(e.target.value)} placeholder={`Enter ${meta.label} ID ...`} />
         <FormErrorMessage>
-          ID must match [a-z](?:[a-z0-9-_.]*[a-z0-9])? (dots allowed, slashes not allowed)
+          ID must match [a-z](?:[a-z0-9_.-]*[a-z0-9])? (dots allowed, slashes not allowed)
         </FormErrorMessage>
       </FormControl>
       <JsonEditor value={content} onChange={setContent} />

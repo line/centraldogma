@@ -71,12 +71,12 @@ import io.grpc.stub.StreamObserver;
 
 public final class XdsResourceManager {
 
-    public static final String RESOURCE_ID_PATTERN_STRING = "[a-z](?:[a-z0-9-_.]*[a-z0-9])?";
+    public static final String RESOURCE_ID_PATTERN_STRING = "[a-z](?:[a-z0-9_.-]*[a-z0-9])?";
     public static final Pattern RESOURCE_ID_PATTERN = Pattern.compile('^' + RESOURCE_ID_PATTERN_STRING + '$');
     // Allows slashes in addition to dots for backward compatibility with resources created before the
     // slash was forbidden. Use this pattern only for parsing existing resource names in update/delete
     // operations, not for validating new IDs in create operations.
-    public static final String LEGACY_RESOURCE_ID_PATTERN_STRING = "[a-z](?:[a-z0-9-_/.]*[a-z0-9])?";
+    public static final String LEGACY_RESOURCE_ID_PATTERN_STRING = "[a-z](?:[a-z0-9_/.-]*[a-z0-9])?";
     public static final Pattern LEGACY_RESOURCE_ID_PATTERN =
             Pattern.compile('^' + LEGACY_RESOURCE_ID_PATTERN_STRING + '$');
 
