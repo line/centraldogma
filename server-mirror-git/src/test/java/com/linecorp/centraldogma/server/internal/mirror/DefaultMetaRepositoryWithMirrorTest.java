@@ -19,8 +19,10 @@ package com.linecorp.centraldogma.server.internal.mirror;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.linecorp.centraldogma.internal.CredentialUtil.credentialFile;
 import static com.linecorp.centraldogma.internal.CredentialUtil.credentialName;
+import static com.linecorp.centraldogma.server.internal.storage.InternalProjectConstants.INTERNAL_PROJECT_XDS;
 import static com.linecorp.centraldogma.server.internal.storage.repository.MirrorConfig.DEFAULT_SCHEDULE;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.Comparator;
@@ -243,6 +245,27 @@ class DefaultMetaRepositoryWithMirrorTest {
         assertThat(m.localRepo().name()).isEqualTo("qux");
         assertThat(m.credential()).isInstanceOf(SshKeyCredential.class);
         assertThat(((SshKeyCredential) m.credential()).username()).isEqualTo("alice");
+    }
+
+    @Test
+    void xdsMirrorWithNonRootLocalPath_isRejected() {
+        final MirrorRequest badMirror = new MirrorRequest(
+                "xds-mirror", true, INTERNAL_PROJECT_XDS, DEFAULT_SCHEDULE, "REMOTE_TO_LOCAL", "some-group",
+                "/clusters/", "git+ssh", "git.example.com/org/repo.git", "/", "main", null, "", null);
+        assertThatThrownBy(() ->
+                metaRepo.createMirrorPushCommand("some-group", badMirror, Author.SYSTEM, null, false))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("localPath");
+    }
+
+    @Test
+    void xdsMirrorWithRootLocalPath_isAccepted() {
+        final MirrorRequest validMirror = new MirrorRequest(
+                "xds-mirror", true, INTERNAL_PROJECT_XDS, DEFAULT_SCHEDULE, "REMOTE_TO_LOCAL", "some-group",
+                "/", "git+ssh", "git.example.com/org/repo.git", "/", "main", null, "", null);
+        assertThatCode(() ->
+                metaRepo.createMirrorPushCommand("some-group", validMirror, Author.SYSTEM, null, false))
+                .doesNotThrowAnyException();
     }
 
     private List<Mirror> findMirrors() {

@@ -25,7 +25,6 @@ import {
   FormHelperText,
   FormLabel,
   Heading,
-  HStack,
   Input,
   Link,
   Radio,
@@ -33,7 +32,6 @@ import {
   Spacer,
   Stack,
   Switch,
-  Tag,
   Textarea,
   VStack,
 } from '@chakra-ui/react';
@@ -66,6 +64,7 @@ interface MirrorFormProps {
     setError: UseFormSetError<MirrorRequest>,
   ) => Promise<void>;
   isWaitingResponse: boolean;
+  hideLocalPath?: boolean;
 }
 
 interface OptionType {
@@ -92,7 +91,14 @@ function projectMirrorCredentialName(project: string, id: string): string {
   return `projects/${project}/credentials/${id}`;
 }
 
-const MirrorForm = ({ projectName, repoName, defaultValue, onSubmit, isWaitingResponse }: MirrorFormProps) => {
+const MirrorForm = ({
+  projectName,
+  repoName,
+  defaultValue,
+  onSubmit,
+  isWaitingResponse,
+  hideLocalPath = false,
+}: MirrorFormProps) => {
   const {
     register,
     handleSubmit,
@@ -183,6 +189,9 @@ const MirrorForm = ({ projectName, repoName, defaultValue, onSubmit, isWaitingRe
   return (
     <form
       onSubmit={handleSubmit((mirror) => {
+        if (hideLocalPath) {
+          mirror.localPath = '/';
+        }
         if (isDogmaScheme(mirror.remoteScheme)) {
           mirror.remoteBranch = '';
         }
@@ -194,10 +203,6 @@ const MirrorForm = ({ projectName, repoName, defaultValue, onSubmit, isWaitingRe
           <Heading size="lg" mb={4}>
             {isNew ? 'New Mirror' : 'Edit Mirror'}
           </Heading>
-          <HStack paddingBottom={2}>
-            <LabelledIcon icon={GoRepo} text="Repository" />
-            <Tag fontWeight={'bold'}>{repoName}</Tag>
-          </HStack>
           <Divider />
           <FormControl isRequired isInvalid={errors.id != null}>
             <FormLabel>
@@ -312,21 +317,25 @@ const MirrorForm = ({ projectName, repoName, defaultValue, onSubmit, isWaitingRe
           </FormControl>
           <Spacer />
 
-          <Stack direction="row" width="100%">
-            <FormControl width="50%" isRequired isInvalid={errors.localPath != null}>
-              <FormLabel>Local path</FormLabel>
-              <Input
-                id="localPath"
-                name="localPath"
-                type="text"
-                defaultValue={defaultValue.localPath}
-                placeholder="/"
-                {...register('localPath', { required: true })}
-              />
-              <FieldErrorMessage error={errors.localPath} fieldName="Local path" />
-            </FormControl>
-          </Stack>
-          <Spacer />
+          {!hideLocalPath && (
+            <>
+              <Stack direction="row" width="100%">
+                <FormControl width="50%" isRequired isInvalid={errors.localPath != null}>
+                  <FormLabel>Local path</FormLabel>
+                  <Input
+                    id="localPath"
+                    name="localPath"
+                    type="text"
+                    defaultValue={defaultValue.localPath}
+                    placeholder="/"
+                    {...register('localPath', { required: true })}
+                  />
+                  <FieldErrorMessage error={errors.localPath} fieldName="Local path" />
+                </FormControl>
+              </Stack>
+              <Spacer />
+            </>
+          )}
 
           <Stack direction="row" width="100%">
             <FormControl width="50%" isRequired isInvalid={errors.remoteScheme != null}>

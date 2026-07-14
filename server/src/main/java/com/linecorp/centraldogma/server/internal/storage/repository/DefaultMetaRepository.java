@@ -19,6 +19,7 @@ package com.linecorp.centraldogma.server.internal.storage.repository;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.linecorp.centraldogma.internal.CredentialUtil.credentialFile;
+import static com.linecorp.centraldogma.server.internal.storage.InternalProjectConstants.INTERNAL_PROJECT_XDS;
 import static com.linecorp.centraldogma.server.internal.storage.repository.MirrorConverter.converterToMirrorConfig;
 import static java.util.Objects.requireNonNull;
 
@@ -415,6 +416,12 @@ public final class DefaultMetaRepository extends RepositoryWrapper implements Me
             checkArgument(zoneConfig != null, "Zone configuration is missing");
             checkArgument(zoneConfig.allZones().contains(zone),
                           "The zone '%s' is not in the zone configuration: %s", zone, zoneConfig);
+        }
+
+        if (INTERNAL_PROJECT_XDS.equals(mirror.projectName())) {
+            final String localPath = mirror.localPath();
+            checkArgument("/".equals(localPath) || localPath.isEmpty(),
+                          "xDS mirrors must use localPath '/', but got: %s", localPath);
         }
     }
 }

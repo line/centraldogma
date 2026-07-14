@@ -15,7 +15,7 @@
  */
 package com.linecorp.centraldogma.xds.internal;
 
-import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.XDS_CENTRAL_DOGMA_PROJECT;
+import static com.linecorp.centraldogma.server.internal.storage.InternalProjectConstants.INTERNAL_PROJECT_XDS;
 import static com.linecorp.centraldogma.xds.internal.ControlPlaneService.CLUSTERS_DIRECTORY;
 import static com.linecorp.centraldogma.xds.internal.ControlPlaneService.ENDPOINTS_DIRECTORY;
 import static com.linecorp.centraldogma.xds.internal.ControlPlaneService.LISTENERS_DIRECTORY;
@@ -191,14 +191,14 @@ class XdsLegacyJsonCompatibilityTest {
     private static <T extends Message> void pushLegacyJson(String path, T resource) throws IOException {
         final JsonNode jsonNode = Jackson.readTree(JSON_MESSAGE_MARSHALLER.writeValueAsString(resource));
         dogma.client()
-             .forRepo(XDS_CENTRAL_DOGMA_PROJECT, GROUP)
+             .forRepo(INTERNAL_PROJECT_XDS, GROUP)
              .commit("Add legacy " + path, Change.ofJsonUpsert(path, jsonNode))
              .push()
              .join();
     }
 
     private static Repository repo() {
-        return dogma.projectManager().get(XDS_CENTRAL_DOGMA_PROJECT).repos().get(GROUP);
+        return dogma.projectManager().get(INTERNAL_PROJECT_XDS).repos().get(GROUP);
     }
 
     private static void assertFileExists(Repository repo, String path) {
