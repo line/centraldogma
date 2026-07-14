@@ -23,7 +23,7 @@
 <a class="jxr_linenumber" name="L15" href="#L15">15</a>  <em class="jxr_comment"> */</em>
 <a class="jxr_linenumber" name="L16" href="#L16">16</a>  <strong class="jxr_keyword">package</strong> com.linecorp.centraldogma.xds.k8s.v1;
 <a class="jxr_linenumber" name="L17" href="#L17">17</a>  
-<a class="jxr_linenumber" name="L18" href="#L18">18</a>  <strong class="jxr_keyword">import</strong> <strong class="jxr_keyword">static</strong> com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.XDS_CENTRAL_DOGMA_PROJECT;
+<a class="jxr_linenumber" name="L18" href="#L18">18</a>  <strong class="jxr_keyword">import</strong> <strong class="jxr_keyword">static</strong> com.linecorp.centraldogma.server.internal.storage.InternalProjectConstants.INTERNAL_PROJECT_XDS;
 <a class="jxr_linenumber" name="L19" href="#L19">19</a>  <strong class="jxr_keyword">import</strong> <strong class="jxr_keyword">static</strong> io.fabric8.kubernetes.client.Config.KUBERNETES_DISABLE_AUTO_CONFIG_SYSTEM_PROPERTY;
 <a class="jxr_linenumber" name="L20" href="#L20">20</a>  <strong class="jxr_keyword">import</strong> <strong class="jxr_keyword">static</strong> java.util.Objects.requireNonNull;
 <a class="jxr_linenumber" name="L21" href="#L21">21</a>  
@@ -62,10 +62,10 @@
 <a class="jxr_linenumber" name="L54" href="#L54">54</a>          <strong class="jxr_keyword">if</strong> (fetchingService != <strong class="jxr_keyword">null</strong>) {
 <a class="jxr_linenumber" name="L55" href="#L55">55</a>              <strong class="jxr_keyword">return</strong> UnmodifiableFuture.completedFuture(<strong class="jxr_keyword">null</strong>);
 <a class="jxr_linenumber" name="L56" href="#L56">56</a>          }
-<a class="jxr_linenumber" name="L57" href="#L57">57</a>          context.internalProjectInitializer().initialize(XDS_CENTRAL_DOGMA_PROJECT);
+<a class="jxr_linenumber" name="L57" href="#L57">57</a>          context.internalProjectInitializer().initialize(INTERNAL_PROJECT_XDS);
 <a class="jxr_linenumber" name="L58" href="#L58">58</a>  
 <a class="jxr_linenumber" name="L59" href="#L59">59</a>          fetchingService = <strong class="jxr_keyword">new</strong> <a href="../../../../../../com/linecorp/centraldogma/xds/k8s/v1/XdsKubernetesEndpointFetchingService.html">XdsKubernetesEndpointFetchingService</a>(
-<a class="jxr_linenumber" name="L60" href="#L60">60</a>                  context.projectManager().get(XDS_CENTRAL_DOGMA_PROJECT), context.commandExecutor(),
+<a class="jxr_linenumber" name="L60" href="#L60">60</a>                  context.projectManager().get(INTERNAL_PROJECT_XDS), context.commandExecutor(),
 <a class="jxr_linenumber" name="L61" href="#L61">61</a>                  context.meterRegistry());
 <a class="jxr_linenumber" name="L62" href="#L62">62</a>          fetchingService.start();
 <a class="jxr_linenumber" name="L63" href="#L63">63</a>          <strong class="jxr_keyword">return</strong> UnmodifiableFuture.completedFuture(<strong class="jxr_keyword">null</strong>);
