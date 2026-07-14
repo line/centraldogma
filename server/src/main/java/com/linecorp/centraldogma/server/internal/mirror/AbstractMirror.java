@@ -26,14 +26,19 @@ import java.io.IOException;
 import java.time.Instant;
 import java.time.ZonedDateTime;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.ServiceLoader;
 
 import org.eclipse.jgit.ignore.IgnoreNode;
 import org.eclipse.jgit.ignore.IgnoreNode.MatchResult;
 import org.jspecify.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.cronutils.descriptor.CronDescriptor;
 import com.cronutils.model.Cron;
@@ -41,9 +46,11 @@ import com.cronutils.model.time.ExecutionTime;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.MoreObjects.ToStringHelper;
+import com.google.common.collect.ImmutableList;
 import com.google.common.hash.Hashing;
 
 import com.linecorp.centraldogma.common.Author;
+import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.EntryType;
 import com.linecorp.centraldogma.common.MirrorException;
@@ -51,6 +58,7 @@ import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.credential.Credential;
 import com.linecorp.centraldogma.server.mirror.Mirror;
 import com.linecorp.centraldogma.server.mirror.MirrorDirection;
+import com.linecorp.centraldogma.server.mirror.MirrorFileValidator;
 import com.linecorp.centraldogma.server.mirror.MirrorResult;
 import com.linecorp.centraldogma.server.mirror.MirrorStatus;
 import com.linecorp.centraldogma.server.mirror.RepositoryUri;
@@ -58,7 +66,16 @@ import com.linecorp.centraldogma.server.storage.repository.Repository;
 
 public abstract class AbstractMirror implements Mirror {
 
+    private static final Logger logger = LoggerFactory.getLogger(AbstractMirror.class);
+
     private static final CronDescriptor CRON_DESCRIPTOR = CronDescriptor.instance();
+
+    private static final List<MirrorFileValidator> FILE_VALIDATORS;
+
+    static {
+        FILE_VALIDATORS = ImmutableList.copyOf(ServiceLoader.load(MirrorFileValidator.class));
+        logger.debug("Available {}s: {}", MirrorFileValidator.class.getSimpleName(), FILE_VALIDATORS);
+    }
 
     protected static final Author MIRROR_AUTHOR = new Author("Mirror", "mirror@localhost.localdomain");
 
@@ -250,6 +267,39 @@ public abstract class AbstractMirror implements Mirror {
     @Nullable
     protected final IgnoreNode ignoreNode() {
         return ignoreNode;
+    }
+
+    /**
+     * Validates the given changes using all registered {@link MirrorFileValidator}s before they are
+     * committed. Mirror state files are excluded from validation.
+     *
+     * @throws MirrorException if any change fails validation
+     */
+    protected final void validateChanges(Map<String, Change<?>> changes) {
+        if (FILE_VALIDATORS.isEmpty()) {
+            return;
+        }
+        final String projectName = localRepo().parent().name();
+        final String repoName = localRepo().name();
+        final List<String> errors = new ArrayList<>();
+        for (Change<?> change : changes.values()) {
+            // Skip mirror state files — they are internal bookkeeping, not user content.
+            if (change.path().endsWith(MIRROR_STATE_FILE_NAME)) {
+                continue;
+            }
+            for (MirrorFileValidator validator : FILE_VALIDATORS) {
+                try {
+                    validator.validate(projectName, repoName, change);
+                } catch (MirrorException e) {
+                    errors.add(e.getMessage());
+                }
+            }
+        }
+        if (!errors.isEmpty()) {
+            throw new MirrorException(
+                    "Mirror validation failed for '" + projectName + '/' + repoName + "':\n" +
+                    String.join("\n", errors));
+        }
     }
 
     /**

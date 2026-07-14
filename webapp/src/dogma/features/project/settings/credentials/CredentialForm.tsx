@@ -50,6 +50,7 @@ interface CredentialFormProps {
   defaultValue: CredentialDto;
   onSubmit: (credential: CredentialDto, onSuccess: () => void) => Promise<void>;
   isWaitingResponse: boolean;
+  hideScope?: boolean;
 }
 
 interface CredentialTypeWithDescription {
@@ -70,6 +71,7 @@ const CredentialForm = ({
   defaultValue,
   onSubmit,
   isWaitingResponse,
+  hideScope = false,
 }: CredentialFormProps) => {
   const [credentialType, setCredentialType] = useState<string>(defaultValue.type);
 
@@ -112,17 +114,18 @@ const CredentialForm = ({
           <Heading size="lg" mb={4}>
             {isNew ? 'New Credential' : 'Edit Credential'}
           </Heading>
-          {repoName ? (
-            <HStack paddingBottom={2}>
-              <LabelledIcon icon={GoRepo} text="Repository" />
-              <Tag fontWeight={'bold'}>{repoName}</Tag>
-            </HStack>
-          ) : (
-            <HStack paddingBottom={2}>
-              <LabelledIcon icon={FiBox} text="Project" />
-              <Tag fontWeight={'bold'}>{projectName}</Tag>
-            </HStack>
-          )}
+          {!hideScope &&
+            (repoName ? (
+              <HStack paddingBottom={2}>
+                <LabelledIcon icon={GoRepo} text="Repository" />
+                <Tag fontWeight={'bold'}>{repoName}</Tag>
+              </HStack>
+            ) : (
+              <HStack paddingBottom={2}>
+                <LabelledIcon icon={FiBox} text="Project" />
+                <Tag fontWeight={'bold'}>{projectName}</Tag>
+              </HStack>
+            ))}
           <Divider />
           <FormControl isRequired isInvalid={errors.id != null}>
             <FormLabel>

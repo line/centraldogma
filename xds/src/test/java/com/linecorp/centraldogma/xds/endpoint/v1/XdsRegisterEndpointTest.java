@@ -15,9 +15,9 @@
  */
 package com.linecorp.centraldogma.xds.endpoint.v1;
 
+import static com.linecorp.centraldogma.server.internal.storage.InternalProjectConstants.INTERNAL_PROJECT_XDS;
 import static com.linecorp.centraldogma.xds.endpoint.v1.XdsEndpointServiceTest.assertOk;
 import static com.linecorp.centraldogma.xds.endpoint.v1.XdsEndpointServiceTest.checkEndpointsViaDiscoveryRequest;
-import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.XDS_CENTRAL_DOGMA_PROJECT;
 import static com.linecorp.centraldogma.xds.internal.ControlPlaneService.ENDPOINTS_DIRECTORY;
 import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.JSON_MESSAGE_MARSHALLER;
 import static com.linecorp.centraldogma.xds.internal.XdsTestUtil.createEndpoint;
@@ -77,7 +77,7 @@ public class XdsRegisterEndpointTest {
         checkEndpointsViaDiscoveryRequest(dogma.httpClient().uri(), endpoint, clusterName);
 
         final Repository fooRepository =
-                dogma.projectManager().get(XDS_CENTRAL_DOGMA_PROJECT).repos().get("foo");
+                dogma.projectManager().get(INTERNAL_PROJECT_XDS).repos().get("foo");
         int prevMajor = fooRepository.normalizeNow(Revision.HEAD).major();
 
         // Register endpoints to the same locality endpoint.
@@ -273,13 +273,13 @@ public class XdsRegisterEndpointTest {
                                      .build();
         final JsonNode jsonNode = Jackson.readTree(
                 JSON_MESSAGE_MARSHALLER.writeValueAsString(initialAssignment));
-        dogma.client().forRepo(XDS_CENTRAL_DOGMA_PROJECT, "foo")
+        dogma.client().forRepo(INTERNAL_PROJECT_XDS, "foo")
              .commit("Add legacy JSON endpoint",
                      Change.ofJsonUpsert(ENDPOINTS_DIRECTORY + endpointId + ".json", jsonNode))
              .push().join();
 
         final Repository fooRepository =
-                dogma.projectManager().get(XDS_CENTRAL_DOGMA_PROJECT).repos().get("foo");
+                dogma.projectManager().get(INTERNAL_PROJECT_XDS).repos().get("foo");
 
         // Register a new endpoint — flush() discovers the .json file and migrates it to .yaml atomically.
         final LocalityLbEndpoint newEndpoint =
@@ -344,7 +344,7 @@ public class XdsRegisterEndpointTest {
         final Locality locality = Locality.newBuilder().setRegion("r1").setZone("z1").build();
         final ClusterLoadAssignment initial = loadAssignment(clusterName, locality,
                                                              endpoint("127.0.0.1", 9100));
-        dogma.client().forRepo(XDS_CENTRAL_DOGMA_PROJECT, "foo")
+        dogma.client().forRepo(INTERNAL_PROJECT_XDS, "foo")
              .commit("Add YAML endpoint",
                      Change.ofYamlUpsert(ENDPOINTS_DIRECTORY + "yaml-register-ep.yaml",
                                          JSON_MESSAGE_MARSHALLER.writeValueAsString(initial)))

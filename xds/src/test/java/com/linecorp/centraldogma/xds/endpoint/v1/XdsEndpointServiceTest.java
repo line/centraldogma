@@ -15,7 +15,7 @@
  */
 package com.linecorp.centraldogma.xds.endpoint.v1;
 
-import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.XDS_CENTRAL_DOGMA_PROJECT;
+import static com.linecorp.centraldogma.server.internal.storage.InternalProjectConstants.INTERNAL_PROJECT_XDS;
 import static com.linecorp.centraldogma.xds.internal.ControlPlaneService.ENDPOINTS_DIRECTORY;
 import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.JSON_MESSAGE_MARSHALLER;
 import static com.linecorp.centraldogma.xds.internal.XdsTestUtil.createEndpoint;
@@ -186,7 +186,7 @@ public class XdsEndpointServiceTest {
         // Pre-populate the repo with a YAML endpoint (simulating a JSON→YAML migration).
         final String clusterName = "groups/foo/clusters/yaml-exists.1";
         final ClusterLoadAssignment initial = loadAssignment(clusterName, "127.0.0.1", 8080);
-        dogma.client().forRepo(XDS_CENTRAL_DOGMA_PROJECT, "foo")
+        dogma.client().forRepo(INTERNAL_PROJECT_XDS, "foo")
              .commit("Add YAML endpoint",
                      Change.ofYamlUpsert(ENDPOINTS_DIRECTORY + "yaml-exists.1.yaml",
                                          JSON_MESSAGE_MARSHALLER.writeValueAsString(initial)))
@@ -201,7 +201,7 @@ public class XdsEndpointServiceTest {
 
         // The original .yaml file must still be the only file present (no new .json created).
         final Repository repo =
-                dogma.projectManager().get(XDS_CENTRAL_DOGMA_PROJECT).repos().get("foo");
+                dogma.projectManager().get(INTERNAL_PROJECT_XDS).repos().get("foo");
         assertThat(repo.find(Revision.HEAD, ENDPOINTS_DIRECTORY + "yaml-exists.1.yaml",
                              FindOptions.FIND_ONE_WITHOUT_CONTENT).join()).isNotEmpty();
         assertThat(repo.find(Revision.HEAD, ENDPOINTS_DIRECTORY + "yaml-exists.1.json",
@@ -214,7 +214,7 @@ public class XdsEndpointServiceTest {
         final String clusterName = "groups/foo/clusters/yaml-endpoint/1";
         final String endpointName = "groups/foo/endpoints/yaml-endpoint/1";
         final ClusterLoadAssignment initial = loadAssignment(clusterName, "127.0.0.1", 8080);
-        dogma.client().forRepo(XDS_CENTRAL_DOGMA_PROJECT, "foo")
+        dogma.client().forRepo(INTERNAL_PROJECT_XDS, "foo")
              .commit("Add YAML endpoint",
                      Change.ofYamlUpsert(ENDPOINTS_DIRECTORY + "yaml-endpoint/1.yaml",
                                          JSON_MESSAGE_MARSHALLER.writeValueAsString(initial)))
@@ -232,7 +232,7 @@ public class XdsEndpointServiceTest {
 
         // The .yaml file must have been updated in-place; no new .json file should exist.
         final Repository repo =
-                dogma.projectManager().get(XDS_CENTRAL_DOGMA_PROJECT).repos().get("foo");
+                dogma.projectManager().get(INTERNAL_PROJECT_XDS).repos().get("foo");
         assertThat(repo.find(Revision.HEAD, ENDPOINTS_DIRECTORY + "yaml-endpoint/1.yaml",
                              FindOptions.FIND_ONE_WITHOUT_CONTENT).join()).isNotEmpty();
         assertThat(repo.find(Revision.HEAD, ENDPOINTS_DIRECTORY + "yaml-endpoint/1.json",
@@ -249,7 +249,7 @@ public class XdsEndpointServiceTest {
         final String clusterName = "groups/foo/clusters/yaml-endpoint/2";
         final String endpointName = "groups/foo/endpoints/yaml-endpoint/2";
         final ClusterLoadAssignment initial = loadAssignment(clusterName, "127.0.0.1", 8080);
-        dogma.client().forRepo(XDS_CENTRAL_DOGMA_PROJECT, "foo")
+        dogma.client().forRepo(INTERNAL_PROJECT_XDS, "foo")
              .commit("Add YAML endpoint",
                      Change.ofYamlUpsert(ENDPOINTS_DIRECTORY + "yaml-endpoint/2.yaml",
                                          JSON_MESSAGE_MARSHALLER.writeValueAsString(initial)))
@@ -263,7 +263,7 @@ public class XdsEndpointServiceTest {
 
         // The .yaml file must be gone.
         final Repository repo =
-                dogma.projectManager().get(XDS_CENTRAL_DOGMA_PROJECT).repos().get("foo");
+                dogma.projectManager().get(INTERNAL_PROJECT_XDS).repos().get("foo");
         assertThat(repo.find(Revision.HEAD, ENDPOINTS_DIRECTORY + "yaml-endpoint/2.yaml",
                              FindOptions.FIND_ONE_WITHOUT_CONTENT).join()).isEmpty();
 

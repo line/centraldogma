@@ -51,9 +51,10 @@ interface MirrorViewProps {
   projectName: string;
   repoName: string;
   mirror: MirrorRequest;
+  editHref?: string;
 }
 
-const MirrorView = ({ projectName, repoName, mirror }: MirrorViewProps) => {
+const MirrorView = ({ projectName, repoName, mirror, editHref }: MirrorViewProps) => {
   return (
     <Center>
       <VStack width="90%" align="left">
@@ -187,7 +188,9 @@ const MirrorView = ({ projectName, repoName, mirror }: MirrorViewProps) => {
 
         <HStack marginTop={10} marginLeft={10}>
           <Link
-            href={`/app/projects/${projectName}/repos/${repoName}/settings/mirrors/${mirror.id}/edit`}
+            href={
+              editHref ?? `/app/projects/${projectName}/repos/${repoName}/settings/mirrors/${mirror.id}/edit`
+            }
             marginRight="25px"
           >
             <Button colorScheme="teal" size={'lg'} leftIcon={<EditIcon />}>

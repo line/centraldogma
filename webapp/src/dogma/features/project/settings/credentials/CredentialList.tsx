@@ -13,6 +13,7 @@ export type CredentialListProps<Data extends object> = {
   credentials: CredentialDto[];
   deleteCredential: (projectName: string, id: string, repoName?: string) => Promise<void>;
   isLoading: boolean;
+  buildDetailUrl?: (id: string) => string;
 };
 
 const CredentialList = <Data extends object>({
@@ -21,6 +22,7 @@ const CredentialList = <Data extends object>({
   credentials,
   deleteCredential,
   isLoading,
+  buildDetailUrl,
 }: CredentialListProps<Data>) => {
   const columnHelper = createColumnHelper<CredentialDto>();
   const columns = useMemo(
@@ -28,9 +30,11 @@ const CredentialList = <Data extends object>({
       columnHelper.accessor((row: CredentialDto) => row.id, {
         cell: (info) => {
           const id = info.getValue() || 'undefined';
-          const credentialLink = repoName
-            ? `/app/projects/${projectName}/repos/${repoName}/settings/credentials/${info.row.original.id}`
-            : `/app/projects/${projectName}/settings/credentials/${info.row.original.id}`;
+          const credentialLink = buildDetailUrl
+            ? buildDetailUrl(info.row.original.id)
+            : repoName
+              ? `/app/projects/${projectName}/repos/${repoName}/settings/credentials/${info.row.original.id}`
+              : `/app/projects/${projectName}/settings/credentials/${info.row.original.id}`;
           return (
             <ChakraLink href={credentialLink} fontWeight="semibold">
               {id}
@@ -59,7 +63,7 @@ const CredentialList = <Data extends object>({
         enableSorting: false,
       }),
     ],
-    [columnHelper, deleteCredential, isLoading, projectName, repoName],
+    [buildDetailUrl, columnHelper, deleteCredential, isLoading, projectName, repoName],
   );
   return <DataTableClientPagination columns={columns as ColumnDef<CredentialDto>[]} data={credentials || []} />;
 };

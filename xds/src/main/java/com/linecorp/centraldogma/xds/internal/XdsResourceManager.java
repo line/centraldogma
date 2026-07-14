@@ -16,8 +16,8 @@
 package com.linecorp.centraldogma.xds.internal;
 
 import static com.linecorp.centraldogma.internal.Util.PROJECT_AND_REPO_NAME_PATTERN;
+import static com.linecorp.centraldogma.server.internal.storage.InternalProjectConstants.INTERNAL_PROJECT_XDS;
 import static com.linecorp.centraldogma.server.storage.repository.FindOptions.FIND_ONE_WITHOUT_CONTENT;
-import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.XDS_CENTRAL_DOGMA_PROJECT;
 import static java.util.Objects.requireNonNull;
 
 import java.io.IOException;
@@ -238,7 +238,7 @@ public final class XdsResourceManager {
         final ImmutableList<Change<?>> changes =
                 legacyFileToRemove != null ? ImmutableList.of(Change.ofRemoval(legacyFileToRemove), change)
                                            : ImmutableList.of(change);
-        commandExecutor.execute(Command.push(author, XDS_CENTRAL_DOGMA_PROJECT, group, Revision.HEAD,
+        commandExecutor.execute(Command.push(author, INTERNAL_PROJECT_XDS, group, Revision.HEAD,
                                              summary, "", Markup.PLAINTEXT, changes))
                        .handle((unused, cause) -> {
                            if (cause != null) {
@@ -295,7 +295,7 @@ public final class XdsResourceManager {
     public void delete(StreamObserver<Empty> responseObserver, String group,
                        String resourceName, String fileName, String summary, Author author) {
         updateOrDelete(responseObserver, group, resourceName, fileName, resolvedFileName ->
-                commandExecutor.execute(Command.push(author, XDS_CENTRAL_DOGMA_PROJECT, group,
+                commandExecutor.execute(Command.push(author, INTERNAL_PROJECT_XDS, group,
                                                      Revision.HEAD, summary, "", Markup.PLAINTEXT,
                                                      ImmutableList.of(Change.ofRemoval(resolvedFileName))))
                                .handle((unused, cause) -> {
