@@ -213,7 +213,7 @@ class XdsKubernetesServiceTest {
     @CsvSource({ "repo-credential", "project-credential" })
     @ParameterizedTest
     void createEndpointAggregatorsRequest(String credentialId) throws IOException {
-        final String aggregatorId = "foo-k8s-cluster/1";
+        final String aggregatorId = "foo-k8s-cluster.1";
         final String clusterName = "groups/foo/k8s/clusters/" + aggregatorId;
         final KubernetesEndpointAggregator aggregator = aggregator(aggregatorId, credentialId);
         final AggregatedHttpResponse response = createAggregator(aggregator, aggregatorId);
@@ -322,7 +322,7 @@ class XdsKubernetesServiceTest {
     @CsvSource({ "repo-credential", "project-credential" })
     @ParameterizedTest
     void updateAggregator(String credentialId) throws IOException {
-        final String aggregatorId = "foo-k8s-cluster/2";
+        final String aggregatorId = "foo-k8s-cluster.2";
         final KubernetesEndpointAggregator aggregator = aggregator(aggregatorId, credentialId);
         AggregatedHttpResponse response = createAggregator(aggregator, aggregatorId);
         assertOk(response);
@@ -363,7 +363,7 @@ class XdsKubernetesServiceTest {
     @CsvSource({ "repo-credential", "project-credential" })
     @ParameterizedTest
     void deleteAggregator(String credentialId) throws IOException {
-        final String aggregatorId = "foo-k8s-cluster/3";
+        final String aggregatorId = "foo-k8s-cluster.3";
         final KubernetesEndpointAggregator aggregator = aggregator(aggregatorId, credentialId);
         AggregatedHttpResponse response = createAggregator(aggregator, aggregatorId);
         assertOk(response);
@@ -378,7 +378,7 @@ class XdsKubernetesServiceTest {
 
     @Test
     void createAggregator_migratesLegacyJsonEndpoint() throws IOException {
-        final String aggregatorId = "k8s-mig-cluster/1";
+        final String aggregatorId = "k8s-mig-cluster.1";
         final String clusterName = "groups/foo/k8s/clusters/" + aggregatorId;
         final Repository fooGroup =
                 dogma.projectManager().get(XDS_CENTRAL_DOGMA_PROJECT).repos().get("foo");

@@ -97,6 +97,15 @@ final class XdsGroupServiceTest {
                                   .build())).isInstanceOf(StatusRuntimeException.class)
                                             .hasMessageContaining("Invalid group id: invalid/id");
 
+        // Dots are allowed in group names.
+        final Group dotGroup = client.createGroup(
+                CreateGroupRequest.newBuilder()
+                                  .setGroupId("foo.bar")
+                                  .setGroup(Group.newBuilder().setName("this_will_be_ignored"))
+                                  .build());
+        assertThat(dotGroup.getName()).isEqualTo("groups/foo.bar");
+        client.deleteGroup(DeleteGroupRequest.newBuilder().setName("groups/foo.bar").build());
+
         final Group group = client.createGroup(
                 CreateGroupRequest.newBuilder()
                                   .setGroupId("baz")

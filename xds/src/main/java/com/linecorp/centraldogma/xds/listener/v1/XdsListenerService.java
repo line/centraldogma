@@ -17,8 +17,8 @@ package com.linecorp.centraldogma.xds.listener.v1;
 
 import static com.linecorp.centraldogma.server.internal.admin.auth.AuthUtil.currentAuthor;
 import static com.linecorp.centraldogma.xds.internal.ControlPlaneService.LISTENERS_DIRECTORY;
+import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.LEGACY_RESOURCE_ID_PATTERN_STRING;
 import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.RESOURCE_ID_PATTERN;
-import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.RESOURCE_ID_PATTERN_STRING;
 import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.removePrefix;
 
 import java.util.regex.Matcher;
@@ -39,7 +39,7 @@ import io.grpc.stub.StreamObserver;
 public final class XdsListenerService extends XdsListenerServiceImplBase {
 
     private static final Pattern LISTENER_NAME_PATTERN =
-            Pattern.compile("^groups/([^/]+)/listeners/" + RESOURCE_ID_PATTERN_STRING + '$');
+            Pattern.compile("^groups/([^/]+)/listeners/" + LEGACY_RESOURCE_ID_PATTERN_STRING + '$');
 
     private final XdsResourceManager xdsResourceManager;
 

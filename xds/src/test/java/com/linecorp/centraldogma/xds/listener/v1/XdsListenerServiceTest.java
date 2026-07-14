@@ -71,15 +71,19 @@ class XdsListenerServiceTest {
                                                          listener, dogma.httpClient());
         assertThat(response.status()).isSameAs(HttpStatus.BAD_REQUEST);
 
-        response = createListener("groups/non-existent-group", "foo-listener/1", listener, dogma.httpClient());
+        // Slashes are no longer allowed in new resource IDs.
+        response = createListener("groups/foo", "foo-listener/invalid", listener, dogma.httpClient());
+        assertThat(response.status()).isSameAs(HttpStatus.BAD_REQUEST);
+
+        response = createListener("groups/non-existent-group", "foo-listener.1", listener, dogma.httpClient());
         assertThat(response.status()).isSameAs(HttpStatus.NOT_FOUND);
 
-        response = createListener("groups/foo", "foo-listener/1", listener, dogma.httpClient());
+        response = createListener("groups/foo", "foo-listener.1", listener, dogma.httpClient());
         assertOk(response);
         final Listener.Builder listenerBuilder = Listener.newBuilder();
         JSON_MESSAGE_MARSHALLER.mergeValue(response.contentUtf8(), listenerBuilder);
         final Listener actualListener = listenerBuilder.build();
-        final String listenerName = "groups/foo/listeners/foo-listener/1";
+        final String listenerName = "groups/foo/listeners/foo-listener.1";
         assertThat(actualListener).isEqualTo(listener.toBuilder().setName(listenerName).build());
         checkResourceViaDiscoveryRequest(actualListener, listenerName, true);
     }
@@ -135,23 +139,23 @@ class XdsListenerServiceTest {
     void updateListenerViaHttp() throws Exception {
         final Listener listener = exampleListener("this_listener_name_will_be_ignored_and_replaced",
                                                   "groups/foo/routes/foo-route", "stats");
-        AggregatedHttpResponse response = updateListener("groups/foo", "foo-listener/2", listener,
+        AggregatedHttpResponse response = updateListener("groups/foo", "foo-listener.2", listener,
                                                          dogma.httpClient());
         assertThat(response.status()).isSameAs(HttpStatus.NOT_FOUND);
 
-        response = createListener("groups/foo", "foo-listener/2", listener, dogma.httpClient());
+        response = createListener("groups/foo", "foo-listener.2", listener, dogma.httpClient());
         assertOk(response);
         final Listener.Builder listenerBuilder = Listener.newBuilder();
         JSON_MESSAGE_MARSHALLER.mergeValue(response.contentUtf8(), listenerBuilder);
         final Listener actualListener = listenerBuilder.build();
-        final String listenerName = "groups/foo/listeners/foo-listener/2";
+        final String listenerName = "groups/foo/listeners/foo-listener.2";
         assertThat(actualListener).isEqualTo(listener.toBuilder().setName(listenerName).build());
         checkResourceViaDiscoveryRequest(actualListener, listenerName, true);
 
         final Listener updatingListener = listener.toBuilder()
                                                   .setStatPrefix("updated_stats")
                                                   .setName(listenerName).build();
-        response = updateListener("groups/foo", "foo-listener/2", updatingListener, dogma.httpClient());
+        response = updateListener("groups/foo", "foo-listener.2", updatingListener, dogma.httpClient());
         assertOk(response);
         final Listener.Builder listenerBuilder2 = Listener.newBuilder();
         JSON_MESSAGE_MARSHALLER.mergeValue(response.contentUtf8(), listenerBuilder2);
@@ -162,13 +166,13 @@ class XdsListenerServiceTest {
 
     @Test
     void deleteListenerViaHttp() throws Exception {
-        final String listenerName = "groups/foo/listeners/foo-listener/3/4";
+        final String listenerName = "groups/foo/listeners/foo-listener.3.4";
         AggregatedHttpResponse response = deleteListener(listenerName);
         assertThat(response.status()).isSameAs(HttpStatus.NOT_FOUND);
 
         final Listener listener = exampleListener("this_listener_name_will_be_ignored_and_replaced",
                                                   "groups/foo/routes/foo-route", "stats");
-        response = createListener("groups/foo", "foo-listener/3/4", listener, dogma.httpClient());
+        response = createListener("groups/foo", "foo-listener.3.4", listener, dogma.httpClient());
         assertOk(response);
 
         final Listener actualListener = listener.toBuilder().setName(listenerName).build();
@@ -201,10 +205,10 @@ class XdsListenerServiceTest {
         Listener response = client.createListener(
                 CreateListenerRequest.newBuilder()
                                      .setParent("groups/foo")
-                                     .setListenerId("foo-listener/5/6")
+                                     .setListenerId("foo-listener.5.6")
                                      .setListener(listener)
                                      .build());
-        final String listenerName = "groups/foo/listeners/foo-listener/5/6";
+        final String listenerName = "groups/foo/listeners/foo-listener.5.6";
         assertThat(response).isEqualTo(listener.toBuilder().setName(listenerName).build());
 
         final Listener updatingListener = listener.toBuilder()

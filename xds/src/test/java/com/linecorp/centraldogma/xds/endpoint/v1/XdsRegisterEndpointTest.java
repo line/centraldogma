@@ -66,12 +66,12 @@ public class XdsRegisterEndpointTest {
 
     @Test
     void registerOrDeregister() throws Exception {
-        final String clusterName = "groups/foo/clusters/foo-endpoint/1";
-        final String endpointName = "groups/foo/endpoints/foo-endpoint/1";
+        final String clusterName = "groups/foo/clusters/foo-endpoint.1";
+        final String endpointName = "groups/foo/endpoints/foo-endpoint.1";
         final Locality locality1 = Locality.newBuilder().setRegion("region1").setZone("zone1").build();
         ClusterLoadAssignment endpoint = loadAssignment(clusterName, locality1,
                                                         endpoint("127.0.0.1", 8080));
-        AggregatedHttpResponse response = createEndpoint("groups/foo", "foo-endpoint/1",
+        AggregatedHttpResponse response = createEndpoint("groups/foo", "foo-endpoint.1",
                                                          endpoint, dogma.httpClient());
         assertOk(response);
         checkEndpointsViaDiscoveryRequest(dogma.httpClient().uri(), endpoint, clusterName);

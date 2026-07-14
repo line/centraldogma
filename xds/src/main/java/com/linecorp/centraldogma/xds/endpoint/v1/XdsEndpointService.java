@@ -18,8 +18,8 @@ package com.linecorp.centraldogma.xds.endpoint.v1;
 import static com.linecorp.centraldogma.server.internal.admin.auth.AuthUtil.currentAuthor;
 import static com.linecorp.centraldogma.xds.internal.ControlPlaneService.CLUSTERS_DIRECTORY;
 import static com.linecorp.centraldogma.xds.internal.ControlPlaneService.ENDPOINTS_DIRECTORY;
+import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.LEGACY_RESOURCE_ID_PATTERN_STRING;
 import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.RESOURCE_ID_PATTERN;
-import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.RESOURCE_ID_PATTERN_STRING;
 import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.removePrefix;
 
 import java.util.concurrent.ScheduledExecutorService;
@@ -41,7 +41,7 @@ import io.grpc.stub.StreamObserver;
 public final class XdsEndpointService extends XdsEndpointServiceImplBase {
 
     private static final Pattern ENDPONT_NAME_PATTERN =
-            Pattern.compile("^groups/([^/]+)/endpoints/(" + RESOURCE_ID_PATTERN_STRING + ")$");
+            Pattern.compile("^groups/([^/]+)/endpoints/(" + LEGACY_RESOURCE_ID_PATTERN_STRING + ")$");
 
     private final XdsResourceManager xdsResourceManager;
     private final XdsEndpointUpdateScheduler xdsEndpointUpdateScheduler;

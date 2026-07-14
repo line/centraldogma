@@ -71,15 +71,19 @@ class XdsRouteServiceTest {
                                                       route, dogma.httpClient());
         assertThat(response.status()).isSameAs(HttpStatus.BAD_REQUEST);
 
-        response = createRoute("groups/non-existent-group", "foo-route/1", route, dogma.httpClient());
+        // Slashes are no longer allowed in new resource IDs.
+        response = createRoute("groups/foo", "foo-route/invalid", route, dogma.httpClient());
+        assertThat(response.status()).isSameAs(HttpStatus.BAD_REQUEST);
+
+        response = createRoute("groups/non-existent-group", "foo-route.1", route, dogma.httpClient());
         assertThat(response.status()).isSameAs(HttpStatus.NOT_FOUND);
 
-        response = createRoute("groups/foo", "foo-route/1", route, dogma.httpClient());
+        response = createRoute("groups/foo", "foo-route.1", route, dogma.httpClient());
         assertOk(response);
         final RouteConfiguration.Builder routeBuilder = RouteConfiguration.newBuilder();
         JSON_MESSAGE_MARSHALLER.mergeValue(response.contentUtf8(), routeBuilder);
         final RouteConfiguration actualRoute = routeBuilder.build();
-        final String routeName = "groups/foo/routes/foo-route/1";
+        final String routeName = "groups/foo/routes/foo-route.1";
         assertThat(actualRoute).isEqualTo(route.toBuilder().setName(routeName).build());
         checkResourceViaDiscoveryRequest(actualRoute, routeName, true);
     }
@@ -135,22 +139,22 @@ class XdsRouteServiceTest {
     void updateRouteViaHttp() throws Exception {
         final RouteConfiguration route = routeConfiguration("this_route_name_will_be_ignored_and_replaced",
                                                             "groups/foo/clusters/foo-cluster");
-        AggregatedHttpResponse response = updateRoute("groups/foo", "foo-route/2", route, dogma.httpClient());
+        AggregatedHttpResponse response = updateRoute("groups/foo", "foo-route.2", route, dogma.httpClient());
         assertThat(response.status()).isSameAs(HttpStatus.NOT_FOUND);
 
-        response = createRoute("groups/foo", "foo-route/2", route, dogma.httpClient());
+        response = createRoute("groups/foo", "foo-route.2", route, dogma.httpClient());
         assertOk(response);
         final RouteConfiguration.Builder routeBuilder = RouteConfiguration.newBuilder();
         JSON_MESSAGE_MARSHALLER.mergeValue(response.contentUtf8(), routeBuilder);
         final RouteConfiguration actualRoute = routeBuilder.build();
-        final String routeName = "groups/foo/routes/foo-route/2";
+        final String routeName = "groups/foo/routes/foo-route.2";
         assertThat(actualRoute).isEqualTo(route.toBuilder().setName(routeName).build());
         checkResourceViaDiscoveryRequest(actualRoute, routeName, true);
 
         final RouteConfiguration updatingRoute = route.toBuilder()
                                                       .addInternalOnlyHeaders("internal")
                                                       .setName(routeName).build();
-        response = updateRoute("groups/foo", "foo-route/2", updatingRoute, dogma.httpClient());
+        response = updateRoute("groups/foo", "foo-route.2", updatingRoute, dogma.httpClient());
         assertOk(response);
         final RouteConfiguration.Builder routeBuilder2 = RouteConfiguration.newBuilder();
         JSON_MESSAGE_MARSHALLER.mergeValue(response.contentUtf8(), routeBuilder2);
@@ -161,13 +165,13 @@ class XdsRouteServiceTest {
 
     @Test
     void deleteRouteViaHttp() throws Exception {
-        final String routeName = "groups/foo/routes/foo-route/3/4";
+        final String routeName = "groups/foo/routes/foo-route.3.4";
         AggregatedHttpResponse response = deleteRoute(routeName);
         assertThat(response.status()).isSameAs(HttpStatus.NOT_FOUND);
 
         final RouteConfiguration route = routeConfiguration("this_route_name_will_be_ignored_and_replaced",
                                                             "groups/foo/clusters/foo-cluster");
-        response = createRoute("groups/foo", "foo-route/3/4", route, dogma.httpClient());
+        response = createRoute("groups/foo", "foo-route.3.4", route, dogma.httpClient());
         assertOk(response);
 
         final RouteConfiguration actualRoute = route.toBuilder().setName(routeName).build();
@@ -200,10 +204,10 @@ class XdsRouteServiceTest {
         RouteConfiguration response = client.createRoute(
                 CreateRouteRequest.newBuilder()
                                   .setParent("groups/foo")
-                                  .setRouteId("foo-route/5/6")
+                                  .setRouteId("foo-route.5.6")
                                   .setRoute(route)
                                   .build());
-        final String routeName = "groups/foo/routes/foo-route/5/6";
+        final String routeName = "groups/foo/routes/foo-route.5.6";
         assertThat(response).isEqualTo(route.toBuilder().setName(routeName).build());
 
         final RouteConfiguration updatingRoute = route.toBuilder()

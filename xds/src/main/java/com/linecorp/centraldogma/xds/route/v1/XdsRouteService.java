@@ -17,8 +17,8 @@ package com.linecorp.centraldogma.xds.route.v1;
 
 import static com.linecorp.centraldogma.server.internal.admin.auth.AuthUtil.currentAuthor;
 import static com.linecorp.centraldogma.xds.internal.ControlPlaneService.ROUTES_DIRECTORY;
+import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.LEGACY_RESOURCE_ID_PATTERN_STRING;
 import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.RESOURCE_ID_PATTERN;
-import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.RESOURCE_ID_PATTERN_STRING;
 import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.removePrefix;
 
 import java.util.regex.Matcher;
@@ -39,7 +39,7 @@ import io.grpc.stub.StreamObserver;
 public final class XdsRouteService extends XdsRouteServiceImplBase {
 
     private static final Pattern ROUTE_NAME_PATTERN =
-            Pattern.compile("^groups/([^/]+)/routes/" + RESOURCE_ID_PATTERN_STRING + '$');
+            Pattern.compile("^groups/([^/]+)/routes/" + LEGACY_RESOURCE_ID_PATTERN_STRING + '$');
 
     private final XdsResourceManager xdsResourceManager;
 

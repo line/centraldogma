@@ -23,6 +23,7 @@ import {
   Button,
   Flex,
   FormControl,
+  FormErrorMessage,
   FormLabel,
   Heading,
   HStack,
@@ -63,6 +64,9 @@ import { useAppDispatch } from 'dogma/hooks';
 import { newNotification } from 'dogma/features/notification/notificationSlice';
 import ErrorMessageParser from 'dogma/features/services/ErrorMessageParser';
 
+// Dots are allowed (e.g. "my-service.v1"), but slashes are not.
+const RESOURCE_ID_PATTERN = /^[a-z](?:[a-z0-9-_.]*[a-z0-9])?$/;
+
 function parseJsonOrNotify(dispatch: ReturnType<typeof useAppDispatch>, value: string): object | null {
   try {
     return JSON.parse(value);
@@ -81,12 +85,24 @@ const NewResourceEditor = ({ group, type }: { group: string; type: XdsResourceTy
   const [content, setContent] = useState(XDS_RESOURCE_TEMPLATES[type]);
   const [createResource, { isLoading }] = useCreateResourceMutation();
 
+  const idIsInvalid = id.length > 0 && !RESOURCE_ID_PATTERN.test(id);
+
   const handleCreate = async () => {
     if (!hasWrite) {
       return;
     }
     if (!id) {
       dispatch(newNotification('ID is required', `Please enter the ${meta.label} ID`, 'error'));
+      return;
+    }
+    if (idIsInvalid) {
+      dispatch(
+        newNotification(
+          'Invalid ID',
+          `${meta.label} ID must match [a-z](?:[a-z0-9-_.]*[a-z0-9])? (dots allowed, slashes not allowed)`,
+          'error',
+        ),
+      );
       return;
     }
     if (parseJsonOrNotify(dispatch, content) === null) {
@@ -115,9 +131,12 @@ const NewResourceEditor = ({ group, type }: { group: string; type: XdsResourceTy
 
   return (
     <Box>
-      <FormControl isRequired mb={4} maxW="md">
+      <FormControl isRequired isInvalid={idIsInvalid} mb={4} maxW="md">
         <FormLabel>{meta.label} ID</FormLabel>
         <Input value={id} onChange={(e) => setId(e.target.value)} placeholder={`Enter ${meta.label} ID ...`} />
+        <FormErrorMessage>
+          ID must match [a-z](?:[a-z0-9-_.]*[a-z0-9])? (dots allowed, slashes not allowed)
+        </FormErrorMessage>
       </FormControl>
       <JsonEditor value={content} onChange={setContent} />
       <Flex mt={4}>
