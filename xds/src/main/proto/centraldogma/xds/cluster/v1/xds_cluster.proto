@@ -64,6 +64,9 @@ message CreateClusterRequest {
   // Valid pattern is "^[a-z]([a-z0-9-/]*[a-z0-9])?$"
   string cluster_id = 2 [(google.api.field_behavior) = REQUIRED];
   envoy.config.cluster.v3.Cluster cluster = 3 [(google.api.field_behavior) = REQUIRED];
+
+  // The commit summary for this change. If not specified, a default message is used.
+  string summary = 4 [(google.api.field_behavior) = OPTIONAL];
 }
 
 message UpdateClusterRequest {
@@ -78,6 +81,9 @@ message UpdateClusterRequest {
   // If set to true, and the cluster is not found, a new cluster will be created.
   // In this situation, `update_mask` is ignored.
   // bool allow_missing = 3;
+
+  // The commit summary for this change. If not specified, a default message is used.
+  string summary = 4 [(google.api.field_behavior) = OPTIONAL];
 }
 
 message DeleteClusterRequest {
@@ -87,4 +93,7 @@ message DeleteClusterRequest {
   // If set to true, and the cluster is not found, the request will succeed
   // but no action will be taken on the server
   // bool allow_missing = 2;
+
+  // The commit summary for this change. If not specified, a default message is used.
+  string summary = 3 [(google.api.field_behavior) = OPTIONAL];
 }

@@ -15,6 +15,7 @@
  */
 package com.linecorp.centraldogma.xds.endpoint.v1;
 
+import static com.google.common.base.Strings.isNullOrEmpty;
 import static com.linecorp.centraldogma.server.internal.admin.auth.AuthUtil.currentAuthor;
 import static com.linecorp.centraldogma.xds.internal.ControlPlaneService.CLUSTERS_DIRECTORY;
 import static com.linecorp.centraldogma.xds.internal.ControlPlaneService.ENDPOINTS_DIRECTORY;
@@ -77,8 +78,10 @@ public final class XdsEndpointService extends XdsEndpointServiceImplBase {
                                                       .toBuilder()
                                                       .setClusterName(clusterName)
                                                       .build();
+        final String createSummary =
+                isNullOrEmpty(request.getSummary()) ? "Create endpoint: " + clusterName : request.getSummary();
         xdsResourceManager.push(responseObserver, group, clusterName, fileName(endpointId),
-                                "Create endpoint: " + clusterName, endpoint, currentAuthor(), true);
+                                createSummary, endpoint, currentAuthor(), true);
     }
 
     private static String clusterName(String parent, String endpointId) {
@@ -97,8 +100,10 @@ public final class XdsEndpointService extends XdsEndpointServiceImplBase {
 
         final ClusterLoadAssignment endpoint = request.getEndpoint();
         final String endpointId = matcher.group(2);
+        final String updateSummary =
+                isNullOrEmpty(request.getSummary()) ? "Update endpoint: " + endpointName : request.getSummary();
         xdsResourceManager.update(responseObserver, group, endpointName,
-                                  fileName(endpointId), "Update endpoint: " + endpointName,
+                                  fileName(endpointId), updateSummary,
                                   endpoint.toBuilder()
                                           .setClusterName(clusterName("groups/" + group, endpointId))
                                           .build(), currentAuthor());
@@ -110,8 +115,10 @@ public final class XdsEndpointService extends XdsEndpointServiceImplBase {
         final Matcher matcher = checkEndpointName(endpointName);
         final String group = matcher.group(1);
         xdsResourceManager.checkWritePermission(group);
+        final String deleteSummary =
+                isNullOrEmpty(request.getSummary()) ? "Delete endpoint: " + endpointName : request.getSummary();
         xdsResourceManager.delete(responseObserver, group, endpointName, fileName(matcher.group(2)),
-                                  "Delete endpoint: " + endpointName, currentAuthor());
+                                  deleteSummary, currentAuthor());
     }
 
     private static Matcher checkEndpointName(String endpointName) {

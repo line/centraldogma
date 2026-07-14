@@ -15,6 +15,7 @@
  */
 package com.linecorp.centraldogma.xds.route.v1;
 
+import static com.google.common.base.Strings.isNullOrEmpty;
 import static com.linecorp.centraldogma.server.internal.admin.auth.AuthUtil.currentAuthor;
 import static com.linecorp.centraldogma.xds.internal.ControlPlaneService.ROUTES_DIRECTORY;
 import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.RESOURCE_ID_PATTERN;
@@ -68,8 +69,10 @@ public final class XdsRouteService extends XdsRouteServiceImplBase {
         // with the format of "groups/{group}/routes/{route}".
         // https://github.com/aip-dev/google.aip.dev/blob/master/aip/general/0133.md#user-specified-ids
         final RouteConfiguration route = request.getRoute().toBuilder().setName(routeName).build();
+        final String createSummary = isNullOrEmpty(request.getSummary()) ?
+                                     "Create route: " + routeName : request.getSummary();
         xdsResourceManager.push(responseObserver, group, routeName, ROUTES_DIRECTORY + routeId + ".yaml",
-                                "Create route: " + routeName, route, currentAuthor(), true);
+                                createSummary, route, currentAuthor(), true);
     }
 
     @Override
@@ -78,8 +81,9 @@ public final class XdsRouteService extends XdsRouteServiceImplBase {
         final String routeName = route.getName();
         final String group = checkRouteName(routeName).group(1);
         xdsResourceManager.checkWritePermission(group);
-        xdsResourceManager.update(responseObserver, group, routeName, "Update route: " + routeName, route,
-                                  currentAuthor());
+        final String updateSummary = isNullOrEmpty(request.getSummary()) ?
+                                     "Update route: " + routeName : request.getSummary();
+        xdsResourceManager.update(responseObserver, group, routeName, updateSummary, route, currentAuthor());
     }
 
     private static Matcher checkRouteName(String routeName) {
@@ -97,7 +101,8 @@ public final class XdsRouteService extends XdsRouteServiceImplBase {
         final String routeName = request.getName();
         final String group = checkRouteName(routeName).group(1);
         xdsResourceManager.checkWritePermission(group);
-        xdsResourceManager.delete(responseObserver, group, routeName, "Delete route: " + routeName,
-                                  currentAuthor());
+        final String deleteSummary = isNullOrEmpty(request.getSummary()) ?
+                                     "Delete route: " + routeName : request.getSummary();
+        xdsResourceManager.delete(responseObserver, group, routeName, deleteSummary, currentAuthor());
     }
 }

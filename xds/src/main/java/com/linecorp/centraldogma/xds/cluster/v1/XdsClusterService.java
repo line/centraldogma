@@ -15,6 +15,7 @@
  */
 package com.linecorp.centraldogma.xds.cluster.v1;
 
+import static com.google.common.base.Strings.isNullOrEmpty;
 import static com.linecorp.centraldogma.server.internal.admin.auth.AuthUtil.currentAuthor;
 import static com.linecorp.centraldogma.xds.internal.ControlPlaneService.CLUSTERS_DIRECTORY;
 import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.RESOURCE_ID_PATTERN;
@@ -78,8 +79,10 @@ public final class XdsClusterService extends XdsClusterServiceImplBase {
                          // can be set to false via the update API.
                          .setRespectDnsTtl(true)
                          .build();
+        final String createSummary = isNullOrEmpty(request.getSummary()) ?
+                                     "Create cluster: " + clusterName : request.getSummary();
         xdsResourceManager.push(responseObserver, group, clusterName, CLUSTERS_DIRECTORY + clusterId + ".yaml",
-                                "Create cluster: " + clusterName, cluster, currentAuthor(), true);
+                                createSummary, cluster, currentAuthor(), true);
     }
 
     @Override
@@ -88,8 +91,10 @@ public final class XdsClusterService extends XdsClusterServiceImplBase {
         final String clusterName = cluster.getName();
         final String group = checkClusterName(clusterName).group(1);
         xdsResourceManager.checkWritePermission(group);
+        final String updateSummary = isNullOrEmpty(request.getSummary()) ?
+                                     "Update cluster: " + clusterName : request.getSummary();
         xdsResourceManager.update(responseObserver, group, clusterName,
-                                  "Update cluster: " + clusterName, cluster, currentAuthor());
+                                  updateSummary, cluster, currentAuthor());
     }
 
     @Override
@@ -97,8 +102,9 @@ public final class XdsClusterService extends XdsClusterServiceImplBase {
         final String clusterName = request.getName();
         final String group = checkClusterName(clusterName).group(1);
         xdsResourceManager.checkWritePermission(group);
-        xdsResourceManager.delete(responseObserver, group, clusterName, "Delete cluster: " + clusterName,
-                                  currentAuthor());
+        final String deleteSummary = isNullOrEmpty(request.getSummary()) ?
+                                     "Delete cluster: " + clusterName : request.getSummary();
+        xdsResourceManager.delete(responseObserver, group, clusterName, deleteSummary, currentAuthor());
     }
 
     private static Matcher checkClusterName(String clusterName) {

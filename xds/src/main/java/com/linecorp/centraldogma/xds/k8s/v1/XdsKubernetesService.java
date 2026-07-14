@@ -139,12 +139,14 @@ public final class XdsKubernetesService extends XdsKubernetesServiceImplBase {
         }
         final Author author = currentAuthor();
         final String fileName = K8S_ENDPOINT_AGGREGATORS_DIRECTORY + aggregatorId + ".yaml";
+        final String createSummary =
+                isNullOrEmpty(request.getSummary()) ? "Create kubernetes endpoint: " + kubernetesEndpointName
+                                                    : request.getSummary();
         validateKubernetesEndpointAndPush(
                 responseObserver, kubernetesLocalityLbEndpointsList, group, fileName,
                 () -> xdsResourceManager.push(
                         responseObserver, group, kubernetesEndpointName,
-                        fileName,
-                        "Create kubernetes endpoint: " + kubernetesEndpointName, aggregator, author, true));
+                        fileName, createSummary, aggregator, author, true));
     }
 
     private void validateKubernetesEndpointAndPush(
@@ -373,11 +375,13 @@ public final class XdsKubernetesService extends XdsKubernetesServiceImplBase {
         final KubernetesEndpointAggregator aggregator0 = aggregator.toBuilder().setClusterName(
                 AGGREGATORS_REPLCACE_PATTERN.matcher(aggregatorName).replaceFirst("/clusters/")).build();
         final Author author = currentAuthor();
+        final String updateSummary =
+                isNullOrEmpty(request.getSummary()) ? "Update kubernetes endpoint aggregator: " + aggregatorName
+                                                    : request.getSummary();
         validateKubernetesEndpointAndPush(
                 responseObserver, kubernetesLocalityLbEndpointsList, group, fileName(group, aggregatorName),
                 () -> xdsResourceManager.update(
-                        responseObserver, group, aggregatorName,
-                        "Update kubernetes endpoint aggregator: " + aggregatorName, aggregator0, author));
+                        responseObserver, group, aggregatorName, updateSummary, aggregator0, author));
     }
 
     private static Matcher checkAggregatorName(String aggregatorName) {
@@ -397,9 +401,10 @@ public final class XdsKubernetesService extends XdsKubernetesServiceImplBase {
         final String aggregatorName = request.getName();
         final String group = checkAggregatorName(aggregatorName).group(1);
         xdsResourceManager.checkWritePermission(group);
-        xdsResourceManager.delete(responseObserver, group, aggregatorName,
-                                  "Delete kubernetes endpoint aggregator: " + aggregatorName,
-                                  currentAuthor());
+        final String deleteSummary =
+                isNullOrEmpty(request.getSummary()) ? "Delete kubernetes endpoint aggregator: " + aggregatorName
+                                                    : request.getSummary();
+        xdsResourceManager.delete(responseObserver, group, aggregatorName, deleteSummary, currentAuthor());
     }
 
     @Blocking
