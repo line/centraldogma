@@ -13,13 +13,13 @@
 // under the License.
 syntax = "proto3";
 
-package com.github.xds.centraldogma.v1;
+package com.linecorp.centraldogma.xds.v1;
 
 import "envoy/extensions/transport_sockets/tls/v3/secret.proto";
 
 option java_multiple_files = true;
 option java_outer_classname = "CentralDogmaConfigSourceProto";
-option java_package = "com.github.xds.centraldogma.v1";
+option java_package = "com.linecorp.centraldogma.xds.v1";
 
 // Configuration for a Central Dogma-backed xDS config source.
 //

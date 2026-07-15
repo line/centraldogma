@@ -25,7 +25,6 @@ import java.util.function.Function;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.github.xds.centraldogma.v1.CentralDogmaConfigSource;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.protobuf.Any;
@@ -48,21 +47,19 @@ import com.linecorp.centraldogma.client.WatcherRequest;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.internal.CsrfToken;
 import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.xds.v1.CentralDogmaConfigSource;
 
 import io.envoyproxy.envoy.config.core.v3.ConfigSource;
 import io.envoyproxy.envoy.extensions.transport_sockets.tls.v3.SdsSecretConfig;
 import io.envoyproxy.envoy.service.discovery.v3.DiscoveryResponse;
 import io.netty.util.concurrent.EventExecutor;
 
-/**
- * A {@link SotwConfigSourceSubscriptionFactory} that fetches xDS resources from Central Dogma.
- */
-public final class CentralDogmaSotwConfigSourceSubscriptionFactory
+final class CentralDogmaSotwConfigSourceSubscriptionFactory
         implements SotwConfigSourceSubscriptionFactory {
 
     static final String NAME = "centraldogma.config_source";
     static final String TYPE_URL =
-            "type.googleapis.com/com.github.xds.centraldogma.v1.CentralDogmaConfigSource";
+            "type.googleapis.com/com.linecorp.centraldogma.xds.v1.CentralDogmaConfigSource";
 
     @Override
     public String name() {
@@ -80,7 +77,8 @@ public final class CentralDogmaSotwConfigSourceSubscriptionFactory
                                                     SnapshotStream<InterestedResources> interestedResources) {
         final CentralDogmaConfigSource cdConfig =
                 factoryContext.validator().unpack(
-                        configSource.getCustomConfigSource(), CentralDogmaConfigSource.class);
+                        configSource.getCustomConfigSource().getTypedConfig(),
+                        CentralDogmaConfigSource.class);
         checkArgument(!cdConfig.getClusterName().isEmpty(),
                       "CentralDogmaConfigSource.cluster_name must not be empty");
         final SnapshotStream<ClusterSnapshot> clusterStream =

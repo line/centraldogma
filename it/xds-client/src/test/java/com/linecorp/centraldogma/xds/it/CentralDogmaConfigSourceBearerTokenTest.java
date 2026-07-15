@@ -123,12 +123,14 @@ class CentralDogmaConfigSourceBearerTokenTest {
                 dynamic_resources:
                   cds_config:
                     custom_config_source:
-                      "@type": type.googleapis.com/com.github.xds\
-                .centraldogma.v1.CentralDogmaConfigSource
-                      cluster_name: centraldogma-server
-                      bearer_token_credential:
-                        token_secret:
-                          name: centraldogma_token
+                      name: centraldogma.config_source
+                      typed_config:
+                        "@type": type.googleapis.com/com.linecorp.centraldogma\
+                .xds.v1.CentralDogmaConfigSource
+                        cluster_name: centraldogma-server
+                        bearer_token_credential:
+                          token_secret:
+                            name: centraldogma_token
                 """.formatted(port, appToken);
 
         final Bootstrap bootstrap = XdsResourceReader.from(yaml, Bootstrap.class);

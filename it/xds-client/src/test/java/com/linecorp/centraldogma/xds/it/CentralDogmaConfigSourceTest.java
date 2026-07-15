@@ -229,14 +229,18 @@ class CentralDogmaConfigSourceTest {
                 dynamic_resources:
                   cds_config:
                     custom_config_source:
-                      "@type": type.googleapis.com/com.github.xds\
-                .centraldogma.v1.CentralDogmaConfigSource
-                      cluster_name: centraldogma-server
+                      name: centraldogma.config_source
+                      typed_config:
+                        "@type": type.googleapis.com/com.linecorp.centraldogma\
+                .xds.v1.CentralDogmaConfigSource
+                        cluster_name: centraldogma-server
                   lds_config:
                     custom_config_source:
-                      "@type": type.googleapis.com/com.github.xds\
-                .centraldogma.v1.CentralDogmaConfigSource
-                      cluster_name: centraldogma-server
+                      name: centraldogma.config_source
+                      typed_config:
+                        "@type": type.googleapis.com/com.linecorp.centraldogma\
+                .xds.v1.CentralDogmaConfigSource
+                        cluster_name: centraldogma-server
                 """.formatted(port);
     }
 

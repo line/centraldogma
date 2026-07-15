@@ -57,9 +57,12 @@ class CentralDogmaConfigSourceTemplateTest {
                 "service_name": "${vars.service_name}",
                 "eds_config": {
                   "custom_config_source": {
-                    "@type": "type.googleapis.com/com.github.xds\
-            .centraldogma.v1.CentralDogmaConfigSource",
-                    "cluster_name": "centraldogma-server"
+                    "name": "centraldogma.config_source",
+                    "typed_config": {
+                      "@type": "type.googleapis.com/com.linecorp.centraldogma\
+            .xds.v1.CentralDogmaConfigSource",
+                      "cluster_name": "centraldogma-server"
+                    }
                   }
                 }
               }<#list vars as key, value><#if key != "service_name">,
@@ -109,9 +112,11 @@ class CentralDogmaConfigSourceTemplateTest {
               service_name: ${vars.service_name}
               eds_config:
                 custom_config_source:
-                  "@type": type.googleapis.com/com.github.xds\
-            .centraldogma.v1.CentralDogmaConfigSource
-                  cluster_name: centraldogma-server
+                  name: centraldogma.config_source
+                  typed_config:
+                    "@type": type.googleapis.com/com.linecorp.centraldogma\
+            .xds.v1.CentralDogmaConfigSource
+                    cluster_name: centraldogma-server
             <#list vars as key, value><#if key != "service_name">
             ${key}: ${toJson(value)}
             </#if></#list>
@@ -235,14 +240,18 @@ class CentralDogmaConfigSourceTemplateTest {
                 dynamic_resources:
                   cds_config:
                     custom_config_source:
-                      "@type": type.googleapis.com/com.github.xds\
-                .centraldogma.v1.CentralDogmaConfigSource
-                      cluster_name: centraldogma-server
+                      name: centraldogma.config_source
+                      typed_config:
+                        "@type": type.googleapis.com/com.linecorp.centraldogma\
+                .xds.v1.CentralDogmaConfigSource
+                        cluster_name: centraldogma-server
                   lds_config:
                     custom_config_source:
-                      "@type": type.googleapis.com/com.github.xds\
-                .centraldogma.v1.CentralDogmaConfigSource
-                      cluster_name: centraldogma-server
+                      name: centraldogma.config_source
+                      typed_config:
+                        "@type": type.googleapis.com/com.linecorp.centraldogma\
+                .xds.v1.CentralDogmaConfigSource
+                        cluster_name: centraldogma-server
                 """.formatted(port);
     }
 
