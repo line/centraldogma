@@ -101,10 +101,6 @@ final class SshGitMirror extends AbstractGitMirror {
         super(id, enabled, schedule, direction, credential, localRepo, localPath,
               remoteUri, gitignore, zone);
         this.trustedHostKeys = requireNonNull(trustedHostKeys, "trustedHostKeys");
-        if (!(credential instanceof SshKeyCredential)) {
-            throw new MirrorException(
-                    "SSH mirror requires an SSH_KEY credential, but got: " + credential.type());
-        }
     }
 
     @Override
