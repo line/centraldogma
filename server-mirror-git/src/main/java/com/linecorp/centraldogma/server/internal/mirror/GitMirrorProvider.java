@@ -51,9 +51,8 @@ public final class GitMirrorProvider implements MirrorProvider {
         switch (scheme) {
             case SCHEME_GIT_SSH: {
                 if (!(context.credential() instanceof SshKeyCredential)) {
-                    logger.warn("Failed to load the mirror '{}': SSH mirror requires an SSH_KEY credential, " +
+                    logger.debug("'{}': SSH mirror requires an SSH_KEY credential, " +
                                 "but got: {}", context.id(), context.credential().type());
-                    return null;
                 }
                 final RepositoryUri repositoryUri = RepositoryUri.parse(remoteUri, "git");
                 return new SshGitMirror(context.id(), context.enabled(), context.schedule(),
