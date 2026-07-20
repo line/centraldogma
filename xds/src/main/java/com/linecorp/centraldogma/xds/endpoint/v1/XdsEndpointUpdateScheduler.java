@@ -24,6 +24,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ScheduledExecutorService;
@@ -36,11 +37,10 @@ import org.jspecify.annotations.Nullable;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableList;
-import com.google.protobuf.Empty;
 
+import com.linecorp.armeria.common.HttpResponse;
+import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.util.Exceptions;
-import com.linecorp.armeria.common.util.SafeCloseable;
-import com.linecorp.armeria.internal.common.RequestContextUtil;
 import com.linecorp.armeria.internal.common.util.ReentrantShortLock;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
@@ -63,9 +63,6 @@ import io.envoyproxy.envoy.config.endpoint.v3.ClusterLoadAssignment;
 import io.envoyproxy.envoy.config.endpoint.v3.ClusterLoadAssignment.Builder;
 import io.envoyproxy.envoy.config.endpoint.v3.LbEndpoint;
 import io.envoyproxy.envoy.config.endpoint.v3.LocalityLbEndpoints;
-import io.grpc.Status;
-import io.grpc.StatusRuntimeException;
-import io.grpc.stub.StreamObserver;
 
 final class XdsEndpointUpdateScheduler {
 
@@ -84,18 +81,9 @@ final class XdsEndpointUpdateScheduler {
         return batchUpdateTasks.size();
     }
 
-    private static String alternativeFileName(String fileName) {
-        if (fileName.endsWith(".json")) {
-            return fileName.substring(0, fileName.length() - 5) + ".yaml";
-        }
-        if (fileName.endsWith(".yaml")) {
-            return fileName.substring(0, fileName.length() - 5) + ".json";
-        }
-        return fileName;
-    }
-
     void schedule(String group, String endpointName, String fileName,
-                  LocalityLbEndpoint localityLbEndpoint, StreamObserver<?> streamObserver, boolean register) {
+                  LocalityLbEndpoint localityLbEndpoint, CompletableFuture<HttpResponse> future,
+                  boolean register) {
         final EndpointIdentifier identifier = EndpointIdentifier.of(localityLbEndpoint);
 
         batchUpdateTasks.compute(endpointName, (key, task) -> {
@@ -103,7 +91,7 @@ final class XdsEndpointUpdateScheduler {
                 task = new BatchUpdateTask(group, key, fileName);
             }
 
-            task.addOperationAndSchedule(identifier, register, localityLbEndpoint, streamObserver);
+            task.addOperationAndSchedule(identifier, register, localityLbEndpoint, future);
             return task;
         });
     }
@@ -126,12 +114,13 @@ final class XdsEndpointUpdateScheduler {
         }
 
         void addOperationAndSchedule(EndpointIdentifier identifier, boolean register,
-                                     LocalityLbEndpoint localityLbEndpoint, StreamObserver<?> streamObserver) {
+                                     LocalityLbEndpoint localityLbEndpoint,
+                                     CompletableFuture<HttpResponse> future) {
             final PendingUpdate previous;
             lock.lock();
             try {
                 previous = pendingUpdates.put(identifier,
-                                              new PendingUpdate(register, localityLbEndpoint, streamObserver));
+                                              new PendingUpdate(register, localityLbEndpoint, future));
                 if (scheduledFuture == null) {
                     scheduledFuture = scheduler.schedule(this::flush, 3, TimeUnit.SECONDS);
                 }
@@ -140,12 +129,10 @@ final class XdsEndpointUpdateScheduler {
             }
 
             if (previous != null) {
-                try (SafeCloseable ignored = RequestContextUtil.pop()) {
-                    previous.streamObserver.onError(
-                            Status.ABORTED
-                                    .withDescription("Aborted due to a new update for the same endpoint")
-                                    .asRuntimeException());
-                }
+                previous.future.complete(
+                        XdsResourceManager.errorResponse(
+                                HttpStatus.CONFLICT,
+                                "Aborted due to a new update for the same endpoint"));
             }
         }
 
@@ -183,19 +170,28 @@ final class XdsEndpointUpdateScheduler {
                 }
             }
 
-            final Repository repository = xdsResourceManager.xdsProject().repos().get(group);
-            final String altFileName = alternativeFileName(fileName);
+            final Repository repository;
+            try {
+                repository = xdsResourceManager.xdsProject().repos().get(group);
+            } catch (Exception e) {
+                copied.forEach(u -> u.future.complete(
+                        XdsResourceManager.errorResponse(HttpStatus.NOT_FOUND,
+                                                         "Group not found: " + group)));
+                return;
+            }
+            final String altFileName = XdsResourceManager.alternativeFileName(fileName);
             repository.find(Revision.HEAD, fileName + ',' + altFileName, FIND_ONE_WITHOUT_CONTENT)
                       .handle((entries, cause) -> {
                 if (cause != null) {
-                    copied.forEach(pendingUpdate -> pendingUpdate.streamObserver.onError(cause));
+                    final Throwable peeled = Exceptions.peel(cause);
+                    copied.forEach(u -> u.future.complete(
+                            XdsResourceManager.errorResponse(HttpStatus.INTERNAL_SERVER_ERROR, peeled)));
                     return null;
                 }
                 if (entries.isEmpty()) {
-                    final StatusRuntimeException runtimeException =
-                            Status.NOT_FOUND.withDescription("Resource not found: " + fileName)
-                                            .asRuntimeException();
-                    copied.forEach(pendingUpdate -> pendingUpdate.streamObserver.onError(runtimeException));
+                    copied.forEach(u -> u.future.complete(
+                            XdsResourceManager.errorResponse(HttpStatus.NOT_FOUND,
+                                                             "Resource not found: " + fileName)));
                     return null;
                 }
 
@@ -234,8 +230,9 @@ final class XdsEndpointUpdateScheduler {
                                                                toDeregister, copied);
                                           return null;
                                       }
-                                      copied.forEach(pendingUpdate -> pendingUpdate
-                                              .streamObserver.onError(peeled));
+                                      copied.forEach(u -> u.future.complete(
+                                              XdsResourceManager.errorResponse(
+                                                      HttpStatus.INTERNAL_SERVER_ERROR, peeled)));
                                       return null;
                                   }
                                   completeUpdates(copied);
@@ -261,8 +258,16 @@ final class XdsEndpointUpdateScheduler {
                               .handle((result, cause) -> {
                                   if (cause != null) {
                                       final Throwable peeled = Exceptions.peel(cause);
+                                      if (peeled instanceof EntryNotFoundException) {
+                                          copied.forEach(u -> u.future.complete(
+                                                  XdsResourceManager.errorResponse(
+                                                          HttpStatus.NOT_FOUND, peeled)));
+                                          return null;
+                                      }
                                       if (!(peeled instanceof RedundantChangeException)) {
-                                          copied.forEach(u -> u.streamObserver.onError(peeled));
+                                          copied.forEach(u -> u.future.complete(
+                                                  XdsResourceManager.errorResponse(
+                                                          HttpStatus.INTERNAL_SERVER_ERROR, peeled)));
                                           return null;
                                       }
                                   }
@@ -272,29 +277,32 @@ final class XdsEndpointUpdateScheduler {
         }
 
         private void completeUpdates(List<PendingUpdate> copied) {
-            copied.forEach(pendingUpdate -> {
-                final StreamObserver<?> streamObserver = pendingUpdate.streamObserver;
+            for (PendingUpdate pendingUpdate : copied) {
                 if (pendingUpdate.register) {
-                    //noinspection unchecked
-                    ((StreamObserver<LocalityLbEndpoint>) streamObserver).onNext(pendingUpdate.endpoint);
+                    try {
+                        pendingUpdate.future.complete(
+                                XdsResourceManager.toYamlResponse(pendingUpdate.endpoint));
+                    } catch (IOException e) {
+                        pendingUpdate.future.complete(
+                                XdsResourceManager.errorResponse(HttpStatus.INTERNAL_SERVER_ERROR, e));
+                    }
                 } else {
-                    //noinspection unchecked
-                    ((StreamObserver<Empty>) streamObserver).onNext(Empty.getDefaultInstance());
+                    pendingUpdate.future.complete(HttpResponse.of(HttpStatus.OK));
                 }
-                streamObserver.onCompleted();
-            });
+            }
         }
     }
 
     private static class PendingUpdate {
         final boolean register;
         final LocalityLbEndpoint endpoint;
-        final StreamObserver<?> streamObserver;
+        final CompletableFuture<HttpResponse> future;
 
-        PendingUpdate(boolean register, LocalityLbEndpoint endpoint, StreamObserver<?> streamObserver) {
+        PendingUpdate(boolean register, LocalityLbEndpoint endpoint,
+                      CompletableFuture<HttpResponse> future) {
             this.register = register;
             this.endpoint = endpoint;
-            this.streamObserver = streamObserver;
+            this.future = future;
         }
     }
 
@@ -303,7 +311,8 @@ final class XdsEndpointUpdateScheduler {
         private final List<LocalityLbEndpoint> toRegister;
         private final List<LocalityLbEndpoint> toDeregister;
 
-        BatchUpdateTransformer(List<LocalityLbEndpoint> toRegister, List<LocalityLbEndpoint> toDeregister) {
+        BatchUpdateTransformer(List<LocalityLbEndpoint> toRegister,
+                               List<LocalityLbEndpoint> toDeregister) {
             this.toRegister = toRegister;
             this.toDeregister = toDeregister;
         }
@@ -359,12 +368,14 @@ final class XdsEndpointUpdateScheduler {
                 }
             }
 
+            // TransformingChangesApplier parses the stored YAML via Jackson before passing
+            // oldJsonNode to this transformer, which strips all user comments regardless.
+            // Re-serializing the full proto here is therefore equivalent in practice.
             return toJsonNode(builder);
         }
 
         private static ClusterLoadAssignment.Builder toClusterLoadAssignmentBuilder(JsonNode oldJsonNode) {
-            final Builder clusterLoadAssignmentBuilder =
-                    ClusterLoadAssignment.newBuilder();
+            final Builder clusterLoadAssignmentBuilder = ClusterLoadAssignment.newBuilder();
             try {
                 JSON_MESSAGE_MARSHALLER.mergeValue(oldJsonNode.traverse(), clusterLoadAssignmentBuilder);
             } catch (Throwable t) {
@@ -381,34 +392,29 @@ final class XdsEndpointUpdateScheduler {
          */
         private static int findLocalityAndPriorityIndex(Builder clusterLoadAssignmentBuilder,
                                                         LocalityLbEndpoint localityLbEndpoint) {
-            int sameLocalityIndex = -1;
-
             final List<LocalityLbEndpoints> localityLbEndpointsList =
                     clusterLoadAssignmentBuilder.getEndpointsList();
             for (int i = 0; i < localityLbEndpointsList.size(); i++) {
                 final LocalityLbEndpoints localityLbEndpoints = localityLbEndpointsList.get(i);
                 if (localityLbEndpoints.getLocality().equals(localityLbEndpoint.getLocality()) &&
                     localityLbEndpoints.getPriority() == localityLbEndpoint.getPriority()) {
-                    sameLocalityIndex = i;
-                    break;
+                    return i;
                 }
             }
-            return sameLocalityIndex;
+            return -1;
         }
 
         private static int findLbEndpointIndex(LocalityLbEndpoints targetLocalityLbEndpoints,
                                                LocalityLbEndpoint localityLbEndpoint) {
-            int sameLbEndpointIndex = -1;
             final List<LbEndpoint> lbEndpointsList = targetLocalityLbEndpoints.getLbEndpointsList();
             for (int i = 0; i < lbEndpointsList.size(); i++) {
                 final LbEndpoint lbEndpoint = lbEndpointsList.get(i);
                 if (lbEndpoint.getEndpoint().getAddress().equals(
                         localityLbEndpoint.getLbEndpoint().getEndpoint().getAddress())) {
-                    sameLbEndpointIndex = i;
-                    break;
+                    return i;
                 }
             }
-            return sameLbEndpointIndex;
+            return -1;
         }
 
         private static JsonNode toJsonNode(ClusterLoadAssignment.Builder clusterLoadAssignmentBuilder) {

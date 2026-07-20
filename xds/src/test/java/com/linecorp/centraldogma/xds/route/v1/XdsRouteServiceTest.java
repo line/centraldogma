@@ -33,7 +33,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
 import com.google.protobuf.Any;
-import com.google.protobuf.Empty;
 import com.google.protobuf.InvalidProtocolBufferException;
 
 import com.linecorp.armeria.client.grpc.GrpcClients;
@@ -42,8 +41,8 @@ import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpMethod;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.RequestHeaders;
+import com.linecorp.centraldogma.internal.Yaml;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
-import com.linecorp.centraldogma.xds.route.v1.XdsRouteServiceGrpc.XdsRouteServiceBlockingStub;
 
 import io.envoyproxy.controlplane.cache.Resources.V3;
 import io.envoyproxy.envoy.config.route.v3.RouteConfiguration;
@@ -81,7 +80,7 @@ class XdsRouteServiceTest {
         response = createRoute("groups/foo", "foo-route.1", route, dogma.httpClient());
         assertOk(response);
         final RouteConfiguration.Builder routeBuilder = RouteConfiguration.newBuilder();
-        JSON_MESSAGE_MARSHALLER.mergeValue(response.contentUtf8(), routeBuilder);
+        JSON_MESSAGE_MARSHALLER.mergeValue(Yaml.readTree(response.contentUtf8()).traverse(), routeBuilder);
         final RouteConfiguration actualRoute = routeBuilder.build();
         final String routeName = "groups/foo/routes/foo-route.1";
         assertThat(actualRoute).isEqualTo(route.toBuilder().setName(routeName).build());
@@ -90,7 +89,6 @@ class XdsRouteServiceTest {
 
     private static void assertOk(AggregatedHttpResponse response) {
         assertThat(response.status()).isSameAs(HttpStatus.OK);
-        assertThat(response.headers().get("grpc-status")).isEqualTo("0");
     }
 
     private static void checkResourceViaDiscoveryRequest(RouteConfiguration actualRoute, String resourceName,
@@ -145,7 +143,7 @@ class XdsRouteServiceTest {
         response = createRoute("groups/foo", "foo-route.2", route, dogma.httpClient());
         assertOk(response);
         final RouteConfiguration.Builder routeBuilder = RouteConfiguration.newBuilder();
-        JSON_MESSAGE_MARSHALLER.mergeValue(response.contentUtf8(), routeBuilder);
+        JSON_MESSAGE_MARSHALLER.mergeValue(Yaml.readTree(response.contentUtf8()).traverse(), routeBuilder);
         final RouteConfiguration actualRoute = routeBuilder.build();
         final String routeName = "groups/foo/routes/foo-route.2";
         assertThat(actualRoute).isEqualTo(route.toBuilder().setName(routeName).build());
@@ -157,7 +155,7 @@ class XdsRouteServiceTest {
         response = updateRoute("groups/foo", "foo-route.2", updatingRoute, dogma.httpClient());
         assertOk(response);
         final RouteConfiguration.Builder routeBuilder2 = RouteConfiguration.newBuilder();
-        JSON_MESSAGE_MARSHALLER.mergeValue(response.contentUtf8(), routeBuilder2);
+        JSON_MESSAGE_MARSHALLER.mergeValue(Yaml.readTree(response.contentUtf8()).traverse(), routeBuilder2);
         final RouteConfiguration actualRoute2 = routeBuilder2.build();
         assertThat(actualRoute2).isEqualTo(updatingRoute.toBuilder().setName(routeName).build());
         checkResourceViaDiscoveryRequest(actualRoute2, routeName, true);
@@ -181,7 +179,6 @@ class XdsRouteServiceTest {
 
         response = deleteRoute(routeName);
         assertOk(response);
-        assertThat(response.contentUtf8()).isEqualTo("{}");
         checkResourceViaDiscoveryRequest(actualRoute, routeName, false);
     }
 
@@ -191,37 +188,5 @@ class XdsRouteServiceTest {
                               .set(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous")
                               .build();
         return dogma.httpClient().execute(headers).aggregate().join();
-    }
-
-    @Test
-    void viaStub() {
-        final XdsRouteServiceBlockingStub client =
-                GrpcClients.builder(dogma.httpClient().uri())
-                           .setHeader(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous")
-                           .build(XdsRouteServiceBlockingStub.class);
-        final RouteConfiguration route = routeConfiguration("this_route_name_will_be_ignored_and_replaced",
-                                                            "groups/foo/clusters/foo-cluster");
-        RouteConfiguration response = client.createRoute(
-                CreateRouteRequest.newBuilder()
-                                  .setParent("groups/foo")
-                                  .setRouteId("foo-route.5.6")
-                                  .setRoute(route)
-                                  .build());
-        final String routeName = "groups/foo/routes/foo-route.5.6";
-        assertThat(response).isEqualTo(route.toBuilder().setName(routeName).build());
-
-        final RouteConfiguration updatingRoute = route.toBuilder()
-                                                      .addInternalOnlyHeaders("internal")
-                                                      .setName(routeName).build();
-        response = client.updateRoute(UpdateRouteRequest.newBuilder()
-                                                        .setRoute(updatingRoute)
-                                                        .build());
-        assertThat(response).isEqualTo(updatingRoute);
-
-        // No exception is thrown.
-        final Empty ignored = client.deleteRoute(
-                DeleteRouteRequest.newBuilder()
-                                  .setName(routeName)
-                                  .build());
     }
 }

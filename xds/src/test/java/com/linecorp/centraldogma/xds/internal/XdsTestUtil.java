@@ -15,8 +15,6 @@
  */
 package com.linecorp.centraldogma.xds.internal;
 
-import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.JSON_MESSAGE_MARSHALLER;
-
 import java.io.IOException;
 import java.net.URI;
 import java.util.concurrent.CompletableFuture;
@@ -24,6 +22,7 @@ import java.util.concurrent.CompletableFuture;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.protobuf.Any;
+import com.google.protobuf.Message;
 import com.google.protobuf.util.Durations;
 
 import com.linecorp.armeria.client.WebClient;
@@ -68,6 +67,10 @@ public final class XdsTestUtil {
 
     static final String CONFIG_SOURCE_CLUSTER_NAME = "dogma/cluster";
 
+    public static String toYaml(Message message) throws IOException {
+        return XdsResourceManager.toYamlBodyString(message);
+    }
+
     public static AggregatedHttpResponse createGroup(String groupId, WebClient webClient) {
         return createGroupAsync(groupId, webClient).join();
     }
@@ -77,9 +80,8 @@ public final class XdsTestUtil {
         final RequestHeaders headers =
                 RequestHeaders.builder(HttpMethod.POST, "/api/v1/xds/groups?group_id=" + groupId)
                               .set(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous")
-                              .contentType(MediaType.JSON_UTF_8).build();
-        return webClient.execute(headers, "{\"name\":\"groups/" + groupId + "\"}")
-                        .aggregate();
+                              .build();
+        return webClient.execute(headers).aggregate();
     }
 
     public static AggregatedHttpResponse deleteGroup(String groupName, WebClient webClient) {
@@ -202,7 +204,6 @@ public final class XdsTestUtil {
                                                       .setEdsConfig(configSource)
                                                       .setServiceName(clusterName))
                       .setType(Cluster.DiscoveryType.EDS)
-                      .setRespectDnsTtl(true)
                       .build();
     }
 
@@ -273,8 +274,8 @@ public final class XdsTestUtil {
                                        "/api/v1/xds/" + groupName + "/endpoints?endpoint_id=" +
                                        endpointId)
                               .set(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous")
-                              .contentType(MediaType.JSON_UTF_8).build();
-        return webClient.execute(headers, JSON_MESSAGE_MARSHALLER.writeValueAsString(endpoint))
+                              .contentType(MediaType.parse("application/yaml")).build();
+        return webClient.execute(headers, toYaml(endpoint))
                         .aggregate().join();
     }
 
@@ -285,19 +286,19 @@ public final class XdsTestUtil {
                 RequestHeaders.builder(HttpMethod.POST,
                                        "/api/v1/xds/" + groupName + "/clusters?cluster_id=" + clusterId)
                               .set(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous")
-                              .contentType(MediaType.JSON_UTF_8).build();
-        return webClient.execute(headers, JSON_MESSAGE_MARSHALLER.writeValueAsString(cluster))
+                              .contentType(MediaType.parse("application/yaml")).build();
+        return webClient.execute(headers, toYaml(cluster))
                         .aggregate().join();
     }
 
     public static AggregatedHttpResponse updateCluster(
             String groupName, String clusterId, Cluster cluster, WebClient webClient) throws IOException {
         final RequestHeaders headers =
-                RequestHeaders.builder(HttpMethod.PATCH,
+                RequestHeaders.builder(HttpMethod.PUT,
                                        "/api/v1/xds/" + groupName + "/clusters/" + clusterId)
                               .set(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous")
-                              .contentType(MediaType.JSON_UTF_8).build();
-        return webClient.execute(headers, JSON_MESSAGE_MARSHALLER.writeValueAsString(cluster))
+                              .contentType(MediaType.parse("application/yaml")).build();
+        return webClient.execute(headers, toYaml(cluster))
                         .aggregate().join();
     }
 
@@ -309,19 +310,19 @@ public final class XdsTestUtil {
                                        "/api/v1/xds/" + groupName + "/listeners?listener_id=" +
                                        listenerId)
                               .set(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous")
-                              .contentType(MediaType.JSON_UTF_8).build();
-        return webClient.execute(headers, JSON_MESSAGE_MARSHALLER.writeValueAsString(listener))
+                              .contentType(MediaType.parse("application/yaml")).build();
+        return webClient.execute(headers, toYaml(listener))
                         .aggregate().join();
     }
 
     public static AggregatedHttpResponse updateListener(
             String groupName, String listenerId, Listener listener, WebClient webClient) throws IOException {
         final RequestHeaders headers =
-                RequestHeaders.builder(HttpMethod.PATCH,
+                RequestHeaders.builder(HttpMethod.PUT,
                                        "/api/v1/xds/" + groupName + "/listeners/" + listenerId)
                               .set(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous")
-                              .contentType(MediaType.JSON_UTF_8).build();
-        return webClient.execute(headers, JSON_MESSAGE_MARSHALLER.writeValueAsString(listener))
+                              .contentType(MediaType.parse("application/yaml")).build();
+        return webClient.execute(headers, toYaml(listener))
                         .aggregate().join();
     }
 
@@ -333,19 +334,19 @@ public final class XdsTestUtil {
                                        "/api/v1/xds/" + groupName + "/routes?route_id=" +
                                        routeId)
                               .set(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous")
-                              .contentType(MediaType.JSON_UTF_8).build();
-        return webClient.execute(headers, JSON_MESSAGE_MARSHALLER.writeValueAsString(route))
+                              .contentType(MediaType.parse("application/yaml")).build();
+        return webClient.execute(headers, toYaml(route))
                         .aggregate().join();
     }
 
     public static AggregatedHttpResponse updateRoute(
             String groupName, String routeId,
             RouteConfiguration route, WebClient webClient) throws IOException {
-        final RequestHeaders headers = RequestHeaders.builder(HttpMethod.PATCH,
+        final RequestHeaders headers = RequestHeaders.builder(HttpMethod.PUT,
                                                               "/api/v1/xds/" + groupName + "/routes/" + routeId)
                                                      .set(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous")
-                                                     .contentType(MediaType.JSON_UTF_8).build();
-        return webClient.execute(headers, JSON_MESSAGE_MARSHALLER.writeValueAsString(route))
+                                                     .contentType(MediaType.parse("application/yaml")).build();
+        return webClient.execute(headers, toYaml(route))
                         .aggregate().join();
     }
 

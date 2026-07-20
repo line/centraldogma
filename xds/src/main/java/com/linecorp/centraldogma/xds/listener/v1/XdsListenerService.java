@@ -20,24 +20,30 @@ import static com.linecorp.centraldogma.server.internal.admin.auth.AuthUtil.curr
 import static com.linecorp.centraldogma.xds.internal.ControlPlaneService.LISTENERS_DIRECTORY;
 import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.LEGACY_RESOURCE_ID_PATTERN_STRING;
 import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.RESOURCE_ID_PATTERN;
-import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.removePrefix;
 
-import java.util.regex.Matcher;
+import java.io.IOException;
+import java.util.concurrent.CompletableFuture;
 import java.util.regex.Pattern;
 
-import com.google.protobuf.Empty;
+import org.jspecify.annotations.Nullable;
 
+import com.linecorp.armeria.common.HttpResponse;
+import com.linecorp.armeria.common.HttpStatus;
+import com.linecorp.armeria.server.annotation.Consumes;
+import com.linecorp.armeria.server.annotation.Delete;
+import com.linecorp.armeria.server.annotation.Param;
+import com.linecorp.armeria.server.annotation.Post;
+import com.linecorp.armeria.server.annotation.Put;
+import com.linecorp.centraldogma.common.RepositoryRole;
+import com.linecorp.centraldogma.xds.internal.RequiresXdsGroupRole;
 import com.linecorp.centraldogma.xds.internal.XdsResourceManager;
-import com.linecorp.centraldogma.xds.listener.v1.XdsListenerServiceGrpc.XdsListenerServiceImplBase;
 
 import io.envoyproxy.envoy.config.listener.v3.Listener;
-import io.grpc.Status;
-import io.grpc.stub.StreamObserver;
 
 /**
- * Service for managing listeners.
+ * Annotated service object for managing listeners.
  */
-public final class XdsListenerService extends XdsListenerServiceImplBase {
+public final class XdsListenerService {
 
     private static final Pattern LISTENER_NAME_PATTERN =
             Pattern.compile("^groups/([^/]+)/listeners/" + LEGACY_RESOURCE_ID_PATTERN_STRING + '$');
@@ -51,60 +57,90 @@ public final class XdsListenerService extends XdsListenerServiceImplBase {
         this.xdsResourceManager = xdsResourceManager;
     }
 
-    @Override
-    public void createListener(CreateListenerRequest request, StreamObserver<Listener> responseObserver) {
-        final String parent = request.getParent();
-        final String group = removePrefix("groups/", parent);
-        xdsResourceManager.checkWritePermission(group);
-
-        final String listenerId = request.getListenerId();
+    /**
+     * POST /xds/groups/{group}/listeners
+     *
+     * <p>Creates a new listener.
+     */
+    @Post("/xds/groups/{group}/listeners")
+    @Consumes("application/yaml")
+    @RequiresXdsGroupRole(RepositoryRole.WRITE)
+    public CompletableFuture<HttpResponse> createListener(
+            @Param("group") String group,
+            @Param("listener_id") String listenerId,
+            @Param("summary") @Nullable String summary,
+            String body) {
         if (!RESOURCE_ID_PATTERN.matcher(listenerId).matches()) {
-            throw Status.INVALID_ARGUMENT.withDescription("Invalid listener_id: " + listenerId +
-                                                          " (expected: " + RESOURCE_ID_PATTERN + ')')
-                                         .asRuntimeException();
+            return CompletableFuture.completedFuture(
+                    XdsResourceManager.errorResponse(HttpStatus.BAD_REQUEST,
+                                                     "Invalid listener ID: " + listenerId));
         }
-
-        final String listenerName = parent + LISTENERS_DIRECTORY + listenerId;
-        // Ignore the specified name in the listener and set the name
-        // with the format of "groups/{group}/listeners/{listener}".
-        // https://github.com/aip-dev/google.aip.dev/blob/master/aip/general/0133.md#user-specified-ids
-        final Listener listener = request.getListener().toBuilder().setName(listenerName).build();
-        final String createSummary =
-                isNullOrEmpty(request.getSummary()) ? "Create listener: " + listenerName : request.getSummary();
-        xdsResourceManager.push(responseObserver, group, listenerName,
-                                LISTENERS_DIRECTORY + listenerId + ".yaml",
-                                createSummary, listener, currentAuthor(), true);
-    }
-
-    @Override
-    public void updateListener(UpdateListenerRequest request, StreamObserver<Listener> responseObserver) {
-        final Listener listener = request.getListener();
-        final String listenerName = listener.getName();
-        final String group = checkListenerName(listenerName).group(1);
-        xdsResourceManager.checkWritePermission(group);
-        final String updateSummary =
-                isNullOrEmpty(request.getSummary()) ? "Update listener: " + listenerName : request.getSummary();
-        xdsResourceManager.update(responseObserver, group, listenerName,
-                                  updateSummary, listener, currentAuthor());
-    }
-
-    private static Matcher checkListenerName(String listenerName) {
-        final Matcher matcher = LISTENER_NAME_PATTERN.matcher(listenerName);
-        if (!matcher.matches()) {
-            throw Status.INVALID_ARGUMENT.withDescription("Invalid listener name: " + listenerName +
-                                                          " (expected: " + LISTENER_NAME_PATTERN + ')')
-                                         .asRuntimeException();
+        final String listenerName = "groups/" + group + LISTENERS_DIRECTORY + listenerId;
+        try {
+            XdsResourceManager.parseYaml(body, Listener.newBuilder());
+        } catch (IOException e) {
+            return CompletableFuture.completedFuture(
+                    XdsResourceManager.errorResponse(HttpStatus.BAD_REQUEST,
+                                                     "Invalid request body: " + e.getMessage()));
         }
-        return matcher;
+        final String createSummary = isNullOrEmpty(summary) ? "Create listener: " + listenerName : summary;
+        final String normalizedBody = XdsResourceManager.normalizeYamlKeys(body);
+        final String bodyToStore = XdsResourceManager.injectYamlField(normalizedBody, "name", listenerName);
+        return xdsResourceManager.push(group, listenerName,
+                                       LISTENERS_DIRECTORY + listenerId + ".yaml",
+                                       createSummary, currentAuthor(), true, bodyToStore);
     }
 
-    @Override
-    public void deleteListener(DeleteListenerRequest request, StreamObserver<Empty> responseObserver) {
-        final String listenerName = request.getName();
-        final String group = checkListenerName(listenerName).group(1);
-        xdsResourceManager.checkWritePermission(group);
-        final String deleteSummary =
-                isNullOrEmpty(request.getSummary()) ? "Delete listener: " + listenerName : request.getSummary();
-        xdsResourceManager.delete(responseObserver, group, listenerName, deleteSummary, currentAuthor());
+    /**
+     * PUT /xds/groups/{group}/listeners/{listener_id}
+     *
+     * <p>Updates an existing listener.
+     */
+    @Put("/xds/groups/{group}/listeners/{*listener_id}")
+    @Consumes("application/yaml")
+    @RequiresXdsGroupRole(RepositoryRole.WRITE)
+    public CompletableFuture<HttpResponse> updateListener(
+            @Param("group") String group,
+            @Param("listener_id") String listenerId,
+            @Param("summary") @Nullable String summary,
+            String body) {
+        final String listenerName = "groups/" + group + "/listeners/" + listenerId;
+        if (!LISTENER_NAME_PATTERN.matcher(listenerName).matches()) {
+            return CompletableFuture.completedFuture(
+                    XdsResourceManager.errorResponse(HttpStatus.BAD_REQUEST,
+                                                     "Invalid listener name: " + listenerName));
+        }
+        try {
+            XdsResourceManager.parseYaml(body, Listener.newBuilder());
+        } catch (IOException e) {
+            return CompletableFuture.completedFuture(
+                    XdsResourceManager.errorResponse(HttpStatus.BAD_REQUEST,
+                                                     "Invalid request body: " + e.getMessage()));
+        }
+        final String updateSummary = isNullOrEmpty(summary) ? "Update listener: " + listenerName : summary;
+        final String normalizedBody = XdsResourceManager.normalizeYamlKeys(body);
+        final String bodyToStore = XdsResourceManager.injectYamlField(normalizedBody, "name", listenerName);
+        return xdsResourceManager.update(group, listenerName, updateSummary, currentAuthor(), bodyToStore);
+    }
+
+    /**
+     * DELETE /xds/groups/{group}/listeners/{listener_id}
+     *
+     * <p>Removes a listener.
+     */
+    @Delete("/xds/groups/{group}/listeners/{*listener_id}")
+    @RequiresXdsGroupRole(RepositoryRole.WRITE)
+    public CompletableFuture<HttpResponse> deleteListener(
+            @Param("group") String group,
+            @Param("listener_id") String listenerId,
+            @Param("summary") @Nullable String summary) {
+        final String listenerName = "groups/" + group + "/listeners/" + listenerId;
+        if (!LISTENER_NAME_PATTERN.matcher(listenerName).matches()) {
+            return CompletableFuture.completedFuture(
+                    XdsResourceManager.errorResponse(HttpStatus.BAD_REQUEST,
+                                                     "Invalid listener name: " + listenerName));
+        }
+        final String deleteSummary = isNullOrEmpty(summary) ? "Delete listener: " + listenerName : summary;
+        return xdsResourceManager.delete(group, listenerName, deleteSummary, currentAuthor());
     }
 }

@@ -18,25 +18,15 @@ package com.linecorp.centraldogma.xds.group.v1;
 import static com.linecorp.centraldogma.xds.internal.XdsTestUtil.createGroup;
 import static com.linecorp.centraldogma.xds.internal.XdsTestUtil.createGroupAsync;
 import static com.linecorp.centraldogma.xds.internal.XdsTestUtil.deleteGroup;
-import static net.javacrumbs.jsonunit.fluent.JsonFluentAssert.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
-import com.google.protobuf.Empty;
-
-import com.linecorp.armeria.client.grpc.GrpcClients;
 import com.linecorp.armeria.common.AggregatedHttpResponse;
-import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
-import com.linecorp.centraldogma.xds.group.v1.XdsGroupServiceGrpc.XdsGroupServiceBlockingStub;
-
-import io.grpc.Status;
-import io.grpc.StatusRuntimeException;
 
 final class XdsGroupServiceTest {
 
@@ -55,18 +45,24 @@ final class XdsGroupServiceTest {
     void createGroupViaHttp() {
         AggregatedHttpResponse response = createGroupAsync("foo", dogma.httpClient()).join();
         assertOk(response);
-        assertThatJson(response.contentUtf8()).isEqualTo("{\"name\":\"groups/foo\"}");
 
         // Cannot create with the same name.
         response = createGroupAsync("foo", dogma.httpClient()).join();
         assertThat(response.status()).isSameAs(HttpStatus.CONFLICT);
-        assertThat(response.headers().get("grpc-status"))
-                .isEqualTo(Integer.toString(Status.ALREADY_EXISTS.getCode().value()));
+
+        // Cannot create a group with an internal repository name.
+        response = createGroupAsync("dogma", dogma.httpClient()).join();
+        assertThat(response.status()).isSameAs(HttpStatus.FORBIDDEN);
+        response = createGroupAsync("meta", dogma.httpClient()).join();
+        assertThat(response.status()).isSameAs(HttpStatus.FORBIDDEN);
+
+        // Cannot create a group with an invalid ID format.
+        response = createGroupAsync("@invalid!", dogma.httpClient()).join();
+        assertThat(response.status()).isSameAs(HttpStatus.BAD_REQUEST);
     }
 
     private static void assertOk(AggregatedHttpResponse response) {
         assertThat(response.status()).isSameAs(HttpStatus.OK);
-        assertThat(response.headers().get("grpc-status")).isEqualTo("0");
     }
 
     @Test
@@ -77,44 +73,7 @@ final class XdsGroupServiceTest {
         response = createGroup("bar", dogma.httpClient());
         assertThat(response.status()).isSameAs(HttpStatus.OK);
 
-        // Add permission test.
-
         response = deleteGroup("groups/bar", dogma.httpClient());
         assertOk(response);
-        assertThat(response.contentUtf8()).isEqualTo("{}");
-    }
-
-    @Test
-    void createAndDeleteGroupViaStub() {
-        final XdsGroupServiceBlockingStub client =
-                GrpcClients.builder(dogma.httpClient().uri())
-                           .setHeader(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous")
-                           .build(XdsGroupServiceBlockingStub.class);
-        assertThatThrownBy(() -> client.createGroup(
-                CreateGroupRequest.newBuilder()
-                                  .setGroupId("invalid/id")
-                                  .setGroup(Group.newBuilder().setName("this_will_be_ignored"))
-                                  .build())).isInstanceOf(StatusRuntimeException.class)
-                                            .hasMessageContaining("Invalid group id: invalid/id");
-
-        // Dots are allowed in group names.
-        final Group dotGroup = client.createGroup(
-                CreateGroupRequest.newBuilder()
-                                  .setGroupId("foo.bar")
-                                  .setGroup(Group.newBuilder().setName("this_will_be_ignored"))
-                                  .build());
-        assertThat(dotGroup.getName()).isEqualTo("groups/foo.bar");
-        client.deleteGroup(DeleteGroupRequest.newBuilder().setName("groups/foo.bar").build());
-
-        final Group group = client.createGroup(
-                CreateGroupRequest.newBuilder()
-                                  .setGroupId("baz")
-                                  .setGroup(Group.newBuilder().setName("this_will_be_ignored"))
-                                  .build());
-        assertThat(group.getName()).isEqualTo("groups/baz");
-        // No exception is thrown.
-        final Empty ignored = client.deleteGroup(DeleteGroupRequest.newBuilder()
-                                                                   .setName("groups/baz")
-                                                                   .build());
     }
 }

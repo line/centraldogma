@@ -66,17 +66,16 @@ final class XdsGroupDeletePermissionTest {
         assertThat(createGroup(admin, "foo").status()).isEqualTo(HttpStatus.OK);
 
         // A principal with no role cannot delete the group.
-        assertThat(deleteGroup(noRole, "foo").headers().get("grpc-status")).isEqualTo("7"); // PERMISSION_DENIED
+        assertThat(deleteGroup(noRole, "foo").status()).isEqualTo(HttpStatus.FORBIDDEN);
 
         // A WRITE role is insufficient; deletion requires ADMIN.
         grantRole(admin, "foo", "writer", "WRITE");
-        assertThat(deleteGroup(writer, "foo").headers().get("grpc-status")).isEqualTo("7");
+        assertThat(deleteGroup(writer, "foo").status()).isEqualTo(HttpStatus.FORBIDDEN);
 
         // An ADMIN role can delete the group.
         grantRole(admin, "foo", "group-admin", "ADMIN");
         final AggregatedHttpResponse deleted = deleteGroup(groupAdmin, "foo");
         assertThat(deleted.status()).isEqualTo(HttpStatus.OK);
-        assertThat(deleted.headers().get("grpc-status")).isEqualTo("0");
 
         // The group is really gone.
         assertThat(deleteGroup(admin, "foo").status()).isEqualTo(HttpStatus.NOT_FOUND);
@@ -91,7 +90,6 @@ final class XdsGroupDeletePermissionTest {
         return client.prepare()
                      .post("/api/v1/xds/groups")
                      .queryParam("group_id", group)
-                     .content(MediaType.JSON, "{\"name\":\"groups/" + group + "\"}")
                      .execute().aggregate().join();
     }
 

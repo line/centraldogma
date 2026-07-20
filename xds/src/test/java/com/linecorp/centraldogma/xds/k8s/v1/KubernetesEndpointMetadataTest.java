@@ -20,7 +20,6 @@ import static com.linecorp.centraldogma.xds.internal.XdsTestUtil.createGroup;
 import static com.linecorp.centraldogma.xds.internal.XdsTestUtil.endpoint;
 import static com.linecorp.centraldogma.xds.k8s.v1.XdsKubernetesServiceTest.assertOk;
 import static com.linecorp.centraldogma.xds.k8s.v1.XdsKubernetesServiceTest.createAggregator;
-import static net.javacrumbs.jsonunit.fluent.JsonFluentAssert.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.IOException;
@@ -217,7 +216,6 @@ class KubernetesEndpointMetadataTest {
         final AggregatedHttpResponse response = createAggregator(aggregator(aggregatorId, watcher),
                                                                  aggregatorId, dogma.httpClient());
         assertThat(response.status()).isSameAs(HttpStatus.BAD_REQUEST);
-        assertThatJson(response.contentUtf8()).node("grpc-code").isEqualTo("INVALID_ARGUMENT");
     }
 
     private static String createAndGetClusterName(String aggregatorId, ServiceEndpointWatcher watcher)
