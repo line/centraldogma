@@ -71,4 +71,28 @@ class XdsResourceManagerTest {
                                                       "groups/g1/clusters/ep1"))
                 .isEqualTo("clusterName: groups/g1/clusters/ep1\nendpoints: []\n");
     }
+
+    @Test
+    void injectYamlField_handlesCrlfLineEndings() {
+        // CRLF bodies must find the existing key rather than prepending a duplicate.
+        final String yaml = "name: old\r\ntype: EDS\r\n";
+        assertThat(XdsResourceManager.injectYamlField(yaml, "name", "new_name"))
+                .isEqualTo("name: new_name\ntype: EDS\r\n");
+    }
+
+    @Test
+    void injectYamlField_handlesNoTrailingNewline() {
+        // A body with no trailing newline must still find and replace the existing key.
+        final String yaml = "name: old";
+        assertThat(XdsResourceManager.injectYamlField(yaml, "name", "new_name"))
+                .isEqualTo("name: new_name\n");
+    }
+
+    @Test
+    void injectYamlField_prependsWhenFieldAbsentAndNoTrailingNewline() {
+        // When the field is absent and the body has no trailing newline, prepend normally.
+        final String yaml = "type: EDS";
+        assertThat(XdsResourceManager.injectYamlField(yaml, "name", "my_cluster"))
+                .isEqualTo("name: my_cluster\ntype: EDS");
+    }
 }

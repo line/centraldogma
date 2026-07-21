@@ -172,9 +172,11 @@ public final class XdsResourceManager {
         final String replacement = fieldName + ": " + fieldValue + '\n';
         // Match a top-level key (no leading whitespace) in either camelCase or snake_case form,
         // plus its entire value — including any indented block-scalar continuation lines.
+        // (?:\r?\n|\z) handles LF, CRLF, and a missing trailing newline at end of file.
         final Pattern pattern = Pattern.compile(
                 "^(?:" + Pattern.quote(fieldName) + '|' +
-                Pattern.quote(camelToSnake(fieldName)) + ")\\s*:.*\\n(?:[ \\t]+.*\\n)*",
+                Pattern.quote(camelToSnake(fieldName)) +
+                ")\\s*:.*(?:\\r?\\n|\\z)(?:[ \\t]+.*(?:\\r?\\n|\\z))*",
                 Pattern.MULTILINE);
         final Matcher matcher = pattern.matcher(yaml);
         if (matcher.find()) {
