@@ -13,6 +13,7 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
+import * as jsYaml from 'js-yaml';
 import { XdsResourceType } from 'dogma/features/xds/XdsTypes';
 
 // A reference from one xDS resource to a child resource of another type:
@@ -55,12 +56,12 @@ function asString(value: unknown): string | undefined {
   return typeof value === 'string' && value.length > 0 ? value : undefined;
 }
 
-// Extracts the child-resource references declared in a resource's JSON. proto3 JSON allows both
-// lowerCamelCase and the original snake_case field names, so both spellings are checked.
+// Extracts the child-resource references declared in a resource's YAML (proto3 field names in
+// lowerCamelCase or snake_case are both accepted by the server, so both spellings are checked).
 export function extractReferences(type: XdsResourceType, content: string): XdsReference[] {
   let json: unknown;
   try {
-    json = JSON.parse(content);
+    json = jsYaml.load(content);
   } catch {
     return [];
   }

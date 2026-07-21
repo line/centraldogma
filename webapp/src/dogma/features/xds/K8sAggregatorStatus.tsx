@@ -17,6 +17,7 @@ import { Alert, AlertIcon, Badge, Box, Heading, HStack, Link, Spinner, Text } fr
 import { default as RouteLink } from 'next/link';
 import { FetchBaseQueryError } from '@reduxjs/toolkit/query';
 import { useMemo } from 'react';
+import * as jsYaml from 'js-yaml';
 import { DateWithTooltip } from 'dogma/common/components/DateWithTooltip';
 import { useGetGroupHistoryQuery, useGetResourceQuery } from 'dogma/features/xds/xdsApiSlice';
 
@@ -26,7 +27,19 @@ const generatedPath = (id: string) => `/k8s/endpoints/${id}.yaml`;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function countEndpoints(content: any): { localities: number; endpoints: number } {
-  const localities = Array.isArray(content?.endpoints) ? content.endpoints : [];
+  // content arrives as a raw YAML string from XdsEndpointReadService (which uses entry.rawContent()).
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let parsed: any;
+  if (typeof content === 'string') {
+    try {
+      parsed = jsYaml.load(content);
+    } catch {
+      return { localities: 0, endpoints: 0 };
+    }
+  } else {
+    parsed = content;
+  }
+  const localities = Array.isArray(parsed?.endpoints) ? parsed.endpoints : [];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const endpoints = localities.reduce(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -95,9 +108,6 @@ export const K8sAggregatorStatus = ({ group, id }: { group: string; id: string }
           </Link>
         </HStack>
       )}
-      <Text fontSize="xs" color="gray.500" mt={2}>
-        Generated endpoints are written to <code>{generatedPath(id)}</code>.
-      </Text>
     </Box>
   );
 };

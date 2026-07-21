@@ -23,11 +23,18 @@ interface JsonEditorProps {
   onChange?: (value: string) => void;
   readOnly?: boolean;
   height?: string | number;
+  language?: 'json' | 'yaml';
 }
 
 // Wraps the Monaco editor and configures it to use the locally bundled
 // `monaco-editor` package (provided by MonacoWebpackPlugin) instead of a CDN.
-export const JsonEditor = ({ value, onChange, readOnly = false, height = '60vh' }: JsonEditorProps) => {
+export const JsonEditor = ({
+  value,
+  onChange,
+  readOnly = false,
+  height = '60vh',
+  language = 'json',
+}: JsonEditorProps) => {
   const { colorMode } = useColorMode();
   const [ready, setReady] = useState(false);
 
@@ -53,7 +60,7 @@ export const JsonEditor = ({ value, onChange, readOnly = false, height = '60vh' 
   return (
     <Editor
       height={height}
-      defaultLanguage="json"
+      defaultLanguage={language}
       theme={colorMode === 'light' ? 'light' : 'vs-dark'}
       value={value}
       onChange={(v) => onChange?.(v ?? '')}

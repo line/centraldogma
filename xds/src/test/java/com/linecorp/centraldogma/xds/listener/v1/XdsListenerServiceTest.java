@@ -91,6 +91,10 @@ class XdsListenerServiceTest {
         assertThat(response.status()).isSameAs(HttpStatus.OK);
     }
 
+    private static void assertNoContent(AggregatedHttpResponse response) {
+        assertThat(response.status()).isSameAs(HttpStatus.NO_CONTENT);
+    }
+
     private static void checkResourceViaDiscoveryRequest(Listener actualListener, String resourceName,
                                                          boolean created) {
         await().pollInterval(100, TimeUnit.MILLISECONDS).untilAsserted(
@@ -179,7 +183,7 @@ class XdsListenerServiceTest {
         // Add permission test.
 
         response = deleteListener(listenerName);
-        assertOk(response);
+        assertNoContent(response);
         checkResourceViaDiscoveryRequest(actualListener, listenerName, false);
     }
 

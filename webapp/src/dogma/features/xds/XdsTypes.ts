@@ -58,104 +58,54 @@ export interface XdsResourceDto {
 // The full xDS resource name derived from its repository path, e.g. group 'foo' + '/clusters/c1.yaml'
 // becomes 'groups/foo/clusters/c1'. This matches the `name` the server assigns to CDS/LDS/RDS resources.
 export function resourceName(group: string, path: string): string {
-  return `groups/${group}${path.replace(/\.(json|yaml)$/, '')}`;
+  return `groups/${group}${path.replace(/\.yaml$/, '')}`;
 }
 
 // A starter template offered when creating a new resource of each type.
+// The `name` field (for LDS/RDS/CDS) and `clusterName` field (for EDS) are injected by the server,
+// so they are intentionally omitted here.
 export const XDS_RESOURCE_TEMPLATES: Record<XdsResourceType, string> = {
-  listeners: JSON.stringify(
-    {
-      name: '',
-      apiListener: {
-        apiListener: {
-          '@type':
-            'type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager',
-          rds: {
-            configSource: {
-              ads: {},
-              resourceApiVersion: 'V3',
-            },
-            routeConfigName: '',
-          },
-        },
-      },
-    },
-    null,
-    2,
-  ),
-  routes: JSON.stringify(
-    {
-      name: '',
-      virtualHosts: [
-        {
-          name: '',
-          domains: ['*'],
-          routes: [
-            {
-              match: {
-                prefix: '/',
-              },
-              route: {
-                cluster: '',
-              },
-            },
-          ],
-        },
-      ],
-    },
-    null,
-    2,
-  ),
-  clusters: JSON.stringify(
-    {
-      name: '',
-      type: 'EDS',
-      edsClusterConfig: {
-        edsConfig: {
-          ads: {},
-          resourceApiVersion: 'V3',
-        },
-        serviceName: '',
-      },
-      healthChecks: [
-        {
-          interval: '5s',
-          httpHealthCheck: {
-            path: '/',
-          },
-        },
-      ],
-    },
-    null,
-    2,
-  ),
-  endpoints: JSON.stringify(
-    {
-      clusterName: '',
-      endpoints: [
-        {
-          locality: {
-            zone: '',
-          },
-          lbEndpoints: [
-            {
-              endpoint: {
-                address: {
-                  socketAddress: {
-                    address: '',
-                    portValue: 0,
-                  },
-                },
-                hostname: '',
-              },
-              healthStatus: 'HEALTHY',
-              loadBalancingWeight: 1000,
-            },
-          ],
-        },
-      ],
-    },
-    null,
-    2,
-  ),
+  listeners: `apiListener:
+  apiListener:
+    '@type': 'type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager'
+    rds:
+      configSource:
+        ads: {}
+        resourceApiVersion: V3
+      routeConfigName: ''
+`,
+  routes: `virtualHosts:
+  - name: ''
+    domains:
+      - '*'
+    routes:
+      - match:
+          prefix: /
+        route:
+          cluster: ''
+`,
+  clusters: `type: EDS
+edsClusterConfig:
+  edsConfig:
+    ads: {}
+    resourceApiVersion: V3
+  serviceName: ''
+healthChecks:
+  - interval: 5s
+    httpHealthCheck:
+      path: /
+`,
+  endpoints: `endpoints:
+  - locality:
+      zone: ''
+    lbEndpoints:
+      - endpoint:
+          address:
+            socketAddress:
+              address: ''
+              portValue: 0
+          hostname: ''
+        healthStatus: HEALTHY
+        loadBalancingWeight: 1000
+`,
 };

@@ -22,7 +22,6 @@ import {
   BreadcrumbLink,
   Button,
   Checkbox,
-  Divider,
   Flex,
   FormControl,
   FormErrorMessage,
@@ -36,6 +35,7 @@ import {
   Text,
   useDisclosure,
 } from '@chakra-ui/react';
+import * as jsYaml from 'js-yaml';
 import { default as RouteLink } from 'next/link';
 import Router from 'next/router';
 import { useEffect, useState } from 'react';
@@ -56,6 +56,7 @@ import {
   useUpdateK8sAggregatorMutation,
 } from 'dogma/features/xds/xdsApiSlice';
 import { K8sAggregatorPreviewModal, K8sPreviewResult } from 'dogma/features/xds/K8sAggregatorPreviewModal';
+import { EditorActionBar } from 'dogma/features/xds/EditorActionBar';
 import { useGroupWriteAccess } from 'dogma/features/xds/useGroupWriteAccess';
 import { useAppDispatch } from 'dogma/hooks';
 import { newNotification } from 'dogma/features/notification/notificationSlice';
@@ -167,12 +168,26 @@ function buildBody(data: FormData, name?: string): string {
   if (name) {
     body.name = name;
   }
-  return JSON.stringify(body);
+  return jsYaml.dump(body);
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function parseToFormData(aggregatorId: string, content: any): FormData {
-  const endpoints = Array.isArray(content?.localityLbEndpoints) ? content.localityLbEndpoints : [];
+function parseToFormData(aggregatorId: string, raw: any): FormData {
+  // The content API returns YAML files as a raw string; parse it to an object before extracting fields.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let content: any;
+  if (typeof raw === 'string') {
+    try {
+      content = jsYaml.load(raw);
+    } catch {
+      content = null;
+    }
+  } else {
+    content = raw;
+  }
+  const endpoints = Array.isArray((content as any)?.localityLbEndpoints)
+    ? (content as any).localityLbEndpoints
+    : [];
   const watchers: WatcherForm[] = endpoints.map(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (e: any) => ({
@@ -512,8 +527,8 @@ const NewK8sAggregatorEditor = ({ group }: { group: string }) => {
     setPreviewResult(null);
     openPreview();
     try {
-      const assignment = await previewAggregator({ group, body: buildBody(data) }).unwrap();
-      setPreviewResult({ ok: true, assignment });
+      const yamlText = await previewAggregator({ group, body: buildBody(data) }).unwrap();
+      setPreviewResult({ ok: true, assignment: jsYaml.load(yamlText as string) });
     } catch (err) {
       setPreviewResult({ ok: false, error: ErrorMessageParser.parse(err) });
     }
@@ -561,37 +576,25 @@ const NewK8sAggregatorEditor = ({ group }: { group: string }) => {
         idReadOnly={false}
         readOnly={false}
       />
-      <Divider my={4} maxW="3xl" />
-      <FormControl mb={4} maxW="md">
-        <FormLabel>Commit summary</FormLabel>
-        <Input
-          value={commitSummary}
-          onChange={(e) => setCommitSummary(e.target.value)}
-          placeholder="Create kubernetes endpoint: ..."
-        />
-      </FormControl>
-      <Flex maxW="3xl">
-        <Spacer />
-        <HStack spacing={3}>
-          <Button
-            variant="outline"
-            colorScheme="teal"
-            leftIcon={<AiOutlineEye />}
-            onClick={handleSubmit(onPreview)}
-            isLoading={isPreviewing}
-          >
-            Preview endpoints
-          </Button>
-          <Button
-            colorScheme="teal"
-            leftIcon={<FiSave />}
-            onClick={handleSubmit(onSubmit)}
-            isLoading={isLoading}
-          >
-            Create
-          </Button>
-        </HStack>
-      </Flex>
+      <EditorActionBar
+        maxW="3xl"
+        commitSummary={commitSummary}
+        onCommitSummaryChange={setCommitSummary}
+        commitPlaceholder="Create kubernetes endpoint: ..."
+      >
+        <Button
+          variant="outline"
+          colorScheme="teal"
+          leftIcon={<AiOutlineEye />}
+          onClick={handleSubmit(onPreview)}
+          isLoading={isPreviewing}
+        >
+          Preview endpoints
+        </Button>
+        <Button colorScheme="teal" leftIcon={<FiSave />} onClick={handleSubmit(onSubmit)} isLoading={isLoading}>
+          Create
+        </Button>
+      </EditorActionBar>
       <K8sAggregatorPreviewModal
         isOpen={previewOpen}
         onClose={closePreview}
@@ -665,8 +668,8 @@ const ExistingK8sAggregatorEditor = ({ group, id }: { group: string; id: string 
     setPreviewResult(null);
     openPreview();
     try {
-      const assignment = await previewAggregator({ group, body: buildBody(formData) }).unwrap();
-      setPreviewResult({ ok: true, assignment });
+      const yamlText = await previewAggregator({ group, body: buildBody(formData) }).unwrap();
+      setPreviewResult({ ok: true, assignment: jsYaml.load(yamlText as string) });
     } catch (err) {
       setPreviewResult({ ok: false, error: ErrorMessageParser.parse(err) });
     }
@@ -691,45 +694,35 @@ const ExistingK8sAggregatorEditor = ({ group, id }: { group: string; id: string 
     <Deferred isLoading={isLoading} error={error}>
       {() => (
         <Box>
-          <Flex mb={2} maxW="3xl" align="center">
-            <Spacer />
-            {hasWrite &&
-              (editing ? (
+          {/* Read-mode actions; while editing, Cancel/Preview/Save live in the sticky action bar. */}
+          {hasWrite && !editing && (
+            <Flex mb={2} maxW="3xl" align="center">
+              <Spacer />
+              <HStack spacing={3}>
                 <Button
                   variant="outline"
-                  colorScheme="gray"
-                  leftIcon={<AiOutlineClose />}
+                  colorScheme="teal"
+                  leftIcon={<AiOutlineEye />}
                   size="sm"
-                  onClick={handleCancel}
+                  onClick={handleSubmit(onPreview)}
+                  isLoading={isPreviewing}
                 >
-                  Cancel
+                  Preview
                 </Button>
-              ) : (
-                <HStack spacing={3}>
-                  <Button
-                    variant="outline"
-                    colorScheme="teal"
-                    leftIcon={<AiOutlineEye />}
-                    size="sm"
-                    onClick={handleSubmit(onPreview)}
-                    isLoading={isPreviewing}
-                  >
-                    Preview
-                  </Button>
-                  <Button
-                    colorScheme="teal"
-                    leftIcon={<AiOutlineEdit />}
-                    size="sm"
-                    onClick={() => setEditing(true)}
-                  >
-                    Edit
-                  </Button>
-                  <Button colorScheme="red" leftIcon={<AiOutlineDelete />} size="sm" onClick={onOpen}>
-                    Delete
-                  </Button>
-                </HStack>
-              ))}
-          </Flex>
+                <Button
+                  colorScheme="teal"
+                  leftIcon={<AiOutlineEdit />}
+                  size="sm"
+                  onClick={() => setEditing(true)}
+                >
+                  Edit
+                </Button>
+                <Button colorScheme="red" leftIcon={<AiOutlineDelete />} size="sm" onClick={onOpen}>
+                  Delete
+                </Button>
+              </HStack>
+            </Flex>
+          )}
           <K8sAggregatorStatus group={group} id={id} />
           <AggregatorFormFields
             group={group}
@@ -740,39 +733,33 @@ const ExistingK8sAggregatorEditor = ({ group, id }: { group: string; id: string 
             readOnly={!editing}
           />
           {editing && hasWrite && (
-            <>
-              <Divider my={4} maxW="3xl" />
-              <FormControl mb={4} maxW="md">
-                <FormLabel>Commit summary</FormLabel>
-                <Input
-                  value={commitSummary}
-                  onChange={(e) => setCommitSummary(e.target.value)}
-                  placeholder="Update kubernetes endpoint aggregator: ..."
-                />
-              </FormControl>
-              <Flex maxW="3xl">
-                <Spacer />
-                <HStack spacing={3}>
-                  <Button
-                    variant="outline"
-                    colorScheme="teal"
-                    leftIcon={<AiOutlineEye />}
-                    onClick={handleSubmit(onPreview)}
-                    isLoading={isPreviewing}
-                  >
-                    Preview endpoints
-                  </Button>
-                  <Button
-                    colorScheme="teal"
-                    leftIcon={<FiSave />}
-                    onClick={handleSubmit(onSubmit)}
-                    isLoading={isSaving}
-                  >
-                    Save
-                  </Button>
-                </HStack>
-              </Flex>
-            </>
+            <EditorActionBar
+              maxW="3xl"
+              commitSummary={commitSummary}
+              onCommitSummaryChange={setCommitSummary}
+              commitPlaceholder="Update kubernetes endpoint aggregator: ..."
+            >
+              <Button variant="outline" colorScheme="gray" leftIcon={<AiOutlineClose />} onClick={handleCancel}>
+                Cancel
+              </Button>
+              <Button
+                variant="outline"
+                colorScheme="teal"
+                leftIcon={<AiOutlineEye />}
+                onClick={handleSubmit(onPreview)}
+                isLoading={isPreviewing}
+              >
+                Preview endpoints
+              </Button>
+              <Button
+                colorScheme="teal"
+                leftIcon={<FiSave />}
+                onClick={handleSubmit(onSubmit)}
+                isLoading={isSaving}
+              >
+                Save
+              </Button>
+            </EditorActionBar>
           )}
           <K8sAggregatorPreviewModal
             isOpen={previewOpen}
@@ -837,7 +824,7 @@ export const K8sAggregatorEditor = ({ group, id, isNew }: { group: string; id?: 
       {isNew || !id ? (
         <NewK8sAggregatorEditor group={group} />
       ) : (
-        <ExistingK8sAggregatorEditor group={group} id={id} />
+        <ExistingK8sAggregatorEditor key={id} group={group} id={id} />
       )}
     </Box>
   );

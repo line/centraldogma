@@ -15,6 +15,7 @@
  */
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import * as jsYaml from 'js-yaml';
 import { renderWithProviders } from 'dogma/util/test-utils';
 import { K8sAggregatorEditor } from 'dogma/features/xds/K8sAggregatorEditor';
 import * as xdsApiSlice from 'dogma/features/xds/xdsApiSlice';
@@ -101,7 +102,10 @@ describe('K8sAggregatorEditor – aggregator ID pattern validation', () => {
       .mocked(xdsApiSlice.usePreviewK8sAggregatorMutation)
       .mockReturnValue([jest.fn(), { isLoading: false }] as any);
     jest.mocked(xdsApiSlice.useGetK8sAggregatorQuery).mockReturnValue({
-      data: { content: VALID_WATCHER_CONTENT },
+      // Production API returns content as a YAML string; use jsYaml.dump so the new
+      // jsYaml.load branch in parseToFormData is exercised by every test that renders
+      // an existing aggregator.
+      data: { content: jsYaml.dump(VALID_WATCHER_CONTENT) },
       isLoading: false,
       error: undefined,
     } as any);
@@ -158,6 +162,32 @@ describe('K8sAggregatorEditor – aggregator ID pattern validation', () => {
         expect(mockUpdate).toHaveBeenCalled();
       });
       expect(screen.queryByText(/dots allowed, slashes not allowed/i)).not.toBeInTheDocument();
+    });
+  });
+
+  describe('sticky action bar', () => {
+    it('moves Cancel into the bar and reveals the commit input + Save only while editing', async () => {
+      const user = userEvent.setup();
+      renderWithProviders(<K8sAggregatorEditor group="foo" id="my-agg" isNew={false} />);
+
+      // Wait for the form to populate from the fetched data.
+      await waitFor(() => {
+        expect(screen.getByDisplayValue('my-agg')).toBeInTheDocument();
+      });
+
+      // Read mode: Edit is shown; the editing action bar (commit input, Save, Cancel) is not rendered.
+      expect(screen.getByRole('button', { name: /^edit$/i })).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /^save$/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /^cancel$/i })).not.toBeInTheDocument();
+      expect(screen.queryByPlaceholderText(/Update kubernetes endpoint aggregator/i)).not.toBeInTheDocument();
+
+      await user.click(screen.getByRole('button', { name: /^edit$/i }));
+
+      // Editing: the sticky bar carries the commit input plus Cancel and Save (Cancel moved from the top bar).
+      expect(screen.getByPlaceholderText(/Update kubernetes endpoint aggregator/i)).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /^save$/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /^cancel$/i })).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /^edit$/i })).not.toBeInTheDocument();
     });
   });
 });

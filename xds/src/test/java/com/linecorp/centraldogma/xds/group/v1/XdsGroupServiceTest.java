@@ -65,6 +65,10 @@ final class XdsGroupServiceTest {
         assertThat(response.status()).isSameAs(HttpStatus.OK);
     }
 
+    private static void assertNoContent(AggregatedHttpResponse response) {
+        assertThat(response.status()).isSameAs(HttpStatus.NO_CONTENT);
+    }
+
     @Test
     void deleteGroupViaHttp() {
         AggregatedHttpResponse response = deleteGroup("groups/bar", dogma.httpClient());
@@ -74,6 +78,6 @@ final class XdsGroupServiceTest {
         assertThat(response.status()).isSameAs(HttpStatus.OK);
 
         response = deleteGroup("groups/bar", dogma.httpClient());
-        assertOk(response);
+        assertNoContent(response);
     }
 }

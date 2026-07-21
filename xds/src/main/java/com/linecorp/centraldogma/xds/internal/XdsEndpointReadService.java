@@ -104,7 +104,15 @@ public final class XdsEndpointReadService {
         node.put("path", entry.path());
         node.put("type", entry.type().name());
         node.put("revision", entry.revision().major());
-        node.set("content", (JsonNode) entry.content());
+        // rawContent is the raw YAML string, which is what the UI expects (same as the Central Dogma
+        // content API). entry.content() is a parsed JsonNode, which the TypeScript side cannot
+        // distinguish from a JSON object and would display as empty.
+        final String rawContent = entry.rawContent();
+        if (rawContent != null) {
+            node.put("content", rawContent);
+        } else {
+            node.set("content", (JsonNode) entry.content());
+        }
         return node;
     }
 }

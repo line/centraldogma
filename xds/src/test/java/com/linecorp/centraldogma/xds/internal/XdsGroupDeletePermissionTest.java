@@ -75,7 +75,7 @@ final class XdsGroupDeletePermissionTest {
         // An ADMIN role can delete the group.
         grantRole(admin, "foo", "group-admin", "ADMIN");
         final AggregatedHttpResponse deleted = deleteGroup(groupAdmin, "foo");
-        assertThat(deleted.status()).isEqualTo(HttpStatus.OK);
+        assertThat(deleted.status()).isEqualTo(HttpStatus.NO_CONTENT);
 
         // The group is really gone.
         assertThat(deleteGroup(admin, "foo").status()).isEqualTo(HttpStatus.NOT_FOUND);

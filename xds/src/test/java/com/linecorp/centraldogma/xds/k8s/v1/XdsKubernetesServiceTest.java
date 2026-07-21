@@ -263,7 +263,7 @@ class XdsKubernetesServiceTest {
                     .isEqualTo("Bearer secret");
         });
 
-        assertOk(deleteAggregator0(aggregator.getName()));
+        assertNoContent(deleteAggregator0(aggregator.getName()));
     }
 
     private static KubernetesEndpointAggregator aggregator(String aggregatorId, String credentialId) {
@@ -313,6 +313,10 @@ class XdsKubernetesServiceTest {
         assertThat(response.status()).isSameAs(HttpStatus.OK);
     }
 
+    static void assertNoContent(AggregatedHttpResponse response) {
+        assertThat(response.status()).isSameAs(HttpStatus.NO_CONTENT);
+    }
+
     static void assertAggregator(
             String json, KubernetesEndpointAggregator expected) throws IOException {
         final KubernetesEndpointAggregator.Builder responseBuilder = KubernetesEndpointAggregator.newBuilder();
@@ -357,7 +361,7 @@ class XdsKubernetesServiceTest {
                          updatingAggregator.toBuilder().setClusterName(clusterName).build());
         final ClusterLoadAssignment loadAssignment2 = clusterLoadAssignment(clusterName, 30001);
         checkEndpointsViaDiscoveryRequest(dogma.httpClient().uri(), loadAssignment2, clusterName);
-        assertOk(deleteAggregator0(aggregator.getName()));
+        assertNoContent(deleteAggregator0(aggregator.getName()));
     }
 
     static AggregatedHttpResponse updateAggregator(
@@ -392,7 +396,7 @@ class XdsKubernetesServiceTest {
                                    .setClusterName(expectedClusterName)
                                    .build());
 
-        assertOk(deleteAggregator0(aggregator.getName()));
+        assertNoContent(deleteAggregator0(aggregator.getName()));
     }
 
     @CsvSource({ "repo-credential", "project-credential" })
@@ -406,7 +410,7 @@ class XdsKubernetesServiceTest {
         final ClusterLoadAssignment loadAssignment = clusterLoadAssignment(clusterName, 30000);
         checkEndpointsViaDiscoveryRequest(dogma.httpClient().uri(), loadAssignment, clusterName);
         response = deleteAggregator0(aggregator.getName());
-        assertOk(response);
+        assertNoContent(response);
         checkEndpointsViaDiscoveryRequest(dogma.httpClient().uri(), null, clusterName);
     }
 
@@ -447,7 +451,7 @@ class XdsKubernetesServiceTest {
         // The legacy .json file must be absent after atomic migration.
         assertThat(fooGroup.getOrNull(Revision.HEAD, Query.ofJson(legacyJsonPath)).join()).isNull();
 
-        assertOk(deleteAggregator0(aggregator.getName()));
+        assertNoContent(deleteAggregator0(aggregator.getName()));
     }
 
     private static AggregatedHttpResponse deleteAggregator0(String aggregatorName) {
