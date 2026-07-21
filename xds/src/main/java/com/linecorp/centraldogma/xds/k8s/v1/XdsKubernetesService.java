@@ -190,7 +190,7 @@ public final class XdsKubernetesService {
                                                      "Invalid aggregator name: " + aggregatorName));
         }
         final String clusterName = AGGREGATORS_REPLCACE_PATTERN.matcher(aggregatorName)
-                                                                .replaceFirst("/clusters/");
+                                                               .replaceFirst("/clusters/");
         final KubernetesEndpointAggregator aggregator;
         try {
             aggregator = XdsResourceManager.parseYaml(body, KubernetesEndpointAggregator.newBuilder());
@@ -379,9 +379,11 @@ public final class XdsKubernetesService {
 
     private static HttpResponse toErrorHttpResponse(Throwable cause) {
         final Throwable peeled = Exceptions.peel(cause);
+        // invalid credential not found
         if (peeled instanceof IllegalArgumentException || peeled instanceof EntryNotFoundException) {
             return XdsResourceManager.errorResponse(HttpStatus.BAD_REQUEST, peeled);
         }
+
         return XdsResourceManager.errorResponse(HttpStatus.INTERNAL_SERVER_ERROR, peeled);
     }
 

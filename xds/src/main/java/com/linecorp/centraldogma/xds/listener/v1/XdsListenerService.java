@@ -75,7 +75,7 @@ public final class XdsListenerService {
                     XdsResourceManager.errorResponse(HttpStatus.BAD_REQUEST,
                                                      "Invalid listener ID: " + listenerId));
         }
-        final String listenerName = "groups/" + group + LISTENERS_DIRECTORY + listenerId;
+        final String listenerName = listenerName(group, listenerId);
         try {
             XdsResourceManager.parseYaml(body, Listener.newBuilder());
         } catch (IOException e) {
@@ -103,7 +103,7 @@ public final class XdsListenerService {
             @Param("listener_id") String listenerId,
             @Param("summary") @Nullable String summary,
             String body) {
-        final String listenerName = "groups/" + group + "/listeners/" + listenerId;
+        final String listenerName = listenerName(group, listenerId);
         if (!LISTENER_NAME_PATTERN.matcher(listenerName).matches()) {
             return CompletableFuture.completedFuture(
                     XdsResourceManager.errorResponse(HttpStatus.BAD_REQUEST,
@@ -132,7 +132,7 @@ public final class XdsListenerService {
             @Param("group") String group,
             @Param("listener_id") String listenerId,
             @Param("summary") @Nullable String summary) {
-        final String listenerName = "groups/" + group + "/listeners/" + listenerId;
+        final String listenerName = listenerName(group, listenerId);
         if (!LISTENER_NAME_PATTERN.matcher(listenerName).matches()) {
             return CompletableFuture.completedFuture(
                     XdsResourceManager.errorResponse(HttpStatus.BAD_REQUEST,
@@ -140,5 +140,9 @@ public final class XdsListenerService {
         }
         final String deleteSummary = isNullOrEmpty(summary) ? "Delete listener: " + listenerName : summary;
         return xdsResourceManager.delete(group, listenerName, deleteSummary, currentAuthor());
+    }
+
+    private static String listenerName(String group, String listenerId) {
+        return "groups/" + group + LISTENERS_DIRECTORY + listenerId;
     }
 }

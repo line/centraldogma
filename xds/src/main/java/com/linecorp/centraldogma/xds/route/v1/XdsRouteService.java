@@ -75,7 +75,7 @@ public final class XdsRouteService {
                     XdsResourceManager.errorResponse(HttpStatus.BAD_REQUEST,
                                                      "Invalid route ID: " + routeId));
         }
-        final String routeName = "groups/" + group + ROUTES_DIRECTORY + routeId;
+        final String routeName = routeName(group, routeId);
         try {
             XdsResourceManager.parseYaml(body, RouteConfiguration.newBuilder());
         } catch (IOException e) {
@@ -102,7 +102,7 @@ public final class XdsRouteService {
             @Param("route_id") String routeId,
             @Param("summary") @Nullable String summary,
             String body) {
-        final String routeName = "groups/" + group + "/routes/" + routeId;
+        final String routeName = routeName(group, routeId);
         if (!ROUTE_NAME_PATTERN.matcher(routeName).matches()) {
             return CompletableFuture.completedFuture(
                     XdsResourceManager.errorResponse(HttpStatus.BAD_REQUEST,
@@ -131,7 +131,7 @@ public final class XdsRouteService {
             @Param("group") String group,
             @Param("route_id") String routeId,
             @Param("summary") @Nullable String summary) {
-        final String routeName = "groups/" + group + "/routes/" + routeId;
+        final String routeName = routeName(group, routeId);
         if (!ROUTE_NAME_PATTERN.matcher(routeName).matches()) {
             return CompletableFuture.completedFuture(
                     XdsResourceManager.errorResponse(HttpStatus.BAD_REQUEST,
@@ -139,5 +139,9 @@ public final class XdsRouteService {
         }
         final String deleteSummary = isNullOrEmpty(summary) ? "Delete route: " + routeName : summary;
         return xdsResourceManager.delete(group, routeName, deleteSummary, currentAuthor());
+    }
+
+    private static String routeName(String group, String routeId) {
+        return "groups/" + group + ROUTES_DIRECTORY + routeId;
     }
 }

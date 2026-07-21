@@ -113,9 +113,9 @@ public final class ControlPlaneService extends XdsResourceWatchingService {
     private final ControlPlaneMetrics metrics;
     // Mutated only from the controlPlaneExecutor.
     private final CentralDogmaXdsResources centralDogmaXdsResources = new CentralDogmaXdsResources();
-    private volatile boolean stop;
     @Nullable
     private volatile XdsEndpointService xdsEndpointService;
+    private volatile boolean stop;
 
     ControlPlaneService(Project xdsProject, MeterRegistry meterRegistry) {
         super(xdsProject, "xds.control.plane.service.", meterRegistry);
@@ -479,18 +479,20 @@ public final class ControlPlaneService extends XdsResourceWatchingService {
         metrics.onStopped();
 
         final XdsEndpointService xdsEndpointService = this.xdsEndpointService;
-        if (xdsEndpointService != null && xdsEndpointService.batchUpdateTaskSize() > 0) {
-            logger.info("Waiting for {} xDS endpoint batch update tasks to finish up to 5 seconds...",
-                        xdsEndpointService.batchUpdateTaskSize());
-            for (int i = 0; i < 5; i++) {
-                try {
-                    if (xdsEndpointService.batchUpdateTaskSize() == 0) {
+        if (xdsEndpointService != null) {
+            if (xdsEndpointService.batchUpdateTaskSize() > 0) {
+                logger.info("Waiting for {} xDS endpoint batch update tasks to finish up to 5 seconds...",
+                            xdsEndpointService.batchUpdateTaskSize());
+                for (int i = 0; i < 5; i++) {
+                    try {
+                        if (xdsEndpointService.batchUpdateTaskSize() == 0) {
+                            break;
+                        }
+                        Thread.sleep(1000);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
                         break;
                     }
-                    Thread.sleep(1000);
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    break;
                 }
             }
         }

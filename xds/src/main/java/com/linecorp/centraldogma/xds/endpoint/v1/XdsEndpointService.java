@@ -90,8 +90,8 @@ public final class XdsEndpointService {
                     XdsResourceManager.errorResponse(HttpStatus.BAD_REQUEST,
                                                      "Invalid endpoint ID: " + endpointId));
         }
-        final String endpointName = "groups/" + group + ENDPOINTS_DIRECTORY + endpointId;
-        final String clusterName = "groups/" + group + CLUSTERS_DIRECTORY + endpointId;
+        final String endpointName = endpointName(group, endpointId);
+        final String clusterName = clusterName(group, endpointId);
         try {
             XdsResourceManager.parseYaml(body, ClusterLoadAssignment.newBuilder());
         } catch (IOException e) {
@@ -118,14 +118,14 @@ public final class XdsEndpointService {
             @Param("endpoint_id") String endpointId,
             @Param("summary") @Nullable String summary,
             String body) {
-        final String endpointName = "groups/" + group + "/endpoints/" + endpointId;
+        final String endpointName = endpointName(group, endpointId);
+        final String clusterName = clusterName(group, endpointId);
         final Matcher matcher = ENDPOINT_NAME_PATTERN.matcher(endpointName);
         if (!matcher.matches()) {
             return CompletableFuture.completedFuture(
                     XdsResourceManager.errorResponse(HttpStatus.BAD_REQUEST,
                                                      "Invalid endpoint name: " + endpointName));
         }
-        final String clusterName = "groups/" + group + CLUSTERS_DIRECTORY + endpointId;
         try {
             XdsResourceManager.parseYaml(body, ClusterLoadAssignment.newBuilder());
         } catch (IOException e) {
@@ -149,7 +149,7 @@ public final class XdsEndpointService {
             @Param("group") String group,
             @Param("endpoint_id") String endpointId,
             @Param("summary") @Nullable String summary) {
-        final String endpointName = "groups/" + group + "/endpoints/" + endpointId;
+        final String endpointName = endpointName(group, endpointId);
         if (!ENDPOINT_NAME_PATTERN.matcher(endpointName).matches()) {
             return CompletableFuture.completedFuture(
                     XdsResourceManager.errorResponse(HttpStatus.BAD_REQUEST,
@@ -173,7 +173,7 @@ public final class XdsEndpointService {
             @Param("group") String group,
             @Param("endpointId") String endpointId,
             String body) {
-        final String endpointName = "groups/" + group + "/endpoints/" + endpointId;
+        final String endpointName = endpointName(group, endpointId);
         final Matcher matcher = ENDPOINT_NAME_PATTERN.matcher(endpointName);
         if (!matcher.matches()) {
             return CompletableFuture.completedFuture(
@@ -207,7 +207,7 @@ public final class XdsEndpointService {
             @Param("group") String group,
             @Param("endpointId") String endpointId,
             String body) {
-        final String endpointName = "groups/" + group + "/endpoints/" + endpointId;
+        final String endpointName = endpointName(group, endpointId);
         final Matcher matcher = ENDPOINT_NAME_PATTERN.matcher(endpointName);
         if (!matcher.matches()) {
             return CompletableFuture.completedFuture(
@@ -231,5 +231,13 @@ public final class XdsEndpointService {
 
     private static LocalityLbEndpoint parseLocalityLbEndpoint(String body) throws IOException {
         return XdsResourceManager.parseYaml(body, LocalityLbEndpoint.newBuilder());
+    }
+
+    private static String clusterName(String group, String endpointId) {
+        return "groups/" + group + CLUSTERS_DIRECTORY + endpointId;
+    }
+
+    private static String endpointName(String group, String endpointId) {
+        return "groups/" + group + ENDPOINTS_DIRECTORY + endpointId;
     }
 }

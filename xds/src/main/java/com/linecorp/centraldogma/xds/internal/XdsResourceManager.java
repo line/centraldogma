@@ -165,8 +165,7 @@ public final class XdsResourceManager {
     /**
      * Injects or replaces a top-level YAML field in the given YAML string, preserving all other
      * content including comments. If {@code fieldName} is not found as a top-level key, it is
-     * prepended. Uses snakeyaml's AST so that block-scalar values (e.g. {@code name: |}) are
-     * replaced in their entirety — not just the indicator line.
+     * prepended.
      */
     public static String injectYamlField(String yaml, String fieldName, String fieldValue) {
         final String replacement = fieldName + ": " + fieldValue + '\n';
@@ -279,7 +278,7 @@ public final class XdsResourceManager {
 
     public CompletableFuture<HttpResponse> updateOrDelete(
             String group, String resourceName, String fileName,
-            Function<String, CompletableFuture<HttpResponse>> taskProvider) {
+            Function<String, CompletableFuture<HttpResponse>> task) {
         final Repository repository;
         try {
             repository = xdsProject.repos().get(group);
@@ -296,16 +295,17 @@ public final class XdsResourceManager {
                                                        "Resource not found: " + resourceName));
                              }
                              final String resolvedFileName = entries.keySet().iterator().next();
-                             return taskProvider.apply(resolvedFileName);
+                             return task.apply(resolvedFileName);
                          });
     }
 
     public static String alternativeFileName(String fileName) {
+        final String baseFileName = fileName.substring(0, fileName.length() - 5);
         if (fileName.endsWith(".json")) {
-            return fileName.substring(0, fileName.length() - 5) + ".yaml";
+            return baseFileName + ".yaml";
         }
         if (fileName.endsWith(".yaml")) {
-            return fileName.substring(0, fileName.length() - 5) + ".json";
+            return baseFileName + ".json";
         }
         return fileName;
     }

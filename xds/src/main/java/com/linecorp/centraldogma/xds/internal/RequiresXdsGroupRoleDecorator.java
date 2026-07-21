@@ -1,7 +1,7 @@
 /*
- * Copyright 2024 LINE Corporation
+ * Copyright 2026 LY Corporation
  *
- * LINE Corporation licenses this file to you under the Apache License,
+ * LY Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
  * with the License. You may obtain a copy of the License at:
  *
@@ -41,9 +41,9 @@ import com.linecorp.centraldogma.server.storage.project.Project;
  * A {@link Decorator} that enforces the specified {@link RepositoryRole} on the xDS group identified
  * by the {@code {group}} path variable. Performs the following checks in order:
  * <ol>
+ *   <li>Request is authenticated → 401 if not</li>
  *   <li>Group name matches the allowed pattern → 400 if not</li>
  *   <li>Group repository exists in the xDS project → 404 if not</li>
- *   <li>Request is authenticated → 401 if not</li>
  *   <li>User is a system administrator, or has the required role on the group → 403 if not</li>
  * </ol>
  */
@@ -84,8 +84,7 @@ public final class RequiresXdsGroupRoleDecorator extends SimpleDecoratingHttpSer
         final ProjectMetadata metadata = xdsProject.metadata();
         // @xds is not the internal dogma project, so metadata is always initialized — never null.
         assert metadata != null;
-        final RepositoryRole role =
-                MetadataService.findRepositoryRole(metadata, group, user);
+        final RepositoryRole role = MetadataService.findRepositoryRole(metadata, group, user);
         if (role != null && role.has(requiredRole)) {
             return unwrap().serve(ctx, req);
         }

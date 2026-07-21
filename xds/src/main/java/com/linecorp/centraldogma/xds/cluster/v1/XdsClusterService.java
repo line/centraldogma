@@ -75,7 +75,7 @@ public final class XdsClusterService {
                     XdsResourceManager.errorResponse(HttpStatus.BAD_REQUEST,
                                                      "Invalid cluster ID: " + clusterId));
         }
-        final String clusterName = "groups/" + group + CLUSTERS_DIRECTORY + clusterId;
+        final String clusterName = clusterName(group, clusterId);
         try {
             XdsResourceManager.parseYaml(body, Cluster.newBuilder());
         } catch (IOException e) {
@@ -102,7 +102,7 @@ public final class XdsClusterService {
             @Param("cluster_id") String clusterId,
             @Param("summary") @Nullable String summary,
             String body) {
-        final String clusterName = "groups/" + group + "/clusters/" + clusterId;
+        final String clusterName = clusterName(group, clusterId);
         if (!CLUSTER_NAME_PATTERN.matcher(clusterName).matches()) {
             return CompletableFuture.completedFuture(
                     XdsResourceManager.errorResponse(HttpStatus.BAD_REQUEST,
@@ -131,7 +131,7 @@ public final class XdsClusterService {
             @Param("group") String group,
             @Param("cluster_id") String clusterId,
             @Param("summary") @Nullable String summary) {
-        final String clusterName = "groups/" + group + "/clusters/" + clusterId;
+        final String clusterName = clusterName(group, clusterId);
         if (!CLUSTER_NAME_PATTERN.matcher(clusterName).matches()) {
             return CompletableFuture.completedFuture(
                     XdsResourceManager.errorResponse(HttpStatus.BAD_REQUEST,
@@ -139,5 +139,9 @@ public final class XdsClusterService {
         }
         final String deleteSummary = isNullOrEmpty(summary) ? "Delete cluster: " + clusterName : summary;
         return xdsResourceManager.delete(group, clusterName, deleteSummary, currentAuthor());
+    }
+
+    private static String clusterName(String group, String clusterId) {
+        return "groups/" + group + CLUSTERS_DIRECTORY + clusterId;
     }
 }
