@@ -18,7 +18,6 @@ package com.linecorp.centraldogma.xds.internal;
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.PASSWORD;
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.USERNAME;
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.getAccessToken;
-import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.JSON_MESSAGE_MARSHALLER;
 import static com.linecorp.centraldogma.xds.internal.XdsTestUtil.cluster;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -67,9 +66,10 @@ final class XdsWritePermissionTest {
 
         final Cluster cluster = cluster("groups/foo/clusters/c1", 1);
 
-        // 'writer' has no role on 'foo' yet -> denied.
+        // 'writer' has no role on 'foo' yet -> create and delete are both denied.
         AggregatedHttpResponse response = createCluster(writer, "foo", "c1", cluster);
-        assertThat(response.headers().get("grpc-status")).isEqualTo("7"); // PERMISSION_DENIED
+        assertThat(response.status()).isEqualTo(HttpStatus.FORBIDDEN);
+        assertThat(deleteCluster(writer, "foo", "c1").status()).isEqualTo(HttpStatus.FORBIDDEN);
 
         // The denied request must not have created the resource.
         assertThat(getClusterStatus(admin, "foo", "c1")).isEqualTo(HttpStatus.NOT_FOUND);
@@ -85,7 +85,6 @@ final class XdsWritePermissionTest {
         // Now 'writer' can create the cluster.
         response = createCluster(writer, "foo", "c1", cluster);
         assertThat(response.status()).isEqualTo(HttpStatus.OK);
-        assertThat(response.headers().get("grpc-status")).isEqualTo("0");
 
         // The resource is now actually present.
         assertThat(getClusterStatus(admin, "foo", "c1")).isEqualTo(HttpStatus.OK);
@@ -104,8 +103,7 @@ final class XdsWritePermissionTest {
 
         // A READ role is insufficient to modify resources.
         grantRole(admin, "bar", "reader", "READ");
-        assertThat(createCluster(reader, "bar", "c1", cluster).headers().get("grpc-status"))
-                .isEqualTo("7"); // PERMISSION_DENIED
+        assertThat(createCluster(reader, "bar", "c1", cluster).status()).isEqualTo(HttpStatus.FORBIDDEN);
         // The denied request must not have created the resource.
         assertThat(getClusterStatus(admin, "bar", "c1")).isEqualTo(HttpStatus.NOT_FOUND);
 
@@ -113,7 +111,6 @@ final class XdsWritePermissionTest {
         grantRole(admin, "bar", "group-admin", "ADMIN");
         final AggregatedHttpResponse response = createCluster(groupAdmin, "bar", "c1", cluster);
         assertThat(response.status()).isEqualTo(HttpStatus.OK);
-        assertThat(response.headers().get("grpc-status")).isEqualTo("0");
         assertThat(getClusterStatus(admin, "bar", "c1")).isEqualTo(HttpStatus.OK);
     }
 
@@ -141,7 +138,6 @@ final class XdsWritePermissionTest {
         return client.prepare()
                      .post("/api/v1/xds/groups")
                      .queryParam("group_id", group)
-                     .content(MediaType.JSON, "{\"name\":\"groups/" + group + "\"}")
                      .execute().aggregate().join();
     }
 
@@ -150,7 +146,13 @@ final class XdsWritePermissionTest {
         return client.prepare()
                      .post("/api/v1/xds/groups/" + group + "/clusters")
                      .queryParam("cluster_id", clusterId)
-                     .content(MediaType.JSON, JSON_MESSAGE_MARSHALLER.writeValueAsString(cluster))
+                     .content(MediaType.parse("application/yaml"), XdsTestUtil.toYaml(cluster))
+                     .execute().aggregate().join();
+    }
+
+    private static AggregatedHttpResponse deleteCluster(WebClient client, String group, String clusterId) {
+        return client.prepare()
+                     .delete("/api/v1/xds/groups/" + group + "/clusters/" + clusterId)
                      .execute().aggregate().join();
     }
 }

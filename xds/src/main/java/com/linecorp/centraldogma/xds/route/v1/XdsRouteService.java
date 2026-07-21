@@ -20,24 +20,30 @@ import static com.linecorp.centraldogma.server.internal.admin.auth.AuthUtil.curr
 import static com.linecorp.centraldogma.xds.internal.ControlPlaneService.ROUTES_DIRECTORY;
 import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.LEGACY_RESOURCE_ID_PATTERN_STRING;
 import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.RESOURCE_ID_PATTERN;
-import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.removePrefix;
 
-import java.util.regex.Matcher;
+import java.io.IOException;
+import java.util.concurrent.CompletableFuture;
 import java.util.regex.Pattern;
 
-import com.google.protobuf.Empty;
+import org.jspecify.annotations.Nullable;
 
+import com.linecorp.armeria.common.HttpResponse;
+import com.linecorp.armeria.common.HttpStatus;
+import com.linecorp.armeria.server.annotation.Consumes;
+import com.linecorp.armeria.server.annotation.Delete;
+import com.linecorp.armeria.server.annotation.Param;
+import com.linecorp.armeria.server.annotation.Post;
+import com.linecorp.armeria.server.annotation.Put;
+import com.linecorp.centraldogma.common.RepositoryRole;
+import com.linecorp.centraldogma.xds.internal.RequiresXdsGroupRole;
 import com.linecorp.centraldogma.xds.internal.XdsResourceManager;
-import com.linecorp.centraldogma.xds.route.v1.XdsRouteServiceGrpc.XdsRouteServiceImplBase;
 
 import io.envoyproxy.envoy.config.route.v3.RouteConfiguration;
-import io.grpc.Status;
-import io.grpc.stub.StreamObserver;
 
 /**
- * Service for managing routes.
+ * Annotated service object for managing routes.
  */
-public final class XdsRouteService extends XdsRouteServiceImplBase {
+public final class XdsRouteService {
 
     private static final Pattern ROUTE_NAME_PATTERN =
             Pattern.compile("^groups/([^/]+)/routes/" + LEGACY_RESOURCE_ID_PATTERN_STRING + '$');
@@ -51,58 +57,91 @@ public final class XdsRouteService extends XdsRouteServiceImplBase {
         this.xdsResourceManager = xdsResourceManager;
     }
 
-    @Override
-    public void createRoute(CreateRouteRequest request, StreamObserver<RouteConfiguration> responseObserver) {
-        final String parent = request.getParent();
-        final String group = removePrefix("groups/", parent);
-        xdsResourceManager.checkWritePermission(group);
-
-        final String routeId = request.getRouteId();
+    /**
+     * POST /xds/groups/{group}/routes
+     *
+     * <p>Creates a new route.
+     */
+    @Post("/xds/groups/{group}/routes")
+    @Consumes("application/yaml")
+    @RequiresXdsGroupRole(RepositoryRole.WRITE)
+    public CompletableFuture<HttpResponse> createRoute(
+            @Param("group") String group,
+            @Param("route_id") String routeId,
+            @Param("summary") @Nullable String summary,
+            String body) {
         if (!RESOURCE_ID_PATTERN.matcher(routeId).matches()) {
-            throw Status.INVALID_ARGUMENT.withDescription("Invalid route_id: " + routeId +
-                                                          " (expected: " + RESOURCE_ID_PATTERN + ')')
-                                         .asRuntimeException();
+            return CompletableFuture.completedFuture(
+                    XdsResourceManager.errorResponse(HttpStatus.BAD_REQUEST,
+                                                     "Invalid route ID: " + routeId));
         }
-
-        final String routeName = parent + ROUTES_DIRECTORY + routeId;
-        // Ignore the specified name in the route and set the name
-        // with the format of "groups/{group}/routes/{route}".
-        // https://github.com/aip-dev/google.aip.dev/blob/master/aip/general/0133.md#user-specified-ids
-        final RouteConfiguration route = request.getRoute().toBuilder().setName(routeName).build();
-        final String createSummary = isNullOrEmpty(request.getSummary()) ?
-                                     "Create route: " + routeName : request.getSummary();
-        xdsResourceManager.push(responseObserver, group, routeName, ROUTES_DIRECTORY + routeId + ".yaml",
-                                createSummary, route, currentAuthor(), true);
-    }
-
-    @Override
-    public void updateRoute(UpdateRouteRequest request, StreamObserver<RouteConfiguration> responseObserver) {
-        final RouteConfiguration route = request.getRoute();
-        final String routeName = route.getName();
-        final String group = checkRouteName(routeName).group(1);
-        xdsResourceManager.checkWritePermission(group);
-        final String updateSummary = isNullOrEmpty(request.getSummary()) ?
-                                     "Update route: " + routeName : request.getSummary();
-        xdsResourceManager.update(responseObserver, group, routeName, updateSummary, route, currentAuthor());
-    }
-
-    private static Matcher checkRouteName(String routeName) {
-        final Matcher matcher = ROUTE_NAME_PATTERN.matcher(routeName);
-        if (!matcher.matches()) {
-            throw Status.INVALID_ARGUMENT.withDescription("Invalid route name: " + routeName +
-                                                          " (expected: " + ROUTE_NAME_PATTERN + ')')
-                                         .asRuntimeException();
+        final String routeName = routeName(group, routeId);
+        try {
+            XdsResourceManager.parseYaml(body, RouteConfiguration.newBuilder());
+        } catch (IOException e) {
+            return CompletableFuture.completedFuture(
+                    XdsResourceManager.errorResponse(HttpStatus.BAD_REQUEST,
+                                                     "Invalid request body: " + e.getMessage()));
         }
-        return matcher;
+        final String createSummary = isNullOrEmpty(summary) ? "Create route: " + routeName : summary;
+        final String bodyToStore = XdsResourceManager.injectYamlField(body, "name", routeName);
+        return xdsResourceManager.push(group, routeName, ROUTES_DIRECTORY + routeId + ".yaml",
+                                       createSummary, currentAuthor(), true, bodyToStore);
     }
 
-    @Override
-    public void deleteRoute(DeleteRouteRequest request, StreamObserver<Empty> responseObserver) {
-        final String routeName = request.getName();
-        final String group = checkRouteName(routeName).group(1);
-        xdsResourceManager.checkWritePermission(group);
-        final String deleteSummary = isNullOrEmpty(request.getSummary()) ?
-                                     "Delete route: " + routeName : request.getSummary();
-        xdsResourceManager.delete(responseObserver, group, routeName, deleteSummary, currentAuthor());
+    /**
+     * PUT /xds/groups/{group}/routes/{route_id}
+     *
+     * <p>Updates an existing route.
+     */
+    @Put("/xds/groups/{group}/routes/{*route_id}")
+    @Consumes("application/yaml")
+    @RequiresXdsGroupRole(RepositoryRole.WRITE)
+    public CompletableFuture<HttpResponse> updateRoute(
+            @Param("group") String group,
+            @Param("route_id") String routeId,
+            @Param("summary") @Nullable String summary,
+            String body) {
+        final String routeName = routeName(group, routeId);
+        if (!ROUTE_NAME_PATTERN.matcher(routeName).matches()) {
+            return CompletableFuture.completedFuture(
+                    XdsResourceManager.errorResponse(HttpStatus.BAD_REQUEST,
+                                                     "Invalid route name: " + routeName));
+        }
+        try {
+            XdsResourceManager.parseYaml(body, RouteConfiguration.newBuilder());
+        } catch (IOException e) {
+            return CompletableFuture.completedFuture(
+                    XdsResourceManager.errorResponse(HttpStatus.BAD_REQUEST,
+                                                     "Invalid request body: " + e.getMessage()));
+        }
+        final String updateSummary = isNullOrEmpty(summary) ? "Update route: " + routeName : summary;
+        final String bodyToStore = XdsResourceManager.injectYamlField(body, "name", routeName);
+        return xdsResourceManager.update(group, routeName, updateSummary, currentAuthor(), bodyToStore);
+    }
+
+    /**
+     * DELETE /xds/groups/{group}/routes/{route_id}
+     *
+     * <p>Removes a route.
+     */
+    @Delete("/xds/groups/{group}/routes/{*route_id}")
+    @RequiresXdsGroupRole(RepositoryRole.WRITE)
+    public CompletableFuture<HttpResponse> deleteRoute(
+            @Param("group") String group,
+            @Param("route_id") String routeId,
+            @Param("summary") @Nullable String summary) {
+        final String routeName = routeName(group, routeId);
+        if (!ROUTE_NAME_PATTERN.matcher(routeName).matches()) {
+            return CompletableFuture.completedFuture(
+                    XdsResourceManager.errorResponse(HttpStatus.BAD_REQUEST,
+                                                     "Invalid route name: " + routeName));
+        }
+        final String deleteSummary = isNullOrEmpty(summary) ? "Delete route: " + routeName : summary;
+        return xdsResourceManager.delete(group, routeName, deleteSummary, currentAuthor());
+    }
+
+    private static String routeName(String group, String routeId) {
+        return "groups/" + group + ROUTES_DIRECTORY + routeId;
     }
 }

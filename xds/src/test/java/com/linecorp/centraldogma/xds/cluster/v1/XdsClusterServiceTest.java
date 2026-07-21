@@ -34,7 +34,6 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 
 import com.google.protobuf.Any;
 import com.google.protobuf.Duration;
-import com.google.protobuf.Empty;
 import com.google.protobuf.InvalidProtocolBufferException;
 
 import com.linecorp.armeria.client.grpc.GrpcClients;
@@ -43,15 +42,14 @@ import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpMethod;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.RequestHeaders;
+import com.linecorp.centraldogma.internal.Yaml;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
-import com.linecorp.centraldogma.xds.cluster.v1.XdsClusterServiceGrpc.XdsClusterServiceBlockingStub;
 
 import io.envoyproxy.controlplane.cache.Resources.V3;
 import io.envoyproxy.envoy.config.cluster.v3.Cluster;
 import io.envoyproxy.envoy.service.cluster.v3.ClusterDiscoveryServiceGrpc.ClusterDiscoveryServiceStub;
 import io.envoyproxy.envoy.service.discovery.v3.DiscoveryRequest;
 import io.envoyproxy.envoy.service.discovery.v3.DiscoveryResponse;
-import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 
 class XdsClusterServiceTest {
@@ -82,25 +80,21 @@ class XdsClusterServiceTest {
         response = createCluster("groups/foo", "foo-cluster.1", cluster, dogma.httpClient());
         assertOk(response);
         final Cluster.Builder clusterBuilder = Cluster.newBuilder();
-        JSON_MESSAGE_MARSHALLER.mergeValue(response.contentUtf8(), clusterBuilder);
+        JSON_MESSAGE_MARSHALLER.mergeValue(Yaml.readTree(response.contentUtf8()).traverse(), clusterBuilder);
         final Cluster actualCluster = clusterBuilder.build();
         final String clusterName = "groups/foo/clusters/foo-cluster.1";
         assertThat(actualCluster).isEqualTo(cluster.toBuilder()
                                                    .setName(clusterName)
-                                                   .setRespectDnsTtl(true)
                                                    .build());
         checkResourceViaDiscoveryRequest(actualCluster, clusterName, true);
 
         // Create the same cluster again.
         response = createCluster("groups/foo", "foo-cluster.1", cluster, dogma.httpClient());
         assertThat(response.status()).isSameAs(HttpStatus.CONFLICT);
-        assertThat(response.headers().get("grpc-status"))
-                .isEqualTo(Integer.toString(Status.ALREADY_EXISTS.getCode().value()));
     }
 
     private static void assertOk(AggregatedHttpResponse response) {
         assertThat(response.status()).isSameAs(HttpStatus.OK);
-        assertThat(response.headers().get("grpc-status")).isEqualTo("0");
     }
 
     private static void checkResourceViaDiscoveryRequest(Cluster actualCluster, String resourceName,
@@ -153,12 +147,11 @@ class XdsClusterServiceTest {
         response = createCluster("groups/foo", "foo-cluster.2", cluster, dogma.httpClient());
         assertOk(response);
         final Cluster.Builder clusterBuilder = Cluster.newBuilder();
-        JSON_MESSAGE_MARSHALLER.mergeValue(response.contentUtf8(), clusterBuilder);
+        JSON_MESSAGE_MARSHALLER.mergeValue(Yaml.readTree(response.contentUtf8()).traverse(), clusterBuilder);
         final Cluster actualCluster = clusterBuilder.build();
         final String clusterName = "groups/foo/clusters/foo-cluster.2";
         assertThat(actualCluster).isEqualTo(cluster.toBuilder()
                                                    .setName(clusterName)
-                                                   .setRespectDnsTtl(true)
                                                    .build());
         checkResourceViaDiscoveryRequest(actualCluster, clusterName, true);
 
@@ -166,12 +159,11 @@ class XdsClusterServiceTest {
                                                .setConnectTimeout(
                                                        Duration.newBuilder().setSeconds(2).build())
                                                .setName(clusterName)
-                                               .setRespectDnsTtl(false)
                                                .build();
         response = updateCluster("groups/foo", "foo-cluster.2", updatingCluster, dogma.httpClient());
         assertOk(response);
         final Cluster.Builder clusterBuilder2 = Cluster.newBuilder();
-        JSON_MESSAGE_MARSHALLER.mergeValue(response.contentUtf8(), clusterBuilder2);
+        JSON_MESSAGE_MARSHALLER.mergeValue(Yaml.readTree(response.contentUtf8()).traverse(), clusterBuilder2);
         final Cluster actualCluster2 = clusterBuilder2.build();
         assertThat(actualCluster2).isEqualTo(updatingCluster.toBuilder().setName(clusterName).build());
         checkResourceViaDiscoveryRequest(actualCluster2, clusterName, true);
@@ -193,7 +185,6 @@ class XdsClusterServiceTest {
 
         final Cluster actualCluster = cluster.toBuilder()
                                              .setName(clusterName)
-                                             .setRespectDnsTtl(true)
                                              .build();
         checkResourceViaDiscoveryRequest(actualCluster, clusterName, true);
 
@@ -201,7 +192,6 @@ class XdsClusterServiceTest {
 
         response = deleteCluster(clusterName);
         assertOk(response);
-        assertThat(response.contentUtf8()).isEqualTo("{}");
         checkResourceViaDiscoveryRequest(actualCluster, clusterName, false);
     }
 
@@ -210,29 +200,5 @@ class XdsClusterServiceTest {
                                                      .set(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous")
                                                      .build();
         return dogma.httpClient().execute(headers).aggregate().join();
-    }
-
-    @Test
-    void viaStub() {
-        final XdsClusterServiceBlockingStub client = GrpcClients.builder(dogma.httpClient().uri()).setHeader(
-                HttpHeaderNames.AUTHORIZATION, "Bearer anonymous").build(XdsClusterServiceBlockingStub.class);
-        final Cluster cluster = cluster("this_cluster_name_will_be_ignored_and_replaced", 1);
-        Cluster response = client.createCluster(CreateClusterRequest.newBuilder().setParent("groups/foo")
-                                                                    .setClusterId("foo-cluster.5.6")
-                                                                    .setCluster(cluster).build());
-        final String clusterName = "groups/foo/clusters/foo-cluster.5.6";
-        assertThat(response).isEqualTo(cluster.toBuilder()
-                                              .setName(clusterName)
-                                              .setRespectDnsTtl(true)
-                                              .build());
-
-        final Cluster updatingCluster = cluster.toBuilder().setConnectTimeout(
-                Duration.newBuilder().setSeconds(2).build()).setName(clusterName).build();
-        response = client.updateCluster(UpdateClusterRequest.newBuilder().setCluster(updatingCluster).build());
-        assertThat(response).isEqualTo(updatingCluster);
-
-        // No exception is thrown.
-        final Empty ignored = client.deleteCluster(
-                DeleteClusterRequest.newBuilder().setName(clusterName).build());
     }
 }

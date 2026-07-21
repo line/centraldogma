@@ -15,18 +15,22 @@
  */
 package com.linecorp.centraldogma.xds.group.v1;
 
-import static com.linecorp.centraldogma.server.internal.admin.auth.AuthUtil.currentAuthor;
+import static com.linecorp.centraldogma.internal.Util.PROJECT_AND_REPO_NAME_PATTERN;
 import static com.linecorp.centraldogma.server.internal.admin.auth.AuthUtil.currentUser;
 import static com.linecorp.centraldogma.server.internal.admin.auth.AuthUtil.getAuthor;
 import static com.linecorp.centraldogma.server.internal.api.RepositoryServiceUtil.createRepository;
 import static com.linecorp.centraldogma.server.internal.api.RepositoryServiceUtil.removeRepository;
 import static com.linecorp.centraldogma.server.internal.storage.InternalProjectConstants.INTERNAL_PROJECT_XDS;
-import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.checkGroupId;
-import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.removePrefix;
+import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.errorResponse;
 
-import com.google.protobuf.Empty;
+import java.util.concurrent.CompletableFuture;
 
+import com.linecorp.armeria.common.HttpResponse;
+import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.util.Exceptions;
+import com.linecorp.armeria.server.annotation.Delete;
+import com.linecorp.armeria.server.annotation.Param;
+import com.linecorp.armeria.server.annotation.Post;
 import com.linecorp.centraldogma.common.RepositoryExistsException;
 import com.linecorp.centraldogma.common.RepositoryRole;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
@@ -34,15 +38,11 @@ import com.linecorp.centraldogma.server.metadata.MetadataService;
 import com.linecorp.centraldogma.server.metadata.ProjectMetadata;
 import com.linecorp.centraldogma.server.metadata.User;
 import com.linecorp.centraldogma.server.storage.project.Project;
-import com.linecorp.centraldogma.xds.group.v1.XdsGroupServiceGrpc.XdsGroupServiceImplBase;
-
-import io.grpc.Status;
-import io.grpc.stub.StreamObserver;
 
 /**
- * An {@link XdsGroupServiceImplBase} implementation that provides methods to manage XDS groups.
+ * Annotated service object for managing xDS groups.
  */
-public final class XdsGroupService extends XdsGroupServiceImplBase {
+public final class XdsGroupService {
 
     private final Project xdsProject;
     private final CommandExecutor commandExecutor;
@@ -57,76 +57,80 @@ public final class XdsGroupService extends XdsGroupServiceImplBase {
         this.mds = mds;
     }
 
-    @Override
-    public void createGroup(CreateGroupRequest request,
-                            StreamObserver<Group> responseObserver) {
-        final String groupId = request.getGroupId();
-        checkGroupId(groupId);
-        if (xdsProject.repos().exists(groupId)) {
-            throw alreadyExistsException(groupId);
+    /**
+     * POST /xds/groups
+     *
+     * <p>Creates a new xDS group.
+     */
+    @Post("/xds/groups")
+    public CompletableFuture<HttpResponse> createGroup(@Param("group_id") String groupId) {
+        if (!PROJECT_AND_REPO_NAME_PATTERN.matcher(groupId).matches()) {
+            return CompletableFuture.completedFuture(
+                    errorResponse(HttpStatus.BAD_REQUEST, "Invalid group ID: " + groupId));
         }
-        createRepository(commandExecutor, mds, currentAuthor(), INTERNAL_PROJECT_XDS, groupId, false, null)
+        if (Project.isInternalRepo(groupId)) {
+            return CompletableFuture.completedFuture(
+                    errorResponse(HttpStatus.FORBIDDEN, "Cannot create internal repository: " + groupId));
+        }
+        if (xdsProject.repos().exists(groupId)) {
+            return CompletableFuture.completedFuture(
+                    errorResponse(HttpStatus.CONFLICT, "Group already exists: " + groupId));
+        }
+        final User createUser = currentUser();
+        if (createUser == null) {
+            return CompletableFuture.completedFuture(
+                    errorResponse(HttpStatus.UNAUTHORIZED, "Authentication required"));
+        }
+        return createRepository(commandExecutor, mds, getAuthor(createUser), INTERNAL_PROJECT_XDS, groupId,
+                                false, null)
                 .handle((unused, cause) -> {
                     if (cause != null) {
                         final Throwable peeled = Exceptions.peel(cause);
                         if (peeled instanceof RepositoryExistsException) {
-                            responseObserver.onError(alreadyExistsException(groupId));
-                        } else {
-                            responseObserver.onError(
-                                    Status.INTERNAL.withCause(peeled).asRuntimeException());
+                            return errorResponse(HttpStatus.CONFLICT,
+                                                 "Group already exists: " + groupId);
                         }
-                        return null;
+                        return errorResponse(HttpStatus.INTERNAL_SERVER_ERROR, peeled);
                     }
-                    responseObserver.onNext(Group.newBuilder().setName("groups/" + groupId).build());
-                    responseObserver.onCompleted();
-                    return null;
+                    return HttpResponse.of(HttpStatus.OK);
                 });
     }
 
-    private static RuntimeException alreadyExistsException(String groupName) {
-        return Status.ALREADY_EXISTS.withDescription("Group already exists: " + groupName)
-                                    .asRuntimeException();
-    }
-
-    @Override
-    public void deleteGroup(DeleteGroupRequest request, StreamObserver<Empty> responseObserver) {
-        final String groupName = request.getName();
-        final String name = removePrefix("groups/", groupName);
-        if (!xdsProject.repos().exists(name)) {
-            throw Status.NOT_FOUND.withDescription("Group does not exist: " + groupName)
-                                  .asRuntimeException();
+    /**
+     * DELETE /xds/groups/{group_name}
+     *
+     * <p>Removes an xDS group.
+     */
+    @Delete("/xds/groups/{group_name}")
+    public CompletableFuture<HttpResponse> deleteGroup(@Param("group_name") String groupName) {
+        if (!xdsProject.repos().exists(groupName)) {
+            return CompletableFuture.completedFuture(
+                    errorResponse(HttpStatus.NOT_FOUND, "Group not found: " + groupName));
         }
-        if (Project.isInternalRepo(name)) {
-            throw Status.PERMISSION_DENIED.withDescription("Now allowed to delete " + groupName)
-                                          .asRuntimeException();
+        if (Project.isInternalRepo(groupName)) {
+            return CompletableFuture.completedFuture(
+                    errorResponse(HttpStatus.FORBIDDEN, "Cannot delete internal repository: " + groupName));
         }
-
         final User user = currentUser();
         if (user == null) {
-            responseObserver.onError(Status.UNAUTHENTICATED.withDescription(
-                    "You must be authenticated to delete " + groupName).asRuntimeException());
-            return;
+            return CompletableFuture.completedFuture(
+                    errorResponse(HttpStatus.UNAUTHORIZED, "Authentication required"));
         }
         final ProjectMetadata metadata = xdsProject.metadata();
-        final RepositoryRole role =
-                metadata != null ? MetadataService.findRepositoryRole(metadata, name, user) : null;
+        // @xds is not the internal dogma project, so metadata is always initialized — never null.
+        assert metadata != null;
+        final RepositoryRole role = MetadataService.findRepositoryRole(metadata, groupName, user);
         if (role != RepositoryRole.ADMIN) {
-            responseObserver.onError(Status.PERMISSION_DENIED.withDescription(
-                    "You must have the ADMIN repository role to delete " + groupName)
-                                                             .asRuntimeException());
-            return;
+            return CompletableFuture.completedFuture(
+                    errorResponse(HttpStatus.FORBIDDEN, "No admin permission for group: " + groupName));
         }
-        removeRepository(commandExecutor, mds, getAuthor(user), INTERNAL_PROJECT_XDS, name)
-                .handle((unused, cause1) -> {
-                    if (cause1 != null) {
-                        responseObserver.onError(
-                                Status.INTERNAL.withDescription("Failed to delete " + groupName)
-                                               .withCause(cause1).asRuntimeException());
-                        return null;
+        return removeRepository(commandExecutor, mds, getAuthor(user), INTERNAL_PROJECT_XDS, groupName)
+                .handle((unused, cause) -> {
+                    if (cause != null) {
+                        return errorResponse(HttpStatus.INTERNAL_SERVER_ERROR,
+                                             Exceptions.peel(cause));
                     }
-                    responseObserver.onNext(Empty.getDefaultInstance());
-                    responseObserver.onCompleted();
-                    return null;
+                    return HttpResponse.of(HttpStatus.OK);
                 });
     }
 }

@@ -43,6 +43,8 @@ import com.linecorp.armeria.common.RequestHeaders;
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.internal.Yaml;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 import com.linecorp.centraldogma.xds.internal.XdsResourceManager;
@@ -147,7 +149,6 @@ class XdsKubernetesNodeIpExtractorTest {
 
         final AggregatedHttpResponse response = createAggregator(aggregator, aggregatorId);
         assertThat(response.status()).isSameAs(HttpStatus.OK);
-        assertThat(response.headers().get("grpc-status")).isEqualTo("0");
 
         final Repository fooGroup = dogma.projectManager().get(INTERNAL_PROJECT_XDS)
                                          .repos().get("foo");
@@ -223,7 +224,6 @@ class XdsKubernetesNodeIpExtractorTest {
 
         final AggregatedHttpResponse response = createAggregator(aggregator, aggregatorId);
         assertThat(response.status()).isSameAs(HttpStatus.OK);
-        assertThat(response.headers().get("grpc-status")).isEqualTo("0");
 
         final Repository fooGroup = dogma.projectManager().get(INTERNAL_PROJECT_XDS)
                                          .repos().get("foo");
@@ -315,11 +315,12 @@ class XdsKubernetesNodeIpExtractorTest {
                 RequestHeaders.builder(HttpMethod.POST,
                                        "/api/v1/xds/groups/foo/k8s/endpointAggregators?" +
                                        "aggregator_id=" + aggregatorId)
-                              .contentType(MediaType.JSON_UTF_8)
+                              .contentType(MediaType.parse("application/yaml"))
                               .set(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous")
                               .build();
-        return dogma.httpClient().blocking().execute(
-                headers, XdsResourceManager.JSON_MESSAGE_MARSHALLER.writeValueAsString(aggregator));
+        final String yaml = Yaml.writeValueAsString(
+                Jackson.readTree(XdsResourceManager.JSON_MESSAGE_MARSHALLER.writeValueAsString(aggregator)));
+        return dogma.httpClient().blocking().execute(headers, yaml);
     }
 
     private static Node newNodeWithLabel(String internalIp, String labelKey, String labelValue) {

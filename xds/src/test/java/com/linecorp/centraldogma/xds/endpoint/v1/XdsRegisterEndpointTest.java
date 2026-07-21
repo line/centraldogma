@@ -45,6 +45,7 @@ import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.internal.Yaml;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
@@ -100,7 +101,9 @@ public class XdsRegisterEndpointTest {
                                           LocalityLbEndpoint.newBuilder().setLocality(locality1)
                                                             .setLbEndpoint(endpoint("127.0.0.1", 8080))
                                                             .build(), false);
-        assertOk(registerFuture1.join());
+        final AggregatedHttpResponse registerResponse1 = registerFuture1.join();
+        assertOk(registerResponse1);
+        assertThat(registerResponse1.headers().contentType()).hasToString("application/yaml");
         assertOk(registerFuture2.join());
         assertOk(deregister.join());
         // localityLbEndpoint1 and localityLbEndpoint2 are registered together so the major version should
@@ -192,7 +195,6 @@ public class XdsRegisterEndpointTest {
         // Deregister the endpoint.
         response = registerOrDeregister(endpointName, localityLbEndpoint4, false);
         assertOk(response);
-        assertThat(response.contentUtf8()).isEqualTo("{}");
         endpoint = endpoint.toBuilder()
                            .removeEndpoints(2)
                            .build();
@@ -204,7 +206,6 @@ public class XdsRegisterEndpointTest {
 
         response = registerOrDeregister(endpointName, localityLbEndpoint3, false);
         assertOk(response);
-        assertThat(response.contentUtf8()).isEqualTo("{}");
         endpoint = endpoint.toBuilder()
                            .removeEndpoints(1)
                            .build();
@@ -228,9 +229,6 @@ public class XdsRegisterEndpointTest {
         assertOk(deregisterFuture2.join());
 
         assertThat(fooRepository.normalizeNow(Revision.HEAD).major()).isEqualTo(prevMajor + 1);
-
-        assertThat(deregisterFuture1.join().contentUtf8()).isEqualTo("{}");
-        assertThat(deregisterFuture2.join().contentUtf8()).isEqualTo("{}");
         endpoint = endpoint.toBuilder()
                            .removeEndpoints(0)
                            .build();
@@ -250,10 +248,10 @@ public class XdsRegisterEndpointTest {
                                        (register ? ":registerLocalityLbEndpoint"
                                                  : ":deregisterLocalityLbEndpoint"))
                               .set(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous")
-                              .contentType(MediaType.JSON_UTF_8).build();
-        return dogma.httpClient().execute(headers,
-                                          JSON_MESSAGE_MARSHALLER.writeValueAsString(localityLbEndpoint))
-                    .aggregate();
+                              .contentType(MediaType.parse("application/yaml")).build();
+        final String yaml = Yaml.writeValueAsString(
+                Jackson.readTree(JSON_MESSAGE_MARSHALLER.writeValueAsString(localityLbEndpoint)));
+        return dogma.httpClient().execute(headers, yaml).aggregate();
     }
 
     @Test

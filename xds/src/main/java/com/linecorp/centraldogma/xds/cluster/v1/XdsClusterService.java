@@ -20,24 +20,30 @@ import static com.linecorp.centraldogma.server.internal.admin.auth.AuthUtil.curr
 import static com.linecorp.centraldogma.xds.internal.ControlPlaneService.CLUSTERS_DIRECTORY;
 import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.LEGACY_RESOURCE_ID_PATTERN_STRING;
 import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.RESOURCE_ID_PATTERN;
-import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.removePrefix;
 
-import java.util.regex.Matcher;
+import java.io.IOException;
+import java.util.concurrent.CompletableFuture;
 import java.util.regex.Pattern;
 
-import com.google.protobuf.Empty;
+import org.jspecify.annotations.Nullable;
 
-import com.linecorp.centraldogma.xds.cluster.v1.XdsClusterServiceGrpc.XdsClusterServiceImplBase;
+import com.linecorp.armeria.common.HttpResponse;
+import com.linecorp.armeria.common.HttpStatus;
+import com.linecorp.armeria.server.annotation.Consumes;
+import com.linecorp.armeria.server.annotation.Delete;
+import com.linecorp.armeria.server.annotation.Param;
+import com.linecorp.armeria.server.annotation.Post;
+import com.linecorp.armeria.server.annotation.Put;
+import com.linecorp.centraldogma.common.RepositoryRole;
+import com.linecorp.centraldogma.xds.internal.RequiresXdsGroupRole;
 import com.linecorp.centraldogma.xds.internal.XdsResourceManager;
 
 import io.envoyproxy.envoy.config.cluster.v3.Cluster;
-import io.grpc.Status;
-import io.grpc.stub.StreamObserver;
 
 /**
- * Service for managing clusters.
+ * Annotated service object for managing clusters.
  */
-public final class XdsClusterService extends XdsClusterServiceImplBase {
+public final class XdsClusterService {
 
     private static final Pattern CLUSTER_NAME_PATTERN =
             Pattern.compile("^groups/([^/]+)/clusters/" + LEGACY_RESOURCE_ID_PATTERN_STRING + '$');
@@ -51,69 +57,91 @@ public final class XdsClusterService extends XdsClusterServiceImplBase {
         this.xdsResourceManager = xdsResourceManager;
     }
 
-    @Override
-    public void createCluster(CreateClusterRequest request, StreamObserver<Cluster> responseObserver) {
-        final String parent = request.getParent();
-        final String group = removePrefix("groups/", parent);
-        xdsResourceManager.checkWritePermission(group);
-
-        final String clusterId = request.getClusterId();
+    /**
+     * POST /xds/groups/{group}/clusters
+     *
+     * <p>Creates a new cluster.
+     */
+    @Post("/xds/groups/{group}/clusters")
+    @Consumes("application/yaml")
+    @RequiresXdsGroupRole(RepositoryRole.WRITE)
+    public CompletableFuture<HttpResponse> createCluster(
+            @Param("group") String group,
+            @Param("cluster_id") String clusterId,
+            @Param("summary") @Nullable String summary,
+            String body) {
         if (!RESOURCE_ID_PATTERN.matcher(clusterId).matches()) {
-            throw Status.INVALID_ARGUMENT.withDescription("Invalid cluster_id: " + clusterId +
-                                                          " (expected: " + RESOURCE_ID_PATTERN + ')')
-                                         .asRuntimeException();
+            return CompletableFuture.completedFuture(
+                    XdsResourceManager.errorResponse(HttpStatus.BAD_REQUEST,
+                                                     "Invalid cluster ID: " + clusterId));
         }
-
-        final String clusterName = parent + CLUSTERS_DIRECTORY + clusterId;
-        final Cluster cluster
-                = request.getCluster()
-                         .toBuilder()
-                         // Ignore the specified name in the cluster and set the name with the format of
-                         // "groups/{group}/clusters/{cluster}".
-                         // https://github.com/aip-dev/google.aip.dev/blob/master/aip/general/0133.md#user-specified-ids
-                         .setName(clusterName)
-                         // Respect the DNS TTL would be more efficient in terms of DNS resolution.
-                         // https://github.com/envoyproxy/envoy/issues/6876
-                         // `respect_dns_ttl` is a `bool` field so it is not possible to check whether a value
-                         // has not been set for the field. Until we create our own proto file, the value only
-                         // can be set to false via the update API.
-                         .setRespectDnsTtl(true)
-                         .build();
-        final String createSummary = isNullOrEmpty(request.getSummary()) ?
-                                     "Create cluster: " + clusterName : request.getSummary();
-        xdsResourceManager.push(responseObserver, group, clusterName, CLUSTERS_DIRECTORY + clusterId + ".yaml",
-                                createSummary, cluster, currentAuthor(), true);
-    }
-
-    @Override
-    public void updateCluster(UpdateClusterRequest request, StreamObserver<Cluster> responseObserver) {
-        final Cluster cluster = request.getCluster();
-        final String clusterName = cluster.getName();
-        final String group = checkClusterName(clusterName).group(1);
-        xdsResourceManager.checkWritePermission(group);
-        final String updateSummary = isNullOrEmpty(request.getSummary()) ?
-                                     "Update cluster: " + clusterName : request.getSummary();
-        xdsResourceManager.update(responseObserver, group, clusterName,
-                                  updateSummary, cluster, currentAuthor());
-    }
-
-    @Override
-    public void deleteCluster(DeleteClusterRequest request, StreamObserver<Empty> responseObserver) {
-        final String clusterName = request.getName();
-        final String group = checkClusterName(clusterName).group(1);
-        xdsResourceManager.checkWritePermission(group);
-        final String deleteSummary = isNullOrEmpty(request.getSummary()) ?
-                                     "Delete cluster: " + clusterName : request.getSummary();
-        xdsResourceManager.delete(responseObserver, group, clusterName, deleteSummary, currentAuthor());
-    }
-
-    private static Matcher checkClusterName(String clusterName) {
-        final Matcher matcher = CLUSTER_NAME_PATTERN.matcher(clusterName);
-        if (!matcher.matches()) {
-            throw Status.INVALID_ARGUMENT.withDescription("Invalid cluster name: " + clusterName +
-                                                          " (expected: " + CLUSTER_NAME_PATTERN + ')')
-                                         .asRuntimeException();
+        final String clusterName = clusterName(group, clusterId);
+        try {
+            XdsResourceManager.parseYaml(body, Cluster.newBuilder());
+        } catch (IOException e) {
+            return CompletableFuture.completedFuture(
+                    XdsResourceManager.errorResponse(HttpStatus.BAD_REQUEST,
+                                                     "Invalid request body: " + e.getMessage()));
         }
-        return matcher;
+        final String createSummary = isNullOrEmpty(summary) ? "Create cluster: " + clusterName : summary;
+        final String bodyToStore = XdsResourceManager.injectYamlField(body, "name", clusterName);
+        return xdsResourceManager.push(group, clusterName, CLUSTERS_DIRECTORY + clusterId + ".yaml",
+                                       createSummary, currentAuthor(), true, bodyToStore);
+    }
+
+    /**
+     * PUT /xds/groups/{group}/clusters/{cluster_id}
+     *
+     * <p>Updates an existing cluster.
+     */
+    @Put("/xds/groups/{group}/clusters/{*cluster_id}")
+    @Consumes("application/yaml")
+    @RequiresXdsGroupRole(RepositoryRole.WRITE)
+    public CompletableFuture<HttpResponse> updateCluster(
+            @Param("group") String group,
+            @Param("cluster_id") String clusterId,
+            @Param("summary") @Nullable String summary,
+            String body) {
+        final String clusterName = clusterName(group, clusterId);
+        if (!CLUSTER_NAME_PATTERN.matcher(clusterName).matches()) {
+            return CompletableFuture.completedFuture(
+                    XdsResourceManager.errorResponse(HttpStatus.BAD_REQUEST,
+                                                     "Invalid cluster name: " + clusterName));
+        }
+        try {
+            XdsResourceManager.parseYaml(body, Cluster.newBuilder());
+        } catch (IOException e) {
+            return CompletableFuture.completedFuture(
+                    XdsResourceManager.errorResponse(HttpStatus.BAD_REQUEST,
+                                                     "Invalid request body: " + e.getMessage()));
+        }
+        final String updateSummary = isNullOrEmpty(summary) ? "Update cluster: " + clusterName : summary;
+        final String bodyToStore = XdsResourceManager.injectYamlField(body, "name", clusterName);
+        return xdsResourceManager.update(group, clusterName, updateSummary, currentAuthor(), bodyToStore);
+    }
+
+    /**
+     * DELETE /xds/groups/{group}/clusters/{cluster_id}
+     *
+     * <p>Removes a cluster.
+     */
+    @Delete("/xds/groups/{group}/clusters/{*cluster_id}")
+    @RequiresXdsGroupRole(RepositoryRole.WRITE)
+    public CompletableFuture<HttpResponse> deleteCluster(
+            @Param("group") String group,
+            @Param("cluster_id") String clusterId,
+            @Param("summary") @Nullable String summary) {
+        final String clusterName = clusterName(group, clusterId);
+        if (!CLUSTER_NAME_PATTERN.matcher(clusterName).matches()) {
+            return CompletableFuture.completedFuture(
+                    XdsResourceManager.errorResponse(HttpStatus.BAD_REQUEST,
+                                                     "Invalid cluster name: " + clusterName));
+        }
+        final String deleteSummary = isNullOrEmpty(summary) ? "Delete cluster: " + clusterName : summary;
+        return xdsResourceManager.delete(group, clusterName, deleteSummary, currentAuthor());
+    }
+
+    private static String clusterName(String group, String clusterId) {
+        return "groups/" + group + CLUSTERS_DIRECTORY + clusterId;
     }
 }

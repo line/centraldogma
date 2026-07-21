@@ -125,7 +125,6 @@ export const XDS_RESOURCE_TEMPLATES: Record<XdsResourceType, string> = {
           },
         },
       ],
-      respectDnsTtl: true,
     },
     null,
     2,

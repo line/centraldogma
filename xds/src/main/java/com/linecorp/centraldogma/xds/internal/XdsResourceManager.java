@@ -15,7 +15,6 @@
  */
 package com.linecorp.centraldogma.xds.internal;
 
-import static com.linecorp.centraldogma.internal.Util.PROJECT_AND_REPO_NAME_PATTERN;
 import static com.linecorp.centraldogma.server.internal.storage.InternalProjectConstants.INTERNAL_PROJECT_XDS;
 import static com.linecorp.centraldogma.server.storage.repository.FindOptions.FIND_ONE_WITHOUT_CONTENT;
 import static java.util.Objects.requireNonNull;
@@ -23,53 +22,46 @@ import static java.util.Objects.requireNonNull;
 import java.io.IOException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
-import java.util.function.Consumer;
+import java.util.concurrent.CompletableFuture;
+import java.util.function.Function;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.curioswitch.common.protobuf.json.MessageMarshaller;
 import org.jspecify.annotations.Nullable;
 import org.reflections.Reflections;
 import org.reflections.scanners.SubTypesScanner;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.ImmutableList;
-import com.google.protobuf.Empty;
 import com.google.protobuf.GeneratedMessageV3;
 import com.google.protobuf.Message;
 
+import com.linecorp.armeria.common.HttpResponse;
+import com.linecorp.armeria.common.HttpStatus;
+import com.linecorp.armeria.common.MediaType;
 import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
-import com.linecorp.centraldogma.common.ChangeConflictException;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.RedundantChangeException;
-import com.linecorp.centraldogma.common.RepositoryRole;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.internal.Yaml;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
-import com.linecorp.centraldogma.server.internal.admin.auth.AuthUtil;
-import com.linecorp.centraldogma.server.metadata.MetadataService;
-import com.linecorp.centraldogma.server.metadata.ProjectMetadata;
-import com.linecorp.centraldogma.server.metadata.User;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
-import com.linecorp.centraldogma.xds.endpoint.v1.DeregisterLocalityLbEndpointRequest;
-import com.linecorp.centraldogma.xds.endpoint.v1.RegisterLocalityLbEndpointRequest;
-import com.linecorp.centraldogma.xds.group.v1.CreateGroupRequest;
-import com.linecorp.centraldogma.xds.k8s.v1.CreateKubernetesEndpointAggregatorRequest;
-import com.linecorp.centraldogma.xds.k8s.v1.DeleteKubernetesEndpointAggregatorRequest;
-import com.linecorp.centraldogma.xds.k8s.v1.UpdateKubernetesEndpointAggregatorRequest;
+import com.linecorp.centraldogma.xds.endpoint.v1.LocalityLbEndpoint;
+import com.linecorp.centraldogma.xds.k8s.v1.KubernetesEndpointAggregator;
 
-import io.envoyproxy.envoy.config.cluster.v3.Cluster;
-import io.envoyproxy.envoy.config.endpoint.v3.ClusterLoadAssignment;
-import io.envoyproxy.envoy.config.listener.v3.Listener;
-import io.envoyproxy.envoy.config.route.v3.RouteConfiguration;
 import io.envoyproxy.envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager;
-import io.grpc.Status;
-import io.grpc.stub.StreamObserver;
 
 public final class XdsResourceManager {
+
+    private static final Logger logger = LoggerFactory.getLogger(XdsResourceManager.class);
 
     public static final String RESOURCE_ID_PATTERN_STRING = "[a-z](?:[a-z0-9_.-]*[a-z0-9])?";
     public static final Pattern RESOURCE_ID_PATTERN = Pattern.compile('^' + RESOURCE_ID_PATTERN_STRING + '$');
@@ -80,34 +72,43 @@ public final class XdsResourceManager {
     public static final Pattern LEGACY_RESOURCE_ID_PATTERN =
             Pattern.compile('^' + LEGACY_RESOURCE_ID_PATTERN_STRING + '$');
 
+    public static final MediaType MEDIA_TYPE_YAML = MediaType.parse("application/yaml");
+
     public static final MessageMarshaller JSON_MESSAGE_MARSHALLER;
 
     static {
         final MessageMarshaller.Builder builder =
                 MessageMarshaller.builder().omittingInsignificantWhitespace(true);
-        builder.register(CreateGroupRequest.getDefaultInstance())
-               .register(Listener.getDefaultInstance())
-               .register(Cluster.getDefaultInstance())
-               .register(ClusterLoadAssignment.getDefaultInstance())
-               .register(RegisterLocalityLbEndpointRequest.getDefaultInstance())
-               .register(DeregisterLocalityLbEndpointRequest.getDefaultInstance())
-               .register(RouteConfiguration.getDefaultInstance())
-               .register(CreateKubernetesEndpointAggregatorRequest.getDefaultInstance())
-               .register(UpdateKubernetesEndpointAggregatorRequest.getDefaultInstance())
-               .register(DeleteKubernetesEndpointAggregatorRequest.getDefaultInstance());
+        // These Central Dogma-specific types are not in the io.envoyproxy.envoy package, so they
+        // must be registered explicitly; envoyExtension() does not pick them up.
+        builder.register(KubernetesEndpointAggregator.getDefaultInstance())
+               .register(LocalityLbEndpoint.getDefaultInstance());
         envoyExtension(builder);
         JSON_MESSAGE_MARSHALLER = builder.build();
     }
 
     private static void envoyExtension(MessageMarshaller.Builder builder) {
         final Reflections reflections = new Reflections(
-                "io.envoyproxy.envoy.extensions", HttpConnectionManager.class.getClassLoader(),
+                "io.envoyproxy.envoy", HttpConnectionManager.class.getClassLoader(),
                 new SubTypesScanner(true));
         reflections.getSubTypesOf(GeneratedMessageV3.class)
                    .stream()
-                   .filter(c -> !c.getName().contains("$")) // exclude subclasses
+                   .filter(c -> !c.getName().contains("$")) // exclude inner classes
                    .filter(XdsResourceManager::hasGetDefaultInstanceMethod)
-                   .forEach(builder::register);
+                   .forEach(c -> {
+                       // register() does not throw; build() does. A test build per class is needed
+                       // to detect unsupported types before adding them to the real builder.
+                       try {
+                           MessageMarshaller.builder()
+                                            .omittingInsignificantWhitespace(true)
+                                            .register(c)
+                                            .build();
+                           builder.register(c);
+                       } catch (Exception e) {
+                           logger.debug("Skipping proto type not supported by MessageMarshaller: {}",
+                                        c.getName());
+                       }
+                   });
     }
 
     private static boolean hasGetDefaultInstanceMethod(Class<?> clazz) {
@@ -116,22 +117,6 @@ public final class XdsResourceManager {
             return method.getParameterCount() == 0 && Modifier.isStatic(method.getModifiers());
         } catch (NoSuchMethodException ignored) {
             return false;
-        }
-    }
-
-    public static String removePrefix(String prefix, String name) {
-        if (!name.startsWith(prefix)) {
-            throw Status.INVALID_ARGUMENT.withDescription(name + " does not start with prefix: " + prefix)
-                                         .asRuntimeException();
-        }
-        return name.substring(prefix.length());
-    }
-
-    public static void checkGroupId(String groupId) {
-        if (!PROJECT_AND_REPO_NAME_PATTERN.matcher(groupId).matches()) {
-            throw Status.INVALID_ARGUMENT.withDescription("Invalid group id: " + groupId +
-                                                          " (expected: " + PROJECT_AND_REPO_NAME_PATTERN + ')')
-                                         .asRuntimeException();
         }
     }
 
@@ -154,192 +139,184 @@ public final class XdsResourceManager {
         return commandExecutor;
     }
 
-    public void checkWritePermission(String group) {
-        checkGroupId(group);
-        if (!xdsProject.repos().exists(group)) {
-            throw Status.NOT_FOUND.withDescription("Group not found: " + group).asRuntimeException();
-        }
-        checkWritePermission0(group);
-    }
-
-    private void checkWritePermission0(String group) {
-        final User user = AuthUtil.currentUserOrNull();
-        if (user == null) {
-            throw Status.UNAUTHENTICATED.withDescription(
-                    "You must be authenticated to modify resources in the group: " + group)
-                                        .asRuntimeException();
-        }
-        if (user.isSystemAdmin()) {
-            return;
-        }
-        final ProjectMetadata metadata = xdsProject.metadata();
-        if (metadata != null) {
-            final RepositoryRole role = MetadataService.findRepositoryRole(metadata, group, user);
-            if (role != null && role.has(RepositoryRole.WRITE)) {
-                return;
-            }
-        }
-        throw Status.PERMISSION_DENIED.withDescription(
-                "You must have the WRITE repository role to modify resources in the group: " + group)
-                                      .asRuntimeException();
-    }
-
-    public <T extends Message> void push(
-            StreamObserver<T> responseObserver, String group, String resourceName, String fileName,
-            String summary, T resource, Author author, boolean create) {
-        if (create) {
-            // Before attempting to create, verify that neither the requested file nor its alternative
-            // extension (.json ↔ .yaml) already exists, so a migrated .yaml resource is not silently
-            // shadowed by a newly created .json file.
-            final Repository repository = xdsProject.repos().get(group);
-            final String altFileName = alternativeFileName(fileName);
-            repository.find(Revision.HEAD, fileName + ',' + altFileName, FIND_ONE_WITHOUT_CONTENT)
-                      .handle((entries, cause) -> {
-                if (cause != null) {
-                    responseObserver.onError(cause);
-                    return null;
-                }
-                if (!entries.isEmpty()) {
-                    responseObserver.onError(
-                            Status.ALREADY_EXISTS
-                                    .withDescription("Resource already exists: " + resourceName)
-                                    .asRuntimeException());
-                    return null;
-                }
-                doPush(responseObserver, group, resourceName, fileName, summary, resource, author, true, null);
-                return null;
-            });
-            return;
-        }
-        doPush(responseObserver, group, resourceName, fileName, summary, resource, author, false, null);
-    }
-
-    private <T extends Message> void doPush(
-            StreamObserver<T> responseObserver, String group, String resourceName, String fileName,
-            String summary, T resource, Author author, boolean create,
-            @Nullable String legacyFileToRemove) {
-        final Change<JsonNode> change;
-        try {
-            final String jsonText = JSON_MESSAGE_MARSHALLER.writeValueAsString(resource);
-            final JsonNode jsonNode = Jackson.readTree(jsonText);
-            if (create) {
-                change = Change.ofJsonPatch(fileName, null, jsonNode);
-            } else if (fileName.endsWith(".yaml")) {
-                change = Change.ofYamlUpsert(fileName, jsonNode);
-            } else {
-                change = Change.ofJsonUpsert(fileName, jsonNode);
-            }
-        } catch (IOException e) {
-            // This could happen when the message has a type that isn't registered to JSON_MESSAGE_MARSHALLER.
-            responseObserver.onError(Status.INTERNAL.withCause(new IllegalStateException(
-                    "failed to convert message to JSON: " + resource, e)).asRuntimeException());
-            return;
-        }
-        final ImmutableList<Change<?>> changes =
-                legacyFileToRemove != null ? ImmutableList.of(Change.ofRemoval(legacyFileToRemove), change)
-                                           : ImmutableList.of(change);
-        commandExecutor.execute(Command.push(author, INTERNAL_PROJECT_XDS, group, Revision.HEAD,
-                                             summary, "", Markup.PLAINTEXT, changes))
-                       .handle((unused, cause) -> {
-                           if (cause != null) {
-                               final Throwable peeled = Exceptions.peel(cause);
-                               if (create && peeled instanceof ChangeConflictException) {
-                                   responseObserver.onError(
-                                           Status.ALREADY_EXISTS
-                                                   .withCause(peeled)
-                                                   .withDescription("Resource already exists: " + resourceName)
-                                                   .asRuntimeException());
-                                   return null;
-                               }
-                               if (!create && peeled instanceof RedundantChangeException) {
-                                   // Updating with the same resource. Return the resource as is.
-                                   responseObserver.onNext(resource);
-                                   responseObserver.onCompleted();
-                                   return null;
-                               }
-                               responseObserver.onError(cause);
-                               return null;
-                           }
-                           responseObserver.onNext(resource);
-                           responseObserver.onCompleted();
-                           return null;
-                       });
-    }
-
     public static String fileName(String group, String resourceName) {
         // Remove groups/{group}
         return resourceName.substring(7 + group.length()) + ".yaml";
     }
 
-    public <T extends Message> void update(StreamObserver<T> responseObserver, String group,
-                                           String resourceName, String summary, T resource, Author author) {
-        update(responseObserver, group, resourceName, fileName(group, resourceName), summary, resource, author);
+    public static HttpResponse errorResponse(HttpStatus status, String message) {
+        return HttpResponse.of(status, MediaType.PLAIN_TEXT_UTF_8, message);
     }
 
-    public <T extends Message> void update(StreamObserver<T> responseObserver, String group,
-                                           String resourceName, String fileName, String summary, T resource,
-                                           Author author) {
-        updateOrDelete(responseObserver, group, resourceName, fileName, resolvedFileName -> {
+    public static HttpResponse errorResponse(HttpStatus status, Throwable cause) {
+        final String message = cause.getMessage();
+        return errorResponse(status, message != null ? message : cause.toString());
+    }
+
+    public static HttpResponse toYamlResponse(Message resource) throws IOException {
+        return HttpResponse.of(MEDIA_TYPE_YAML, toYamlBodyString(resource));
+    }
+
+    public static HttpResponse toYamlResponse(String yaml) {
+        return HttpResponse.of(MEDIA_TYPE_YAML, yaml);
+    }
+
+    public static String toYamlBodyString(Message resource) throws IOException {
+        final String json = JSON_MESSAGE_MARSHALLER.writeValueAsString(resource);
+        final JsonNode node = Jackson.readTree(json);
+        return Yaml.writeValueAsString(node);
+    }
+
+    @SuppressWarnings("unchecked")
+    public static <T extends Message> T parseYaml(String body, Message.Builder builder) throws IOException {
+        JSON_MESSAGE_MARSHALLER.mergeValue(Yaml.readTree(body).traverse(), builder);
+        return (T) builder.build();
+    }
+
+    /**
+     * Injects or replaces a top-level YAML field in the given YAML string, preserving all other
+     * content including comments. If {@code fieldName} is not found as a top-level key, it is
+     * prepended.
+     */
+    public static String injectYamlField(String yaml, String fieldName, String fieldValue) {
+        final String replacement = fieldName + ": " + fieldValue + '\n';
+        // Match a top-level key (no leading whitespace) in either camelCase or snake_case form,
+        // plus its entire value — including any indented block-scalar continuation lines.
+        // (?:\r?\n|\z) handles LF, CRLF, and a missing trailing newline at end of file.
+        final Pattern pattern = Pattern.compile(
+                "^(?:" + Pattern.quote(fieldName) + '|' +
+                Pattern.quote(camelToSnake(fieldName)) +
+                ")\\s*:.*(?:\\r?\\n|\\z)(?:[ \\t]+.*(?:\\r?\\n|\\z))*",
+                Pattern.MULTILINE);
+        final Matcher matcher = pattern.matcher(yaml);
+        if (matcher.find()) {
+            return matcher.replaceFirst(Matcher.quoteReplacement(replacement));
+        }
+        return replacement + yaml;
+    }
+
+    private static String camelToSnake(String camel) {
+        return camel.replaceAll("([A-Z])", "_$1").toLowerCase();
+    }
+
+    public CompletableFuture<HttpResponse> push(
+            String group, String resourceName, String fileName, String summary,
+            Author author, boolean create, String originalBody) {
+        if (create) {
+            final Repository repository;
+            try {
+                repository = xdsProject.repos().get(group);
+            } catch (Exception e) {
+                return CompletableFuture.completedFuture(
+                        errorResponse(HttpStatus.NOT_FOUND, "Group not found: " + group));
+            }
+            final String altFileName = alternativeFileName(fileName);
+            // Note: There is a TOCTOU race between this check and the subsequent ofYamlUpsert —
+            // two concurrent creates can both pass this check and the second will silently overwrite
+            // the first. This is acceptable for xDS resources where concurrent creates of the same
+            // resource are extremely rare.
+            return repository.find(Revision.HEAD, fileName + ',' + altFileName, FIND_ONE_WITHOUT_CONTENT)
+                             .thenCompose(entries -> {
+                                 if (!entries.isEmpty()) {
+                                     return CompletableFuture.completedFuture(
+                                             errorResponse(HttpStatus.CONFLICT,
+                                                           "Resource already exists: " + resourceName));
+                                 }
+                                 return doPush(group, fileName, summary, author,
+                                               true, null, originalBody);
+                             });
+        }
+        return doPush(group, fileName, summary, author, false, null, originalBody);
+    }
+
+    private CompletableFuture<HttpResponse> doPush(
+            String group, String fileName, String summary,
+            Author author, boolean create, @Nullable String legacyFileToRemove, String originalBody) {
+        // Store the original YAML body as-is (server-set fields are injected by the caller before
+        // this method is invoked). Respond with the same body so the client sees exactly what is stored.
+        final Change<?> change = Change.ofYamlUpsert(fileName, originalBody);
+        final ImmutableList<Change<?>> changes =
+                legacyFileToRemove != null ? ImmutableList.of(Change.ofRemoval(legacyFileToRemove), change)
+                                           : ImmutableList.of(change);
+        return commandExecutor.execute(Command.push(author, INTERNAL_PROJECT_XDS, group, Revision.HEAD,
+                                                    summary, "", Markup.PLAINTEXT, changes))
+                              .handle((unused, cause) -> {
+                                  if (cause != null) {
+                                      final Throwable peeled = Exceptions.peel(cause);
+                                      if (!create && peeled instanceof RedundantChangeException) {
+                                          return toYamlResponse(originalBody);
+                                      }
+                                      return errorResponse(HttpStatus.INTERNAL_SERVER_ERROR, peeled);
+                                  }
+                                  return toYamlResponse(originalBody);
+                              });
+    }
+
+    public CompletableFuture<HttpResponse> update(
+            String group, String resourceName, String summary, Author author, String originalBody) {
+        return update(group, resourceName, fileName(group, resourceName), summary, author, originalBody);
+    }
+
+    public CompletableFuture<HttpResponse> update(
+            String group, String resourceName, String fileName, String summary,
+            Author author, String originalBody) {
+        return updateOrDelete(group, resourceName, fileName, resolvedFileName -> {
             final String legacyFileToRemove = resolvedFileName.endsWith(".json") ? resolvedFileName : null;
             final String targetFileName = legacyFileToRemove != null ? fileName : resolvedFileName;
-            doPush(responseObserver, group, resourceName, targetFileName, summary, resource, author, false,
-                   legacyFileToRemove);
+            return doPush(group, targetFileName, summary, author, false, legacyFileToRemove, originalBody);
         });
     }
 
-    public void delete(StreamObserver<Empty> responseObserver, String group,
-                       String resourceName, String summary, Author author) {
-        delete(responseObserver, group, resourceName, fileName(group, resourceName), summary, author);
+    public CompletableFuture<HttpResponse> delete(
+            String group, String resourceName, String summary, Author author) {
+        return delete(group, resourceName, fileName(group, resourceName), summary, author);
     }
 
-    public void delete(StreamObserver<Empty> responseObserver, String group,
-                       String resourceName, String fileName, String summary, Author author) {
-        updateOrDelete(responseObserver, group, resourceName, fileName, resolvedFileName ->
+    public CompletableFuture<HttpResponse> delete(
+            String group, String resourceName, String fileName, String summary, Author author) {
+        return updateOrDelete(group, resourceName, fileName, resolvedFileName ->
                 commandExecutor.execute(Command.push(author, INTERNAL_PROJECT_XDS, group,
                                                      Revision.HEAD, summary, "", Markup.PLAINTEXT,
                                                      ImmutableList.of(Change.ofRemoval(resolvedFileName))))
                                .handle((unused, cause) -> {
                                    if (cause != null) {
-                                       responseObserver.onError(
-                                               Status.INTERNAL.withCause(cause).asRuntimeException());
-                                       return null;
+                                       return errorResponse(HttpStatus.INTERNAL_SERVER_ERROR,
+                                                            Exceptions.peel(cause));
                                    }
-                                   responseObserver.onNext(Empty.getDefaultInstance());
-                                   responseObserver.onCompleted();
-                                   return null;
+                                   return HttpResponse.of(HttpStatus.OK);
                                }));
     }
 
-    public void updateOrDelete(StreamObserver<?> responseObserver, String group, String resourceName,
-                               String fileName, Consumer<String> taskProvider) {
-        final Repository repository = xdsProject.repos().get(group);
-        // Search for both the requested filename and its alternative extension (.json ↔ .yaml)
-        // to support files that may have been written in either format.
+    public CompletableFuture<HttpResponse> updateOrDelete(
+            String group, String resourceName, String fileName,
+            Function<String, CompletableFuture<HttpResponse>> task) {
+        final Repository repository;
+        try {
+            repository = xdsProject.repos().get(group);
+        } catch (Exception e) {
+            return CompletableFuture.completedFuture(
+                    errorResponse(HttpStatus.NOT_FOUND, "Group not found: " + group));
+        }
         final String altFileName = alternativeFileName(fileName);
-        repository.find(Revision.HEAD, fileName + ',' + altFileName, FIND_ONE_WITHOUT_CONTENT)
-                  .handle((entries, cause) -> {
-            if (cause != null) {
-                responseObserver.onError(cause);
-                return null;
-            }
-            if (entries.isEmpty()) {
-                responseObserver.onError(
-                        Status.NOT_FOUND.withDescription("Resource not found: " + resourceName)
-                                        .asRuntimeException());
-                return null;
-            }
-            final String resolvedFileName = entries.keySet().iterator().next();
-            taskProvider.accept(resolvedFileName);
-            return null;
-        });
+        return repository.find(Revision.HEAD, fileName + ',' + altFileName, FIND_ONE_WITHOUT_CONTENT)
+                         .thenCompose(entries -> {
+                             if (entries.isEmpty()) {
+                                 return CompletableFuture.completedFuture(
+                                         errorResponse(HttpStatus.NOT_FOUND,
+                                                       "Resource not found: " + resourceName));
+                             }
+                             final String resolvedFileName = entries.keySet().iterator().next();
+                             return task.apply(resolvedFileName);
+                         });
     }
 
-    private static String alternativeFileName(String fileName) {
+    public static String alternativeFileName(String fileName) {
+        final String baseFileName = fileName.substring(0, fileName.length() - 5);
         if (fileName.endsWith(".json")) {
-            return fileName.substring(0, fileName.length() - 5) + ".yaml";
+            return baseFileName + ".yaml";
         }
         if (fileName.endsWith(".yaml")) {
-            return fileName.substring(0, fileName.length() - 5) + ".json";
+            return baseFileName + ".json";
         }
         return fileName;
     }

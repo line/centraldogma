@@ -61,7 +61,6 @@ import io.envoyproxy.envoy.config.cluster.v3.Cluster;
 import io.envoyproxy.envoy.config.endpoint.v3.ClusterLoadAssignment;
 import io.envoyproxy.envoy.config.listener.v3.Listener;
 import io.envoyproxy.envoy.config.route.v3.RouteConfiguration;
-import io.grpc.Status;
 
 class XdsLegacyJsonCompatibilityTest {
 
@@ -227,25 +226,22 @@ class XdsLegacyJsonCompatibilityTest {
     private static AggregatedHttpResponse updateEndpoint(String endpointId,
                                                           ClusterLoadAssignment endpoint) throws IOException {
         return dogma.httpClient()
-                    .execute(RequestHeaders.builder(HttpMethod.PATCH,
+                    .execute(RequestHeaders.builder(HttpMethod.PUT,
                                                     "/api/v1/xds/groups/" + GROUP + "/endpoints/" +
                                                     endpointId)
                                           .set(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous")
-                                          .contentType(MediaType.JSON_UTF_8)
+                                          .contentType(MediaType.parse("application/yaml"))
                                           .build(),
-                             JSON_MESSAGE_MARSHALLER.writeValueAsString(endpoint))
+                             XdsTestUtil.toYaml(endpoint))
                     .aggregate()
                     .join();
     }
 
     private static void assertOk(AggregatedHttpResponse response) {
         assertThat(response.status()).isSameAs(HttpStatus.OK);
-        assertThat(response.headers().get("grpc-status")).isEqualTo("0");
     }
 
     private static void assertAlreadyExists(AggregatedHttpResponse response) {
         assertThat(response.status()).isSameAs(HttpStatus.CONFLICT);
-        assertThat(response.headers().get("grpc-status"))
-                .isEqualTo(Integer.toString(Status.ALREADY_EXISTS.getCode().value()));
     }
 }
