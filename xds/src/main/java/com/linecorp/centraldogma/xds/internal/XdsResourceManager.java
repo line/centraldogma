@@ -31,6 +31,8 @@ import org.curioswitch.common.protobuf.json.MessageMarshaller;
 import org.jspecify.annotations.Nullable;
 import org.reflections.Reflections;
 import org.reflections.scanners.SubTypesScanner;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.ImmutableList;
@@ -55,13 +57,11 @@ import com.linecorp.centraldogma.server.storage.repository.Repository;
 import com.linecorp.centraldogma.xds.endpoint.v1.LocalityLbEndpoint;
 import com.linecorp.centraldogma.xds.k8s.v1.KubernetesEndpointAggregator;
 
-import io.envoyproxy.envoy.config.cluster.v3.Cluster;
-import io.envoyproxy.envoy.config.endpoint.v3.ClusterLoadAssignment;
-import io.envoyproxy.envoy.config.listener.v3.Listener;
-import io.envoyproxy.envoy.config.route.v3.RouteConfiguration;
 import io.envoyproxy.envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager;
 
 public final class XdsResourceManager {
+
+    private static final Logger logger = LoggerFactory.getLogger(XdsResourceManager.class);
 
     public static final String RESOURCE_ID_PATTERN_STRING = "[a-z](?:[a-z0-9_.-]*[a-z0-9])?";
     public static final Pattern RESOURCE_ID_PATTERN = Pattern.compile('^' + RESOURCE_ID_PATTERN_STRING + '$');
@@ -79,11 +79,9 @@ public final class XdsResourceManager {
     static {
         final MessageMarshaller.Builder builder =
                 MessageMarshaller.builder().omittingInsignificantWhitespace(true);
-        builder.register(Listener.getDefaultInstance())
-               .register(Cluster.getDefaultInstance())
-               .register(ClusterLoadAssignment.getDefaultInstance())
-               .register(RouteConfiguration.getDefaultInstance())
-               .register(KubernetesEndpointAggregator.getDefaultInstance())
+        // These Central Dogma-specific types are not in the io.envoyproxy.envoy package, so they
+        // must be registered explicitly; envoyExtension() does not pick them up.
+        builder.register(KubernetesEndpointAggregator.getDefaultInstance())
                .register(LocalityLbEndpoint.getDefaultInstance());
         envoyExtension(builder);
         JSON_MESSAGE_MARSHALLER = builder.build();
@@ -91,13 +89,26 @@ public final class XdsResourceManager {
 
     private static void envoyExtension(MessageMarshaller.Builder builder) {
         final Reflections reflections = new Reflections(
-                "io.envoyproxy.envoy.extensions", HttpConnectionManager.class.getClassLoader(),
+                "io.envoyproxy.envoy", HttpConnectionManager.class.getClassLoader(),
                 new SubTypesScanner(true));
         reflections.getSubTypesOf(GeneratedMessageV3.class)
                    .stream()
-                   .filter(c -> !c.getName().contains("$")) // exclude subclasses
+                   .filter(c -> !c.getName().contains("$")) // exclude inner classes
                    .filter(XdsResourceManager::hasGetDefaultInstanceMethod)
-                   .forEach(builder::register);
+                   .forEach(c -> {
+                       // register() does not throw; build() does. A test build per class is needed
+                       // to detect unsupported types before adding them to the real builder.
+                       try {
+                           MessageMarshaller.builder()
+                                            .omittingInsignificantWhitespace(true)
+                                            .register(c)
+                                            .build();
+                           builder.register(c);
+                       } catch (Exception e) {
+                           logger.debug("Skipping proto type not supported by MessageMarshaller: {}",
+                                        c.getName());
+                       }
+                   });
     }
 
     private static boolean hasGetDefaultInstanceMethod(Class<?> clazz) {
