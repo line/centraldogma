@@ -189,9 +189,9 @@ public final class DefaultMetaRepository extends RepositoryWrapper implements Me
                                     } catch (Exception e) {
                                         // Skip a malformed mirror so that a single bad mirror does not
                                         // prevent the rest of the mirrors from being loaded.
-                                        logger.debug("Failed to convert a mirror configuration to a mirror. " +
-                                                     "project: {}, mirror: {}", parent().name(), mirrorConfig,
-                                                     e);
+                                        logger.warn("Failed to convert a mirror configuration to a mirror. " +
+                                                    "project: {}, mirror: {}", parent().name(), mirrorConfig,
+                                                    e);
                                         return null;
                                     }
                                 })
