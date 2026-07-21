@@ -84,8 +84,7 @@ public final class XdsRouteService {
                                                      "Invalid request body: " + e.getMessage()));
         }
         final String createSummary = isNullOrEmpty(summary) ? "Create route: " + routeName : summary;
-        final String normalizedBody = XdsResourceManager.normalizeYamlKeys(body);
-        final String bodyToStore = XdsResourceManager.injectYamlField(normalizedBody, "name", routeName);
+        final String bodyToStore = XdsResourceManager.injectYamlField(body, "name", routeName);
         return xdsResourceManager.push(group, routeName, ROUTES_DIRECTORY + routeId + ".yaml",
                                        createSummary, currentAuthor(), true, bodyToStore);
     }
@@ -117,8 +116,7 @@ public final class XdsRouteService {
                                                      "Invalid request body: " + e.getMessage()));
         }
         final String updateSummary = isNullOrEmpty(summary) ? "Update route: " + routeName : summary;
-        final String normalizedBody = XdsResourceManager.normalizeYamlKeys(body);
-        final String bodyToStore = XdsResourceManager.injectYamlField(normalizedBody, "name", routeName);
+        final String bodyToStore = XdsResourceManager.injectYamlField(body, "name", routeName);
         return xdsResourceManager.update(group, routeName, updateSummary, currentAuthor(), bodyToStore);
     }
 

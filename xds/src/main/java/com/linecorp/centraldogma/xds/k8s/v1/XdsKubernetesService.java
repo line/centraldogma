@@ -158,9 +158,7 @@ public final class XdsKubernetesService {
         final String aggregatorFileName = K8S_ENDPOINT_AGGREGATORS_DIRECTORY + aggregatorId + ".yaml";
         final String createSummary = isNullOrEmpty(summary) ?
                                      "Create kubernetes endpoint: " + kubernetesEndpointName : summary;
-        final String normalizedBody = XdsResourceManager.normalizeYamlKeys(body);
-        String bodyToStore = XdsResourceManager.injectYamlField(normalizedBody, "name",
-                                                                kubernetesEndpointName);
+        String bodyToStore = XdsResourceManager.injectYamlField(body, "name", kubernetesEndpointName);
         bodyToStore = XdsResourceManager.injectYamlField(bodyToStore, "clusterName", clusterName);
         final String finalBodyToStore = bodyToStore;
         return validateKubernetesEndpointAndPushHttp(
@@ -213,8 +211,7 @@ public final class XdsKubernetesService {
                                      "Update kubernetes endpoint aggregator: " + aggregatorName : summary;
         // Both name and clusterName are server-derived; inject them so the stored YAML is always correct
         // regardless of what the client sent in the body.
-        final String normalizedBody = XdsResourceManager.normalizeYamlKeys(body);
-        String bodyToStore = XdsResourceManager.injectYamlField(normalizedBody, "name", aggregatorName);
+        String bodyToStore = XdsResourceManager.injectYamlField(body, "name", aggregatorName);
         bodyToStore = XdsResourceManager.injectYamlField(bodyToStore, "clusterName", clusterName);
         final String finalBodyToStore = bodyToStore;
         return validateKubernetesEndpointAndPushHttp(

@@ -20,24 +20,17 @@ import static com.linecorp.centraldogma.server.storage.repository.FindOptions.FI
 import static java.util.Objects.requireNonNull;
 
 import java.io.IOException;
-import java.io.StringReader;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.curioswitch.common.protobuf.json.MessageMarshaller;
 import org.jspecify.annotations.Nullable;
 import org.reflections.Reflections;
 import org.reflections.scanners.SubTypesScanner;
-import org.yaml.snakeyaml.nodes.MappingNode;
-import org.yaml.snakeyaml.nodes.Node;
-import org.yaml.snakeyaml.nodes.NodeTuple;
-import org.yaml.snakeyaml.nodes.ScalarNode;
-import org.yaml.snakeyaml.nodes.SequenceNode;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.ImmutableList;
@@ -169,119 +162,29 @@ public final class XdsResourceManager {
         return (T) builder.build();
     }
 
-    // Matches a snake_case identifier: at least one underscore, starts with lowercase.
-    // Used to detect mapping keys that need camelCase conversion.
-    private static final Pattern SNAKE_CASE_IDENTIFIER =
-            Pattern.compile("[a-z][a-z0-9]*(?:_[a-z0-9]+)+");
-
-    /**
-     * Converts all snake_case mapping keys in the given YAML string to camelCase, preserving
-     * values, comments, block scalars, and formatting. Uses snakeyaml's AST to locate real
-     * mapping keys, so block-scalar content lines are never mistaken for keys.
-     *
-     * <p>Call this on user-supplied bodies before storing them so that all stored YAML uses
-     * camelCase keys consistently, matching what the proto3 JSON serializer produces.
-     */
-    public static String normalizeYamlKeys(String yaml) {
-        if (!yaml.contains("_")) {
-            return yaml;
-        }
-        final Node root = composeYaml(yaml);
-        if (root == null) {
-            return yaml;
-        }
-        final List<int[]> ranges = new ArrayList<>();
-        collectSnakeCaseKeyRanges(root, ranges);
-        if (ranges.isEmpty()) {
-            return yaml;
-        }
-        // Replace from end to start so earlier offsets stay valid.
-        ranges.sort((a, b) -> Integer.compare(b[0], a[0]));
-        final StringBuilder sb = new StringBuilder(yaml);
-        for (int[] range : ranges) {
-            sb.replace(range[0], range[1], snakeToCamel(yaml.substring(range[0], range[1])));
-        }
-        return sb.toString();
-    }
-
-    private static void collectSnakeCaseKeyRanges(Node node, List<int[]> ranges) {
-        if (node instanceof MappingNode) {
-            for (NodeTuple tuple : ((MappingNode) node).getValue()) {
-                final Node keyNode = tuple.getKeyNode();
-                if (keyNode instanceof ScalarNode) {
-                    final String key = ((ScalarNode) keyNode).getValue();
-                    if (SNAKE_CASE_IDENTIFIER.matcher(key).matches()) {
-                        final int start = keyNode.getStartMark().getIndex();
-                        // Use key.length() rather than endMark to avoid trailing-whitespace
-                        // ambiguity (e.g. "key : value" where the space before ':' is trimmed
-                        // from the value but may or may not be included in endMark).
-                        ranges.add(new int[] { start, start + key.length() });
-                    }
-                }
-                // Recurse into the value — never into ScalarNode leaves (block scalar content).
-                collectSnakeCaseKeyRanges(tuple.getValueNode(), ranges);
-            }
-        } else if (node instanceof SequenceNode) {
-            for (Node item : ((SequenceNode) node).getValue()) {
-                collectSnakeCaseKeyRanges(item, ranges);
-            }
-        }
-    }
-
-    private static String snakeToCamel(String snake) {
-        final StringBuilder sb = new StringBuilder(snake.length());
-        boolean upper = false;
-        for (int i = 0; i < snake.length(); i++) {
-            final char c = snake.charAt(i);
-            if (c == '_') {
-                upper = true;
-            } else {
-                sb.append(upper ? Character.toUpperCase(c) : c);
-                upper = false;
-            }
-        }
-        return sb.toString();
-    }
-
     /**
      * Injects or replaces a top-level YAML field in the given YAML string, preserving all other
      * content including comments. If {@code fieldName} is not found as a top-level key, it is
      * prepended. Uses snakeyaml's AST so that block-scalar values (e.g. {@code name: |}) are
      * replaced in their entirety — not just the indicator line.
-     *
-     * <p>Call {@link #normalizeYamlKeys(String)} before this method so that the key name is
-     * already in camelCase.
      */
     public static String injectYamlField(String yaml, String fieldName, String fieldValue) {
-        final Node root = composeYaml(yaml);
-        if (root instanceof MappingNode) {
-            for (NodeTuple tuple : ((MappingNode) root).getValue()) {
-                final Node keyNode = tuple.getKeyNode();
-                if (keyNode instanceof ScalarNode &&
-                    fieldName.equals(((ScalarNode) keyNode).getValue())) {
-                    final int keyStart = keyNode.getStartMark().getIndex();
-                    // End of the value node; skip one trailing newline so we don't leave a blank
-                    // line when the value's endMark lands on the '\n' that separates entries.
-                    int valueEnd = tuple.getValueNode().getEndMark().getIndex();
-                    if (valueEnd < yaml.length() && yaml.charAt(valueEnd) == '\n') {
-                        valueEnd++;
-                    }
-                    return yaml.substring(0, keyStart) +
-                           fieldName + ": " + fieldValue + '\n' +
-                           yaml.substring(valueEnd);
-                }
-            }
+        final String replacement = fieldName + ": " + fieldValue + '\n';
+        // Match a top-level key (no leading whitespace) in either camelCase or snake_case form,
+        // plus its entire value — including any indented block-scalar continuation lines.
+        final Pattern pattern = Pattern.compile(
+                "^(?:" + Pattern.quote(fieldName) + '|' +
+                Pattern.quote(camelToSnake(fieldName)) + ")\\s*:.*\\n(?:[ \\t]+.*\\n)*",
+                Pattern.MULTILINE);
+        final Matcher matcher = pattern.matcher(yaml);
+        if (matcher.find()) {
+            return matcher.replaceFirst(Matcher.quoteReplacement(replacement));
         }
-        return fieldName + ": " + fieldValue + '\n' + yaml;
+        return replacement + yaml;
     }
 
-    @Nullable
-    private static Node composeYaml(String yaml) {
-        try {
-            return new org.yaml.snakeyaml.Yaml().compose(new StringReader(yaml));
-        } catch (Exception ignored) {
-            return null;
-        }
+    private static String camelToSnake(String camel) {
+        return camel.replaceAll("([A-Z])", "_$1").toLowerCase();
     }
 
     public CompletableFuture<HttpResponse> push(

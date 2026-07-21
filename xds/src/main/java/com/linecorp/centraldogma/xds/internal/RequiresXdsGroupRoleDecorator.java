@@ -61,6 +61,11 @@ public final class RequiresXdsGroupRoleDecorator extends SimpleDecoratingHttpSer
 
     @Override
     public HttpResponse serve(ServiceRequestContext ctx, HttpRequest req) throws Exception {
+        final User user = AuthUtil.currentUser(ctx);
+        if (user == null) {
+            return errorResponse(HttpStatus.UNAUTHORIZED, "Authentication required");
+        }
+
         final String group = ctx.pathParam("group");
         if (isNullOrEmpty(group)) {
             return errorResponse(HttpStatus.BAD_REQUEST, "group path variable is missing");
@@ -72,10 +77,6 @@ public final class RequiresXdsGroupRoleDecorator extends SimpleDecoratingHttpSer
             return errorResponse(HttpStatus.NOT_FOUND, "Group not found: " + group);
         }
 
-        final User user = AuthUtil.currentUser(ctx);
-        if (user == null) {
-            return errorResponse(HttpStatus.UNAUTHORIZED, "Authentication required");
-        }
         if (user.isSystemAdmin()) {
             return unwrap().serve(ctx, req);
         }

@@ -84,8 +84,7 @@ public final class XdsListenerService {
                                                      "Invalid request body: " + e.getMessage()));
         }
         final String createSummary = isNullOrEmpty(summary) ? "Create listener: " + listenerName : summary;
-        final String normalizedBody = XdsResourceManager.normalizeYamlKeys(body);
-        final String bodyToStore = XdsResourceManager.injectYamlField(normalizedBody, "name", listenerName);
+        final String bodyToStore = XdsResourceManager.injectYamlField(body, "name", listenerName);
         return xdsResourceManager.push(group, listenerName,
                                        LISTENERS_DIRECTORY + listenerId + ".yaml",
                                        createSummary, currentAuthor(), true, bodyToStore);
@@ -118,8 +117,7 @@ public final class XdsListenerService {
                                                      "Invalid request body: " + e.getMessage()));
         }
         final String updateSummary = isNullOrEmpty(summary) ? "Update listener: " + listenerName : summary;
-        final String normalizedBody = XdsResourceManager.normalizeYamlKeys(body);
-        final String bodyToStore = XdsResourceManager.injectYamlField(normalizedBody, "name", listenerName);
+        final String bodyToStore = XdsResourceManager.injectYamlField(body, "name", listenerName);
         return xdsResourceManager.update(group, listenerName, updateSummary, currentAuthor(), bodyToStore);
     }
 

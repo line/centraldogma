@@ -100,9 +100,7 @@ public final class XdsEndpointService {
                                                      "Invalid request body: " + e.getMessage()));
         }
         final String createSummary = isNullOrEmpty(summary) ? "Create endpoint: " + endpointName : summary;
-        final String normalizedBody = XdsResourceManager.normalizeYamlKeys(body);
-        final String bodyToStore = XdsResourceManager.injectYamlField(normalizedBody,
-                                                                      "clusterName", clusterName);
+        final String bodyToStore = XdsResourceManager.injectYamlField(body, "clusterName", clusterName);
         return xdsResourceManager.push(group, endpointName, ENDPOINTS_DIRECTORY + endpointId + ".yaml",
                                        createSummary, currentAuthor(), true, bodyToStore);
     }
@@ -136,9 +134,7 @@ public final class XdsEndpointService {
                                                      "Invalid request body: " + e.getMessage()));
         }
         final String updateSummary = isNullOrEmpty(summary) ? "Update endpoint: " + endpointName : summary;
-        final String normalizedBody = XdsResourceManager.normalizeYamlKeys(body);
-        final String bodyToStore = XdsResourceManager.injectYamlField(normalizedBody,
-                                                                      "clusterName", clusterName);
+        final String bodyToStore = XdsResourceManager.injectYamlField(body, "clusterName", clusterName);
         return xdsResourceManager.update(group, endpointName, updateSummary, currentAuthor(), bodyToStore);
     }
 
