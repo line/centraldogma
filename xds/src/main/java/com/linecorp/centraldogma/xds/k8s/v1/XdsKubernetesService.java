@@ -122,7 +122,6 @@ public final class XdsKubernetesService {
      *
      * <p>Creates a new Kubernetes endpoint aggregator.
      */
-    @Blocking
     @Post("/xds/groups/{group}/k8s/endpointAggregators")
     @Consumes("application/yaml")
     @RequiresXdsGroupRole(RepositoryRole.WRITE)
@@ -248,7 +247,6 @@ public final class XdsKubernetesService {
      * <p>Previews the endpoints that would be resolved for a Kubernetes endpoint aggregator
      * without persisting it.
      */
-    @Blocking
     @Post("/xds/groups/{group}/k8s/endpointAggregators:preview")
     @Consumes("application/yaml")
     @RequiresXdsGroupRole(RepositoryRole.WRITE)
