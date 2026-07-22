@@ -174,17 +174,9 @@ function buildBody(data: FormData, name?: string): string {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function parseToFormData(aggregatorId: string, raw: any): FormData {
   // The content API returns YAML files as a raw string; parse it to an object before extracting fields.
+  // Throws YAMLException if raw is a string that is not valid YAML; callers must catch and notify the user.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let content: any;
-  if (typeof raw === 'string') {
-    try {
-      content = jsYaml.load(raw);
-    } catch {
-      content = null;
-    }
-  } else {
-    content = raw;
-  }
+  const content: any = typeof raw === 'string' ? jsYaml.load(raw) : raw;
   const endpoints = Array.isArray((content as any)?.localityLbEndpoints)
     ? (content as any).localityLbEndpoints
     : [];
@@ -635,9 +627,13 @@ const ExistingK8sAggregatorEditor = ({ group, id }: { group: string; id: string 
   // clobber unsaved edits.
   useEffect(() => {
     if (data && !editing) {
-      reset(parseToFormData(id, (data as FileContentDto).content));
+      try {
+        reset(parseToFormData(id, (data as FileContentDto).content));
+      } catch (e) {
+        dispatch(newNotification('Failed to load aggregator', (e as Error).message, 'error'));
+      }
     }
-  }, [data, id, reset, editing]);
+  }, [data, id, reset, editing, dispatch]);
 
   const onSubmit = async (formData: FormData) => {
     const name = `groups/${group}/k8s/endpointAggregators/${id}`;
@@ -658,7 +654,11 @@ const ExistingK8sAggregatorEditor = ({ group, id }: { group: string; id: string 
 
   const handleCancel = () => {
     if (data) {
-      reset(parseToFormData(id, (data as FileContentDto).content));
+      try {
+        reset(parseToFormData(id, (data as FileContentDto).content));
+      } catch (e) {
+        dispatch(newNotification('Failed to restore aggregator content', (e as Error).message, 'error'));
+      }
     }
     setEditing(false);
     setCommitSummary('');

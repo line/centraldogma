@@ -26,15 +26,16 @@ import { useGetGroupHistoryQuery, useGetResourceQuery } from 'dogma/features/xds
 const generatedPath = (id: string) => `/k8s/endpoints/${id}.yaml`;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function countEndpoints(content: any): { localities: number; endpoints: number } {
+function countEndpoints(content: any): { localities: number; endpoints: number } | null {
   // content arrives as a raw YAML string from XdsEndpointReadService (which uses entry.rawContent()).
+  // Returns null when parsing fails so the caller can show an error instead of a misleading zero count.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let parsed: any;
   if (typeof content === 'string') {
     try {
       parsed = jsYaml.load(content);
     } catch {
-      return { localities: 0, endpoints: 0 };
+      return null;
     }
   } else {
     parsed = content;
@@ -67,7 +68,7 @@ export const K8sAggregatorStatus = ({ group, id }: { group: string; id: string }
   );
 
   const notSynced = (error as FetchBaseQueryError | undefined)?.status === 404;
-  const { localities, endpoints } = useMemo(() => countEndpoints(data?.content), [data]);
+  const counts = useMemo(() => countEndpoints(data?.content), [data]);
   const lastCommit = history?.[0] ?? legacyHistory?.[0];
   const resourceHref =
     `/app/xds/resource?group=${encodeURIComponent(group)}&type=endpoints` +
@@ -91,12 +92,17 @@ export const K8sAggregatorStatus = ({ group, id }: { group: string; id: string }
           <AlertIcon />
           Could not load sync status.
         </Alert>
+      ) : counts === null ? (
+        <Alert status="error" borderRadius="md" fontSize="sm">
+          <AlertIcon />
+          Could not parse the generated endpoints file.
+        </Alert>
       ) : (
         <HStack spacing={4} wrap="wrap" fontSize="sm">
           <Badge colorScheme="green">Synced</Badge>
           <Text>
-            {localities} localit{localities === 1 ? 'y' : 'ies'} · {endpoints} endpoint
-            {endpoints === 1 ? '' : 's'}
+            {counts.localities} localit{counts.localities === 1 ? 'y' : 'ies'} · {counts.endpoints} endpoint
+            {counts.endpoints === 1 ? '' : 's'}
           </Text>
           {lastCommit && (
             <Text color="gray.600">
