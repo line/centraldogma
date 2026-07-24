@@ -99,7 +99,7 @@ class XdsLegacyJsonCompatibilityTest {
     @Test
     void deleteCluster_removesLegacyJson() throws IOException {
         pushLegacyJson(CLUSTERS_DIRECTORY + "c3.json", cluster("ignored", 1));
-        assertOk(deleteResource("/api/v1/xds/groups/" + GROUP + "/clusters/c3"));
+        assertNoContent(deleteResource("/api/v1/xds/groups/" + GROUP + "/clusters/c3"));
         assertFileAbsent(repo(), CLUSTERS_DIRECTORY + "c3.json");
     }
 
@@ -128,7 +128,7 @@ class XdsLegacyJsonCompatibilityTest {
     @Test
     void deleteListener_removesLegacyJson() throws IOException {
         pushLegacyJson(LISTENERS_DIRECTORY + "l3.json", exampleListener("ignored", "route-for-l3", "l3"));
-        assertOk(deleteResource("/api/v1/xds/groups/" + GROUP + "/listeners/l3"));
+        assertNoContent(deleteResource("/api/v1/xds/groups/" + GROUP + "/listeners/l3"));
         assertFileAbsent(repo(), LISTENERS_DIRECTORY + "l3.json");
     }
 
@@ -156,7 +156,7 @@ class XdsLegacyJsonCompatibilityTest {
     @Test
     void deleteRoute_removesLegacyJson() throws IOException {
         pushLegacyJson(ROUTES_DIRECTORY + "r3.json", routeConfiguration("ignored", "cluster-r3"));
-        assertOk(deleteResource("/api/v1/xds/groups/" + GROUP + "/routes/r3"));
+        assertNoContent(deleteResource("/api/v1/xds/groups/" + GROUP + "/routes/r3"));
         assertFileAbsent(repo(), ROUTES_DIRECTORY + "r3.json");
     }
 
@@ -181,7 +181,7 @@ class XdsLegacyJsonCompatibilityTest {
     @Test
     void deleteEndpoint_removesLegacyJson() throws IOException {
         pushLegacyJson(ENDPOINTS_DIRECTORY + "e3.json", loadAssignment("ignored", "127.0.0.1", 8080));
-        assertOk(deleteResource("/api/v1/xds/groups/" + GROUP + "/endpoints/e3"));
+        assertNoContent(deleteResource("/api/v1/xds/groups/" + GROUP + "/endpoints/e3"));
         assertFileAbsent(repo(), ENDPOINTS_DIRECTORY + "e3.json");
     }
 
@@ -239,6 +239,10 @@ class XdsLegacyJsonCompatibilityTest {
 
     private static void assertOk(AggregatedHttpResponse response) {
         assertThat(response.status()).isSameAs(HttpStatus.OK);
+    }
+
+    private static void assertNoContent(AggregatedHttpResponse response) {
+        assertThat(response.status()).isSameAs(HttpStatus.NO_CONTENT);
     }
 
     private static void assertAlreadyExists(AggregatedHttpResponse response) {

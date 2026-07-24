@@ -16,6 +16,7 @@
 
 import { createApi } from '@reduxjs/toolkit/query/react';
 import { FetchBaseQueryError, FetchArgs } from '@reduxjs/toolkit/query';
+import * as jsYaml from 'js-yaml';
 import { baseQueryWithReauth } from 'dogma/features/api/baseQuery';
 import { createLoginUrl } from 'dogma/util/auth';
 import {
@@ -67,8 +68,7 @@ export interface FileContentDto {
 }
 
 export type ResourceArg = { group: string; type: XdsResourceType };
-// `path` is the full repository path (e.g. '/clusters/foo.yaml') — when provided, it is used directly to
-// avoid a .yaml→.json fallback request on servers that still have legacy .json files.
+// `path` is the full repository path (e.g. '/clusters/foo.yaml') — when provided, it is used directly.
 export type ResourceIdArg = ResourceArg & { id: string; k8s?: boolean; path?: string };
 export type CreateResourceArg = ResourceArg & { id: string; body: string; summary?: string };
 export type UpdateResourceArg = ResourceIdArg & { body: string; summary?: string };
@@ -82,7 +82,7 @@ function k8sAggregatorIdFromPath(path: string): string {
   if (id.startsWith(prefix)) {
     id = id.substring(prefix.length);
   }
-  id = id.replace(/\.(json|yaml)$/, '');
+  id = id.replace(/\.yaml$/, '');
   return id;
 }
 
@@ -97,7 +97,7 @@ function idFromPath(path: string, type: XdsResourceType): string {
   if (id.startsWith(prefix)) {
     id = id.substring(prefix.length);
   }
-  id = id.replace(/\.(json|yaml)$/, '');
+  id = id.replace(/\.yaml$/, '');
   return id;
 }
 
@@ -108,47 +108,23 @@ function encodeResourcePath(id: string): string {
   return id.split('/').map(encodeURIComponent).join('/');
 }
 
-// Fetches a file by its full repository path, falling back from .yaml to .json for legacy servers.
-// Pass `path` (including extension) when known from a listing response to skip the fallback round-trip.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type FetchFn = (arg: string | FetchArgs) => any;
 
-async function fetchYamlOrJson(
+// Fetches a YAML resource file by its repository path. Pass `knownPath` (with .yaml extension) when
+// available from a listing response to skip the basePath + ".yaml" construction.
+async function fetchYaml(
   group: string,
   basePath: string,
   fetchWithBQ: FetchFn,
   knownPath?: string,
 ): Promise<{ data: FileContentDto } | { error: FetchBaseQueryError }> {
-  if (knownPath) {
-    const direct = await fetchWithBQ(
-      `/api/v1/projects/${XDS_PROJECT}/repos/${group}/contents${knownPath}?revision=head`,
-    );
-    if (!direct.error) return { data: direct.data as FileContentDto };
-    if ((direct.error as FetchBaseQueryError).status !== 404) {
-      return { error: direct.error as FetchBaseQueryError };
-    }
-    // knownPath 404'd. If it already had the .yaml extension, skip the redundant .yaml probe
-    // below (basePath + ".yaml" would resolve to the same URL) and go straight to .json.
-    if (knownPath.endsWith('.yaml')) {
-      const jsonResult = await fetchWithBQ(
-        `/api/v1/projects/${XDS_PROJECT}/repos/${group}/contents${basePath}.json?revision=head`,
-      );
-      if (jsonResult.error) return { error: jsonResult.error as FetchBaseQueryError };
-      return { data: jsonResult.data as FileContentDto };
-    }
-  }
-  const yamlResult = await fetchWithBQ(
-    `/api/v1/projects/${XDS_PROJECT}/repos/${group}/contents${basePath}.yaml?revision=head`,
+  const fullPath = knownPath ?? `${basePath}.yaml`;
+  const result = await fetchWithBQ(
+    `/api/v1/projects/${XDS_PROJECT}/repos/${group}/contents${fullPath}?revision=head`,
   );
-  if (!yamlResult.error) return { data: yamlResult.data as FileContentDto };
-  if ((yamlResult.error as FetchBaseQueryError).status !== 404) {
-    return { error: yamlResult.error as FetchBaseQueryError };
-  }
-  const jsonResult = await fetchWithBQ(
-    `/api/v1/projects/${XDS_PROJECT}/repos/${group}/contents${basePath}.json?revision=head`,
-  );
-  if (jsonResult.error) return { error: jsonResult.error as FetchBaseQueryError };
-  return { data: jsonResult.data as FileContentDto };
+  if (result.error) return { error: result.error as FetchBaseQueryError };
+  return { data: result.data as FileContentDto };
 }
 
 export const xdsApiSlice = createApi({
@@ -171,7 +147,6 @@ export const xdsApiSlice = createApi({
       query: ({ groupId }) => ({
         url: `/api/v1/xds/groups?group_id=${encodeURIComponent(groupId)}`,
         method: 'POST',
-        body: { name: `groups/${groupId}` },
       }),
       invalidatesTags: ['Group'],
     }),
@@ -209,7 +184,7 @@ export const xdsApiSlice = createApi({
             // clean id. They are flagged read-only by their path in the UI.
             id:
               type === 'endpoints' && file.path.startsWith('/k8s/endpoints/')
-                ? file.path.slice('/k8s/endpoints/'.length).replace(/\.(json|yaml)$/, '')
+                ? file.path.slice('/k8s/endpoints/'.length).replace(/\.yaml$/, '')
                 : idFromPath(file.path, type),
             path: file.path,
             revision: file.revision,
@@ -231,7 +206,7 @@ export const xdsApiSlice = createApi({
           if (result.error) return { error: result.error as FetchBaseQueryError };
           return { data: result.data as FileContentDto };
         }
-        return fetchYamlOrJson(group, `/${type}/${id}`, fetchWithBQ, path);
+        return fetchYaml(group, `/${type}/${id}`, fetchWithBQ, path);
       },
       providesTags: ['Resource'],
     }),
@@ -239,7 +214,7 @@ export const xdsApiSlice = createApi({
       query: ({ group, type, id, body, summary }) => {
         let url = `/api/v1/xds/groups/${group}/${type}?${XDS_RESOURCE_META[type].idParam}=${encodeURIComponent(id)}`;
         if (summary) url += `&summary=${encodeURIComponent(summary)}`;
-        return { url, method: 'POST', body: JSON.parse(body) };
+        return { url, method: 'POST', body, headers: { 'Content-Type': 'application/yaml' } };
       },
       invalidatesTags: ['Resource'],
     }),
@@ -247,7 +222,7 @@ export const xdsApiSlice = createApi({
       query: ({ group, type, id, body, summary }) => {
         let url = `/api/v1/xds/groups/${group}/${type}/${encodeResourcePath(id)}`;
         if (summary) url += `?summary=${encodeURIComponent(summary)}`;
-        return { url, method: 'PATCH', body: JSON.parse(body) };
+        return { url, method: 'PUT', body, headers: { 'Content-Type': 'application/yaml' } };
       },
       invalidatesTags: ['Resource'],
     }),
@@ -289,7 +264,7 @@ export const xdsApiSlice = createApi({
     }),
     getK8sAggregator: builder.query<FileContentDto, { group: string; id: string; path?: string }>({
       async queryFn({ group, id, path }, _queryApi, _extraOptions, fetchWithBQ) {
-        return fetchYamlOrJson(group, `/k8s/endpointAggregators/${id}`, fetchWithBQ, path);
+        return fetchYaml(group, `/k8s/endpointAggregators/${id}`, fetchWithBQ, path);
       },
       providesTags: ['K8sAggregator'],
     }),
@@ -297,13 +272,14 @@ export const xdsApiSlice = createApi({
     // ClusterLoadAssignment that would be generated, without persisting.
     previewK8sAggregator: builder.mutation<
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      any, // ClusterLoadAssignment JSON
+      any, // ClusterLoadAssignment YAML string
       { group: string; body: string }
     >({
       query: ({ group, body }) => ({
-        url: `/api/v1/xds/groups/${group}/k8s/endpointAggregators/preview`,
+        url: `/api/v1/xds/groups/${group}/k8s/endpointAggregators:preview`,
         method: 'POST',
-        body: JSON.parse(body),
+        body,
+        headers: { 'Content-Type': 'application/yaml' },
       }),
     }),
     createK8sAggregator: builder.mutation<
@@ -313,7 +289,7 @@ export const xdsApiSlice = createApi({
       query: ({ group, aggregatorId, body, summary }) => {
         let url = `/api/v1/xds/groups/${group}/k8s/endpointAggregators?aggregator_id=${encodeURIComponent(aggregatorId)}`;
         if (summary) url += `&summary=${encodeURIComponent(summary)}`;
-        return { url, method: 'POST', body: JSON.parse(body) };
+        return { url, method: 'POST', body, headers: { 'Content-Type': 'application/yaml' } };
       },
       invalidatesTags: ['K8sAggregator'],
     }),
@@ -321,11 +297,10 @@ export const xdsApiSlice = createApi({
       unknown,
       { group: string; id: string; body: string; summary?: string }
     >({
-      // The update RPC identifies the target by the `name` field carried in the body (not the path).
       query: ({ group, id, body, summary }) => {
         let url = `/api/v1/xds/groups/${group}/k8s/endpointAggregators/${id}`;
         if (summary) url += `?summary=${encodeURIComponent(summary)}`;
-        return { url, method: 'PATCH', body: JSON.parse(body) };
+        return { url, method: 'PUT', body, headers: { 'Content-Type': 'application/yaml' } };
       },
       invalidatesTags: ['K8sAggregator'],
     }),
@@ -447,7 +422,7 @@ export const xdsApiSlice = createApi({
 
         const idOf = (type: XdsResourceType, path: string): string =>
           type === 'endpoints' && path.startsWith('/k8s/endpoints/')
-            ? path.slice('/k8s/endpoints/'.length).replace(/\.(json|yaml)$/, '')
+            ? path.slice('/k8s/endpoints/'.length).replace(/\.yaml$/, '')
             : idFromPath(path, type);
 
         const nodes: XdsGraphNode[] = [];
@@ -479,10 +454,12 @@ export const xdsApiSlice = createApi({
                 // Skip resources that cannot be read; they simply contribute no edges.
                 return localEdges;
               }
-              const content = (res.data as FileContentDto)?.content;
+              const raw = (res.data as FileContentDto)?.content;
+              // Content for YAML files is a raw string; for any legacy case where it's an object, dump to YAML.
+              const yamlText = typeof raw === 'string' ? raw : raw != null ? jsYaml.dump(raw) : '';
               const fromId = idOf(type, file.path);
               const fromName = resourceName(group, file.path);
-              for (const ref of extractReferences(type, JSON.stringify(content ?? {}))) {
+              for (const ref of extractReferences(type, yamlText)) {
                 const link = resolveReference(group, ref);
                 const status: XdsRefStatus =
                   link.group !== group ? 'external' : idsByType[ref.targetType].has(link.id) ? 'ok' : 'missing';

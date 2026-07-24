@@ -121,7 +121,7 @@ class XdsYamlCompatibilityTest {
 
         // Delete via the HTTP API — updateOrDelete must locate and remove the .yaml file.
         final AggregatedHttpResponse response = deleteCluster(clusterName);
-        assertThat(response.status()).isSameAs(HttpStatus.OK);
+        assertThat(response.status()).isSameAs(HttpStatus.NO_CONTENT);
 
         // The .yaml file must be gone.
         final Repository repo = xdsRepo("foo");

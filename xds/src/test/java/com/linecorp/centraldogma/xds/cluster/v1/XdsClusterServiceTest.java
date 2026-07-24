@@ -97,6 +97,10 @@ class XdsClusterServiceTest {
         assertThat(response.status()).isSameAs(HttpStatus.OK);
     }
 
+    private static void assertNoContent(AggregatedHttpResponse response) {
+        assertThat(response.status()).isSameAs(HttpStatus.NO_CONTENT);
+    }
+
     private static void checkResourceViaDiscoveryRequest(Cluster actualCluster, String resourceName,
                                                          boolean created) {
         await().pollInterval(100, TimeUnit.MILLISECONDS).untilAsserted(
@@ -191,7 +195,7 @@ class XdsClusterServiceTest {
         // Add permission test.
 
         response = deleteCluster(clusterName);
-        assertOk(response);
+        assertNoContent(response);
         checkResourceViaDiscoveryRequest(actualCluster, clusterName, false);
     }
 

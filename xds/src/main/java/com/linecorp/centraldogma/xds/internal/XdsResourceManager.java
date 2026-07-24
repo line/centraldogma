@@ -283,7 +283,7 @@ public final class XdsResourceManager {
                                        return errorResponse(HttpStatus.INTERNAL_SERVER_ERROR,
                                                             Exceptions.peel(cause));
                                    }
-                                   return HttpResponse.of(HttpStatus.OK);
+                                   return HttpResponse.of(HttpStatus.NO_CONTENT);
                                }));
     }
 

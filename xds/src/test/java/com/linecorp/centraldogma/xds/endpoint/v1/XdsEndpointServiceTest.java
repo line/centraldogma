@@ -257,7 +257,7 @@ public class XdsEndpointServiceTest {
 
         // Delete via the HTTP API — updateOrDelete must locate and remove the .yaml file.
         final AggregatedHttpResponse response = deleteEndpoint(endpointName);
-        assertOk(response);
+        assertThat(response.status()).isSameAs(HttpStatus.NO_CONTENT);
 
         // The .yaml file must be gone.
         final Repository repo =
@@ -296,7 +296,7 @@ public class XdsEndpointServiceTest {
         checkEndpointsViaDiscoveryRequest(dogma.httpClient().uri(), actualEndpoint, clusterName);
 
         response = deleteEndpoint(endpointName);
-        assertOk(response);
+        assertThat(response.status()).isSameAs(HttpStatus.NO_CONTENT);
         checkEndpointsViaDiscoveryRequest(dogma.httpClient().uri(), null, clusterName);
     }
 

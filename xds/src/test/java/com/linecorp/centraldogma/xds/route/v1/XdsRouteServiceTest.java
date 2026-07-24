@@ -91,6 +91,10 @@ class XdsRouteServiceTest {
         assertThat(response.status()).isSameAs(HttpStatus.OK);
     }
 
+    private static void assertNoContent(AggregatedHttpResponse response) {
+        assertThat(response.status()).isSameAs(HttpStatus.NO_CONTENT);
+    }
+
     private static void checkResourceViaDiscoveryRequest(RouteConfiguration actualRoute, String resourceName,
                                                          boolean created) {
         await().pollInterval(100, TimeUnit.MILLISECONDS).untilAsserted(
@@ -178,7 +182,7 @@ class XdsRouteServiceTest {
         // Add permission test.
 
         response = deleteRoute(routeName);
-        assertOk(response);
+        assertNoContent(response);
         checkResourceViaDiscoveryRequest(actualRoute, routeName, false);
     }
 
