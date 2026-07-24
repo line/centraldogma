@@ -618,56 +618,6 @@ class MetadataServiceTest {
     }
 
     @Test
-    void cannotRegenerateSecretOfRecreatedToken() {
-        final MetadataService mds = newMetadataService(manager);
-
-        mds.createToken(author, app1).join();
-        await().untilAsserted(() -> assertThat(mds.getAppIdentityRegistry().getOrDefault(app1, null))
-                .isNotNull());
-        final Token oldToken = (Token) mds.getAppIdentityRegistry().get(app1);
-
-        // Destroy, purge and recreate a token with the same application ID.
-        mds.destroyToken(author, app1).join();
-        mds.purgeAppIdentity(author, app1);
-        mds.createToken(author, app1).join();
-        await().untilAsserted(() -> assertThat(mds.getAppIdentityRegistry().get(app1).creation())
-                .isNotEqualTo(oldToken.creation()));
-
-        // A regeneration authorized against the old token must not rotate the recreated one,
-        // even before the recreated token is deactivated.
-        assertThatThrownBy(() -> mds.regenerateTokenSecret(author, app1, oldToken).join())
-                .hasCauseInstanceOf(ChangeConflictException.class)
-                .hasStackTraceContaining("recreated concurrently");
-
-        // A regeneration with the matching token succeeds once it is deactivated.
-        mds.deactivateToken(author, app1).join();
-        await().untilAsserted(() -> assertThat(mds.getAppIdentityRegistry().get(app1).isActive())
-                .isFalse());
-        final Token newToken = (Token) mds.getAppIdentityRegistry().get(app1);
-        final Token returned = mds.regenerateTokenSecret(author, app1, newToken).join();
-        assertThat(returned.secret()).startsWith("appToken-");
-    }
-
-    @Test
-    void cannotRegenerateSecretConcurrently() {
-        final MetadataService mds = newMetadataService(manager);
-
-        mds.createToken(author, app1).join();
-        mds.deactivateToken(author, app1).join();
-        await().untilAsserted(() -> assertThat(mds.getAppIdentityRegistry().get(app1).isActive())
-                .isFalse());
-        final Token snapshot = (Token) mds.getAppIdentityRegistry().get(app1);
-
-        // Another regeneration is committed after the caller was authorized against the snapshot.
-        mds.regenerateTokenSecret(author, app1).join();
-
-        // The stale caller fails loudly instead of receiving a secret that will never work.
-        assertThatThrownBy(() -> mds.regenerateTokenSecret(author, app1, snapshot).join())
-                .hasCauseInstanceOf(ChangeConflictException.class)
-                .hasStackTraceContaining("regenerated concurrently");
-    }
-
-    @Test
     void cannotRegenerateSecretOfCertificate() {
         final MetadataService mds = newMetadataService(manager);
 

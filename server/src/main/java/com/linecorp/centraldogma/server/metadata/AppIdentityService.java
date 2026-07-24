@@ -30,11 +30,8 @@ import static com.linecorp.centraldogma.server.storage.project.InternalProjectIn
 import static java.util.Objects.requireNonNull;
 
 import java.util.Map;
-import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-
-import org.jspecify.annotations.Nullable;
 
 import com.fasterxml.jackson.core.JsonPointer;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -172,11 +169,6 @@ final class AppIdentityService {
     }
 
     CompletableFuture<Token> regenerateTokenSecret(Author author, String appId) {
-        return regenerateTokenSecret(author, appId, null);
-    }
-
-    CompletableFuture<Token> regenerateTokenSecret(Author author, String appId,
-                                                   @Nullable Token expectedToken) {
         requireNonNull(author, "author");
         requireNonNull(appId, "appId");
 
@@ -193,19 +185,6 @@ final class AppIdentityService {
                                 "The app identity is already destroyed: " + appId);
                     }
                     throwIfInvalidType(appId, appIdentity, AppIdentityType.TOKEN);
-                    if (expectedToken != null &&
-                        !expectedToken.creation().equals(appIdentity.creation())) {
-                        // The token the caller was authorized for has been recreated in the meantime.
-                        throw new ChangeConflictException(
-                                "The app identity has been recreated concurrently: " + appId);
-                    }
-                    if (expectedToken != null &&
-                        !Objects.equals(expectedToken.secret(), ((Token) appIdentity).secret())) {
-                        // Another regeneration has been committed in the meantime; failing loudly
-                        // prevents the caller from distributing a secret that will never work.
-                        throw new ChangeConflictException(
-                                "The secret has been regenerated concurrently: " + appId);
-                    }
                     if (appIdentity.deactivation() == null) {
                         // Regenerating the secret of an active token would break its clients with no
                         // way to prepare, so the token must be deactivated first.

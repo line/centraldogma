@@ -270,9 +270,7 @@ public final class AppIdentityRegistryService extends AbstractService {
                         throw new IllegalArgumentException(
                                 "You can't regenerate the secret of an active token. Deactivate it first.");
                     }
-                    // Pass the authorized token so that the regeneration fails if the token is
-                    // recreated or regenerated concurrently in the meantime.
-                    return mds.regenerateTokenSecret(author, appId, token);
+                    return mds.regenerateTokenSecret(author, appId);
                 });
     }
 
