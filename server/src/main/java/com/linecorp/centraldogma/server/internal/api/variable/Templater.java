@@ -83,6 +83,7 @@ public final class Templater {
         cfg.setBooleanFormat("c");
         cfg.setAPIBuiltinEnabled(false);
         cfg.setNewBuiltinClassResolver(TemplateClassResolver.ALLOWS_NOTHING_RESOLVER);
+        cfg.setSharedVariable("toJson", new ToJsonMethod());
 
         cache = Caffeine.newBuilder()
                         .expireAfterAccess(Duration.ofHours(1))
@@ -115,12 +116,14 @@ public final class Templater {
         }
 
         final String projectName = project.name();
+        final String repoName = repo.name();
         // TODO(ikhoon): Optimize by caching the rendering result for the same set of variables and template.
         return mergeVariables(crudRepo.findAll(crudContext(projectName, normTemplateRevision)),
-                              crudRepo.findAll(crudContext(projectName, repo.name(), normTemplateRevision)),
+                              crudRepo.findAll(crudContext(projectName, repoName, normTemplateRevision)),
                               findRepoVariableFile(repo, entry),
                               findEntryPathVariableFile(repo, entry),
-                              findClientVariableFile(repo, entry, variableFile))
+                              findClientVariableFile(repo, entry, variableFile),
+                              projectName, repoName, entry.path(), variableFile)
                 .thenApply(variables -> process(entry, variables, normTemplateRevision))
                 .toCompletableFuture();
     }
@@ -242,7 +245,9 @@ public final class Templater {
             CompletableFuture<List<HasRevision<Variable>>> repoFuture,
             CompletableFuture<Map<String, Object>> repoFileFuture,
             CompletableFuture<Map<String, Object>> entryPathFuture,
-            CompletableFuture<Map<String, Object>> clientFileFuture) {
+            CompletableFuture<Map<String, Object>> clientFileFuture,
+            String projectName, String repoName, String entryPath,
+            @Nullable String variableFile) {
         return CompletableFutures.combine(
                 projFuture, repoFuture, repoFileFuture, entryPathFuture, clientFileFuture,
                 (projVars, repoVars, repoFileVars, entryPathVars, clientFileVars) -> {
@@ -266,12 +271,22 @@ public final class Templater {
                     builder.putAll(clientFileVars);
 
                     final Map<String, Object> variables = builder.buildKeepingLast();
+                    final Map<String, Object> result = new HashMap<>();
                     // Prefix variables map with "vars" key.
                     // This allows using "vars.varName" in the template.
                     // TODO(ikhoon): Support secret variables that will be prefixed with "secrets" key.
-                    final Map<String, Object> vars = new HashMap<>();
-                    vars.put("vars", variables);
-                    return vars;
+                    result.put("vars", variables);
+                    // Always inject centraldogma context (project, repo, path, variableFile).
+                    final ImmutableMap.Builder<String, Object> cdContext =
+                            ImmutableMap.<String, Object>builder()
+                                        .put("project", projectName)
+                                        .put("repo", repoName)
+                                        .put("path", entryPath);
+                    if (variableFile != null) {
+                        cdContext.put("variableFile", variableFile);
+                    }
+                    result.put("centraldogma", cdContext.build());
+                    return result;
                 });
     }
 
