@@ -76,8 +76,8 @@ final class TransformingChangesApplier extends AbstractChangesApplier {
         } catch (CentralDogmaException e) {
             throw e;
         } catch (Exception e) {
-            throw new ChangeConflictException("failed to transform the content: " + oldJsonNode +
-                                              " transformer: " + transformer, e);
+            // Do not include the old content in the message; it may contain sensitive data such as secrets.
+            throw new ChangeConflictException("failed to transform the content with " + transformer, e);
         }
         return 0;
     }
