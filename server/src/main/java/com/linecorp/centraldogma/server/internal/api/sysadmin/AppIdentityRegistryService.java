@@ -249,6 +249,28 @@ public final class AppIdentityRegistryService extends AbstractService {
     }
 
     /**
+     * POST /appIdentities/{appId}/secret
+     *
+     * <p>Regenerates the secret of the token of the specified {@code appId}. The old secret is revoked
+     * immediately and the token with a newly-generated secret is returned.
+     */
+    @Post("/appIdentities/{appId}/secret")
+    public CompletableFuture<Token> regenerateTokenSecret(ServiceRequestContext ctx,
+                                                          @Param String appId,
+                                                          Author author, User loginUser) {
+        return getTokenOrRespondForbidden(ctx, appId, loginUser).thenCompose(
+                token -> {
+                    if (token.isDeleted()) {
+                        throw new IllegalArgumentException(
+                                "You can't regenerate the secret of the token scheduled for deletion.");
+                    }
+                    // Pass the creation metadata of the authorized token so that a token recreated
+                    // with the same application ID in the meantime is not rotated.
+                    return mds.regenerateTokenSecret(author, appId, token.creation());
+                });
+    }
+
+    /**
      * PATCH /appIdentities/{appId}/level
      *
      * <p>Updates a level of the app identity of the specified ID.

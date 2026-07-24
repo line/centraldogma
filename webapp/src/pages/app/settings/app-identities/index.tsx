@@ -12,6 +12,7 @@ import { useMemo } from 'react';
 import { DeactivateAppIdentity } from 'dogma/features/app-identity/DeactivateAppIdentity';
 import { ActivateAppIdentity } from 'dogma/features/app-identity/ActivateAppIdentity';
 import { DeleteAppIdentity } from 'dogma/features/app-identity/DeleteAppIdentity';
+import { RegenerateAppIdentitySecret } from 'dogma/features/app-identity/RegenerateAppIdentitySecret';
 import { Deferred } from 'dogma/common/components/Deferred';
 import SettingView from 'dogma/features/settings/SettingView';
 import { useAppSelector } from 'dogma/hooks';
@@ -78,6 +79,10 @@ const AppIdentityPage = () => {
           <Wrap>
             <ActivateAppIdentity appId={info.row.original.appId} hidden={info.getValue() === undefined} />
             <DeactivateAppIdentity appId={info.row.original.appId} hidden={info.getValue() !== undefined} />
+            <RegenerateAppIdentitySecret
+              appId={info.row.original.appId}
+              hidden={!isToken(info.row.original) || info.row.original.deletion !== undefined}
+            />
             <DeleteAppIdentity appId={info.row.original.appId} hidden={info.getValue() === undefined} />
           </Wrap>
         ),

@@ -1,4 +1,6 @@
 import {
+  Alert,
+  AlertIcon,
   Button,
   HStack,
   IconButton,
@@ -26,10 +28,12 @@ export const DisplaySecretModal = ({
   isOpen,
   onClose,
   response,
+  title = 'Application identity generated',
 }: {
   isOpen: boolean;
   onClose: () => void;
   response: AppIdentityDto;
+  title?: string;
 }) => {
   const dispatch = useAppDispatch();
   if (!response) return;
@@ -38,9 +42,15 @@ export const DisplaySecretModal = ({
     <Modal isOpen={isOpen} onClose={onClose} motionPreset="slideInBottom">
       <ModalOverlay />
       <ModalContent minWidth="max-content">
-        <ModalHeader>Application identity generated</ModalHeader>
+        <ModalHeader>{title}</ModalHeader>
         <ModalCloseButton />
         <ModalBody>
+          {response.deactivation && (
+            <Alert status="warning" mb={4}>
+              <AlertIcon />
+              This app identity is inactive. The new secret will not work until the app identity is activated.
+            </Alert>
+          )}
           <TableContainer minWidth="max-content">
             <Table whiteSpace="normal">
               <Tbody>

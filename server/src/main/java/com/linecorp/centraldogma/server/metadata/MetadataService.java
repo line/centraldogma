@@ -1166,6 +1166,27 @@ public class MetadataService {
     }
 
     /**
+     * Regenerates the secret of the {@link Token} of the specified {@code appId} and returns the
+     * {@link Token} with the newly-generated secret. The old secret is revoked immediately.
+     */
+    public CompletableFuture<Token> regenerateTokenSecret(Author author, String appId) {
+        return appIdentityService.regenerateTokenSecret(author, appId);
+    }
+
+    /**
+     * Regenerates the secret of the {@link Token} of the specified {@code appId} and returns the
+     * {@link Token} with the newly-generated secret. The old secret is revoked immediately.
+     * The regeneration fails with a {@link ChangeConflictException} if the token's creation metadata
+     * does not match {@code expectedCreation}, which prevents rotating a token that was recreated
+     * with the same application ID after the caller was authorized.
+     */
+    public CompletableFuture<Token> regenerateTokenSecret(Author author, String appId,
+                                                          UserAndTimestamp expectedCreation) {
+        requireNonNull(expectedCreation, "expectedCreation");
+        return appIdentityService.regenerateTokenSecret(author, appId, expectedCreation);
+    }
+
+    /**
      * Returns an {@link AppIdentity} which has the specified {@code appId}.
      */
     public AppIdentity findAppIdentity(String appId) {

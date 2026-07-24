@@ -89,4 +89,38 @@ describe('AppIdentityPage', () => {
     expect(getByText('app-token-1')).toBeInTheDocument();
     expect(getByText('app-admin-1')).toBeInTheDocument();
   });
+
+  it('offers the regenerate secret action only for live tokens', () => {
+    (useGetAppIdentitiesQuery as jest.Mock).mockReturnValue({
+      data: [
+        mockIdentities[0],
+        {
+          appId: 'app-cert-1',
+          type: 'CERTIFICATE',
+          certificateId: 'cert/1',
+          systemAdmin: false,
+          allowGuestAccess: false,
+          creation: { user: 'user@example.com', timestamp: '2024-01-03T00:00:00Z' },
+        },
+        {
+          appId: 'app-deleted-1',
+          type: 'TOKEN',
+          systemAdmin: false,
+          allowGuestAccess: false,
+          creation: { user: 'user@example.com', timestamp: '2024-01-04T00:00:00Z' },
+          deactivation: { user: 'user@example.com', timestamp: '2024-01-05T00:00:00Z' },
+          deletion: { user: 'user@example.com', timestamp: '2024-01-05T00:00:00Z' },
+        },
+      ] as AppIdentityDto[],
+      error: undefined,
+      isLoading: false,
+    });
+    const { getAllByRole } = renderWithProviders(<AppIdentityPage />, {
+      preloadedState: { auth: baseAuthState },
+    });
+
+    // Hidden buttons are excluded from the accessibility tree, so only the live token row's button
+    // is found; the certificate row and the token scheduled for deletion offer no regenerate action.
+    expect(getAllByRole('button', { name: /regenerate secret/i })).toHaveLength(1);
+  });
 });

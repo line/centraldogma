@@ -555,6 +555,114 @@ class MetadataServiceTest {
     }
 
     @Test
+    void regenerateTokenSecret() {
+        final MetadataService mds = newMetadataService(manager);
+
+        mds.createToken(author, app1).join();
+        await().untilAsserted(() -> assertThat(mds.getAppIdentityRegistry().getOrDefault(app1, null))
+                .isNotNull());
+        final Token token = (Token) mds.getAppIdentityRegistry().get(app1);
+        final String oldSecret = token.secret();
+        assertThat(oldSecret).isNotNull();
+
+        final Token returned = mds.regenerateTokenSecret(author, app1).join();
+        final String newSecret = returned.secret();
+        assertThat(newSecret).isNotNull()
+                             .startsWith("appToken-")
+                             .isNotEqualTo(oldSecret);
+        assertThat(returned.creation()).isEqualTo(token.creation());
+        assertThat(returned.isActive()).isTrue();
+
+        // The registry has the token with the new secret.
+        await().untilAsserted(() -> assertThat(((Token) mds.getAppIdentityRegistry().get(app1)).secret())
+                .isEqualTo(newSecret));
+
+        // The new secret resolves to the token while the old one does not.
+        assertThat(mds.findTokenBySecret(newSecret).appId()).isEqualTo(app1);
+        assertThatThrownBy(() -> mds.findTokenBySecret(oldSecret))
+                .isInstanceOf(AppIdentityNotFoundException.class);
+    }
+
+    @Test
+    void regenerateSecretOfDeactivatedToken() {
+        final MetadataService mds = newMetadataService(manager);
+
+        mds.createToken(author, app1).join();
+        mds.deactivateToken(author, app1).join();
+        await().untilAsserted(() -> assertThat(mds.getAppIdentityRegistry().get(app1).isActive()).isFalse());
+        final String oldSecret = ((Token) mds.getAppIdentityRegistry().get(app1)).secret();
+
+        final Token returned = mds.regenerateTokenSecret(author, app1).join();
+        final String newSecret = returned.secret();
+        assertThat(newSecret).isNotEqualTo(oldSecret);
+        await().untilAsserted(() -> assertThat(((Token) mds.getAppIdentityRegistry().get(app1)).secret())
+                .isEqualTo(newSecret));
+
+        // The token remains deactivated so neither secret resolves to it.
+        assertThat(returned.isActive()).isFalse();
+        assertThatThrownBy(() -> mds.findTokenBySecret(newSecret))
+                .isInstanceOf(AppIdentityNotFoundException.class);
+        assertThatThrownBy(() -> mds.findTokenBySecret(oldSecret))
+                .isInstanceOf(AppIdentityNotFoundException.class);
+
+        // Activating the token makes the new secret usable.
+        mds.activateToken(author, app1).join();
+        await().untilAsserted(() -> assertThat(mds.getAppIdentityRegistry().get(app1).isActive()).isTrue());
+        assertThat(mds.findTokenBySecret(newSecret).appId()).isEqualTo(app1);
+    }
+
+    @Test
+    void cannotRegenerateSecretOfDestroyedToken() {
+        final MetadataService mds = newMetadataService(manager);
+
+        mds.createToken(author, app1).join();
+        mds.destroyToken(author, app1).join();
+
+        assertThatThrownBy(() -> mds.regenerateTokenSecret(author, app1).join())
+                .hasCauseInstanceOf(ChangeConflictException.class)
+                .hasStackTraceContaining("already destroyed");
+    }
+
+    @Test
+    void cannotRegenerateSecretOfRecreatedToken() {
+        final MetadataService mds = newMetadataService(manager);
+
+        mds.createToken(author, app1).join();
+        await().untilAsserted(() -> assertThat(mds.getAppIdentityRegistry().getOrDefault(app1, null))
+                .isNotNull());
+        final UserAndTimestamp oldCreation = mds.getAppIdentityRegistry().get(app1).creation();
+
+        // Destroy, purge and recreate a token with the same application ID.
+        mds.destroyToken(author, app1).join();
+        mds.purgeAppIdentity(author, app1);
+        mds.createToken(author, app1).join();
+        await().untilAsserted(() -> assertThat(mds.getAppIdentityRegistry().get(app1).creation())
+                .isNotEqualTo(oldCreation));
+        final UserAndTimestamp newCreation = mds.getAppIdentityRegistry().get(app1).creation();
+
+        // A regeneration authorized against the old token must not rotate the recreated one.
+        assertThatThrownBy(() -> mds.regenerateTokenSecret(author, app1, oldCreation).join())
+                .hasCauseInstanceOf(ChangeConflictException.class)
+                .hasStackTraceContaining("recreated concurrently");
+
+        // A regeneration with the matching creation metadata succeeds.
+        final Token returned = mds.regenerateTokenSecret(author, app1, newCreation).join();
+        assertThat(returned.secret()).startsWith("appToken-");
+    }
+
+    @Test
+    void cannotRegenerateSecretOfCertificate() {
+        final MetadataService mds = newMetadataService(manager);
+
+        mds.createCertificate(author, cert1, certificateId1, false).join();
+
+        // An IllegalArgumentException raised in a transformer is wrapped with a ChangeConflictException.
+        assertThatThrownBy(() -> mds.regenerateTokenSecret(author, cert1).join())
+                .hasRootCauseInstanceOf(IllegalArgumentException.class)
+                .hasStackTraceContaining("not a TOKEN");
+    }
+
+    @Test
     void certificateActivationAndDeactivation() {
         final MetadataService mds = newMetadataService(manager);
 

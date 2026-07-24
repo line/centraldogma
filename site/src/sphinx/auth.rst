@@ -366,7 +366,12 @@ request comes from.
 
 Anyone who is logged into the Central Dogma can create a new ``Application Token``, and the token is shared
 for everyone. So any owner of a project can add any token to their project. However only both the token
-creator and the system administrator are allowed to deactivate and/or remove the token.
+creator and the system administrator are allowed to deactivate, remove and/or regenerate the token.
+
+If the secret of a token is leaked, the token creator or a system administrator can regenerate the secret
+with the ``Regenerate secret`` button of the web UI or ``POST /api/v1/appIdentities/{appId}/secret``.
+The old secret is revoked immediately and a newly-generated secret is issued to the same application ID,
+so the roles and permissions granted to the token are preserved.
 
 There are two levels of a token, which are ``System Admin`` and ``User``. ``System Admin`` level token can be
 created by only the system administrators. A client who sends a request with the token is allowed to access
