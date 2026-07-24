@@ -88,6 +88,18 @@ class AppIdentityRegistryServiceViaHttpTest {
         assertThat(newTokenClient(oldSecret).get(API_V1_PATH_PREFIX + "appIdentities").aggregate().join()
                                             .status()).isEqualTo(HttpStatus.OK);
 
+        // Deactivate the token to revoke the old secret.
+        final RequestHeaders patchHeaders =
+                RequestHeaders.of(HttpMethod.PATCH, API_V1_PATH_PREFIX + "appIdentities/forRegenerate",
+                                  HttpHeaderNames.CONTENT_TYPE, MediaType.JSON);
+        assertThat(systemAdminClient.execute(patchHeaders, "{\"status\":\"inactive\"}").aggregate().join()
+                                    .status()).isEqualTo(HttpStatus.OK);
+        // The registry used by the authorizer is updated asynchronously so await the changes.
+        await().untilAsserted(() -> {
+            assertThat(newTokenClient(oldSecret).get(API_V1_PATH_PREFIX + "appIdentities").aggregate().join()
+                                                .status()).isEqualTo(HttpStatus.UNAUTHORIZED);
+        });
+
         final AggregatedHttpResponse regenerateResponse =
                 systemAdminClient.post(API_V1_PATH_PREFIX + "appIdentities/forRegenerate/secret",
                                        HttpData.empty())
@@ -99,20 +111,48 @@ class AppIdentityRegistryServiceViaHttpTest {
         final String newSecret = regenerated.get("secret").asText();
         assertThat(newSecret).startsWith("appToken-")
                              .isNotEqualTo(oldSecret);
-
-        // The old secret is revoked and the new secret authenticates requests.
-        // The registry used by the authorizer is updated asynchronously so await the changes.
+        // The token remains deactivated so neither secret authenticates yet.
+        assertThat(regenerated.get("deactivation")).isNotNull();
         await().untilAsserted(() -> {
+            assertThat(newTokenClient(newSecret).get(API_V1_PATH_PREFIX + "appIdentities").aggregate().join()
+                                                .status()).isEqualTo(HttpStatus.UNAUTHORIZED);
             assertThat(newTokenClient(oldSecret).get(API_V1_PATH_PREFIX + "appIdentities").aggregate().join()
                                                 .status()).isEqualTo(HttpStatus.UNAUTHORIZED);
+        });
+
+        // Activating the token makes the new secret usable while the old one stays revoked.
+        assertThat(systemAdminClient.execute(patchHeaders, "{\"status\":\"active\"}").aggregate().join()
+                                    .status()).isEqualTo(HttpStatus.OK);
+        await().untilAsserted(() -> {
             assertThat(newTokenClient(newSecret).get(API_V1_PATH_PREFIX + "appIdentities").aggregate().join()
                                                 .status()).isEqualTo(HttpStatus.OK);
+            assertThat(newTokenClient(oldSecret).get(API_V1_PATH_PREFIX + "appIdentities").aggregate().join()
+                                                .status()).isEqualTo(HttpStatus.UNAUTHORIZED);
         });
     }
 
     @Test
+    void cannotRegenerateSecretOfActiveToken() {
+        assertThat(systemAdminClient.post(API_V1_PATH_PREFIX + "appIdentities",
+                                          QueryParams.of("appId", "forActive", "type", "TOKEN",
+                                                         "isSystemAdmin", false),
+                                          HttpData.empty())
+                                    .aggregate()
+                                    .join()
+                                    .status()).isEqualTo(HttpStatus.CREATED);
+
+        final AggregatedHttpResponse response =
+                systemAdminClient.post(API_V1_PATH_PREFIX + "appIdentities/forActive/secret",
+                                       HttpData.empty())
+                                 .aggregate()
+                                 .join();
+        assertThat(response.status()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(response.contentUtf8()).contains("Deactivate it first");
+    }
+
+    @Test
     void ownerCanRegenerateOwnTokenSecret() throws JsonProcessingException {
-        // A non-admin user creates its own token and regenerates its secret.
+        // A non-admin user creates its own token, deactivates it and regenerates its secret.
         final WebClient userClient =
                 WebClient.builder(dogma.httpClient().uri())
                          .auth(AuthToken.ofOAuth2(getAccessToken(dogma.httpClient(),
@@ -128,44 +168,17 @@ class AppIdentityRegistryServiceViaHttpTest {
                              .aggregate()
                              .join()
                              .status()).isEqualTo(HttpStatus.CREATED);
+        final RequestHeaders patchHeaders =
+                RequestHeaders.of(HttpMethod.PATCH, API_V1_PATH_PREFIX + "appIdentities/ownedByUser2",
+                                  HttpHeaderNames.CONTENT_TYPE, MediaType.JSON);
+        assertThat(userClient.execute(patchHeaders, "{\"status\":\"inactive\"}").aggregate().join()
+                             .status()).isEqualTo(HttpStatus.OK);
 
         final AggregatedHttpResponse response =
                 userClient.post(API_V1_PATH_PREFIX + "appIdentities/ownedByUser2/secret", HttpData.empty())
                           .aggregate()
                           .join();
         assertThat(response.status()).isEqualTo(HttpStatus.OK);
-    }
-
-    @Test
-    void regenerateSecretOfDeactivatedTokenViaHttp() throws JsonProcessingException {
-        assertThat(systemAdminClient.post(API_V1_PATH_PREFIX + "appIdentities",
-                                          QueryParams.of("appId", "forInactive", "type", "TOKEN",
-                                                         "isSystemAdmin", false),
-                                          HttpData.empty())
-                                    .aggregate()
-                                    .join()
-                                    .status()).isEqualTo(HttpStatus.CREATED);
-        final RequestHeaders headers = RequestHeaders.of(HttpMethod.PATCH,
-                                                         API_V1_PATH_PREFIX + "appIdentities/forInactive",
-                                                         HttpHeaderNames.CONTENT_TYPE, MediaType.JSON);
-        assertThat(systemAdminClient.execute(headers, "{\"status\":\"inactive\"}").aggregate().join()
-                                    .status()).isEqualTo(HttpStatus.OK);
-
-        final AggregatedHttpResponse response =
-                systemAdminClient.post(API_V1_PATH_PREFIX + "appIdentities/forInactive/secret",
-                                       HttpData.empty())
-                                 .aggregate()
-                                 .join();
-        assertThat(response.status()).isEqualTo(HttpStatus.OK);
-        final JsonNode regenerated = Jackson.readTree(response.contentUtf8());
-        final String newSecret = regenerated.get("secret").asText();
-        assertThat(newSecret).startsWith("appToken-");
-        // The token remains deactivated so the new secret does not authenticate until activation.
-        assertThat(regenerated.get("deactivation")).isNotNull();
-        await().untilAsserted(() -> {
-            assertThat(newTokenClient(newSecret).get(API_V1_PATH_PREFIX + "appIdentities").aggregate().join()
-                                                .status()).isEqualTo(HttpStatus.UNAUTHORIZED);
-        });
     }
 
     @Test

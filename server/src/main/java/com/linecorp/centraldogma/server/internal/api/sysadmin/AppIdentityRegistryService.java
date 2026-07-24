@@ -251,9 +251,10 @@ public final class AppIdentityRegistryService extends AbstractService {
     /**
      * POST /appIdentities/{appId}/secret
      *
-     * <p>Regenerates the secret of the token of the specified {@code appId} and returns the token with
-     * a newly-generated secret. The old secret is revoked in the same commit, but it may take a short
-     * time for the revocation to be propagated to the authorization cache.
+     * <p>Regenerates the secret of the deactivated token of the specified {@code appId} and returns the
+     * token with a newly-generated secret. The token must be deactivated first and the new secret does
+     * not authenticate until the token is activated, so that the new secret can be distributed to the
+     * clients before it takes effect.
      */
     @Post("/appIdentities/{appId}/secret")
     public CompletableFuture<Token> regenerateTokenSecret(ServiceRequestContext ctx,
@@ -265,9 +266,13 @@ public final class AppIdentityRegistryService extends AbstractService {
                         throw new IllegalArgumentException(
                                 "You can't regenerate the secret of the token scheduled for deletion.");
                     }
-                    // Pass the creation metadata of the authorized token so that a token recreated
-                    // with the same application ID in the meantime is not rotated.
-                    return mds.regenerateTokenSecret(author, appId, token.creation());
+                    if (token.isActive()) {
+                        throw new IllegalArgumentException(
+                                "You can't regenerate the secret of an active token. Deactivate it first.");
+                    }
+                    // Pass the authorized token so that the regeneration fails if the token is
+                    // recreated or regenerated concurrently in the meantime.
+                    return mds.regenerateTokenSecret(author, appId, token);
                 });
     }
 

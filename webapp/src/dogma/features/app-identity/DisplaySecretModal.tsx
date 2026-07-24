@@ -48,7 +48,8 @@ export const DisplaySecretModal = ({
           {response.deactivation && (
             <Alert status="warning" mb={4}>
               <AlertIcon />
-              This app identity is inactive. The new secret will not work until the app identity is activated.
+              This app identity is inactive. The new secret will not work until the app identity is activated,
+              so distribute it to the clients before activating.
             </Alert>
           )}
           <TableContainer minWidth="max-content">

@@ -82,6 +82,7 @@ const AppIdentityPage = () => {
             <RegenerateAppIdentitySecret
               appId={info.row.original.appId}
               hidden={!isToken(info.row.original) || info.row.original.deletion !== undefined}
+              disabled={info.getValue() === undefined}
             />
             <DeleteAppIdentity appId={info.row.original.appId} hidden={info.getValue() === undefined} />
           </Wrap>

@@ -1166,26 +1166,27 @@ public class MetadataService {
     }
 
     /**
-     * Regenerates the secret of the {@link Token} of the specified {@code appId} and returns the
-     * {@link Token} with the newly-generated secret. The old secret is revoked in the same commit,
-     * but it may take a short time for the revocation to be propagated to the authorization cache.
+     * Regenerates the secret of the deactivated {@link Token} of the specified {@code appId} and
+     * returns the {@link Token} with the newly-generated secret. The token must be deactivated first
+     * and the new secret does not authenticate until the token is activated. The regeneration fails
+     * with a {@link ChangeConflictException} if the token is still active.
      */
     public CompletableFuture<Token> regenerateTokenSecret(Author author, String appId) {
         return appIdentityService.regenerateTokenSecret(author, appId);
     }
 
     /**
-     * Regenerates the secret of the {@link Token} of the specified {@code appId} and returns the
-     * {@link Token} with the newly-generated secret. The old secret is revoked in the same commit,
-     * but it may take a short time for the revocation to be propagated to the authorization cache.
-     * The regeneration fails with a {@link ChangeConflictException} if the token's creation metadata
-     * does not match {@code expectedCreation}, which prevents rotating a token that was recreated
-     * with the same application ID after the caller was authorized.
+     * Regenerates the secret of the deactivated {@link Token} of the specified {@code appId} and
+     * returns the {@link Token} with the newly-generated secret. The token must be deactivated first
+     * and the new secret does not authenticate until the token is activated. The regeneration fails
+     * with a {@link ChangeConflictException} if the token is still active, or if the token does not
+     * match {@code expectedToken} anymore because it was recreated or regenerated after the caller
+     * was authorized.
      */
     public CompletableFuture<Token> regenerateTokenSecret(Author author, String appId,
-                                                          UserAndTimestamp expectedCreation) {
-        requireNonNull(expectedCreation, "expectedCreation");
-        return appIdentityService.regenerateTokenSecret(author, appId, expectedCreation);
+                                                          Token expectedToken) {
+        requireNonNull(expectedToken, "expectedToken");
+        return appIdentityService.regenerateTokenSecret(author, appId, expectedToken);
     }
 
     /**

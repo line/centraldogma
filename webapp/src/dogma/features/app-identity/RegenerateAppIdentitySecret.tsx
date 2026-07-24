@@ -1,4 +1,5 @@
 import {
+  Box,
   Button,
   HStack,
   Modal,
@@ -9,6 +10,7 @@ import {
   ModalHeader,
   ModalOverlay,
   Text,
+  Tooltip,
   useDisclosure,
 } from '@chakra-ui/react';
 import { apiSlice, useRegenerateAppIdentitySecretMutation } from 'dogma/features/api/apiSlice';
@@ -20,7 +22,15 @@ import { useAppDispatch } from 'dogma/hooks';
 import { useEffect, useRef, useState } from 'react';
 import { MdRefresh } from 'react-icons/md';
 
-export const RegenerateAppIdentitySecret = ({ appId, hidden }: { appId: string; hidden: boolean }) => {
+export const RegenerateAppIdentitySecret = ({
+  appId,
+  hidden,
+  disabled,
+}: {
+  appId: string;
+  hidden: boolean;
+  disabled?: boolean;
+}) => {
   const { isOpen, onToggle, onClose } = useDisclosure();
   const {
     isOpen: isSecretModalOpen,
@@ -76,16 +86,21 @@ export const RegenerateAppIdentitySecret = ({ appId, hidden }: { appId: string; 
   };
   return (
     <>
-      <Button
-        size="sm"
-        colorScheme="orange"
-        hidden={hidden}
-        variant="ghost"
-        onClick={onToggle}
-        leftIcon={<MdRefresh />}
-      >
-        Regenerate secret
-      </Button>
+      <Tooltip label="Deactivate the token first to regenerate its secret." isDisabled={hidden || !disabled}>
+        {/* A disabled button does not emit hover events, so the tooltip wraps a Box instead. */}
+        <Box display="inline-block" hidden={hidden}>
+          <Button
+            size="sm"
+            colorScheme="orange"
+            isDisabled={disabled}
+            variant="ghost"
+            onClick={onToggle}
+            leftIcon={<MdRefresh />}
+          >
+            Regenerate secret
+          </Button>
+        </Box>
+      </Tooltip>
       <Modal isOpen={isOpen} onClose={onClose}>
         <ModalOverlay />
         <ModalContent>
@@ -93,8 +108,8 @@ export const RegenerateAppIdentitySecret = ({ appId, hidden }: { appId: string; 
           <ModalCloseButton />
           <ModalBody>
             <Text>
-              Regenerate the secret of application identity {`${appId}`}? The current secret is revoked
-              immediately and clients using it will no longer be able to authenticate.
+              Regenerate the secret of application identity {`${appId}`}? The app identity stays inactive and
+              the new secret will not work until the app identity is activated.
             </Text>
           </ModalBody>
           <ModalFooter>
