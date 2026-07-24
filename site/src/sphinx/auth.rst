@@ -370,8 +370,9 @@ creator and the system administrator are allowed to deactivate, remove and/or re
 
 If the secret of a token is leaked, the token creator or a system administrator can regenerate the secret
 with the ``Regenerate secret`` button of the web UI or ``POST /api/v1/appIdentities/{appId}/secret``.
-The old secret is revoked immediately and a newly-generated secret is issued to the same application ID,
-so the roles and permissions granted to the token are preserved.
+The old secret is revoked and a newly-generated secret is issued to the same application ID, so the roles
+and permissions granted to the token are preserved. Note that it may take a short time for the revocation
+to be propagated to the authorization cache of each server.
 
 There are two levels of a token, which are ``System Admin`` and ``User``. ``System Admin`` level token can be
 created by only the system administrators. A client who sends a request with the token is allowed to access

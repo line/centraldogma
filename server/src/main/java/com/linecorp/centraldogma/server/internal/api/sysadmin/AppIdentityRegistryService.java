@@ -251,8 +251,9 @@ public final class AppIdentityRegistryService extends AbstractService {
     /**
      * POST /appIdentities/{appId}/secret
      *
-     * <p>Regenerates the secret of the token of the specified {@code appId}. The old secret is revoked
-     * immediately and the token with a newly-generated secret is returned.
+     * <p>Regenerates the secret of the token of the specified {@code appId} and returns the token with
+     * a newly-generated secret. The old secret is revoked in the same commit, but it may take a short
+     * time for the revocation to be propagated to the authorization cache.
      */
     @Post("/appIdentities/{appId}/secret")
     public CompletableFuture<Token> regenerateTokenSecret(ServiceRequestContext ctx,

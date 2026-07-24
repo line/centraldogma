@@ -12,6 +12,7 @@ import {
   useDisclosure,
 } from '@chakra-ui/react';
 import { apiSlice, useRegenerateAppIdentitySecretMutation } from 'dogma/features/api/apiSlice';
+import { AppIdentityDto } from 'dogma/features/app-identity/AppIdentity';
 import { DisplaySecretModal } from 'dogma/features/app-identity/DisplaySecretModal';
 import { newNotification } from 'dogma/features/notification/notificationSlice';
 import ErrorMessageParser from 'dogma/features/services/ErrorMessageParser';
@@ -28,7 +29,7 @@ export const RegenerateAppIdentitySecret = ({ appId, hidden }: { appId: string; 
   } = useDisclosure();
   const dispatch = useAppDispatch();
   const [regenerateSecret, { isLoading, reset }] = useRegenerateAppIdentitySecretMutation();
-  const [appIdentityDetail, setAppIdentityDetail] = useState(null);
+  const [appIdentityDetail, setAppIdentityDetail] = useState<AppIdentityDto | null>(null);
   const mounted = useRef(true);
   const invalidationPending = useRef(false);
   useEffect(() => {

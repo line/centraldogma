@@ -367,7 +367,7 @@ export const apiSlice = createApi({
       }),
       invalidatesTags: ['AppIdentity'],
     }),
-    regenerateAppIdentitySecret: builder.mutation({
+    regenerateAppIdentitySecret: builder.mutation<AppIdentityDto, { appId: string }>({
       query: ({ appId }) => ({
         url: `/api/v1/appIdentities/${appId}/secret`,
         method: 'POST',

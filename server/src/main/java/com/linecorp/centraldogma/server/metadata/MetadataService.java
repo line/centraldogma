@@ -1167,7 +1167,8 @@ public class MetadataService {
 
     /**
      * Regenerates the secret of the {@link Token} of the specified {@code appId} and returns the
-     * {@link Token} with the newly-generated secret. The old secret is revoked immediately.
+     * {@link Token} with the newly-generated secret. The old secret is revoked in the same commit,
+     * but it may take a short time for the revocation to be propagated to the authorization cache.
      */
     public CompletableFuture<Token> regenerateTokenSecret(Author author, String appId) {
         return appIdentityService.regenerateTokenSecret(author, appId);
@@ -1175,7 +1176,8 @@ public class MetadataService {
 
     /**
      * Regenerates the secret of the {@link Token} of the specified {@code appId} and returns the
-     * {@link Token} with the newly-generated secret. The old secret is revoked immediately.
+     * {@link Token} with the newly-generated secret. The old secret is revoked in the same commit,
+     * but it may take a short time for the revocation to be propagated to the authorization cache.
      * The regeneration fails with a {@link ChangeConflictException} if the token's creation metadata
      * does not match {@code expectedCreation}, which prevents rotating a token that was recreated
      * with the same application ID after the caller was authorized.
