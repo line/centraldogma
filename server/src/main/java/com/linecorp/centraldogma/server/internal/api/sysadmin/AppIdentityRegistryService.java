@@ -260,6 +260,7 @@ public final class AppIdentityRegistryService extends AbstractService {
     public CompletableFuture<Token> regenerateTokenSecret(ServiceRequestContext ctx,
                                                           @Param String appId,
                                                           Author author, User loginUser) {
+        // Permission is checked at the HTTP layer; the metadata layer is caller-agnostic.
         return getTokenOrRespondForbidden(ctx, appId, loginUser).thenCompose(
                 token -> {
                     if (token.isDeleted()) {
