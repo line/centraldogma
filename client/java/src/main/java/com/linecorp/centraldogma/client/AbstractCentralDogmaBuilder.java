@@ -59,6 +59,10 @@ public abstract class AbstractCentralDogmaBuilder<B extends AbstractCentralDogma
             ImmutableList.of(TEST_PROFILE_RESOURCE_PATH, PROFILE_RESOURCE_PATH);
 
     static final int DEFAULT_PORT = 36462;
+    static final int DEFAULT_TLS_PORT = 443;
+
+    // A sentinel meaning 'use DEFAULT_PORT or DEFAULT_TLS_PORT depending on useTls', resolved in hosts().
+    private static final int UNSPECIFIED_PORT = 0;
 
     private static final int DEFAULT_MAX_NUM_RETRIES_ON_REPLICATION_LAG = 5;
     private static final int DEFAULT_RETRY_INTERVAL_ON_REPLICATION_LAG_SECONDS = 2;
@@ -107,12 +111,13 @@ public abstract class AbstractCentralDogmaBuilder<B extends AbstractCentralDogma
 
     /**
      * Adds the host name or IP address of the Central Dogma Server and uses the default port number of
-     * {@value #DEFAULT_PORT}.
+     * {@value #DEFAULT_PORT}. If TLS is enabled with {@link #useTls()}, the default port number of
+     * {@value #DEFAULT_TLS_PORT} is used instead.
      *
      * @param host the host name or IP address of the Central Dogma server
      */
     public final B host(String host) {
-        return host(host, DEFAULT_PORT);
+        return host0(host, UNSPECIFIED_PORT);
     }
 
     /**
@@ -123,8 +128,13 @@ public abstract class AbstractCentralDogmaBuilder<B extends AbstractCentralDogma
      */
     public final B host(String host, int port) {
         requireNonNull(host, "host");
-        checkArgument(!host.startsWith("group:"), "host: %s (must not start with 'group:')", host);
         checkArgument(port >= 1 && port < 65536, "port: %s (expected: 1 .. 65535)", port);
+        return host0(host, port);
+    }
+
+    private B host0(String host, int port) {
+        requireNonNull(host, "host");
+        checkArgument(!host.startsWith("group:"), "host: %s (must not start with 'group:')", host);
 
         final InetSocketAddress addr = newEndpoint(host, port);
         checkState(selectedProfile == null, "profile() and host() cannot be used together.");
@@ -133,14 +143,16 @@ public abstract class AbstractCentralDogmaBuilder<B extends AbstractCentralDogma
     }
 
     /**
-     * Sets the client to use TLS.
+     * Sets the client to use TLS. A host added via {@link #host(String)} without a port number will use
+     * the default port number of {@value #DEFAULT_TLS_PORT}.
      */
     public final B useTls() {
         return useTls(true);
     }
 
     /**
-     * Sets whether the client uses TLS or not.
+     * Sets whether the client uses TLS or not. If TLS is enabled, a host added via {@link #host(String)}
+     * without a port number will use the default port number of {@value #DEFAULT_TLS_PORT}.
      */
     public final B useTls(boolean useTls) {
         checkState(selectedProfile == null, "useTls() cannot be called once a profile is selected.");
@@ -337,9 +349,21 @@ public abstract class AbstractCentralDogmaBuilder<B extends AbstractCentralDogma
 
     /**
      * Returns the hosts added via {@link #host(String, int)} or {@link #profile(String...)}.
+     * A host added via {@link #host(String)} without a port number gets the default port number of
+     * {@value #DEFAULT_PORT}, or {@value #DEFAULT_TLS_PORT} if TLS is enabled with {@link #useTls()}.
      */
     protected final Set<InetSocketAddress> hosts() {
-        return hosts;
+        final int defaultPort = useTls ? DEFAULT_TLS_PORT : DEFAULT_PORT;
+        final ImmutableSet.Builder<InetSocketAddress> builder =
+                ImmutableSet.builderWithExpectedSize(hosts.size());
+        for (InetSocketAddress addr : hosts) {
+            if (addr.getPort() == UNSPECIFIED_PORT) {
+                builder.add(newEndpoint(addr.getHostString(), defaultPort));
+            } else {
+                builder.add(addr);
+            }
+        }
+        return builder.build();
     }
 
     /**
