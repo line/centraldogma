@@ -165,7 +165,7 @@ final class AppIdentityService {
                     final Map<String, AppIdentity> newAppIds = removeFromMap(registry.appIds(), appId);
                     // The app identity is already removed from secrets and certificateIds when destroyed.
                     return new AppIdentityRegistry(newAppIds, registry.secrets(), registry.certificateIds());
-        });
+                });
         return appIdentityRegistryRepo.push(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, author,
                                             commitSummary, transformer)
                                       .join();
@@ -235,12 +235,13 @@ final class AppIdentityService {
                 });
         // Read the registry back at the revision this commit produced so that the caller gets
         // the secret of this commit even if another commit lands right after.
-        return appIdentityRegistryRepo.push(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, author,
-                                            commitSummary, transformer)
-                                      .thenCompose(revision -> appIdentityRegistryRepo.fetch(
-                                              INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, TOKEN_JSON,
-                                              revision))
-                                      .thenApply(holder -> (Token) holder.object().get(appId));
+        return appIdentityRegistryRepo
+                .push(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, author, commitSummary, transformer)
+                .thenCompose(revision -> {
+                    return appIdentityRegistryRepo.fetch(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA,
+                                                         TOKEN_JSON, revision);
+                })
+                .thenApply(holder -> (Token) holder.object().get(appId));
     }
 
     CompletableFuture<Revision> activateToken(Author author, String appId) {
@@ -275,18 +276,19 @@ final class AppIdentityService {
 
         final AppIdentityRegistryTransformer transformer = new AppIdentityRegistryTransformer(
                 (headRevision, registry) -> {
-            final AppIdentity appIdentity =
-                    getAppIdentityToDeactivate(headRevision, registry, appId, AppIdentityType.TOKEN);
-            final String secret = ((Token) appIdentity).secret();
-            assert secret != null;
-            final Token newToken = new Token(appIdentity.appId(), secret,
-                                             appIdentity.isSystemAdmin(), appIdentity.allowGuestAccess(),
-                                             appIdentity.creation(), userAndTimestamp, null);
-            final Map<String, AppIdentity> newAppIds = updateMap(registry.appIds(), appId, newToken);
-            final Map<String, String> newSecrets =
-                    removeFromMap(registry.secrets(), secret); // Note that the key is secret not appId.
-            return new AppIdentityRegistry(newAppIds, newSecrets, registry.certificateIds());
-        });
+                    final AppIdentity appIdentity =
+                            getAppIdentityToDeactivate(headRevision, registry, appId, AppIdentityType.TOKEN);
+                    final String secret = ((Token) appIdentity).secret();
+                    assert secret != null;
+                    final Token newToken = new Token(appIdentity.appId(), secret,
+                                                     appIdentity.isSystemAdmin(),
+                                                     appIdentity.allowGuestAccess(),
+                                                     appIdentity.creation(), userAndTimestamp, null);
+                    final Map<String, AppIdentity> newAppIds = updateMap(registry.appIds(), appId, newToken);
+                    final Map<String, String> newSecrets =
+                            removeFromMap(registry.secrets(), secret); // Note that the key is secret not appId.
+                    return new AppIdentityRegistry(newAppIds, newSecrets, registry.certificateIds());
+                });
         return appIdentityRegistryRepo.push(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, author,
                                             commitSummary, transformer);
     }
@@ -377,7 +379,7 @@ final class AppIdentityService {
                                                                       Jackson.valueToTree(
                                                                               certificate.appId()))));
         return appIdentityRegistryRepo.push(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, author,
-                              "Add a certificate: " + certificate.id(), change);
+                                            "Add a certificate: " + certificate.id(), change);
     }
 
     CompletableFuture<Revision> destroyCertificate(Author author, String appId) {
