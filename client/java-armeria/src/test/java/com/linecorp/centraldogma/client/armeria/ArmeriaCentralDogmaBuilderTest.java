@@ -101,6 +101,15 @@ class ArmeriaCentralDogmaBuilderTest {
     }
 
     @Test
+    void buildingWithSingleResolvedHostWithTls() throws Exception {
+        final ArmeriaCentralDogmaBuilder b = new ArmeriaCentralDogmaBuilder();
+        b.healthCheckIntervalMillis(0);
+        b.useTls();
+        b.host("1.2.3.4");
+        assertThat(b.endpointGroup()).isEqualTo(Endpoint.of("1.2.3.4", 443));
+    }
+
+    @Test
     void buildingSingleResolvedHostWithHealthCheck() throws Exception {
         final ArmeriaCentralDogmaBuilder b = new ArmeriaCentralDogmaBuilder();
         b.host("1.2.3.4");
