@@ -33,7 +33,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.atomic.AtomicReference;
 
 import org.jspecify.annotations.Nullable;
 
@@ -183,9 +182,6 @@ final class AppIdentityService {
 
         final String commitSummary = "Regenerate the secret of the token: " + appId;
 
-        // Capture the regenerated token so that the caller gets the secret this commit produced
-        // even if another commit lands right after this one.
-        final AtomicReference<Token> newTokenRef = new AtomicReference<>();
         final AppIdentityRegistryTransformer transformer = new AppIdentityRegistryTransformer(
                 (headRevision, registry) -> {
                     final AppIdentity appIdentity = registry.get(appId); // Raise an exception if not found.
@@ -228,7 +224,6 @@ final class AppIdentityService {
                     final Token newToken = new Token(token.appId(), newSecret, token.isSystemAdmin(),
                                                      token.allowGuestAccess(), token.creation(),
                                                      token.deactivation(), null);
-                    newTokenRef.set(newToken);
                     final Map<String, AppIdentity> newAppIds =
                             updateMap(registry.appIds(), appId, newToken);
                     // A deactivated token has no entry in the secret map, so the new secret is not
@@ -238,9 +233,14 @@ final class AppIdentityService {
                             removeFromMap(registry.secrets(), oldSecret);
                     return new AppIdentityRegistry(newAppIds, newSecrets, registry.certificateIds());
                 });
+        // Read the registry back at the revision this commit produced so that the caller gets
+        // the secret of this commit even if another commit lands right after.
         return appIdentityRegistryRepo.push(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, author,
                                             commitSummary, transformer)
-                                      .thenApply(unused -> newTokenRef.get());
+                                      .thenCompose(revision -> appIdentityRegistryRepo.fetch(
+                                              INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, TOKEN_JSON,
+                                              revision))
+                                      .thenApply(holder -> (Token) holder.object().get(appId));
     }
 
     CompletableFuture<Revision> activateToken(Author author, String appId) {
