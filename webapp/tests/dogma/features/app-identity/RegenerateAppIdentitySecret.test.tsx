@@ -85,18 +85,6 @@ describe('RegenerateAppIdentitySecret', () => {
     expect(screen.getByText(/This app identity is inactive/)).toBeInTheDocument();
   });
 
-  it('is disabled for an active token', async () => {
-    regenerateSecret.mockReturnValue({ unwrap: () => Promise.resolve(regeneratedToken) });
-    renderWithProviders(<RegenerateAppIdentitySecret appId="app-token-1" hidden={false} disabled />);
-
-    const button = screen.getByRole('button', { name: /regenerate secret/i });
-    expect(button).toBeDisabled();
-
-    await userEvent.click(button);
-    expect(screen.queryByText(/stays inactive/)).not.toBeInTheDocument();
-    expect(regenerateSecret).not.toHaveBeenCalled();
-  });
-
   it('refreshes the app identity list only after the secret modal is closed', async () => {
     regenerateSecret.mockReturnValue({ unwrap: () => Promise.resolve(regeneratedToken) });
     const { hasInvalidation } = renderWithDispatchSpy(

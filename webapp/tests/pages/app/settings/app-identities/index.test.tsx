@@ -128,12 +128,8 @@ describe('AppIdentityPage', () => {
       preloadedState: { auth: baseAuthState },
     });
 
-    // Hidden buttons are excluded from the accessibility tree, so the buttons are found only for
-    // the token rows; certificates and tokens scheduled for deletion offer none. The active token
-    // row's button is disabled until the token is deactivated.
-    const buttons = getAllByRole('button', { name: /regenerate secret/i });
-    expect(buttons).toHaveLength(2);
-    expect(buttons[0]).toBeDisabled();
-    expect(buttons[1]).toBeEnabled();
+    // Hidden buttons are excluded from the accessibility tree, so only the deactivated token row's
+    // button is found; active tokens, certificates and tokens scheduled for deletion offer none.
+    expect(getAllByRole('button', { name: /regenerate secret/i })).toHaveLength(1);
   });
 });
