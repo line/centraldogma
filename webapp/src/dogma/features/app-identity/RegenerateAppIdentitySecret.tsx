@@ -20,7 +20,15 @@ import { useAppDispatch } from 'dogma/hooks';
 import { useEffect, useRef, useState } from 'react';
 import { MdRefresh } from 'react-icons/md';
 
-export const RegenerateAppIdentitySecret = ({ appId, hidden }: { appId: string; hidden: boolean }) => {
+export const RegenerateAppIdentitySecret = ({
+  appId,
+  hidden,
+  onRegenerated,
+}: {
+  appId: string;
+  hidden: boolean;
+  onRegenerated?: () => void;
+}) => {
   const { isOpen, onToggle, onClose } = useDisclosure();
   const {
     isOpen: isSecretModalOpen,
@@ -69,6 +77,7 @@ export const RegenerateAppIdentitySecret = ({ appId, hidden }: { appId: string; 
     onSecretModalClose();
     setAppIdentityDetail(null);
     reset();
+    onRegenerated?.();
     // Refetch after the secret modal is closed; refetching earlier remounts this table cell
     // and closes the modal before the user sees the new secret.
     invalidationPending.current = false;

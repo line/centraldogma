@@ -85,6 +85,23 @@ describe('RegenerateAppIdentitySecret', () => {
     expect(screen.getByText(/This app identity is inactive/)).toBeInTheDocument();
   });
 
+  it('notifies the parent when the secret modal is closed after a regeneration', async () => {
+    regenerateSecret.mockReturnValue({ unwrap: () => Promise.resolve(regeneratedToken) });
+    const onRegenerated = jest.fn();
+    renderWithProviders(
+      <RegenerateAppIdentitySecret appId="app-token-1" hidden={false} onRegenerated={onRegenerated} />,
+    );
+
+    await userEvent.click(screen.getByRole('button', { name: /regenerate secret/i }));
+    await userEvent.click(screen.getByRole('button', { name: 'Regenerate' }));
+    await waitFor(() => expect(screen.getByText('Secret regenerated')).toBeInTheDocument());
+    expect(onRegenerated).not.toHaveBeenCalled();
+
+    await userEvent.click(screen.getByRole('button', { name: 'OK' }));
+
+    expect(onRegenerated).toHaveBeenCalledTimes(1);
+  });
+
   it('refreshes the app identity list only after the secret modal is closed', async () => {
     regenerateSecret.mockReturnValue({ unwrap: () => Promise.resolve(regeneratedToken) });
     const { hasInvalidation } = renderWithDispatchSpy(
