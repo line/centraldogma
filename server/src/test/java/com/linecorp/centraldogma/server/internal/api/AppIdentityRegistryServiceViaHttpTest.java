@@ -31,6 +31,7 @@ import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.google.common.collect.ImmutableMap;
 
 import com.linecorp.armeria.client.WebClient;
 import com.linecorp.armeria.common.AggregatedHttpResponse;
@@ -47,8 +48,10 @@ import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.client.armeria.ArmeriaCentralDogmaBuilder;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Entry;
+import com.linecorp.centraldogma.common.ProjectRole;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
+import com.linecorp.centraldogma.server.internal.api.MetadataApiService.IdAndProjectRole;
 import com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil;
 import com.linecorp.centraldogma.testing.internal.auth.TestAuthProviderFactory;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
@@ -98,11 +101,7 @@ class AppIdentityRegistryServiceViaHttpTest {
                                             .status()).isEqualTo(HttpStatus.OK);
 
         // Deactivate the token to revoke the old secret.
-        final RequestHeaders patchHeaders =
-                RequestHeaders.of(HttpMethod.PATCH, API_V1_PATH_PREFIX + "appIdentities/forRegenerate",
-                                  HttpHeaderNames.CONTENT_TYPE, MediaType.JSON);
-        assertThat(systemAdminClient.execute(patchHeaders, "{\"status\":\"inactive\"}").aggregate().join()
-                                    .status()).isEqualTo(HttpStatus.OK);
+        setStatus(systemAdminClient, "forRegenerate", "inactive");
         // The registry used by the authorizer is updated asynchronously so await the changes.
         await().untilAsserted(() -> {
             assertThat(newTokenClient(oldSecret).get(API_V1_PATH_PREFIX + "appIdentities").aggregate().join()
@@ -135,8 +134,7 @@ class AppIdentityRegistryServiceViaHttpTest {
         });
 
         // Activating the token makes the new secret usable while the old one stays revoked.
-        assertThat(systemAdminClient.execute(patchHeaders, "{\"status\":\"active\"}").aggregate().join()
-                                    .status()).isEqualTo(HttpStatus.OK);
+        setStatus(systemAdminClient, "forRegenerate", "active");
         await().untilAsserted(() -> {
             assertThat(newTokenClient(newSecret).get(API_V1_PATH_PREFIX + "appIdentities").aggregate().join()
                                                 .status()).isEqualTo(HttpStatus.OK);
@@ -166,12 +164,11 @@ class AppIdentityRegistryServiceViaHttpTest {
                                  .join();
         assertThat(createResponse.status()).isEqualTo(HttpStatus.CREATED);
         final String oldSecret = Jackson.readTree(createResponse.contentUtf8()).get("secret").asText();
-        final RequestHeaders registerHeaders =
-                RequestHeaders.of(HttpMethod.POST,
-                                  API_V1_PATH_PREFIX + "metadata/rotationProj/appIdentities",
-                                  HttpHeaderNames.CONTENT_TYPE, MediaType.JSON);
-        assertThat(systemAdminClient.execute(registerHeaders, "{\"id\":\"forRoles\",\"role\":\"MEMBER\"}")
-                                    .aggregate().join().status()).isEqualTo(HttpStatus.OK);
+        assertThat(systemAdminClient.blocking().prepare()
+                                    .post(API_V1_PATH_PREFIX + "metadata/rotationProj/appIdentities")
+                                    .contentJson(new IdAndProjectRole("forRoles", ProjectRole.MEMBER))
+                                    .execute()
+                                    .status()).isEqualTo(HttpStatus.OK);
 
         // The token can read the repository with the old secret.
         final CentralDogma oldSecretClient = newDogmaClient(oldSecret);
@@ -182,11 +179,7 @@ class AppIdentityRegistryServiceViaHttpTest {
         });
 
         // Rotate the secret: deactivate, regenerate and activate.
-        final RequestHeaders patchHeaders =
-                RequestHeaders.of(HttpMethod.PATCH, API_V1_PATH_PREFIX + "appIdentities/forRoles",
-                                  HttpHeaderNames.CONTENT_TYPE, MediaType.JSON);
-        assertThat(systemAdminClient.execute(patchHeaders, "{\"status\":\"inactive\"}").aggregate().join()
-                                    .status()).isEqualTo(HttpStatus.OK);
+        setStatus(systemAdminClient, "forRoles", "inactive");
         final AggregatedHttpResponse regenerateResponse =
                 systemAdminClient.post(API_V1_PATH_PREFIX + "appIdentities/forRoles/secret",
                                        HttpData.empty())
@@ -194,8 +187,7 @@ class AppIdentityRegistryServiceViaHttpTest {
                                  .join();
         assertThat(regenerateResponse.status()).isEqualTo(HttpStatus.OK);
         final String newSecret = Jackson.readTree(regenerateResponse.contentUtf8()).get("secret").asText();
-        assertThat(systemAdminClient.execute(patchHeaders, "{\"status\":\"active\"}").aggregate().join()
-                                    .status()).isEqualTo(HttpStatus.OK);
+        setStatus(systemAdminClient, "forRoles", "active");
 
         // The token keeps its project role: the new secret can read the repository without
         // being registered again, while the old secret cannot authenticate anymore.
@@ -227,11 +219,7 @@ class AppIdentityRegistryServiceViaHttpTest {
                              .aggregate()
                              .join()
                              .status()).isEqualTo(HttpStatus.CREATED);
-        final RequestHeaders patchHeaders =
-                RequestHeaders.of(HttpMethod.PATCH, API_V1_PATH_PREFIX + "appIdentities/rotatedByAdmin",
-                                  HttpHeaderNames.CONTENT_TYPE, MediaType.JSON);
-        assertThat(userClient.execute(patchHeaders, "{\"status\":\"inactive\"}").aggregate().join()
-                             .status()).isEqualTo(HttpStatus.OK);
+        setStatus(userClient, "rotatedByAdmin", "inactive");
 
         // A system administrator can regenerate the secret of a token it does not own.
         assertThat(systemAdminClient.post(API_V1_PATH_PREFIX + "appIdentities/rotatedByAdmin/secret",
@@ -251,11 +239,7 @@ class AppIdentityRegistryServiceViaHttpTest {
                                  .aggregate()
                                  .join();
         assertThat(createResponse.status()).isEqualTo(HttpStatus.CREATED);
-        final RequestHeaders patchHeaders =
-                RequestHeaders.of(HttpMethod.PATCH, API_V1_PATH_PREFIX + "appIdentities/forTwice",
-                                  HttpHeaderNames.CONTENT_TYPE, MediaType.JSON);
-        assertThat(systemAdminClient.execute(patchHeaders, "{\"status\":\"inactive\"}").aggregate().join()
-                                    .status()).isEqualTo(HttpStatus.OK);
+        setStatus(systemAdminClient, "forTwice", "inactive");
 
         // Both regenerations succeed but only the last secret survives.
         final AggregatedHttpResponse firstResponse =
@@ -274,8 +258,7 @@ class AppIdentityRegistryServiceViaHttpTest {
         final String secondSecret = Jackson.readTree(secondResponse.contentUtf8()).get("secret").asText();
         assertThat(secondSecret).isNotEqualTo(firstSecret);
 
-        assertThat(systemAdminClient.execute(patchHeaders, "{\"status\":\"active\"}").aggregate().join()
-                                    .status()).isEqualTo(HttpStatus.OK);
+        setStatus(systemAdminClient, "forTwice", "active");
         await().untilAsserted(() -> {
             assertThat(newTokenClient(secondSecret).get(API_V1_PATH_PREFIX + "appIdentities").aggregate()
                                                    .join().status()).isEqualTo(HttpStatus.OK);
@@ -387,11 +370,7 @@ class AppIdentityRegistryServiceViaHttpTest {
                              .aggregate()
                              .join()
                              .status()).isEqualTo(HttpStatus.CREATED);
-        final RequestHeaders patchHeaders =
-                RequestHeaders.of(HttpMethod.PATCH, API_V1_PATH_PREFIX + "appIdentities/ownedByUser2",
-                                  HttpHeaderNames.CONTENT_TYPE, MediaType.JSON);
-        assertThat(userClient.execute(patchHeaders, "{\"status\":\"inactive\"}").aggregate().join()
-                             .status()).isEqualTo(HttpStatus.OK);
+        setStatus(userClient, "ownedByUser2", "inactive");
 
         final AggregatedHttpResponse response =
                 userClient.post(API_V1_PATH_PREFIX + "appIdentities/ownedByUser2/secret", HttpData.empty())
@@ -462,6 +441,15 @@ class AppIdentityRegistryServiceViaHttpTest {
         return WebClient.builder(dogma.httpClient().uri())
                         .auth(AuthToken.ofOAuth2(secret))
                         .build();
+    }
+
+    private static void setStatus(WebClient client, String appId, String status) {
+        final AggregatedHttpResponse response =
+                client.blocking().prepare()
+                      .patch(API_V1_PATH_PREFIX + "appIdentities/" + appId)
+                      .contentJson(ImmutableMap.of("status", status))
+                      .execute();
+        assertThat(response.status()).isEqualTo(HttpStatus.OK);
     }
 
     @Test
