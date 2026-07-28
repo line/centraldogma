@@ -21,6 +21,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
 import java.net.URI;
+import java.net.UnknownHostException;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -33,6 +34,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 
 import com.linecorp.armeria.client.WebClient;
 import com.linecorp.armeria.common.AggregatedHttpResponse;
+import com.linecorp.armeria.common.Cookie;
 import com.linecorp.armeria.common.HttpData;
 import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpMethod;
@@ -41,6 +43,10 @@ import com.linecorp.armeria.common.MediaType;
 import com.linecorp.armeria.common.QueryParams;
 import com.linecorp.armeria.common.RequestHeaders;
 import com.linecorp.armeria.common.auth.AuthToken;
+import com.linecorp.centraldogma.client.CentralDogma;
+import com.linecorp.centraldogma.client.armeria.ArmeriaCentralDogmaBuilder;
+import com.linecorp.centraldogma.common.Change;
+import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil;
@@ -59,16 +65,18 @@ class AppIdentityRegistryServiceViaHttpTest {
         }
     };
 
+    private static String systemAdminAccessToken;
     private static WebClient systemAdminClient;
 
     @BeforeAll
     static void setUp() throws JsonMappingException, JsonParseException {
         final URI uri = dogma.httpClient().uri();
+        systemAdminAccessToken = getAccessToken(dogma.httpClient(),
+                                                TestAuthMessageUtil.USERNAME,
+                                                TestAuthMessageUtil.PASSWORD,
+                                                true);
         systemAdminClient = WebClient.builder(uri)
-                                     .auth(AuthToken.ofOAuth2(getAccessToken(dogma.httpClient(),
-                                                                             TestAuthMessageUtil.USERNAME,
-                                                                             TestAuthMessageUtil.PASSWORD,
-                                                                             true)))
+                                     .auth(AuthToken.ofOAuth2(systemAdminAccessToken))
                                      .build();
     }
 
@@ -82,7 +90,8 @@ class AppIdentityRegistryServiceViaHttpTest {
                                  .aggregate()
                                  .join();
         assertThat(createResponse.status()).isEqualTo(HttpStatus.CREATED);
-        final String oldSecret = Jackson.readTree(createResponse.contentUtf8()).get("secret").asText();
+        final JsonNode created = Jackson.readTree(createResponse.contentUtf8());
+        final String oldSecret = created.get("secret").asText();
 
         // The old secret authenticates requests.
         assertThat(newTokenClient(oldSecret).get(API_V1_PATH_PREFIX + "appIdentities").aggregate().join()
@@ -111,6 +120,11 @@ class AppIdentityRegistryServiceViaHttpTest {
         final String newSecret = regenerated.get("secret").asText();
         assertThat(newSecret).startsWith("appToken-")
                              .isNotEqualTo(oldSecret);
+        // Everything except the secret is preserved.
+        assertThat(regenerated.get("creation")).isEqualTo(created.get("creation"));
+        assertThat(regenerated.get("systemAdmin").asBoolean()).isFalse();
+        assertThat(regenerated.get("allowGuestAccess").asBoolean())
+                .isEqualTo(created.get("allowGuestAccess").asBoolean());
         // The token remains deactivated so neither secret authenticates yet.
         assertThat(regenerated.get("deactivation")).isNotNull();
         await().untilAsserted(() -> {
@@ -129,6 +143,211 @@ class AppIdentityRegistryServiceViaHttpTest {
             assertThat(newTokenClient(oldSecret).get(API_V1_PATH_PREFIX + "appIdentities").aggregate().join()
                                                 .status()).isEqualTo(HttpStatus.UNAUTHORIZED);
         });
+    }
+
+    @Test
+    void rotatedTokenKeepsItsRolesAndPermissions() throws UnknownHostException, JsonProcessingException {
+        // Scaffold a project with a file, using the system administrator's token.
+        final CentralDogma adminDogmaClient = newDogmaClient(systemAdminAccessToken);
+        adminDogmaClient.createProject("rotationProj").join();
+        adminDogmaClient.createRepository("rotationProj", "rotationRepo").join();
+        adminDogmaClient.forRepo("rotationProj", "rotationRepo")
+                        .commit("Add a.txt", Change.ofTextUpsert("/a.txt", "foo"))
+                        .push()
+                        .join();
+
+        // Create a token and register it to the project as a member.
+        final AggregatedHttpResponse createResponse =
+                systemAdminClient.post(API_V1_PATH_PREFIX + "appIdentities",
+                                       QueryParams.of("appId", "forRoles", "type", "TOKEN",
+                                                      "isSystemAdmin", false),
+                                       HttpData.empty())
+                                 .aggregate()
+                                 .join();
+        assertThat(createResponse.status()).isEqualTo(HttpStatus.CREATED);
+        final String oldSecret = Jackson.readTree(createResponse.contentUtf8()).get("secret").asText();
+        final RequestHeaders registerHeaders =
+                RequestHeaders.of(HttpMethod.POST,
+                                  API_V1_PATH_PREFIX + "metadata/rotationProj/appIdentities",
+                                  HttpHeaderNames.CONTENT_TYPE, MediaType.JSON);
+        assertThat(systemAdminClient.execute(registerHeaders, "{\"id\":\"forRoles\",\"role\":\"MEMBER\"}")
+                                    .aggregate().join().status()).isEqualTo(HttpStatus.OK);
+
+        // The token can read the repository with the old secret.
+        final CentralDogma oldSecretClient = newDogmaClient(oldSecret);
+        await().untilAsserted(() -> {
+            final Entry<?> entry = oldSecretClient.forRepo("rotationProj", "rotationRepo")
+                                                  .file("/a.txt").get().join();
+            assertThat(entry.contentAsText().trim()).isEqualTo("foo");
+        });
+
+        // Rotate the secret: deactivate, regenerate and activate.
+        final RequestHeaders patchHeaders =
+                RequestHeaders.of(HttpMethod.PATCH, API_V1_PATH_PREFIX + "appIdentities/forRoles",
+                                  HttpHeaderNames.CONTENT_TYPE, MediaType.JSON);
+        assertThat(systemAdminClient.execute(patchHeaders, "{\"status\":\"inactive\"}").aggregate().join()
+                                    .status()).isEqualTo(HttpStatus.OK);
+        final AggregatedHttpResponse regenerateResponse =
+                systemAdminClient.post(API_V1_PATH_PREFIX + "appIdentities/forRoles/secret",
+                                       HttpData.empty())
+                                 .aggregate()
+                                 .join();
+        assertThat(regenerateResponse.status()).isEqualTo(HttpStatus.OK);
+        final String newSecret = Jackson.readTree(regenerateResponse.contentUtf8()).get("secret").asText();
+        assertThat(systemAdminClient.execute(patchHeaders, "{\"status\":\"active\"}").aggregate().join()
+                                    .status()).isEqualTo(HttpStatus.OK);
+
+        // The token keeps its project role: the new secret can read the repository without
+        // being registered again, while the old secret cannot authenticate anymore.
+        final CentralDogma newSecretClient = newDogmaClient(newSecret);
+        await().untilAsserted(() -> {
+            final Entry<?> entry = newSecretClient.forRepo("rotationProj", "rotationRepo")
+                                                  .file("/a.txt").get().join();
+            assertThat(entry.contentAsText().trim()).isEqualTo("foo");
+            assertThat(newTokenClient(oldSecret).get(API_V1_PATH_PREFIX + "appIdentities").aggregate()
+                                                .join().status()).isEqualTo(HttpStatus.UNAUTHORIZED);
+        });
+    }
+
+    @Test
+    void systemAdminCanRegenerateOthersTokenSecret() throws JsonProcessingException {
+        // A non-admin user creates and deactivates its own token.
+        final WebClient userClient =
+                WebClient.builder(dogma.httpClient().uri())
+                         .auth(AuthToken.ofOAuth2(getAccessToken(dogma.httpClient(),
+                                                                 TestAuthMessageUtil.USERNAME2,
+                                                                 TestAuthMessageUtil.PASSWORD2,
+                                                                 "adminBypassLogin",
+                                                                 false)))
+                         .build();
+        assertThat(userClient.post(API_V1_PATH_PREFIX + "appIdentities",
+                                   QueryParams.of("appId", "rotatedByAdmin", "type", "TOKEN",
+                                                  "isSystemAdmin", false),
+                                   HttpData.empty())
+                             .aggregate()
+                             .join()
+                             .status()).isEqualTo(HttpStatus.CREATED);
+        final RequestHeaders patchHeaders =
+                RequestHeaders.of(HttpMethod.PATCH, API_V1_PATH_PREFIX + "appIdentities/rotatedByAdmin",
+                                  HttpHeaderNames.CONTENT_TYPE, MediaType.JSON);
+        assertThat(userClient.execute(patchHeaders, "{\"status\":\"inactive\"}").aggregate().join()
+                             .status()).isEqualTo(HttpStatus.OK);
+
+        // A system administrator can regenerate the secret of a token it does not own.
+        assertThat(systemAdminClient.post(API_V1_PATH_PREFIX + "appIdentities/rotatedByAdmin/secret",
+                                          HttpData.empty())
+                                    .aggregate()
+                                    .join()
+                                    .status()).isEqualTo(HttpStatus.OK);
+    }
+
+    @Test
+    void consecutiveRegenerationsKeepOnlyTheLastSecret() throws JsonProcessingException {
+        final AggregatedHttpResponse createResponse =
+                systemAdminClient.post(API_V1_PATH_PREFIX + "appIdentities",
+                                       QueryParams.of("appId", "forTwice", "type", "TOKEN",
+                                                      "isSystemAdmin", false),
+                                       HttpData.empty())
+                                 .aggregate()
+                                 .join();
+        assertThat(createResponse.status()).isEqualTo(HttpStatus.CREATED);
+        final RequestHeaders patchHeaders =
+                RequestHeaders.of(HttpMethod.PATCH, API_V1_PATH_PREFIX + "appIdentities/forTwice",
+                                  HttpHeaderNames.CONTENT_TYPE, MediaType.JSON);
+        assertThat(systemAdminClient.execute(patchHeaders, "{\"status\":\"inactive\"}").aggregate().join()
+                                    .status()).isEqualTo(HttpStatus.OK);
+
+        // Both regenerations succeed but only the last secret survives.
+        final AggregatedHttpResponse firstResponse =
+                systemAdminClient.post(API_V1_PATH_PREFIX + "appIdentities/forTwice/secret",
+                                       HttpData.empty())
+                                 .aggregate()
+                                 .join();
+        assertThat(firstResponse.status()).isEqualTo(HttpStatus.OK);
+        final String firstSecret = Jackson.readTree(firstResponse.contentUtf8()).get("secret").asText();
+        final AggregatedHttpResponse secondResponse =
+                systemAdminClient.post(API_V1_PATH_PREFIX + "appIdentities/forTwice/secret",
+                                       HttpData.empty())
+                                 .aggregate()
+                                 .join();
+        assertThat(secondResponse.status()).isEqualTo(HttpStatus.OK);
+        final String secondSecret = Jackson.readTree(secondResponse.contentUtf8()).get("secret").asText();
+        assertThat(secondSecret).isNotEqualTo(firstSecret);
+
+        assertThat(systemAdminClient.execute(patchHeaders, "{\"status\":\"active\"}").aggregate().join()
+                                    .status()).isEqualTo(HttpStatus.OK);
+        await().untilAsserted(() -> {
+            assertThat(newTokenClient(secondSecret).get(API_V1_PATH_PREFIX + "appIdentities").aggregate()
+                                                   .join().status()).isEqualTo(HttpStatus.OK);
+            assertThat(newTokenClient(firstSecret).get(API_V1_PATH_PREFIX + "appIdentities").aggregate()
+                                                  .join().status()).isEqualTo(HttpStatus.UNAUTHORIZED);
+        });
+    }
+
+    @Test
+    void cannotRegenerateSecretOfPurgedToken() {
+        assertThat(systemAdminClient.post(API_V1_PATH_PREFIX + "appIdentities",
+                                          QueryParams.of("appId", "forPurged", "type", "TOKEN",
+                                                         "isSystemAdmin", false),
+                                          HttpData.empty())
+                                    .aggregate()
+                                    .join()
+                                    .status()).isEqualTo(HttpStatus.CREATED);
+        assertThat(systemAdminClient.delete(API_V1_PATH_PREFIX + "appIdentities/forPurged")
+                                    .aggregate()
+                                    .join()
+                                    .status()).isEqualTo(HttpStatus.NO_CONTENT);
+        assertThat(systemAdminClient.delete(API_V1_PATH_PREFIX + "appIdentities/forPurged/removed")
+                                    .aggregate()
+                                    .join()
+                                    .status()).isEqualTo(HttpStatus.NO_CONTENT);
+
+        assertThat(systemAdminClient.post(API_V1_PATH_PREFIX + "appIdentities/forPurged/secret",
+                                          HttpData.empty())
+                                    .aggregate()
+                                    .join()
+                                    .status()).isEqualTo(HttpStatus.NOT_FOUND);
+    }
+
+    @Test
+    void cannotRegenerateSecretWithoutAuthentication() {
+        assertThat(WebClient.of(dogma.httpClient().uri())
+                            .post(API_V1_PATH_PREFIX + "appIdentities/nonexistent/secret", HttpData.empty())
+                            .aggregate()
+                            .join()
+                            .status()).isEqualTo(HttpStatus.UNAUTHORIZED);
+    }
+
+    @Test
+    void cannotRegenerateSecretWithoutCsrfToken() {
+        assertThat(systemAdminClient.post(API_V1_PATH_PREFIX + "appIdentities",
+                                          QueryParams.of("appId", "forCsrf", "type", "TOKEN",
+                                                         "isSystemAdmin", false),
+                                          HttpData.empty())
+                                    .aggregate()
+                                    .join()
+                                    .status()).isEqualTo(HttpStatus.CREATED);
+
+        // A session-cookie request without the CSRF token header must be rejected.
+        final AggregatedHttpResponse loginResponse =
+                TestAuthMessageUtil.login(dogma.httpClient(),
+                                          TestAuthMessageUtil.USERNAME,
+                                          TestAuthMessageUtil.PASSWORD);
+        assertThat(loginResponse.status()).isEqualTo(HttpStatus.OK);
+        final Cookie sessionCookie = TestAuthMessageUtil.getSessionCookie(loginResponse);
+        final RequestHeaders headers =
+                RequestHeaders.builder(HttpMethod.POST, API_V1_PATH_PREFIX + "appIdentities/forCsrf/secret")
+                              .cookie(sessionCookie)
+                              .build();
+        assertThat(dogma.httpClient().execute(headers, HttpData.empty()).aggregate().join()
+                        .status()).isEqualTo(HttpStatus.FORBIDDEN);
+    }
+
+    private static CentralDogma newDogmaClient(String accessToken) throws UnknownHostException {
+        return new ArmeriaCentralDogmaBuilder()
+                .host(dogma.serverAddress().getHostString(), dogma.serverAddress().getPort())
+                .accessToken(accessToken)
+                .build();
     }
 
     @Test
