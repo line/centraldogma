@@ -193,8 +193,6 @@ final class AppIdentityService {
                     }
 
                     final Token token = (Token) appIdentity;
-                    final String oldSecret = token.secret();
-                    assert oldSecret != null;
                     final String newSecret = SECRET_PREFIX + UUID.randomUUID();
                     if (registry.secrets().containsKey(newSecret)) {
                         throw new ChangeConflictException("Secret already exists");
@@ -205,12 +203,7 @@ final class AppIdentityService {
                                                      token.deactivation(), null);
                     final Map<String, AppIdentity> newAppIds =
                             updateMap(registry.appIds(), appId, newToken);
-                    // A deactivated token has no entry in the secret map, so the new secret is not
-                    // added; it is registered when the token is activated. The old secret is removed
-                    // defensively in case a stale entry is left over.
-                    final Map<String, String> newSecrets =
-                            removeFromMap(registry.secrets(), oldSecret);
-                    return new AppIdentityRegistry(newAppIds, newSecrets, registry.certificateIds());
+                    return new AppIdentityRegistry(newAppIds, registry.secrets(), registry.certificateIds());
                 });
         // Read the registry back at the revision this commit produced so that the caller gets
         // the secret of this commit even if another commit lands right after.
