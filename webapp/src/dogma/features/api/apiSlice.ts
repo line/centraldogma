@@ -210,6 +210,14 @@ export const apiSlice = createApi({
       }),
       invalidatesTags: ['Metadata'],
     }),
+    updateAllowPublicRepositories: builder.mutation<void, { projectName: string; allow: boolean }>({
+      query: ({ projectName, allow }) => ({
+        url: `/api/v1/metadata/${projectName}/settings`,
+        method: 'PUT',
+        body: { allowPublicRepositories: allow },
+      }),
+      invalidatesTags: ['Metadata'],
+    }),
     addUserRepositoryRole: builder.mutation<void, AddUserOrAppIdentityRepositoryRoleDto>({
       query: ({ projectName, repoName, data }) => ({
         url: `/api/v1/metadata/${projectName}/repos/${repoName}/roles/users`,
@@ -644,6 +652,7 @@ export const {
   useAddNewAppIdentityMemberMutation,
   useDeleteAppIdentityMemberMutation,
   useUpdateRepositoryProjectRolesMutation,
+  useUpdateAllowPublicRepositoriesMutation,
   useAddUserRepositoryRoleMutation,
   useDeleteUserRepositoryRoleMutation,
   useAddAppIdentityRepositoryRoleMutation,

@@ -31,6 +31,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import com.linecorp.armeria.client.BlockingWebClient;
 import com.linecorp.armeria.client.WebClient;
+import com.linecorp.armeria.common.AggregatedHttpResponse;
+import com.linecorp.armeria.common.Cookie;
+import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.MediaType;
 import com.linecorp.armeria.common.QueryParams;
@@ -44,7 +47,9 @@ import com.linecorp.centraldogma.common.PermissionException;
 import com.linecorp.centraldogma.common.ProjectRole;
 import com.linecorp.centraldogma.common.RepositoryRole;
 import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
+import com.linecorp.centraldogma.server.internal.admin.auth.SessionUtil;
 import com.linecorp.centraldogma.server.internal.api.MetadataApiService.IdAndProjectRole;
 import com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil;
 import com.linecorp.centraldogma.testing.internal.auth.TestAuthProviderFactory;
@@ -54,6 +59,7 @@ class TokenGuestPermissionTest {
 
     private static final String FOO_PROJ = "foo";
     private static final String BAR_REPO = "bar";
+    private static final String PRIVATE_REPO = "qux";
 
     @RegisterExtension
     static final CentralDogmaExtension dogma = new CentralDogmaExtension() {
@@ -76,6 +82,9 @@ class TokenGuestPermissionTest {
             client.createProject(FOO_PROJ).join();
             final CentralDogmaRepository repo = client.createRepository(FOO_PROJ, BAR_REPO).join();
             repo.commit("test", Change.ofTextUpsert("/a.txt", "foo")).push().join();
+            final CentralDogmaRepository privateRepo =
+                    client.createRepository(FOO_PROJ, PRIVATE_REPO).join();
+            privateRepo.commit("test", Change.ofTextUpsert("/a.txt", "secret")).push().join();
         }
     };
 
@@ -140,6 +149,94 @@ class TokenGuestPermissionTest {
                                           .file("/a.txt")
                                           .get().join();
         assertThat(entry.contentAsText().trim()).isEqualTo("foo");
+    }
+
+    @Test
+    void testGuestAccessToken() throws UnknownHostException {
+        final BlockingWebClient client = dogma.blockingHttpClient();
+
+        final String appId = "guest-access-test";
+        final ResponseEntity<Token> response =
+                client.prepare()
+                      .post("/api/v1/appIdentities")
+                      .content(MediaType.FORM_DATA,
+                               QueryParams.of("appId", appId, "type", "TOKEN",
+                                              "allowGuestAccess", true)
+                                          .toQueryString())
+                      .asJson(Token.class, new ObjectMapper())
+                      .execute();
+        assertThat(response.status()).isEqualTo(HttpStatus.CREATED);
+        final Token token = response.content();
+        assertThat(token.isSystemAdmin()).isFalse();
+        assertThat(token.allowGuestAccess()).isTrue();
+
+        final CentralDogma dogmaClient = new ArmeriaCentralDogmaBuilder()
+                .host(dogma.serverAddress().getHostString(), dogma.serverAddress().getPort())
+                .accessToken(token.secret())
+                .build();
+
+        // Reads the public (guest READ) repository without any registration.
+        final Entry<?> entry = dogmaClient.forRepo(FOO_PROJ, BAR_REPO)
+                                          .file("/a.txt")
+                                          .get().join();
+        assertThat(entry.contentAsText().trim()).isEqualTo("foo");
+
+        // Guests can never write.
+        assertThatThrownBy(() -> {
+            dogmaClient.forRepo(FOO_PROJ, BAR_REPO)
+                       .commit("write", Change.ofTextUpsert("/b.txt", "bar"))
+                       .push().join();
+        }).isInstanceOf(CompletionException.class)
+          .hasCauseInstanceOf(PermissionException.class)
+          .hasMessageContaining("You must have the WRITE repository role to access the 'foo/bar'");
+
+        // A private repository is still inaccessible.
+        assertThatThrownBy(() -> {
+            dogmaClient.forRepo(FOO_PROJ, PRIVATE_REPO)
+                       .file("/a.txt")
+                       .get().join();
+        }).isInstanceOf(CompletionException.class)
+          .hasCauseInstanceOf(PermissionException.class)
+          .hasMessageContaining("You must have the READ repository role to access the 'foo/qux'");
+    }
+
+    @Test
+    void testNonMemberUser() throws Exception {
+        // A signed-in user who is not a project member reads the public repository, but not the
+        // private one.
+        final WebClient client = WebClient.of("http://127.0.0.1:" + dogma.serverAddress().getPort());
+        final AggregatedHttpResponse loginRes = TestAuthMessageUtil.login(
+                client, TestAuthMessageUtil.USERNAME2, TestAuthMessageUtil.PASSWORD2);
+        assertThat(loginRes.status()).isEqualTo(HttpStatus.OK);
+        final Cookie sessionCookie = TestAuthMessageUtil.getSessionCookie(loginRes);
+        final String csrfToken = Jackson.readTree(loginRes.contentUtf8()).get("csrf_token").asText();
+        final BlockingWebClient userClient =
+                WebClient.builder(client.uri())
+                         .addHeader(HttpHeaderNames.COOKIE, sessionCookie.toCookieHeader())
+                         .addHeader(SessionUtil.X_CSRF_TOKEN, csrfToken)
+                         .build()
+                         .blocking();
+
+        assertThat(userClient.get("/api/v1/projects/foo/repos/bar/list/a.txt").status())
+                .isEqualTo(HttpStatus.OK);
+        assertThat(userClient.get("/api/v1/projects/foo/repos/qux/list/a.txt").status())
+                .isEqualTo(HttpStatus.FORBIDDEN);
+
+        // A signed-in non-member can never write to the public repository.
+        final AggregatedHttpResponse writeRes =
+                userClient.prepare()
+                          .post("/api/v1/projects/foo/repos/bar/contents")
+                          .content(MediaType.JSON,
+                                   "{\"commitMessage\":{\"summary\":\"write\"}," +
+                                   "\"changes\":[{\"path\":\"/b.txt\",\"type\":\"UPSERT_TEXT\"," +
+                                   "\"content\":\"b\"}]}")
+                          .execute();
+        assertThat(writeRes.status()).isEqualTo(HttpStatus.FORBIDDEN);
+
+        // Public does not mean anonymous: an unauthenticated client is rejected.
+        final AggregatedHttpResponse unauthenticated =
+                WebClient.of(client.uri()).blocking().get("/api/v1/projects/foo/repos/bar/list/a.txt");
+        assertThat(unauthenticated.status()).isEqualTo(HttpStatus.UNAUTHORIZED);
     }
 
     @Test

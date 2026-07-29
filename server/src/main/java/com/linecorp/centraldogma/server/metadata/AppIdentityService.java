@@ -33,6 +33,8 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
+import org.jspecify.annotations.Nullable;
+
 import com.fasterxml.jackson.core.JsonPointer;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.ImmutableMap;
@@ -69,26 +71,17 @@ final class AppIdentityService {
         return projectInitializer.appIdentityRegistry();
     }
 
-    CompletableFuture<Revision> createToken(Author author, String appId) {
-        return createToken(author, appId, false);
-    }
-
-    CompletableFuture<Revision> createToken(Author author, String appId, boolean isSystemAdmin) {
-        return createToken(author, appId, SECRET_PREFIX + UUID.randomUUID(), isSystemAdmin);
-    }
-
-    CompletableFuture<Revision> createToken(Author author, String appId, String secret) {
-        return createToken(author, appId, secret, false);
-    }
-
-    CompletableFuture<Revision> createToken(Author author, String appId, String secret,
-                                            boolean isSystemAdmin) {
+    CompletableFuture<Revision> createToken(Author author, String appId, @Nullable String secret,
+                                            boolean isSystemAdmin, boolean allowGuestAccess) {
         requireNonNull(author, "author");
         requireNonNull(appId, "appId");
-        requireNonNull(secret, "secret");
+        if (secret == null) {
+            secret = SECRET_PREFIX + UUID.randomUUID();
+        }
         validateSecret(secret);
 
-        final Token newToken = new Token(appId, secret, isSystemAdmin, isSystemAdmin,
+        // A system admin app identity can access any repository, so guest access is implied.
+        final Token newToken = new Token(appId, secret, isSystemAdmin, isSystemAdmin || allowGuestAccess,
                                          UserAndTimestamp.of(author));
         final AppIdentityRegistryTransformer transformer = new AppIdentityRegistryTransformer(
                 (headRevision, tokens) -> {
@@ -280,14 +273,15 @@ final class AppIdentityService {
     }
 
     CompletableFuture<Revision> createCertificate(Author author, String appId, String certificateId,
-                                                  boolean isSystemAdmin) {
+                                                  boolean isSystemAdmin, boolean allowGuestAccess) {
         requireNonNull(author, "author");
         requireNonNull(appId, "appId");
         checkArgument(!isNullOrEmpty(certificateId), "certificateId must not be null or empty");
 
-        // Does not allow guest access for non admin certificate.
+        // A system admin app identity can access any repository, so guest access is implied.
         final CertificateAppIdentity certificate =
-                new CertificateAppIdentity(appId, certificateId, isSystemAdmin, isSystemAdmin,
+                new CertificateAppIdentity(appId, certificateId, isSystemAdmin,
+                                           isSystemAdmin || allowGuestAccess,
                                            UserAndTimestamp.of(author));
         final JsonPointer appIdPath = JsonPointer.compile("/appIds" + encodeSegment(certificate.appId()));
         final JsonPointer certificateIdPath =

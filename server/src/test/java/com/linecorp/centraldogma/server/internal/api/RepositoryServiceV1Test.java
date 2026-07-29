@@ -26,6 +26,7 @@ import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUti
 import static net.javacrumbs.jsonunit.fluent.JsonFluentAssert.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.awaitility.Awaitility.await;
 
 import java.io.IOException;
 import java.net.URI;
@@ -207,6 +208,80 @@ class RepositoryServiceV1Test {
     void createRepositoryWithInvalidName() {
         final AggregatedHttpResponse aRes = createRepository(systemAdminClient, "myRepo.git");
         assertThat(aRes.headers().status()).isSameAs(HttpStatus.BAD_REQUEST);
+    }
+
+    @Test
+    void createPublicRepository() {
+        // Create a repository with the "isPublic" flag set.
+        final RequestHeaders headers = RequestHeaders.of(HttpMethod.POST, REPOS_PREFIX,
+                                                         HttpHeaderNames.CONTENT_TYPE, MediaType.JSON);
+        final AggregatedHttpResponse aRes =
+                systemAdminClient.execute(headers, "{\"name\": \"publicRepo\", \"isPublic\": true}")
+                                 .aggregate().join();
+        assertThat(ResponseHeaders.of(aRes.headers()).status()).isEqualTo(HttpStatus.CREATED);
+
+        // A public repository grants the guest the READ role.
+        assertThat(repoRoles("publicRepo").projectRoles().member()).isSameAs(RepositoryRole.WRITE);
+        assertThat(repoRoles("publicRepo").projectRoles().guest()).isSameAs(RepositoryRole.READ);
+
+        // Creating a repository without the flag keeps it private (the guest has no role).
+        final AggregatedHttpResponse privateRes = createRepository(systemAdminClient, "privateRepo");
+        assertThat(ResponseHeaders.of(privateRes.headers()).status()).isEqualTo(HttpStatus.CREATED);
+        assertThat(repoRoles("privateRepo").projectRoles().guest()).isNull();
+
+        // Keep the shared project free of public repositories for the other tests.
+        final RequestHeaders rolesHeaders = RequestHeaders.of(
+                HttpMethod.POST, "/api/v1/metadata/myPro/repos/publicRepo/roles/projects",
+                HttpHeaderNames.CONTENT_TYPE, MediaType.JSON);
+        final AggregatedHttpResponse reverted =
+                systemAdminClient.execute(rolesHeaders, "{\"member\": \"WRITE\", \"guest\": null}")
+                                 .aggregate().join();
+        assertThat(reverted.status()).isSameAs(HttpStatus.OK);
+    }
+
+    @Test
+    void createPublicRepositoryRejectedWhenProjectDisallows() {
+        // Disallow public repositories in the project.
+        AggregatedHttpResponse res = updateAllowPublicRepositories(false);
+        assertThat(res.status()).isSameAs(HttpStatus.OK);
+        // Wait until the cached project metadata catches up; the create API pre-checks against it.
+        await().untilAsserted(() -> assertThat(projectMetadata().allowPublicRepositories()).isFalse());
+
+        // Creating a public repository is rejected before the repository is created.
+        final RequestHeaders headers = RequestHeaders.of(HttpMethod.POST, REPOS_PREFIX,
+                                                         HttpHeaderNames.CONTENT_TYPE, MediaType.JSON);
+        res = systemAdminClient.execute(headers, "{\"name\": \"rejectedRepo\", \"isPublic\": true}")
+                               .aggregate().join();
+        assertThat(res.status()).isSameAs(HttpStatus.BAD_REQUEST);
+        assertThat(res.contentUtf8()).contains("Public repositories are not allowed");
+
+        // No orphaned repository is left behind: creating with the same name succeeds.
+        res = createRepository(systemAdminClient, "rejectedRepo");
+        assertThat(ResponseHeaders.of(res.headers()).status()).isEqualTo(HttpStatus.CREATED);
+
+        // Re-allow public repositories for other tests.
+        res = updateAllowPublicRepositories(true);
+        assertThat(res.status()).isSameAs(HttpStatus.OK);
+        await().untilAsserted(() -> assertThat(projectMetadata().allowPublicRepositories()).isTrue());
+    }
+
+    private static AggregatedHttpResponse updateAllowPublicRepositories(boolean allow) {
+        final RequestHeaders headers = RequestHeaders.of(
+                HttpMethod.PUT, "/api/v1/metadata/myPro/settings",
+                HttpHeaderNames.CONTENT_TYPE, MediaType.JSON);
+        return systemAdminClient.execute(headers, "{\"allowPublicRepositories\": " + allow + '}')
+                                .aggregate().join();
+    }
+
+    private static ProjectMetadata projectMetadata() {
+        return systemAdminClient.blocking().prepare().get(PROJECTS_PREFIX + "/myPro")
+                                .asJson(ProjectMetadata.class, new ObjectMapper())
+                                .execute()
+                                .content();
+    }
+
+    private static Roles repoRoles(String repoName) {
+        return projectMetadata().repo(repoName).roles();
     }
 
     @Test

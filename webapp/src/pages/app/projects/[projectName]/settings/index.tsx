@@ -19,6 +19,8 @@ import { Flex, Spacer } from '@chakra-ui/react';
 import { NewRepo } from 'dogma/features/repo/NewRepo';
 import RepoMetaList from 'dogma/features/project/settings/repositories/RepoMetaList';
 import ProjectSettingsView from 'dogma/features/project/settings/ProjectSettingsView';
+import { AllowPublicRepositoriesToggle } from 'dogma/features/project/settings/AllowPublicRepositoriesToggle';
+import { allowsPublicRepositories } from 'dogma/features/project/ProjectMetadataDto';
 
 const ProjectSettingsPage = () => {
   const router = useRouter();
@@ -28,6 +30,10 @@ const ProjectSettingsPage = () => {
       <ProjectSettingsView projectName={projectName} currentTab={'repositories'}>
         {(metadata) => (
           <>
+            <AllowPublicRepositoriesToggle
+              projectName={projectName}
+              allowed={allowsPublicRepositories(metadata)}
+            />
             <Flex gap={3}>
               <Spacer />
               <NewRepo projectName={projectName} />

@@ -17,6 +17,7 @@
 package com.linecorp.centraldogma.server.metadata;
 
 import static com.linecorp.centraldogma.server.metadata.RepositoryMetadata.DEFAULT_PROJECT_ROLES;
+import static com.linecorp.centraldogma.server.metadata.RepositoryMetadata.PUBLIC_PROJECT_ROLES;
 import static com.linecorp.centraldogma.server.storage.project.Project.REPO_DOGMA;
 import static com.linecorp.centraldogma.server.storage.project.Project.REPO_META;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -44,6 +45,7 @@ import com.linecorp.centraldogma.common.RepositoryNotFoundException;
 import com.linecorp.centraldogma.common.RepositoryRole;
 import com.linecorp.centraldogma.common.RepositoryStatus;
 import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.testing.internal.ProjectManagerExtension;
 
@@ -78,12 +80,14 @@ class MetadataServiceTest {
     private static final String cert2 = "cert-2";
     private static final String certificateId1 = "certificate/id/1";
     private static final String certificateId2 = "certificate/id/2";
-    private static final Token appToken1 = new Token(app1, "secret", false, true, UserAndTimestamp.of(author));
-    private static final Token appToken2 = new Token(app2, "secret", false, true, UserAndTimestamp.of(author));
-    private static final CertificateAppIdentity certificate1 =
-            new CertificateAppIdentity(cert1, certificateId1, false, true, UserAndTimestamp.of(author));
-    private static final CertificateAppIdentity certificate2 =
-            new CertificateAppIdentity(cert2, certificateId2, false, true, UserAndTimestamp.of(author));
+    private static final User appToken1 = new UserWithAppIdentity(
+            new Token(app1, "secret", false, true, UserAndTimestamp.of(author)));
+    private static final User appToken2 = new UserWithAppIdentity(
+            new Token(app2, "secret", false, true, UserAndTimestamp.of(author)));
+    private static final User certificate1 = new UserWithAppIdentity(
+            new CertificateAppIdentity(cert1, certificateId1, false, true, UserAndTimestamp.of(author)));
+    private static final User certificate2 = new UserWithAppIdentity(
+            new CertificateAppIdentity(cert2, certificateId2, false, true, UserAndTimestamp.of(author)));
 
     @Test
     void project() {
@@ -220,6 +224,181 @@ class MetadataServiceTest {
                                     .join())
                 .isInstanceOf(UnsupportedOperationException.class)
                 .hasMessageContaining("Can't update role for internal repository: meta");
+    }
+
+    @Test
+    void allowPublicRepositories_defaultAllowedAndToggle() {
+        final MetadataService mds = newMetadataService(manager);
+
+        // A newly-created project allows public repositories by default.
+        final ProjectMetadata metadata = getProject(mds, project1);
+        assertThat(metadata.allowPublicRepositories()).isTrue();
+
+        // Allowing again is a no-op returning the current head revision, like a redundant status update.
+        final Revision headRevision = mds.updateAllowPublicRepositories(author, project1, true).join();
+        assertThat(mds.updateAllowPublicRepositories(author, project1, true).join())
+                .isEqualTo(headRevision);
+
+        // Disallow public repositories.
+        final Revision disallowed = mds.updateAllowPublicRepositories(author, project1, false).join();
+        assertThat(disallowed.major()).isGreaterThan(headRevision.major());
+        await().untilAsserted(
+                () -> assertThat(getProject(mds, project1).allowPublicRepositories()).isFalse());
+        assertThat(getProject(mds, project1).allowPublicRepositories()).isFalse();
+
+        // Disallowing again is a no-op.
+        assertThat(mds.updateAllowPublicRepositories(author, project1, false).join()).isEqualTo(disallowed);
+
+        // Allow public repositories again.
+        mds.updateAllowPublicRepositories(author, project1, true).join();
+        await().untilAsserted(
+                () -> assertThat(getProject(mds, project1).allowPublicRepositories()).isTrue());
+        assertThat(getProject(mds, project1).allowPublicRepositories()).isTrue();
+    }
+
+    @Test
+    void publicRepository_isReadableByGuest() {
+        final MetadataService mds = newMetadataService(manager);
+
+        // Create a public repository whose guests have the READ role.
+        mds.addRepo(author, project1, repo1, PUBLIC_PROJECT_ROLES).join();
+        await().until(() -> getRepo1(mds) != null);
+        assertThat(getRepo1(mds).roles().projectRoles().guest()).isSameAs(RepositoryRole.READ);
+
+        // A non-member (guest) can read the public repository without being granted any role.
+        assertThat(mds.findRepositoryRole(project1, repo1, guest).join()).isSameAs(RepositoryRole.READ);
+
+        // Turning the repository private removes the guest's access.
+        mds.updateRepositoryProjectRoles(author, project1, repo1, DEFAULT_PROJECT_ROLES).join();
+        await().untilAsserted(
+                () -> assertThat(mds.findRepositoryRole(project1, repo1, guest).join()).isNull());
+    }
+
+    @Test
+    void createPublicRepository_rejectedWhenProjectDisallows() {
+        final MetadataService mds = newMetadataService(manager);
+
+        // Disallow public repositories in the project.
+        mds.updateAllowPublicRepositories(author, project1, false).join();
+        await().untilAsserted(
+                () -> assertThat(getProject(mds, project1).allowPublicRepositories()).isFalse());
+
+        // Creating a public repository is rejected.
+        assertThatThrownBy(() -> mds.addRepo(author, project1, repo1, PUBLIC_PROJECT_ROLES).join())
+                .hasCauseInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Public repositories are not allowed");
+
+        // A private repository can still be created.
+        mds.addRepo(author, project1, repo2, DEFAULT_PROJECT_ROLES).join();
+        await().untilAsserted(() -> assertThat(getProject(mds, project1).repos()).containsKey(repo2));
+        assertThat(getProject(mds, project1).repos().get(repo2).roles().projectRoles().guest()).isNull();
+    }
+
+    @Test
+    void updateRepositoryToPublic_rejectedWhenProjectDisallows() {
+        final MetadataService mds = newMetadataService(manager);
+
+        // Start with a private repository.
+        mds.addRepo(author, project1, repo1, DEFAULT_PROJECT_ROLES).join();
+        await().until(() -> getRepo1(mds) != null);
+
+        // Disallow public repositories.
+        mds.updateAllowPublicRepositories(author, project1, false).join();
+        await().untilAsserted(
+                () -> assertThat(getProject(mds, project1).allowPublicRepositories()).isFalse());
+
+        // Turning the repository public is rejected and the guest gains no access.
+        assertThatThrownBy(() -> mds.updateRepositoryProjectRoles(
+                author, project1, repo1, PUBLIC_PROJECT_ROLES).join())
+                .hasCauseInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Public repositories are not allowed");
+        assertThat(mds.findRepositoryRole(project1, repo1, guest).join()).isNull();
+
+        // A missing repository is reported as not found, not as a policy violation.
+        assertThatThrownBy(() -> mds.updateRepositoryProjectRoles(
+                author, project1, "missing", PUBLIC_PROJECT_ROLES).join())
+                .hasCauseInstanceOf(RepositoryNotFoundException.class);
+    }
+
+    @Test
+    void disallowPublicRepositories_blockedWhilePublicRepositoryExists() {
+        final MetadataService mds = newMetadataService(manager);
+
+        // Create a public repository.
+        mds.addRepo(author, project1, repo1, PUBLIC_PROJECT_ROLES).join();
+        await().until(() -> getRepo1(mds) != null);
+
+        // Disallowing is rejected while a public repository still exists; the message names the repo.
+        assertThatThrownBy(() -> mds.updateAllowPublicRepositories(author, project1, false).join())
+                .hasCauseInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Cannot disallow public repositories")
+                .hasMessageContaining(repo1);
+        // The change was rejected, so public repositories remain allowed.
+        assertThat(getProject(mds, project1).allowPublicRepositories()).isTrue();
+
+        // After privatising the repository, disallowing succeeds.
+        mds.updateRepositoryProjectRoles(author, project1, repo1, DEFAULT_PROJECT_ROLES).join();
+        await().untilAsserted(() -> assertThat(getRepo1(mds).roles().projectRoles().guest()).isNull());
+        mds.updateAllowPublicRepositories(author, project1, false).join();
+        await().untilAsserted(
+                () -> assertThat(getProject(mds, project1).allowPublicRepositories()).isFalse());
+    }
+
+    @Test
+    void disallowPublicRepositories_blockedByRemovedPublicRepository() {
+        final MetadataService mds = newMetadataService(manager);
+
+        // Create a public repository and remove it.
+        mds.addRepo(author, project1, repo1, PUBLIC_PROJECT_ROLES).join();
+        await().until(() -> getRepo1(mds) != null);
+        mds.removeRepo(author, project1, repo1).join();
+        await().untilAsserted(() -> assertThat(getRepo1(mds).removal()).isNotNull());
+
+        // A removed public repository still blocks disallowing; restoring it must not resurrect
+        // a guest role into a project which disallows public repositories.
+        assertThatThrownBy(() -> mds.updateAllowPublicRepositories(author, project1, false).join())
+                .hasCauseInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining(repo1 + " (removed)");
+
+        // After purging the repository, disallowing succeeds.
+        mds.purgeRepo(author, project1, repo1).join();
+        await().untilAsserted(() -> assertThatThrownBy(() -> getRepo1(mds))
+                .isInstanceOf(RepositoryNotFoundException.class));
+        mds.updateAllowPublicRepositories(author, project1, false).join();
+        await().untilAsserted(
+                () -> assertThat(getProject(mds, project1).allowPublicRepositories()).isFalse());
+    }
+
+    @Test
+    void updateRepositoryProjectRoles_allowedForLegacyPublicRepository() {
+        final MetadataService mds = newMetadataService(manager);
+
+        // Simulate legacy metadata: a public repository in a project which disallows public
+        // repositories. This state is unreachable via the API but may exist in old metadata.
+        mds.addRepo(author, project1, repo1, PUBLIC_PROJECT_ROLES).join();
+        await().until(() -> getRepo1(mds) != null);
+        final ProjectMetadata current = getProject(mds, project1);
+        final ProjectMetadata legacy = new ProjectMetadata(current.name(),
+                                                           current.repos(),
+                                                           current.members(),
+                                                           null,
+                                                           current.appIds(),
+                                                           false,
+                                                           current.creation(),
+                                                           current.removal());
+        manager.executor().execute(Command.push(
+                author, project1, REPO_DOGMA, Revision.HEAD, "Simulate legacy metadata", "",
+                Markup.PLAINTEXT,
+                Change.ofJsonUpsert(MetadataService.METADATA_JSON, Jackson.valueToTree(legacy)))).join();
+        await().untilAsserted(
+                () -> assertThat(getProject(mds, project1).allowPublicRepositories()).isFalse());
+
+        // Updating the member role of an already-public repository is not a private-to-public
+        // transition, so it is not rejected.
+        mds.updateRepositoryProjectRoles(author, project1, repo1,
+                                         ProjectRoles.of(RepositoryRole.READ, RepositoryRole.READ)).join();
+        await().untilAsserted(() -> assertThat(getRepo1(mds).roles().projectRoles().member())
+                .isSameAs(RepositoryRole.READ));
     }
 
     @Test
@@ -699,7 +878,8 @@ class MetadataServiceTest {
         // but has an explicit repository role, it should still be accessible.
         final MetadataService mds = newMetadataService(manager);
 
-        final Token noGuestToken = new Token(app1, "secret", false, false, UserAndTimestamp.of(author));
+        final User noGuestToken = new UserWithAppIdentity(
+                new Token(app1, "secret", false, false, UserAndTimestamp.of(author)));
 
         mds.addRepo(author, project1, repo1,
                      ProjectRoles.of(RepositoryRole.WRITE, RepositoryRole.READ)).join();
@@ -714,8 +894,8 @@ class MetadataServiceTest {
                 .isSameAs(RepositoryRole.READ));
 
         // Without an explicit repository role, allowGuestAccess=false should deny access.
-        assertThat(mds.findRepositoryRole(project1, repo1,
-                new Token(app2, "secret2", false, false, UserAndTimestamp.of(author))).join())
+        assertThat(mds.findRepositoryRole(project1, repo1, new UserWithAppIdentity(
+                new Token(app2, "secret2", false, false, UserAndTimestamp.of(author)))).join())
                 .isNull();
     }
 
@@ -774,6 +954,36 @@ class MetadataServiceTest {
         // It's now writable.
         revision = mds.addUserRepositoryRole(author, project1, repo1, user1, RepositoryRole.READ).join();
         assertThat(revision).isEqualTo(new Revision(9));
+    }
+
+    @Test
+    void createTokenWithGuestAccess() {
+        final MetadataService mds = newMetadataService(manager);
+        mds.addRepo(author, project1, repo1, PUBLIC_PROJECT_ROLES).join();
+        await().until(() -> getRepo1(mds) != null);
+
+        // A token which is created with allowGuestAccess reads a public repository without registration.
+        mds.createToken(author, app1, null, false, true).join();
+        waitUntilAppIdentityRegistered(mds, app1);
+        assertThat(mds.findAppIdentity(app1).allowGuestAccess()).isTrue();
+        final User guestAccessToken = new UserWithAppIdentity(mds.findAppIdentity(app1));
+        assertThat(mds.findRepositoryRole(project1, repo1, guestAccessToken).join())
+                .isSameAs(RepositoryRole.READ);
+
+        // A token which is created without allowGuestAccess cannot.
+        mds.createToken(author, app2).join();
+        waitUntilAppIdentityRegistered(mds, app2);
+        assertThat(mds.findAppIdentity(app2).allowGuestAccess()).isFalse();
+        final User noGuestAccessToken = new UserWithAppIdentity(mds.findAppIdentity(app2));
+        assertThat(mds.findRepositoryRole(project1, repo1, noGuestAccessToken).join()).isNull();
+
+        // A certificate which is created with allowGuestAccess reads a public repository as well.
+        mds.createCertificate(author, cert1, certificateId1, false, true).join();
+        waitUntilAppIdentityRegistered(mds, cert1);
+        assertThat(mds.findAppIdentity(cert1).allowGuestAccess()).isTrue();
+        final User guestAccessCertificate = new UserWithAppIdentity(mds.findAppIdentity(cert1));
+        assertThat(mds.findRepositoryRole(project1, repo1, guestAccessCertificate).join())
+                .isSameAs(RepositoryRole.READ);
     }
 
     private static RepositoryMetadata getRepo1(MetadataService mds) {

@@ -1,7 +1,7 @@
 import { Box, Flex, Heading, HStack, Spacer, Tab, TabList, TabPanel, TabPanels, Tabs } from '@chakra-ui/react';
 import { Breadcrumbs } from 'dogma/common/components/Breadcrumbs';
 import { Deferred } from 'dogma/common/components/Deferred';
-import { useGetReposQuery } from 'dogma/features/api/apiSlice';
+import { useGetMetadataByProjectNameQuery, useGetReposQuery } from 'dogma/features/api/apiSlice';
 import { NewRepo } from 'dogma/features/repo/NewRepo';
 import RepoList from 'dogma/features/repo/RepoList';
 import { useRouter } from 'next/router';
@@ -17,6 +17,9 @@ const ProjectDetailPage = () => {
     error,
   } = useGetReposQuery(projectName, {
     refetchOnMountOrArgChange: true,
+  });
+  const { data: metadata } = useGetMetadataByProjectNameQuery(projectName, {
+    refetchOnFocus: true,
   });
   return (
     <Deferred isLoading={isLoading} error={error}>
@@ -46,7 +49,7 @@ const ProjectDetailPage = () => {
                   <ProjectSettingsButton projectName={projectName} />
                   <NewRepo projectName={projectName} />
                 </Flex>
-                <RepoList data={repoData || []} projectName={projectName} />
+                <RepoList data={repoData || []} projectName={projectName} metadata={metadata} />
               </TabPanel>
             </TabPanels>
           </Tabs>

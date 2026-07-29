@@ -49,6 +49,15 @@ const AppIdentityPage = () => {
         ),
         header: 'Type',
       }),
+      // A system admin identity always has guest access regardless of the stored flag.
+      columnHelper.accessor((row: AppIdentityDto) => row.systemAdmin || row.allowGuestAccess, {
+        cell: (info) => (
+          <Badge colorScheme={info.getValue() ? 'teal' : 'gray'}>
+            {info.getValue() ? 'Guest access' : 'Registered only'}
+          </Badge>
+        ),
+        header: 'Scope',
+      }),
       ...(systemAdmin
         ? [
             columnHelper.accessor((row: AppIdentityDto) => row.systemAdmin, {

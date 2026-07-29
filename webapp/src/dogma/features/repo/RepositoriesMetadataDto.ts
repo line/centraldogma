@@ -23,6 +23,11 @@ export interface ProjectRolesDto {
   guest: 'READ' | null;
 }
 
+// A repository is public when its guest role is READ.
+export function isPublicRepo(repo: RepositoryMetadataDto | undefined): boolean {
+  return repo?.roles?.projects?.guest === 'READ';
+}
+
 export interface UserOrAppIdentityRepositoryRoleDto {
   [key: string]: RepositoryRole;
 }

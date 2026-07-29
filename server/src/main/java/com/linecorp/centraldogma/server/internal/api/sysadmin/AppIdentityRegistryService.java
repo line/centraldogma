@@ -118,6 +118,7 @@ public final class AppIdentityRegistryService extends AbstractService {
             @Param AppIdentityType type,
             @Param @Nullable String secret,
             @Param @Nullable String certificateId,
+            @Param @Default("false") boolean allowGuestAccess,
             Author author, User loginUser) {
         if (!mtlsEnabled && type == AppIdentityType.CERTIFICATE) {
             throw new IllegalArgumentException(
@@ -137,16 +138,12 @@ public final class AppIdentityRegistryService extends AbstractService {
         if (type == AppIdentityType.TOKEN) {
             checkArgument(certificateId == null,
                           "TOKEN type cannot have a certificateId: %s", certificateId);
-            if (secret != null) {
-                future = mds.createToken(author, appId, secret, isSystemAdmin);
-            } else {
-                future = mds.createToken(author, appId, isSystemAdmin);
-            }
+            future = mds.createToken(author, appId, secret, isSystemAdmin, allowGuestAccess);
         } else {
             checkArgument(certificateId != null, "CERTIFICATE type must have a certificateId.");
             checkArgument(secret == null,
                           "CERTIFICATE type cannot have a secret: %s", secret);
-            future = mds.createCertificate(author, appId, certificateId, isSystemAdmin);
+            future = mds.createCertificate(author, appId, certificateId, isSystemAdmin, allowGuestAccess);
         }
         return future.thenCompose(unused -> fetchAppIdentity(appId))
                      .thenApply(appIdentity -> {
@@ -329,17 +326,19 @@ public final class AppIdentityRegistryService extends AbstractService {
      * <p>Returns a newly-generated token belonging to the current login user.
      *
      * @deprecated Use {@link #createAppIdentity(
-     *             String, boolean, AppIdentityType, String, String, Author, User)}.
+     *             String, boolean, AppIdentityType, String, String, boolean, Author, User)}.
      */
     @Post("/tokens")
     @StatusCode(201)
     @ResponseConverter(CreateApiResponseConverter.class)
     @Deprecated
-    public CompletableFuture<ResponseEntity<Token>> createToken(@Param String appId,
-                                                                @Param @Default("false") boolean isSystemAdmin,
-                                                                @Param @Nullable String secret,
-                                                                Author author, User loginUser) {
-        return createAppIdentity(appId, isSystemAdmin, AppIdentityType.TOKEN, secret, null,
+    public CompletableFuture<ResponseEntity<Token>> createToken(
+            @Param String appId,
+            @Param @Default("false") boolean isSystemAdmin,
+            @Param @Nullable String secret,
+            @Param @Default("false") boolean allowGuestAccess,
+            Author author, User loginUser) {
+        return createAppIdentity(appId, isSystemAdmin, AppIdentityType.TOKEN, secret, null, allowGuestAccess,
                                  author, loginUser)
                 .thenApply(responseEntity -> {
                     final AppIdentity app = responseEntity.content();
