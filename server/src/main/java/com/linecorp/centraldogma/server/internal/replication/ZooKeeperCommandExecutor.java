@@ -680,7 +680,9 @@ public final class ZooKeeperCommandExecutor
     protected void doStop(@Nullable Runnable onReleaseLeadership,
                           @Nullable Runnable onReleaseZoneLeadership) throws Exception {
         canReplicate = false;
+        // Stop accepting new replay logs.
         listenerInfo = null;
+
         logger.info("Stopping the worker threads");
         boolean interrupted = shutdown(executor);
         logger.info("Stopped the worker threads");
@@ -822,6 +824,7 @@ public final class ZooKeeperCommandExecutor
                 l = loadLog(nextRevision);
                 final Command<?> command = l.command();
                 final Object expectedResult = l.result();
+                // An interrupt here would split the local apply from updateLastReplayedRevision() below.
                 final Object actualResult =
                         Uninterruptibles.getUninterruptibly(delegate.execute(REPLAY_CONTEXT, command));
 
