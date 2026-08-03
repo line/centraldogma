@@ -686,6 +686,22 @@ public final class ZooKeeperCommandExecutor
         logger.info("Stopped the worker threads");
 
         try {
+            if (logWatcher != null) {
+                logger.info("Closing the log watcher");
+                // Wait for an in-flight replay: close() cancels its tasks with an interrupt.
+                // Releasing is safe because listenerInfo is null, so a new replay returns immediately.
+                synchronized (this) {
+                    logger.info("Drained the log watcher; last replayed revision: {}", lastReplayedRevision);
+                }
+                logWatcher.close();
+                interrupted |= shutdown(logWatcherExecutor);
+                logger.info("Closed the log watcher");
+            }
+        } catch (Exception e) {
+            logger.warn("Failed to close the log watcher: {}", e.getMessage(), e);
+        }
+
+        try {
             logger.info("Stopping the delegate command executor");
             delegate.stop();
             logger.info("Stopped the delegate command executor");
@@ -714,37 +730,26 @@ public final class ZooKeeperCommandExecutor
                     logger.warn("Failed to close the zone {} leader selector: {}", zone, e.getMessage(), e);
                 } finally {
                     try {
-                        if (logWatcher != null) {
-                            logger.info("Closing the log watcher");
-                            logWatcher.close();
-                            interrupted |= shutdown(logWatcherExecutor);
-                            logger.info("Closed the log watcher");
+                        if (curator != null) {
+                            logger.info("Closing the Curator framework");
+                            curator.close();
+                            logger.info("Closed the Curator framework");
                         }
                     } catch (Exception e) {
-                        logger.warn("Failed to close the log watcher: {}", e.getMessage(), e);
+                        logger.warn("Failed to close the Curator framework: {}", e.getMessage(), e);
                     } finally {
                         try {
-                            if (curator != null) {
-                                logger.info("Closing the Curator framework");
-                                curator.close();
-                                logger.info("Closed the Curator framework");
+                            if (quorumPeer != null) {
+                                final long peerId = quorumPeer.getId();
+                                logger.info("Shutting down the ZooKeeper peer ({})", peerId);
+                                quorumPeer.shutdown();
+                                logger.info("Shut down the ZooKeeper peer ({})", peerId);
                             }
                         } catch (Exception e) {
-                            logger.warn("Failed to close the Curator framework: {}", e.getMessage(), e);
+                            logger.warn("Failed to shut down the ZooKeeper peer: {}", e.getMessage(), e);
                         } finally {
-                            try {
-                                if (quorumPeer != null) {
-                                    final long peerId = quorumPeer.getId();
-                                    logger.info("Shutting down the ZooKeeper peer ({})", peerId);
-                                    quorumPeer.shutdown();
-                                    logger.info("Shut down the ZooKeeper peer ({})", peerId);
-                                }
-                            } catch (Exception e) {
-                                logger.warn("Failed to shut down the ZooKeeper peer: {}", e.getMessage(), e);
-                            } finally {
-                                if (interrupted) {
-                                    Thread.currentThread().interrupt();
-                                }
+                            if (interrupted) {
+                                Thread.currentThread().interrupt();
                             }
                         }
                     }
@@ -817,7 +822,8 @@ public final class ZooKeeperCommandExecutor
                 l = loadLog(nextRevision);
                 final Command<?> command = l.command();
                 final Object expectedResult = l.result();
-                final Object actualResult = delegate.execute(REPLAY_CONTEXT, command).get();
+                final Object actualResult =
+                        Uninterruptibles.getUninterruptibly(delegate.execute(REPLAY_CONTEXT, command));
 
                 if (!Objects.equals(expectedResult, actualResult)) {
                     throw new ReplicationException(
