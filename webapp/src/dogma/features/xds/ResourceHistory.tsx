@@ -48,6 +48,7 @@ import { FetchBaseQueryError } from '@reduxjs/toolkit/query';
 import { useCallback, useMemo, useState } from 'react';
 import { VscGitCommit } from 'react-icons/vsc';
 import { DataTable } from 'dogma/features/xds/DataTable';
+import { useClampPageIndex, useUrlPagination } from 'dogma/common/components/table/useUrlPagination';
 import { Deferred } from 'dogma/common/components/Deferred';
 import { Loading } from 'dogma/common/components/Loading';
 import { Author } from 'dogma/common/components/Author';
@@ -57,7 +58,7 @@ import { HistoryDto } from 'dogma/features/history/HistoryDto';
 import { FileDto } from 'dogma/features/file/FileDto';
 import { useGetGroupHistoryQuery } from 'dogma/features/xds/xdsApiSlice';
 import { useGetFileContentQuery, useGetFilesQuery } from 'dogma/features/api/apiSlice';
-import { XDS_PROJECT } from 'dogma/features/xds/XdsTypes';
+import { XDS_PAGE_SIZES, XDS_PROJECT } from 'dogma/features/xds/XdsTypes';
 
 const columnHelper = createColumnHelper<HistoryDto>();
 
@@ -321,15 +322,22 @@ export const ResourceHistory = ({ group, filePath }: { group: string; filePath?:
 
   // Memoized so the table receives a stable data reference across re-renders (react-table requires this).
   const rows = useMemo(() => data || [], [data]);
+  const { pagination, onPaginationChange } = useUrlPagination({ pageSizes: XDS_PAGE_SIZES });
   const table = useReactTable({
     data: rows,
     columns,
+    state: { pagination },
+    onPaginationChange,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
-    initialState: { pagination: { pageSize: 10 } },
+    // Pagination is controlled via the URL (useUrlPagination); auto-reset would discard the page restored
+    // from the URL as soon as the history finishes loading.
+    autoResetPageIndex: false,
   });
+  // Auto-reset is off, so keep the page index within bounds if the history is truncated to fewer pages.
+  useClampPageIndex(table);
 
   return (
     <Deferred isLoading={isLoading} error={error}>
@@ -369,7 +377,7 @@ export const ResourceHistory = ({ group, filePath }: { group: string; filePath?:
                     value={pageSize}
                     onChange={(e) => table.setPageSize(Number(e.target.value))}
                   >
-                    {[10, 20, 50, 100].map((size) => (
+                    {XDS_PAGE_SIZES.map((size) => (
                       <option key={size} value={size}>
                         {size} / page
                       </option>
