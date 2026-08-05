@@ -792,6 +792,9 @@ class ZooKeeperCommandExecutorTest {
             origin.commandExecutor().execute(Command.createRepository(Author.SYSTEM, "p", "r")).join();
             assertThat(replayEntered.await(10, TimeUnit.SECONDS)).isTrue();
             final CompletableFuture<Void> stopFuture = replaying.commandExecutor().stop();
+            // The shutdown must not finish while the replay is parked; that is the barrier doing its job.
+            assertThatThrownBy(() -> stopFuture.get(3, TimeUnit.SECONDS))
+                    .isInstanceOf(TimeoutException.class);
             proceed.countDown();
             stopFuture.join();
 
