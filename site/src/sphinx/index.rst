@@ -101,6 +101,13 @@ Dynamic configuration with templates and variables
 - Manage environment-specific configurations with variable files (``/vars/dev.json``, ``/vars/prod.json``)
 - Preview rendered templates in real-time through the Web UI
 
+Envoy xDS v3 control plane
+--------------------------
+- Manage Envoy Listeners, Routes, Clusters and Endpoints as version-controlled YAML.
+- Edit resources through the Web UI or a YAML-over-HTTP REST API.
+- Serve them to Envoy and Armeria clients over the gRPC xDS discovery services from the same server port.
+- See :ref:`xds` for more information.
+
 Read more
 ---------
 .. toctree::
@@ -112,6 +119,7 @@ Read more
     client-java
     templates-variables
     mirroring
+    xds
     auth
     known-issues
 
