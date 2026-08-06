@@ -28,9 +28,15 @@ import { useAddNewAppIdentityMutation } from 'dogma/features/api/apiSlice';
 import { newNotification } from 'dogma/features/notification/notificationSlice';
 import ErrorMessageParser from 'dogma/features/services/ErrorMessageParser';
 import { useState } from 'react';
-import { Controller, useForm } from 'react-hook-form';
+import { Controller, FormProvider, useForm } from 'react-hook-form';
 import { IoMdArrowDropdown } from 'react-icons/io';
 import { useAppDispatch, useAppSelector } from 'dogma/hooks';
+import { useGetMetadataPropertiesQuery } from 'dogma/features/api/apiSlice';
+import {
+  MetadataPropertiesFormData,
+  toMetadataProperties,
+} from 'dogma/features/metadata-properties/MetadataProperties';
+import { MetadataPropertiesFields } from 'dogma/features/metadata-properties/MetadataPropertiesFields';
 
 const APP_ID_PATTERN = /^[0-9A-Za-z](?:[-+_0-9A-Za-z\.]*[0-9A-Za-z])?$/;
 
@@ -39,7 +45,7 @@ type FormData = {
   type: 'TOKEN' | 'CERTIFICATE';
   certificateId?: string;
   isSystemAdmin: boolean;
-};
+} & MetadataPropertiesFormData;
 
 export const NewAppIdentity = () => {
   const mtlsEnabled = useAppSelector((state) => state.serverConfig.mtlsEnabled);
@@ -60,6 +66,11 @@ export const NewAppIdentity = () => {
     onToggle: onSecretModalToggle,
     onClose: onSecretModalClose,
   } = useDisclosure();
+  const methods = useForm<FormData>({
+    defaultValues: {
+      type: 'TOKEN',
+    },
+  });
   const {
     register,
     handleSubmit,
@@ -67,12 +78,9 @@ export const NewAppIdentity = () => {
     watch,
     control,
     formState: { errors },
-  } = useForm<FormData>({
-    defaultValues: {
-      type: 'TOKEN',
-    },
-  });
+  } = methods;
   const [addNewAppIdentity, { isLoading }] = useAddNewAppIdentityMutation();
+  const { data: metadataProperties } = useGetMetadataPropertiesQuery();
   const [appIdentityDetail, setAppIdentityDetail] = useState(null);
   const dispatch = useAppDispatch();
   const { user } = useAppSelector((state) => state.auth);
@@ -91,6 +99,10 @@ export const NewAppIdentity = () => {
     params.set('isSystemAdmin', String(formData.isSystemAdmin || false));
     if (formData.type === 'CERTIFICATE' && formData.certificateId) {
       params.set('certificateId', formData.certificateId);
+    }
+    const properties = toMetadataProperties(metadataProperties?.appIdentity, formData);
+    if (properties) {
+      params.set('properties', JSON.stringify(properties));
     }
     const data = params.toString();
     try {
@@ -128,82 +140,105 @@ export const NewAppIdentity = () => {
           </PopoverHeader>
           <PopoverArrow />
           <PopoverCloseButton />
-          <form onSubmit={handleSubmit(onSubmit)}>
-            <PopoverBody minWidth="md">
-              <FormControl mb={4}>
-                <FormLabel>Type</FormLabel>
-                <Controller
-                  name="type"
-                  control={control}
-                  render={({ field: { onChange, value } }) => (
-                    <RadioGroup value={value} onChange={onChange}>
-                      <Stack direction="row" spacing={4}>
-                        <Radio value="TOKEN">Token</Radio>
-                        {mtlsEnabled && <Radio value="CERTIFICATE">Certificate</Radio>}
-                      </Stack>
-                    </RadioGroup>
-                  )}
-                />
-              </FormControl>
+          <FormProvider {...methods}>
+            <form onSubmit={handleSubmit(onSubmit)} noValidate>
+              <PopoverBody minWidth="md">
+                <FormControl mb={4}>
+                  <FormLabel>Type</FormLabel>
+                  <Controller
+                    name="type"
+                    control={control}
+                    render={({ field: { onChange, value } }) => (
+                      <RadioGroup value={value} onChange={onChange}>
+                        <Stack direction="row" spacing={4}>
+                          <Radio value="TOKEN">Token</Radio>
+                          {mtlsEnabled && <Radio value="CERTIFICATE">Certificate</Radio>}
+                        </Stack>
+                      </RadioGroup>
+                    )}
+                  />
+                </FormControl>
 
-              <FormControl isInvalid={errors.appId ? true : false} isRequired>
-                <FormLabel>Application ID</FormLabel>
-                <Input
-                  type="text"
-                  placeholder="my-app-id"
-                  {...register('appId', { pattern: APP_ID_PATTERN })}
-                />
-                <FormHelperText pl={1}>App ID used to access project repositories.</FormHelperText>
-                {errors.appId && (
-                  <FormErrorMessage>The first/last character must be alphanumeric</FormErrorMessage>
-                )}
-              </FormControl>
-
-              {selectedType === 'CERTIFICATE' && (
-                <FormControl mt={4} isInvalid={errors.certificateId ? true : false} isRequired>
-                  <FormLabel>Certificate ID</FormLabel>
+                <FormControl isInvalid={errors.appId ? true : false} isRequired>
+                  <FormLabel>Application ID</FormLabel>
                   <Input
                     type="text"
-                    placeholder="certificate-id"
-                    {...register('certificateId', {
-                      required: selectedType === 'CERTIFICATE',
+                    placeholder="my-app-id"
+                    {...register('appId', {
+                      required: 'Application ID is required',
+                      pattern: {
+                        value: APP_ID_PATTERN,
+                        message: 'The first/last character must be alphanumeric',
+                      },
                     })}
                   />
-                  <FormHelperText pl={1}>
-                    Certificate identifier for mTLS authentication (e.g., CN or SPIFFE ID).
-                  </FormHelperText>
-                  {errors.certificateId && <FormErrorMessage>Certificate ID is required</FormErrorMessage>}
+                  {errors.appId ? (
+                    <FormErrorMessage>{errors.appId.message}</FormErrorMessage>
+                  ) : (
+                    <FormHelperText pl={1}>App ID used to access project repositories.</FormHelperText>
+                  )}
                 </FormControl>
-              )}
 
-              {user.roles.includes('LEVEL_SYSTEM_ADMIN') && (
-                <Flex mt={4}>
-                  <Spacer />
-                  <Checkbox colorScheme="teal" {...register('isSystemAdmin')}>
-                    System Administrator-Level App Identity
-                  </Checkbox>
-                </Flex>
-              )}
-            </PopoverBody>
-            <PopoverFooter border="0" display="flex" alignItems="center" justifyContent="space-between" pb={4}>
-              <Spacer />
-              <Button
-                type="submit"
-                colorScheme="teal"
-                variant="ghost"
-                isLoading={isLoading}
-                loadingText="Creating"
+                {selectedType === 'CERTIFICATE' && (
+                  <FormControl mt={4} isInvalid={errors.certificateId ? true : false} isRequired>
+                    <FormLabel>Certificate ID</FormLabel>
+                    <Input
+                      type="text"
+                      placeholder="certificate-id"
+                      {...register('certificateId', {
+                        required: selectedType === 'CERTIFICATE',
+                      })}
+                    />
+                    {errors.certificateId ? (
+                      <FormErrorMessage>Certificate ID is required</FormErrorMessage>
+                    ) : (
+                      <FormHelperText pl={1}>
+                        Certificate identifier for mTLS authentication (e.g., CN or SPIFFE ID).
+                      </FormHelperText>
+                    )}
+                  </FormControl>
+                )}
+
+                {metadataProperties?.appIdentity && (
+                  <MetadataPropertiesFields schema={metadataProperties.appIdentity} />
+                )}
+
+                {user.roles.includes('LEVEL_SYSTEM_ADMIN') && (
+                  <Flex mt={4}>
+                    <Spacer />
+                    <Checkbox colorScheme="teal" {...register('isSystemAdmin')}>
+                      System Administrator-Level App Identity
+                    </Checkbox>
+                  </Flex>
+                )}
+              </PopoverBody>
+              <PopoverFooter
+                border="0"
+                display="flex"
+                alignItems="center"
+                justifyContent="space-between"
+                pb={4}
               >
-                Create
-              </Button>
-            </PopoverFooter>
-          </form>
+                <Spacer />
+                <Button
+                  type="submit"
+                  colorScheme="teal"
+                  variant="ghost"
+                  isLoading={isLoading}
+                  loadingText="Creating"
+                >
+                  Create
+                </Button>
+              </PopoverFooter>
+            </form>
+          </FormProvider>
         </PopoverContent>
       </Popover>
       <DisplaySecretModal
         isOpen={isSecretModalOpen}
         onClose={onSecretModalClose}
         response={appIdentityDetail}
+        schema={metadataProperties?.appIdentity}
       />
     </>
   );

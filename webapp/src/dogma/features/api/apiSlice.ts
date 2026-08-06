@@ -24,6 +24,7 @@ import { ProjectMetadataDto } from 'dogma/features/project/ProjectMetadataDto';
 import { FileContentDto } from 'dogma/features/file/FileContentDto';
 import { RevisionDto } from 'dogma/features/history/RevisionDto';
 import { AppIdentityDto } from 'dogma/features/app-identity/AppIdentity';
+import { MetadataProperties } from 'dogma/features/metadata-properties/MetadataProperties';
 import { FetchBaseQueryError } from '@reduxjs/toolkit/query';
 import { DeleteUserOrAppIdentityRepositoryRoleDto } from 'dogma/features/repo/settings/DeleteUserOrAppIdentityRepositoryRoleDto';
 import { AddUserOrAppIdentityRepositoryRoleDto } from 'dogma/features/repo/settings/AddUserOrAppIdentityRepositoryRoleDto';
@@ -592,6 +593,12 @@ export const apiSlice = createApi({
         method: 'GET',
       }),
     }),
+    getMetadataProperties: builder.query<MetadataProperties, void>({
+      query: () => ({
+        url: `/api/v1/metadataProperties`,
+        method: 'GET',
+      }),
+    }),
     isXdsWebEnabled: builder.query<boolean, void>({
       query: () => ({
         url: `/api/v1/xds/web`,
@@ -632,6 +639,8 @@ export const {
   useGetXdsClientsQuery,
   useGetXdsAppsQuery,
   useGetXdsSnapshotQuery,
+  // Metadata properties
+  useGetMetadataPropertiesQuery,
   // Project
   useGetProjectsQuery,
   useRestoreProjectMutation,

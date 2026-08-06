@@ -19,6 +19,7 @@ import {
 import { DateWithTooltip } from 'dogma/common/components/DateWithTooltip';
 import { newNotification } from 'dogma/features/notification/notificationSlice';
 import { AppIdentityDto, isToken, isCertificate } from 'dogma/features/app-identity/AppIdentity';
+import { MetadataPropertiesSchema } from 'dogma/features/metadata-properties/MetadataProperties';
 import { useAppDispatch } from 'dogma/hooks';
 import { MdContentCopy } from 'react-icons/md';
 
@@ -26,10 +27,12 @@ export const DisplaySecretModal = ({
   isOpen,
   onClose,
   response,
+  schema,
 }: {
   isOpen: boolean;
   onClose: () => void;
   response: AppIdentityDto;
+  schema?: MetadataPropertiesSchema;
 }) => {
   const dispatch = useAppDispatch();
   if (!response) return;
@@ -73,6 +76,13 @@ export const DisplaySecretModal = ({
                     <Td>{response.certificateId}</Td>
                   </Tr>
                 )}
+                {response.properties &&
+                  Object.entries(response.properties).map(([key, value]) => (
+                    <Tr key={key}>
+                      <Td>{schema?.properties?.[key]?.title || key}</Td>
+                      <Td>{String(value)}</Td>
+                    </Tr>
+                  ))}
                 <Tr>
                   <Td>Level</Td>
                   <Td>{systemAdmin ? 'System Admin' : 'User'}</Td>

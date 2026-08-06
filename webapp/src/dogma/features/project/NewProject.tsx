@@ -15,34 +15,42 @@ import {
   Spacer,
   useDisclosure,
 } from '@chakra-ui/react';
-import { useAddNewProjectMutation } from 'dogma/features/api/apiSlice';
+import { useAddNewProjectMutation, useGetMetadataPropertiesQuery } from 'dogma/features/api/apiSlice';
 import { newNotification } from 'dogma/features/notification/notificationSlice';
 import { useAppDispatch } from 'dogma/hooks';
 import Router from 'next/router';
-import { useForm } from 'react-hook-form';
+import { FormProvider, useForm } from 'react-hook-form';
 import { SerializedError } from '@reduxjs/toolkit';
 import { FetchBaseQueryError } from '@reduxjs/toolkit/query';
 import ErrorMessageParser from 'dogma/features/services/ErrorMessageParser';
 import { IoMdArrowDropdown } from 'react-icons/io';
+import {
+  MetadataPropertiesFormData,
+  toMetadataProperties,
+} from 'dogma/features/metadata-properties/MetadataProperties';
+import { MetadataPropertiesFields } from 'dogma/features/metadata-properties/MetadataPropertiesFields';
 
 const ENTITY_NAME_PATTERN = /^[0-9A-Za-z](?:[-+_0-9A-Za-z.]*[0-9A-Za-z])?$/;
 
 type FormData = {
   name: string;
-};
+} & MetadataPropertiesFormData;
 
 export const NewProject = () => {
   const [addNewProject, { isLoading }] = useAddNewProjectMutation();
+  const { data: metadataProperties } = useGetMetadataPropertiesQuery();
+  const methods = useForm<FormData>();
   const {
     register,
     handleSubmit,
     reset,
     formState: { errors },
-  } = useForm<FormData>();
+  } = methods;
   const { isOpen, onToggle, onClose } = useDisclosure();
   const dispatch = useAppDispatch();
   const onSubmit = async (data: FormData) => {
-    const response = await addNewProject(data);
+    const properties = toMetadataProperties(metadataProperties?.project, data);
+    const response = await addNewProject({ name: data.name, properties });
     if ((response as { error: FetchBaseQueryError | SerializedError }).error) {
       dispatch(
         newNotification(
@@ -71,33 +79,40 @@ export const NewProject = () => {
         </PopoverHeader>
         <PopoverArrow />
         <PopoverCloseButton />
-        <form onSubmit={handleSubmit(onSubmit)}>
-          <PopoverBody minWidth="max-content">
-            <FormControl isInvalid={errors.name ? true : false} isRequired>
-              <FormLabel>Project name</FormLabel>
-              <Input
-                type="text"
-                placeholder="my-project-name"
-                {...register('name', { pattern: ENTITY_NAME_PATTERN })}
-              />
-              {errors.name && (
-                <FormErrorMessage>The first/last character must be alphanumeric</FormErrorMessage>
-              )}
-            </FormControl>
-          </PopoverBody>
-          <PopoverFooter border="0" display="flex" alignItems="center" justifyContent="space-between" pb={4}>
-            <Spacer />
-            <Button
-              type="submit"
-              colorScheme="teal"
-              variant="ghost"
-              isLoading={isLoading}
-              loadingText="Creating"
-            >
-              Create
-            </Button>
-          </PopoverFooter>
-        </form>
+        <FormProvider {...methods}>
+          <form onSubmit={handleSubmit(onSubmit)} noValidate>
+            <PopoverBody minWidth="max-content">
+              <FormControl isInvalid={errors.name ? true : false} isRequired>
+                <FormLabel>Project name</FormLabel>
+                <Input
+                  type="text"
+                  placeholder="my-project-name"
+                  {...register('name', {
+                    required: 'Project name is required',
+                    pattern: {
+                      value: ENTITY_NAME_PATTERN,
+                      message: 'The first/last character must be alphanumeric',
+                    },
+                  })}
+                />
+                {errors.name && <FormErrorMessage>{errors.name.message}</FormErrorMessage>}
+              </FormControl>
+              {metadataProperties?.project && <MetadataPropertiesFields schema={metadataProperties.project} />}
+            </PopoverBody>
+            <PopoverFooter border="0" display="flex" alignItems="center" justifyContent="space-between" pb={4}>
+              <Spacer />
+              <Button
+                type="submit"
+                colorScheme="teal"
+                variant="ghost"
+                isLoading={isLoading}
+                loadingText="Creating"
+              >
+                Create
+              </Button>
+            </PopoverFooter>
+          </form>
+        </FormProvider>
       </PopoverContent>
     </Popover>
   );
