@@ -298,7 +298,8 @@ Core properties
             }
 
       - the declared schemas are exposed via ``GET /api/v1/metadataProperties`` so that clients such as
-        the web UI can render input forms for the declared properties.
+        the web UI can render input forms for the declared properties. The web UI uses the standard
+        ``title`` and ``description`` keywords of each property as the form label and its help text.
 
 .. _replication:
 

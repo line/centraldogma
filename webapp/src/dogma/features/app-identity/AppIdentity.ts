@@ -10,6 +10,7 @@ export interface AppIdentity {
   creation: UserAndTimestamp;
   deactivation?: UserAndTimestamp;
   deletion?: UserAndTimestamp;
+  properties?: Record<string, unknown>;
 }
 
 export interface Token extends AppIdentity {
