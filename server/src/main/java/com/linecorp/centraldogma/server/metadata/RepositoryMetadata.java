@@ -28,6 +28,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableMap;
 
@@ -54,13 +55,14 @@ public final class RepositoryMetadata implements Identifiable, HasWeight {
     }
 
     /**
-     * Creates a new instance with default properties.
+     * Creates a new instance with the specified additional {@code properties}.
      */
-    public static RepositoryMetadata of(String name, Roles roles, UserAndTimestamp creation) {
+    public static RepositoryMetadata of(String name, Roles roles, UserAndTimestamp creation,
+                                        @Nullable JsonNode properties) {
         requireNonNull(name, "name");
         requireNonNull(roles, "roles");
         requireNonNull(creation, "creation");
-        return new RepositoryMetadata(name, roles, creation, null, RepositoryStatus.ACTIVE);
+        return new RepositoryMetadata(name, roles, creation, null, RepositoryStatus.ACTIVE, properties);
     }
 
     /**
@@ -74,7 +76,7 @@ public final class RepositoryMetadata implements Identifiable, HasWeight {
      * Creates a new instance for dogma repository.
      */
     public static RepositoryMetadata ofDogma(RepositoryStatus repositoryStatus) {
-        return new RepositoryMetadata(Project.REPO_DOGMA, Roles.EMPTY, null, null, repositoryStatus);
+        return new RepositoryMetadata(Project.REPO_DOGMA, Roles.EMPTY, null, null, repositoryStatus, null);
     }
 
     /**
@@ -99,12 +101,18 @@ public final class RepositoryMetadata implements Identifiable, HasWeight {
     private final RepositoryStatus repositoryStatus;
 
     /**
+     * The additional properties of this repository.
+     */
+    @Nullable
+    private final JsonNode properties;
+
+    /**
      * Creates a new instance.
      */
     private RepositoryMetadata(String name, UserAndTimestamp creation, ProjectRoles projectRoles) {
         this(name, new Roles(requireNonNull(projectRoles, "projectRoles"),
                              ImmutableMap.of(), null, ImmutableMap.of()),
-             creation, /* removal */ null, RepositoryStatus.ACTIVE);
+             creation, /* removal */ null, RepositoryStatus.ACTIVE, null);
     }
 
     /**
@@ -115,7 +123,8 @@ public final class RepositoryMetadata implements Identifiable, HasWeight {
                               @JsonProperty("roles") Roles roles,
                               @JsonProperty("creation") @Nullable UserAndTimestamp creation,
                               @JsonProperty("removal") @Nullable UserAndTimestamp removal,
-                              @JsonProperty("status") @Nullable RepositoryStatus repositoryStatus) {
+                              @JsonProperty("status") @Nullable RepositoryStatus repositoryStatus,
+                              @JsonProperty("properties") @Nullable JsonNode properties) {
         this.name = requireNonNull(name, "name");
         this.roles = requireNonNull(roles, "roles");
         if (!Project.REPO_DOGMA.equals(name)) {
@@ -124,6 +133,8 @@ public final class RepositoryMetadata implements Identifiable, HasWeight {
         this.creation = creation;
         this.removal = removal;
         this.repositoryStatus = firstNonNull(repositoryStatus, RepositoryStatus.ACTIVE);
+        // Copy so that a later mutation of the argument cannot change this instance.
+        this.properties = properties != null ? properties.deepCopy() : null;
     }
 
     @Override
@@ -174,11 +185,23 @@ public final class RepositoryMetadata implements Identifiable, HasWeight {
         return repositoryStatus;
     }
 
+    /**
+     * Returns the additional properties of this repository.
+     */
+    @Nullable
+    @JsonProperty
+    public JsonNode properties() {
+        return properties;
+    }
+
     @Override
     public int weight() {
         int weight = 0;
         weight += name.length();
         weight += roles.weight();
+        if (properties != null) {
+            weight += properties.toString().length();
+        }
         return weight;
     }
 
@@ -196,12 +219,13 @@ public final class RepositoryMetadata implements Identifiable, HasWeight {
                roles.equals(that.roles) &&
                Objects.equals(creation, that.creation) &&
                Objects.equals(removal, that.removal) &&
-               repositoryStatus == that.repositoryStatus;
+               repositoryStatus == that.repositoryStatus &&
+               Objects.equals(properties, that.properties);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(name, roles, creation, removal, repositoryStatus);
+        return Objects.hash(name, roles, creation, removal, repositoryStatus, properties);
     }
 
     @Override
@@ -213,6 +237,7 @@ public final class RepositoryMetadata implements Identifiable, HasWeight {
                           .add("creation", creation)
                           .add("removal", removal)
                           .add("repositoryStatus", repositoryStatus)
+                          .add("properties", properties)
                           .toString();
     }
 }

@@ -68,7 +68,7 @@ class SerializationTest {
         final Member member = new Member(userLogin, ProjectRole.MEMBER, newCreationTag());
         final RepositoryMetadata repositoryMetadata = RepositoryMetadata.of("sample", newCreationTag());
         final Token token = new Token("testApp", "testSecret", false, true, newCreationTag(), null,
-                                      null);
+                                      null, null);
 
         final RepositoryMetadata dogmaRepo = RepositoryMetadata.ofDogma(RepositoryStatus.ACTIVE);
         final ProjectMetadata metadata =
@@ -82,6 +82,7 @@ class SerializationTest {
                                                                                 ProjectRole.MEMBER,
                                                                                 newCreationTag())),
                                     newCreationTag(),
+                                    null,
                                     null);
         assertThatJson(metadata)
                 .isEqualTo("{\n" +
@@ -208,7 +209,7 @@ class SerializationTest {
                                          newCreationTag());
         final RepositoryMetadata repositoryMetadata = RepositoryMetadata.of("sample", newCreationTag());
         final Token token = new Token("testApp", "testSecret", false, true, newCreationTag(), null,
-                                      null);
+                                      null, null);
         final ProjectMetadata metadata =
                 new ProjectMetadata("test",
                                     ImmutableMap.of(repositoryMetadata.name(), repositoryMetadata),
@@ -219,7 +220,8 @@ class SerializationTest {
                                                                                 ProjectRole.MEMBER,
                                                                                 newCreationTag())),
                                     newCreationTag(),
-                                    newRemovalTag());
+                                    newRemovalTag(),
+                                    null);
 
         assertThatJson(metadata).isEqualTo("{\n" +
                                            "  \"name\" : \"test\",\n" +

@@ -48,6 +48,7 @@ junit-pioneer = "2.3.0"
 jsch = "0.1.55"
 # Don't update `json-path` version
 json-path = "2.2.0"
+json-schema-validator = "1.5.9"
 # 3.0.0 requires java 17
 json-unit = "2.38.0"
 jsoup = "1.22.2" # JSoup is only used for Gradle script.
@@ -285,6 +286,12 @@ version.ref = "jsch"
 module = "com.jayway.jsonpath:json-path"
 version.ref = "json-path"
 relocations = { from = "com.jayway.jsonpath", to = "com.linecorp.centraldogma.internal.shaded.jsonpath" }
+
+[libraries.json-schema-validator]
+module = "com.networknt:json-schema-validator"
+version.ref = "json-schema-validator"
+# Exclude the differently-versioned jackson-dataformat-yaml edge; :common already provides it.
+exclusions = "com.fasterxml.jackson.dataformat:jackson-dataformat-yaml"
 
 [libraries.json-unit]
 module = "net.javacrumbs.json-unit:json-unit"

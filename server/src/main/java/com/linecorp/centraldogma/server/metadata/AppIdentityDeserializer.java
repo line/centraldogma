@@ -80,8 +80,10 @@ final class AppIdentityDeserializer extends JsonDeserializer<AppIdentity> {
         final UserAndTimestamp creation = deserializeUserAndTimestamp(getRequiredNode(node, "creation"));
         final UserAndTimestamp deactivation = deserializeOptionalUserAndTimestamp(node, "deactivation");
         final UserAndTimestamp deletion = deserializeOptionalUserAndTimestamp(node, "deletion");
+        final JsonNode properties = getOptionalObject(node, "properties");
 
-        return new Token(appId, secret, systemAdmin, allowGuestAccess, creation, deactivation, deletion);
+        return new Token(appId, secret, systemAdmin, allowGuestAccess, creation, deactivation, deletion,
+                         properties);
     }
 
     private static CertificateAppIdentity deserializeCertificate(JsonNode node) {
@@ -92,9 +94,10 @@ final class AppIdentityDeserializer extends JsonDeserializer<AppIdentity> {
         final UserAndTimestamp creation = deserializeUserAndTimestamp(getRequiredNode(node, "creation"));
         final UserAndTimestamp deactivation = deserializeOptionalUserAndTimestamp(node, "deactivation");
         final UserAndTimestamp deletion = deserializeOptionalUserAndTimestamp(node, "deletion");
+        final JsonNode properties = getOptionalObject(node, "properties");
 
         return new CertificateAppIdentity(appId, certificateId, systemAdmin, allowGuestAccess,
-                                          creation, deactivation, deletion);
+                                          creation, deactivation, deletion, properties);
     }
 
     private static UserAndTimestamp deserializeUserAndTimestamp(JsonNode node) {
@@ -152,5 +155,17 @@ final class AppIdentityDeserializer extends JsonDeserializer<AppIdentity> {
             throw new IllegalArgumentException("Field '" + fieldName + "' must be a boolean");
         }
         return node.asBoolean();
+    }
+
+    @Nullable
+    private static JsonNode getOptionalObject(JsonNode parent, String fieldName) {
+        final JsonNode node = parent.get(fieldName);
+        if (node == null || node.isNull()) {
+            return null;
+        }
+        if (!node.isObject()) {
+            throw new IllegalArgumentException("Field '" + fieldName + "' must be an object");
+        }
+        return node;
     }
 }

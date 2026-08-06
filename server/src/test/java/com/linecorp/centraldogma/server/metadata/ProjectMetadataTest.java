@@ -70,7 +70,7 @@ class ProjectMetadataTest {
                                                        new Roles(ProjectRoles.of(null, null), ImmutableMap.of(),
                                                                  null, ImmutableMap.of()),
                                                        creation,
-                                                       null, RepositoryStatus.ACTIVE)),
+                                                       null, RepositoryStatus.ACTIVE, null)),
                 ImmutableMap.of("user1@example.com",
                                 new Member("user1@example.com", ProjectRole.MEMBER, creation)
                 ),
@@ -79,6 +79,7 @@ class ProjectMetadataTest {
                                 new AppIdentityRegistration("app-id-1", ProjectRole.MEMBER, creation)
                 ),
                 new UserAndTimestamp(User.SYSTEM.id()),
+                null,
                 null);
 
         final String json = Jackson.writeValueAsString(metadata);

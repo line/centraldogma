@@ -33,6 +33,8 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
+import org.jspecify.annotations.Nullable;
+
 import com.fasterxml.jackson.core.JsonPointer;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.ImmutableMap;
@@ -70,26 +72,27 @@ final class AppIdentityService {
     }
 
     CompletableFuture<Revision> createToken(Author author, String appId) {
-        return createToken(author, appId, false);
+        return createToken(author, appId, false, null);
     }
 
-    CompletableFuture<Revision> createToken(Author author, String appId, boolean isSystemAdmin) {
-        return createToken(author, appId, SECRET_PREFIX + UUID.randomUUID(), isSystemAdmin);
+    CompletableFuture<Revision> createToken(Author author, String appId, boolean isSystemAdmin,
+                                            @Nullable JsonNode properties) {
+        return createToken(author, appId, SECRET_PREFIX + UUID.randomUUID(), isSystemAdmin, properties);
     }
 
     CompletableFuture<Revision> createToken(Author author, String appId, String secret) {
-        return createToken(author, appId, secret, false);
+        return createToken(author, appId, secret, false, null);
     }
 
     CompletableFuture<Revision> createToken(Author author, String appId, String secret,
-                                            boolean isSystemAdmin) {
+                                            boolean isSystemAdmin, @Nullable JsonNode properties) {
         requireNonNull(author, "author");
         requireNonNull(appId, "appId");
         requireNonNull(secret, "secret");
         validateSecret(secret);
 
         final Token newToken = new Token(appId, secret, isSystemAdmin, isSystemAdmin,
-                                         UserAndTimestamp.of(author));
+                                         UserAndTimestamp.of(author), properties);
         final AppIdentityRegistryTransformer transformer = new AppIdentityRegistryTransformer(
                 (headRevision, tokens) -> {
                     if (tokens.appIds().containsKey(newToken.id())) {
@@ -137,7 +140,8 @@ final class AppIdentityService {
                     final Token newToken = new Token(
                             appIdentity.appId(), secret,
                             appIdentity.isSystemAdmin(), appIdentity.allowGuestAccess(),
-                            appIdentity.creation(), appIdentity.deactivation(), userAndTimestamp);
+                            appIdentity.creation(), appIdentity.deactivation(), userAndTimestamp,
+                            appIdentity.properties());
                     final Map<String, String> newSecrets = removeFromMap(registry.secrets(), secret);
                     return new AppIdentityRegistry(updateMap(registry.appIds(), appId, newToken), newSecrets,
                                                    registry.certificateIds());
@@ -183,7 +187,8 @@ final class AppIdentityService {
                     final Map<String, String> newSecrets =
                             addToMap(registry.secrets(), secret, appId); // The key is secret not appId.
                     final Token newToken = new Token(appIdentity.appId(), secret, appIdentity.isSystemAdmin(),
-                                                     appIdentity.allowGuestAccess(), appIdentity.creation());
+                                                     appIdentity.allowGuestAccess(), appIdentity.creation(),
+                                                     appIdentity.properties());
                     return new AppIdentityRegistry(updateMap(registry.appIds(), appId, newToken), newSecrets,
                                                    registry.certificateIds());
                 });
@@ -206,7 +211,8 @@ final class AppIdentityService {
             assert secret != null;
             final Token newToken = new Token(appIdentity.appId(), secret,
                                              appIdentity.isSystemAdmin(), appIdentity.allowGuestAccess(),
-                                             appIdentity.creation(), userAndTimestamp, null);
+                                             appIdentity.creation(), userAndTimestamp, null,
+                                             appIdentity.properties());
             final Map<String, AppIdentity> newAppIds = updateMap(registry.appIds(), appId, newToken);
             final Map<String, String> newSecrets =
                     removeFromMap(registry.secrets(), secret); // Note that the key is secret not appId.
@@ -280,7 +286,7 @@ final class AppIdentityService {
     }
 
     CompletableFuture<Revision> createCertificate(Author author, String appId, String certificateId,
-                                                  boolean isSystemAdmin) {
+                                                  boolean isSystemAdmin, @Nullable JsonNode properties) {
         requireNonNull(author, "author");
         requireNonNull(appId, "appId");
         checkArgument(!isNullOrEmpty(certificateId), "certificateId must not be null or empty");
@@ -288,7 +294,7 @@ final class AppIdentityService {
         // Does not allow guest access for non admin certificate.
         final CertificateAppIdentity certificate =
                 new CertificateAppIdentity(appId, certificateId, isSystemAdmin, isSystemAdmin,
-                                           UserAndTimestamp.of(author));
+                                           UserAndTimestamp.of(author), properties);
         final JsonPointer appIdPath = JsonPointer.compile("/appIds" + encodeSegment(certificate.appId()));
         final JsonPointer certificateIdPath =
                 JsonPointer.compile("/certificateIds" + encodeSegment(certificateId));
@@ -320,7 +326,8 @@ final class AppIdentityService {
                     final CertificateAppIdentity newCertificate = new CertificateAppIdentity(
                             appIdentity.appId(), ((CertificateAppIdentity) appIdentity).certificateId(),
                             appIdentity.isSystemAdmin(), appIdentity.allowGuestAccess(),
-                            appIdentity.creation(), appIdentity.deactivation(), userAndTimestamp);
+                            appIdentity.creation(), appIdentity.deactivation(), userAndTimestamp,
+                            appIdentity.properties());
                     final String certificateId = ((CertificateAppIdentity) appIdentity).certificateId();
                     final Map<String, String> newCertificateIds =
                             removeFromMap(registry.certificateIds(), certificateId);
@@ -348,7 +355,8 @@ final class AppIdentityService {
                                                        certificate.certificateId(),
                                                        certificate.isSystemAdmin(),
                                                        certificate.allowGuestAccess(),
-                                                       certificate.creation());
+                                                       certificate.creation(),
+                                                       certificate.properties());
                     final Map<String, String> newCertificateIds =
                             addToMap(registry.certificateIds(), certificate.certificateId(), appId);
                     return new AppIdentityRegistry(updateMap(registry.appIds(), appId, newCertificate),
@@ -376,7 +384,8 @@ final class AppIdentityService {
                                                        appIdentity.isSystemAdmin(),
                                                        appIdentity.allowGuestAccess(),
                                                        appIdentity.creation(),
-                                                       userAndTimestamp, null);
+                                                       userAndTimestamp, null,
+                                                       appIdentity.properties());
                     final Map<String, AppIdentity> newAppIds = updateMap(registry.appIds(), appId,
                                                                          newCertificate);
                     final Map<String, String> newCertificateIds =

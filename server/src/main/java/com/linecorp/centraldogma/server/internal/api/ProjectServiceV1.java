@@ -51,6 +51,8 @@ import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresProjectRole;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresSystemAdministrator;
 import com.linecorp.centraldogma.server.internal.api.converter.CreateApiResponseConverter;
+import com.linecorp.centraldogma.server.internal.metadata.MetadataPropertiesValidator;
+import com.linecorp.centraldogma.server.internal.metadata.MetadataPropertiesValidator.ResourceType;
 import com.linecorp.centraldogma.server.internal.storage.project.ProjectApiManager;
 import com.linecorp.centraldogma.server.metadata.AppIdentityRegistration;
 import com.linecorp.centraldogma.server.metadata.Member;
@@ -67,10 +69,14 @@ import com.linecorp.centraldogma.server.storage.project.Project;
 public class ProjectServiceV1 extends AbstractService {
 
     private final ProjectApiManager projectApiManager;
+    private final MetadataPropertiesValidator metadataPropertiesValidator;
 
-    public ProjectServiceV1(ProjectApiManager projectApiManager, CommandExecutor executor) {
+    public ProjectServiceV1(ProjectApiManager projectApiManager, CommandExecutor executor,
+                            MetadataPropertiesValidator metadataPropertiesValidator) {
         super(executor);
         this.projectApiManager = requireNonNull(projectApiManager, "projectApiManager");
+        this.metadataPropertiesValidator = requireNonNull(metadataPropertiesValidator,
+                                                          "metadataPropertiesValidator");
     }
 
     /**
@@ -138,10 +144,13 @@ public class ProjectServiceV1 extends AbstractService {
     @StatusCode(201)
     @ResponseConverter(CreateApiResponseConverter.class)
     public CompletableFuture<ProjectDto> createProject(CreateProjectRequest request, Author author, User user) {
-        return projectApiManager.createProject(request.name(), author).handle(returnOrThrow(() -> {
-            final Project project = projectApiManager.getProject(request.name(), user);
-            return newProjectDto(project, ProjectRole.OWNER);
-        }));
+        final JsonNode properties =
+                metadataPropertiesValidator.validate(ResourceType.PROJECT, request.properties());
+        return projectApiManager.createProject(request.name(), author, properties)
+                                .handle(returnOrThrow(() -> {
+                                    final Project project = projectApiManager.getProject(request.name(), user);
+                                    return newProjectDto(project, ProjectRole.OWNER);
+                                }));
     }
 
     /**

@@ -137,6 +137,8 @@ public final class CentralDogmaBuilder {
     private ManagementConfig managementConfig;
     @Nullable
     private ZoneConfig zoneConfig;
+    @Nullable
+    private MetadataPropertiesConfig metadataProperties;
     private boolean enableThriftService = true;
 
     /**
@@ -584,6 +586,16 @@ public final class CentralDogmaBuilder {
     }
 
     /**
+     * Specifies the {@link MetadataPropertiesConfig} that declares the additional metadata properties of
+     * projects, repositories and app identities.
+     */
+    public CentralDogmaBuilder metadataProperties(MetadataPropertiesConfig metadataProperties) {
+        requireNonNull(metadataProperties, "metadataProperties");
+        this.metadataProperties = metadataProperties;
+        return this;
+    }
+
+    /**
      * Enables or disables the Thrift service. The Thrift service is enabled by default.
      * Note that if a Thrift dependency is not found on the classpath, the Thrift service will be
      * disabled regardless of this setting.
@@ -628,6 +640,6 @@ public final class CentralDogmaBuilder {
                                       webAppEnabled, webAppTitle, replicationConfig,
                                       null, accessLogFormat, authCfg,
                                       corsConfig, pluginConfigs, managementConfig, zoneConfig,
-                                      enableThriftService);
+                                      metadataProperties, enableThriftService);
     }
 }

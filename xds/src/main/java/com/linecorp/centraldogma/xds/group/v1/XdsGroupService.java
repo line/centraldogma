@@ -82,7 +82,7 @@ public final class XdsGroupService {
                     errorResponse(HttpStatus.UNAUTHORIZED, "Authentication required"));
         }
         return createRepository(commandExecutor, mds, getAuthor(createUser), INTERNAL_PROJECT_XDS, groupId,
-                                false, null)
+                                false, null, null)
                 .handle((unused, cause) -> {
                     if (cause != null) {
                         final Throwable peeled = Exceptions.peel(cause);

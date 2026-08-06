@@ -270,6 +270,9 @@ public final class CentralDogmaConfig {
     @Nullable
     private final ZoneConfig zoneConfig;
 
+    @Nullable
+    private final MetadataPropertiesConfig metadataProperties;
+
     private final boolean enableThriftService;
 
     CentralDogmaConfig(
@@ -300,6 +303,7 @@ public final class CentralDogmaConfig {
             @JsonProperty("pluginConfigs") @Nullable List<PluginConfig> pluginConfigs,
             @JsonProperty("management") @Nullable ManagementConfig managementConfig,
             @JsonProperty("zone") @Nullable ZoneConfig zoneConfig,
+            @JsonProperty("metadataProperties") @Nullable MetadataPropertiesConfig metadataProperties,
             @JsonProperty("enableThriftService") @Nullable Boolean enableThriftService) {
 
         this.dataDir = requireNonNull(dataDir, "dataDir");
@@ -352,6 +356,7 @@ public final class CentralDogmaConfig {
                 toImmutableMap(PluginConfig::getClass, Function.identity()));
         this.managementConfig = managementConfig;
         this.zoneConfig = zoneConfig;
+        this.metadataProperties = metadataProperties;
         this.enableThriftService = firstNonNull(enableThriftService, true);
     }
 
@@ -599,6 +604,16 @@ public final class CentralDogmaConfig {
     @JsonProperty("zone")
     public ZoneConfig zone() {
         return zoneConfig;
+    }
+
+    /**
+     * Returns the {@link MetadataPropertiesConfig} that declares the additional metadata properties of
+     * projects, repositories and app identities.
+     */
+    @Nullable
+    @JsonProperty("metadataProperties")
+    public MetadataPropertiesConfig metadataProperties() {
+        return metadataProperties;
     }
 
     /**

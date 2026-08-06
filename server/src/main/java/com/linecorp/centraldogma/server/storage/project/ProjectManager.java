@@ -16,9 +16,21 @@
 
 package com.linecorp.centraldogma.server.storage.project;
 
+import org.jspecify.annotations.Nullable;
+
+import com.fasterxml.jackson.databind.JsonNode;
+
+import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.server.storage.StorageManager;
 
 /**
  * A manager which manages {@link Project}s in the Central Dogma.
  */
-public interface ProjectManager extends StorageManager<Project> {}
+public interface ProjectManager extends StorageManager<Project> {
+
+    /**
+     * Creates a new {@link Project} with the specified metadata {@code properties}.
+     */
+    Project create(String name, long creationTimeMillis, Author author, boolean encrypt,
+                   @Nullable JsonNode properties);
+}

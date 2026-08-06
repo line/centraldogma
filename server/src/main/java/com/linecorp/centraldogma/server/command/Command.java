@@ -25,6 +25,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonSubTypes.Type;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.ImmutableList;
 
 import com.linecorp.centraldogma.common.Author;
@@ -83,12 +84,15 @@ public interface Command<T> {
      *
      * @param author the author who is creating the project
      * @param name the name of the project which is supposed to be created
-     * @param wdekDetails the wrapped data encryption key for the project
+     * @param wdekDetails the wrapped data encryption key for the project,
+     *                    or {@code null} if the project is not encrypted
+     * @param properties the additional metadata properties of the project
      */
-    static Command<Void> createProject(Author author, String name, WrappedDekDetails wdekDetails) {
+    static Command<Void> createProject(Author author, String name,
+                                       @Nullable WrappedDekDetails wdekDetails,
+                                       @Nullable JsonNode properties) {
         requireNonNull(author, "author");
-        requireNonNull(wdekDetails, "wdekDetails");
-        return new CreateProjectCommand(null, author, name, wdekDetails);
+        return new CreateProjectCommand(null, author, name, wdekDetails, properties);
     }
 
     /**
@@ -100,7 +104,7 @@ public interface Command<T> {
      */
     static Command<Void> createProject(@Nullable Long timestamp, Author author, String name) {
         requireNonNull(author, "author");
-        return new CreateProjectCommand(timestamp, author, name, null);
+        return new CreateProjectCommand(timestamp, author, name, null, null);
     }
 
     /**

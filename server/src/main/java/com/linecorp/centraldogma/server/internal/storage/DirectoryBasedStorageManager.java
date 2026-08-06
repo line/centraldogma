@@ -43,6 +43,7 @@ import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.ImmutableMap;
 
 import com.linecorp.centraldogma.common.Author;
@@ -169,6 +170,11 @@ public abstract class DirectoryBasedStorageManager<T> implements StorageManager<
     protected abstract T createChild(
             File childDir, Author author, long creationTimeMillis, boolean encrypt) throws Exception;
 
+    protected T createChild(File childDir, Author author, long creationTimeMillis, boolean encrypt,
+                            @Nullable JsonNode properties) throws Exception {
+        return createChild(childDir, author, creationTimeMillis, encrypt);
+    }
+
     private void closeChild(String name, T child, Supplier<CentralDogmaException> failureCauseSupplier) {
         closeChild(new File(rootDir, name), child, failureCauseSupplier);
     }
@@ -213,13 +219,18 @@ public abstract class DirectoryBasedStorageManager<T> implements StorageManager<
 
     @Override
     public T create(String name, long creationTimeMillis, Author author, boolean encrypt) {
+        return create(name, creationTimeMillis, author, encrypt, null);
+    }
+
+    public T create(String name, long creationTimeMillis, Author author, boolean encrypt,
+                    @Nullable JsonNode properties) {
         ensureOpen();
         requireNonNull(author, "author");
         validateChildName(name);
 
         final AtomicBoolean created = new AtomicBoolean();
         final T child = children.computeIfAbsent(name, n -> {
-            final T c = create0(author, n, creationTimeMillis, encrypt);
+            final T c = create0(author, n, creationTimeMillis, encrypt, properties);
             created.set(true);
             return c;
         });
@@ -231,7 +242,8 @@ public abstract class DirectoryBasedStorageManager<T> implements StorageManager<
         }
     }
 
-    private T create0(Author author, String name, long creationTimeMillis, boolean encrypt) {
+    private T create0(Author author, String name, long creationTimeMillis, boolean encrypt,
+                      @Nullable JsonNode properties) {
         if (new File(rootDir, name + SUFFIX_REMOVED).exists()) {
             throw newStorageExistsException(name + " (removed)");
         }
@@ -239,7 +251,7 @@ public abstract class DirectoryBasedStorageManager<T> implements StorageManager<
         final File f = new File(rootDir, name);
         boolean success = false;
         try {
-            final T newChild = createChild(f, author, creationTimeMillis, encrypt);
+            final T newChild = createChild(f, author, creationTimeMillis, encrypt, properties);
             success = true;
             return newChild;
         } catch (RuntimeException e) {

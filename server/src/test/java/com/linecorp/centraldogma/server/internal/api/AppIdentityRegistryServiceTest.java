@@ -46,6 +46,7 @@ import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.StandaloneCommandExecutor;
 import com.linecorp.centraldogma.server.internal.api.sysadmin.AppIdentityLevelRequest;
 import com.linecorp.centraldogma.server.internal.api.sysadmin.AppIdentityRegistryService;
+import com.linecorp.centraldogma.server.internal.metadata.MetadataPropertiesValidator;
 import com.linecorp.centraldogma.server.metadata.AppIdentity;
 import com.linecorp.centraldogma.server.metadata.AppIdentityRegistry;
 import com.linecorp.centraldogma.server.metadata.AppIdentityType;
@@ -89,7 +90,8 @@ class AppIdentityRegistryServiceTest {
         metadataService = new MetadataService(manager.projectManager(), manager.executor(),
                                               manager.internalProjectInitializer());
         appIdentityRegistryService = new AppIdentityRegistryService(manager.executor(), metadataService,
-                                                                    true);
+                                                                    true,
+                                                                    new MetadataPropertiesValidator(null));
     }
 
     @AfterEach
@@ -149,7 +151,7 @@ class AppIdentityRegistryServiceTest {
     void systemAdminAppIdentity() {
         final CertificateAppIdentity certificate =
                 (CertificateAppIdentity) appIdentityRegistryService.createAppIdentity(
-                        "certAdmin1", true, AppIdentityType.CERTIFICATE, null, "cert/123",
+                        "certAdmin1", true, AppIdentityType.CERTIFICATE, null, "cert/123", null,
                         systemAdminAuthor, systemAdmin).join().content();
         assertThat(certificate.isActive()).isTrue();
         assertThat(certificate.certificateId()).isEqualTo("cert/123");
@@ -157,11 +159,11 @@ class AppIdentityRegistryServiceTest {
                 () -> appIdentityRegistryService.createAppIdentity(
                         "certAdmin2", true,
                         AppIdentityType.CERTIFICATE, null,
-                        "cert-456", guestAuthor, guest).join())
+                        "cert-456", null, guestAuthor, guest).join())
                 .isInstanceOf(IllegalArgumentException.class);
 
         final Token token = (Token) appIdentityRegistryService.createAppIdentity(
-                "tokenAdmin1", true, AppIdentityType.TOKEN, null, null,
+                "tokenAdmin1", true, AppIdentityType.TOKEN, null, null, null,
                 systemAdminAuthor, systemAdmin).join().content();
         assertThat(token.isActive()).isTrue();
         assertThat(token.secret()).isNotNull();
@@ -254,11 +256,11 @@ class AppIdentityRegistryServiceTest {
     void userCertificate() {
         final CertificateAppIdentity userCert1 =
                 (CertificateAppIdentity) appIdentityRegistryService.createAppIdentity(
-                        "certUser1", false, AppIdentityType.CERTIFICATE, null, "cert-user1",
+                        "certUser1", false, AppIdentityType.CERTIFICATE, null, "cert-user1", null,
                         systemAdminAuthor, systemAdmin).join().content();
         final CertificateAppIdentity userCert2 =
                 (CertificateAppIdentity) appIdentityRegistryService.createAppIdentity(
-                        "certUser2", false, AppIdentityType.CERTIFICATE, null, "cert-user2",
+                        "certUser2", false, AppIdentityType.CERTIFICATE, null, "cert-user2", null,
                         guestAuthor, guest).join().content();
         assertThat(userCert1.isActive()).isTrue();
         assertThat(userCert2.isActive()).isTrue();
@@ -352,7 +354,7 @@ class AppIdentityRegistryServiceTest {
     public void updateCertificate() {
         final CertificateAppIdentity certificate =
                 (CertificateAppIdentity) appIdentityRegistryService.createAppIdentity(
-                        "certUpdate", true, AppIdentityType.CERTIFICATE, null, "cert/update",
+                        "certUpdate", true, AppIdentityType.CERTIFICATE, null, "cert/update", null,
                         systemAdminAuthor, systemAdmin).join().content();
         assertThat(certificate.isActive()).isTrue();
 
@@ -415,7 +417,7 @@ class AppIdentityRegistryServiceTest {
     void updateCertificateLevel() {
         final CertificateAppIdentity certificate =
                 (CertificateAppIdentity) appIdentityRegistryService.createAppIdentity(
-                        "certLevelUpdate", false, AppIdentityType.CERTIFICATE, null, "cert-level",
+                        "certLevelUpdate", false, AppIdentityType.CERTIFICATE, null, "cert-level", null,
                         systemAdminAuthor, systemAdmin).join().content();
         assertThat(certificate.isActive()).isTrue();
         assertThat(certificate.isSystemAdmin()).isFalse();

@@ -20,6 +20,7 @@ import static java.util.Objects.requireNonNull;
 
 import org.jspecify.annotations.Nullable;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.MoreObjects.ToStringHelper;
 import com.google.common.base.Objects;
@@ -40,10 +41,13 @@ abstract class AbstractAppIdentity implements AppIdentity {
     private final UserAndTimestamp deactivation;
     @Nullable
     private final UserAndTimestamp deletion;
+    @Nullable
+    private final JsonNode properties;
 
     AbstractAppIdentity(String appId, AppIdentityType type, boolean isSystemAdmin,
                         boolean allowGuestAccess, UserAndTimestamp creation,
-                        @Nullable UserAndTimestamp deactivation, @Nullable UserAndTimestamp deletion) {
+                        @Nullable UserAndTimestamp deactivation, @Nullable UserAndTimestamp deletion,
+                        @Nullable JsonNode properties) {
         this.appId = Util.validateFileName(appId, "appId");
         this.type = requireNonNull(type, "type");
         this.isSystemAdmin = isSystemAdmin;
@@ -51,6 +55,8 @@ abstract class AbstractAppIdentity implements AppIdentity {
         this.creation = requireNonNull(creation, "creation");
         this.deactivation = deactivation;
         this.deletion = deletion;
+        // Copy so that a later mutation of the argument cannot change this instance.
+        this.properties = properties != null ? properties.deepCopy() : null;
     }
 
     @Override
@@ -95,6 +101,12 @@ abstract class AbstractAppIdentity implements AppIdentity {
         return deletion;
     }
 
+    @Nullable
+    @Override
+    public JsonNode properties() {
+        return properties;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) {
@@ -112,12 +124,14 @@ abstract class AbstractAppIdentity implements AppIdentity {
                allowGuestAccess == that.allowGuestAccess &&
                creation.equals(that.creation) &&
                Objects.equal(deactivation, that.deactivation) &&
-               Objects.equal(deletion, that.deletion);
+               Objects.equal(deletion, that.deletion) &&
+               Objects.equal(properties, that.properties);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hashCode(appId, type, isSystemAdmin, allowGuestAccess, creation, deactivation, deletion);
+        return Objects.hashCode(appId, type, isSystemAdmin, allowGuestAccess, creation, deactivation, deletion,
+                                properties);
     }
 
     @Override
@@ -129,7 +143,8 @@ abstract class AbstractAppIdentity implements AppIdentity {
                                                  .add("allowGuestAccess", allowGuestAccess())
                                                  .add("creation", creation())
                                                  .add("deactivation", deactivation())
-                                                 .add("deletion", deletion());
+                                                 .add("deletion", deletion())
+                                                 .add("properties", properties());
         addProperties(helper);
         return helper.toString();
     }

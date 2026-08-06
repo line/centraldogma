@@ -41,7 +41,7 @@ public final class CreatingInternalGroupPlugin extends AllReplicasPlugin {
                                                         pluginInitContext.commandExecutor(),
                                                         pluginInitContext.internalProjectInitializer());
         RepositoryServiceUtil.createRepository(pluginInitContext.commandExecutor(), mds, Author.SYSTEM,
-                                               INTERNAL_PROJECT_XDS, "my-group", false, null)
+                                               INTERNAL_PROJECT_XDS, "my-group", false, null, null)
                              .join();
     }
 

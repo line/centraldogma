@@ -27,6 +27,8 @@ import java.util.concurrent.CompletableFuture;
 
 import org.jspecify.annotations.Nullable;
 
+import com.fasterxml.jackson.databind.JsonNode;
+
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.PermissionException;
 import com.linecorp.centraldogma.common.Revision;
@@ -101,10 +103,11 @@ public final class ProjectApiManager {
         return projectManager.listRemoved();
     }
 
-    public CompletableFuture<Void> createProject(String projectName, Author author) {
+    public CompletableFuture<Void> createProject(String projectName, Author author,
+                                                 @Nullable JsonNode properties) {
         checkInternalProject(projectName, "create");
         if (!encryptionStorageManager.enabled()) {
-            return commandExecutor.execute(Command.createProject(author, projectName));
+            return commandExecutor.execute(Command.createProject(author, projectName, null, properties));
         }
         return encryptionStorageManager.generateWdek()
                                        .thenCompose(wdek -> {
@@ -112,7 +115,8 @@ public final class ProjectApiManager {
                                                    wdek, 1, encryptionStorageManager.kekId(),
                                                    projectName, Project.REPO_DOGMA);
                                            return commandExecutor.execute(
-                                                   Command.createProject(author, projectName, wdekDetails));
+                                                   Command.createProject(author, projectName, wdekDetails,
+                                                                         properties));
                                        })
                                        .exceptionally(cause -> {
                                            throw new EncryptionStorageException(

@@ -22,7 +22,9 @@ import static java.util.Objects.requireNonNull;
 import org.jspecify.annotations.Nullable;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Objects;
 
@@ -31,6 +33,7 @@ import com.linecorp.centraldogma.internal.Util;
 /**
  * Specifies details of an application token.
  */
+@JsonIgnoreProperties(ignoreUnknown = true)
 public final class Token extends AbstractAppIdentity {
 
     /**
@@ -40,8 +43,9 @@ public final class Token extends AbstractAppIdentity {
     private final String secret;
 
     Token(String appId, String secret, boolean isSystemAdmin, boolean allowGuestAccess,
-          UserAndTimestamp creation) {
-        super(appId, AppIdentityType.TOKEN, isSystemAdmin, allowGuestAccess, creation, null, null);
+          UserAndTimestamp creation, @Nullable JsonNode properties) {
+        super(appId, AppIdentityType.TOKEN, isSystemAdmin, allowGuestAccess, creation, null, null,
+              properties);
         this.secret = Util.validateFileName(secret, "secret");
     }
 
@@ -55,20 +59,23 @@ public final class Token extends AbstractAppIdentity {
                  @JsonProperty("allowGuestAccess") @Nullable Boolean allowGuestAccess,
                  @JsonProperty("creation") UserAndTimestamp creation,
                  @JsonProperty("deactivation") @Nullable UserAndTimestamp deactivation,
-                 @JsonProperty("deletion") @Nullable UserAndTimestamp deletion) {
+                 @JsonProperty("deletion") @Nullable UserAndTimestamp deletion,
+                 @JsonProperty("properties") @Nullable JsonNode properties) {
         super(appId, AppIdentityType.TOKEN, isSystemAdmin,
               // Allow guest access by default for backward compatibility.
               firstNonNull(allowGuestAccess, true),
               requireNonNull(creation, "creation"),
               deactivation,
-              deletion);
+              deletion,
+              properties);
         this.secret = Util.validateFileName(secret, "secret");
     }
 
     private Token(String appId, boolean isSystemAdmin, boolean allowGuestAccess, UserAndTimestamp creation,
-                  @Nullable UserAndTimestamp deactivation, @Nullable UserAndTimestamp deletion) {
+                  @Nullable UserAndTimestamp deactivation, @Nullable UserAndTimestamp deletion,
+                  @Nullable JsonNode properties) {
         super(appId, AppIdentityType.TOKEN, isSystemAdmin, allowGuestAccess,
-              requireNonNull(creation, "creation"), deactivation, deletion);
+              requireNonNull(creation, "creation"), deactivation, deletion, properties);
         secret = null;
     }
 
@@ -94,7 +101,8 @@ public final class Token extends AbstractAppIdentity {
      * Returns a new {@link Token} instance without its secret.
      */
     public Token withoutSecret() {
-        return new Token(id(), isSystemAdmin(), allowGuestAccess(), creation(), deactivation(), deletion());
+        return new Token(id(), isSystemAdmin(), allowGuestAccess(), creation(), deactivation(), deletion(),
+                         properties());
     }
 
     /**
@@ -109,7 +117,7 @@ public final class Token extends AbstractAppIdentity {
         final String secret = secret();
         assert secret != null;
         return new Token(id(), secret, isSystemAdmin, allowGuestAccess(), creation(),
-                         deactivation(), deletion());
+                         deactivation(), deletion(), properties());
     }
 
     @Override

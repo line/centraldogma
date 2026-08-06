@@ -27,6 +27,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.base.MoreObjects.ToStringHelper;
 
 import com.linecorp.centraldogma.common.Author;
@@ -41,15 +42,19 @@ public final class CreateProjectCommand extends RootCommand<Void> {
     private final String projectName;
     @Nullable
     private final WrappedDekDetails wdekDetails;
+    @Nullable
+    private final JsonNode properties;
 
     @JsonCreator
     CreateProjectCommand(@JsonProperty("timestamp") @Nullable Long timestamp,
                          @JsonProperty("author") @Nullable Author author,
                          @JsonProperty("projectName") String projectName,
-                         @JsonProperty("wdekDetails") @Nullable WrappedDekDetails wdekDetails) {
+                         @JsonProperty("wdekDetails") @Nullable WrappedDekDetails wdekDetails,
+                         @JsonProperty("properties") @Nullable JsonNode properties) {
         super(CommandType.CREATE_PROJECT, timestamp, author);
         this.projectName = requireNonNull(projectName, "projectName");
         this.wdekDetails = wdekDetails;
+        this.properties = properties;
         if (wdekDetails != null) {
             checkArgument(wdekDetails.projectName().equals(projectName),
                           "projectName: %s, (expected: %s", projectName, wdekDetails.projectName());
@@ -73,6 +78,15 @@ public final class CreateProjectCommand extends RootCommand<Void> {
         return wdekDetails;
     }
 
+    /**
+     * Returns the additional metadata properties of the project.
+     */
+    @Nullable
+    @JsonProperty
+    public JsonNode properties() {
+        return properties;
+    }
+
     @Override
     public boolean equals(Object obj) {
         if (this == obj) {
@@ -86,18 +100,21 @@ public final class CreateProjectCommand extends RootCommand<Void> {
         final CreateProjectCommand that = (CreateProjectCommand) obj;
         return super.equals(obj) &&
                projectName.equals(that.projectName) &&
-               Objects.equals(wdekDetails, that.wdekDetails);
+               Objects.equals(wdekDetails, that.wdekDetails) &&
+               Objects.equals(properties, that.properties);
     }
 
     @Override
     public int hashCode() {
-        return (projectName.hashCode() * 31 + Objects.hashCode(wdekDetails)) * 31 + super.hashCode();
+        return ((projectName.hashCode() * 31 + Objects.hashCode(wdekDetails)) * 31 +
+                Objects.hashCode(properties)) * 31 + super.hashCode();
     }
 
     @Override
     ToStringHelper toStringHelper() {
         return super.toStringHelper().omitNullValues()
                     .add("projectName", projectName)
-                    .add("wdekDetails", wdekDetails);
+                    .add("wdekDetails", wdekDetails)
+                    .add("properties", properties);
     }
 }

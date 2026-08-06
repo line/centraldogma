@@ -44,6 +44,7 @@ import com.linecorp.centraldogma.common.jsonpatch.JsonPatchOperation;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.internal.api.sysadmin.AppIdentityLevelRequest;
 import com.linecorp.centraldogma.server.internal.api.sysadmin.AppIdentityRegistryService;
+import com.linecorp.centraldogma.server.internal.metadata.MetadataPropertiesValidator;
 import com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
@@ -70,7 +71,8 @@ class TokenTest {
         metadataService = new MetadataService(manager.projectManager(), manager.executor(),
                                               manager.internalProjectInitializer());
         appIdentityRegistryService = new AppIdentityRegistryService(manager.executor(), metadataService,
-                                                                    false);
+                                                                    false,
+                                                                    new MetadataPropertiesValidator(null));
 
         // Put the legacy token.
         final Repository dogmaRepository =

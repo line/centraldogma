@@ -28,7 +28,8 @@ class CreateProjectCommandTest {
 
     @Test
     void testJsonConversion() {
-        assertJsonConversion(new CreateProjectCommand(1234L, new Author("foo", "bar@baz.com"), "foo", null),
+        assertJsonConversion(new CreateProjectCommand(1234L, new Author("foo", "bar@baz.com"), "foo", null,
+                                                      null),
                              Command.class,
                              '{' +
                              "  \"type\": \"CREATE_PROJECT\"," +

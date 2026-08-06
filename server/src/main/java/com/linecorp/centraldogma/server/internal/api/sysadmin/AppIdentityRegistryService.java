@@ -25,6 +25,7 @@ import java.util.concurrent.CompletableFuture;
 
 import org.jspecify.annotations.Nullable;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -54,6 +55,8 @@ import com.linecorp.centraldogma.server.internal.api.AbstractService;
 import com.linecorp.centraldogma.server.internal.api.HttpApiUtil;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresSystemAdministrator;
 import com.linecorp.centraldogma.server.internal.api.converter.CreateApiResponseConverter;
+import com.linecorp.centraldogma.server.internal.metadata.MetadataPropertiesValidator;
+import com.linecorp.centraldogma.server.internal.metadata.MetadataPropertiesValidator.ResourceType;
 import com.linecorp.centraldogma.server.metadata.AppIdentity;
 import com.linecorp.centraldogma.server.metadata.AppIdentityType;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
@@ -79,11 +82,15 @@ public final class AppIdentityRegistryService extends AbstractService {
 
     private final MetadataService mds;
     private final boolean mtlsEnabled;
+    private final MetadataPropertiesValidator metadataPropertiesValidator;
 
-    public AppIdentityRegistryService(CommandExecutor executor, MetadataService mds, boolean mtlsEnabled) {
+    public AppIdentityRegistryService(CommandExecutor executor, MetadataService mds, boolean mtlsEnabled,
+                                      MetadataPropertiesValidator metadataPropertiesValidator) {
         super(executor);
         this.mds = requireNonNull(mds, "mds");
         this.mtlsEnabled = mtlsEnabled;
+        this.metadataPropertiesValidator = requireNonNull(metadataPropertiesValidator,
+                                                          "metadataPropertiesValidator");
     }
 
     /**
@@ -118,10 +125,18 @@ public final class AppIdentityRegistryService extends AbstractService {
             @Param AppIdentityType type,
             @Param @Nullable String secret,
             @Param @Nullable String certificateId,
+            @Param @Nullable String properties,
             Author author, User loginUser) {
         if (!mtlsEnabled && type == AppIdentityType.CERTIFICATE) {
             throw new IllegalArgumentException(
                     "Cannot create a CERTIFICATE type app identity when mTLS is disabled.");
+        }
+        final JsonNode validatedProperties;
+        try {
+            validatedProperties = metadataPropertiesValidator.validate(
+                    ResourceType.APP_IDENTITY, properties != null ? Jackson.readTree(properties) : null);
+        } catch (JsonProcessingException e) {
+            throw new IllegalArgumentException("properties must be a valid JSON object: " + properties, e);
         }
 
         if (!loginUser.isSystemAdmin()) {
@@ -138,15 +153,16 @@ public final class AppIdentityRegistryService extends AbstractService {
             checkArgument(certificateId == null,
                           "TOKEN type cannot have a certificateId: %s", certificateId);
             if (secret != null) {
-                future = mds.createToken(author, appId, secret, isSystemAdmin);
+                future = mds.createToken(author, appId, secret, isSystemAdmin, validatedProperties);
             } else {
-                future = mds.createToken(author, appId, isSystemAdmin);
+                future = mds.createToken(author, appId, isSystemAdmin, validatedProperties);
             }
         } else {
             checkArgument(certificateId != null, "CERTIFICATE type must have a certificateId.");
             checkArgument(secret == null,
                           "CERTIFICATE type cannot have a secret: %s", secret);
-            future = mds.createCertificate(author, appId, certificateId, isSystemAdmin);
+            future = mds.createCertificate(author, appId, certificateId, isSystemAdmin,
+                                           validatedProperties);
         }
         return future.thenCompose(unused -> fetchAppIdentity(appId))
                      .thenApply(appIdentity -> {
@@ -329,7 +345,7 @@ public final class AppIdentityRegistryService extends AbstractService {
      * <p>Returns a newly-generated token belonging to the current login user.
      *
      * @deprecated Use {@link #createAppIdentity(
-     *             String, boolean, AppIdentityType, String, String, Author, User)}.
+     *             String, boolean, AppIdentityType, String, String, String, Author, User)}.
      */
     @Post("/tokens")
     @StatusCode(201)
@@ -339,7 +355,7 @@ public final class AppIdentityRegistryService extends AbstractService {
                                                                 @Param @Default("false") boolean isSystemAdmin,
                                                                 @Param @Nullable String secret,
                                                                 Author author, User loginUser) {
-        return createAppIdentity(appId, isSystemAdmin, AppIdentityType.TOKEN, secret, null,
+        return createAppIdentity(appId, isSystemAdmin, AppIdentityType.TOKEN, secret, null, null,
                                  author, loginUser)
                 .thenApply(responseEntity -> {
                     final AppIdentity app = responseEntity.content();
