@@ -203,7 +203,10 @@ final class AppIdentityService {
                                                      token.deactivation(), null);
                     final Map<String, AppIdentity> newAppIds =
                             updateMap(registry.appIds(), appId, newToken);
-                    return new AppIdentityRegistry(newAppIds, registry.secrets(), registry.certificateIds());
+                    // A deactivated token has no entry in the secret map; create a new map so that
+                    // the new registry does not share the mutable map with the old one.
+                    return new AppIdentityRegistry(newAppIds, ImmutableMap.copyOf(registry.secrets()),
+                                                   registry.certificateIds());
                 });
         // Read the registry back at the revision this commit produced so that the caller gets
         // the secret of this commit even if another commit lands right after.
