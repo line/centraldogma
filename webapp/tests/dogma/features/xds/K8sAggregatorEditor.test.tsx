@@ -165,6 +165,181 @@ describe('K8sAggregatorEditor – aggregator ID pattern validation', () => {
     });
   });
 
+  describe('fields the form must not drop', () => {
+    it('round-trips distinctEndpoint, metadataMapping and policy, and sends the loaded revision', async () => {
+      const stored = {
+        localityLbEndpoints: [
+          {
+            watcher: {
+              serviceName: 'my-service',
+              kubeconfig: { controlPlaneUrl: 'https://kubernetes.default.svc' },
+              distinctEndpoint: true,
+              metadataMapping: [
+                { resourceType: 'NODE', entryType: 'LABEL', sourceKey: 'topology.kubernetes.io/zone' },
+              ],
+            },
+          },
+        ],
+        policy: { overprovisioningFactor: 200, weightedPriorityHealth: true },
+      };
+      jest.mocked(xdsApiSlice.useGetK8sAggregatorQuery).mockReturnValue({
+        data: { content: jsYaml.dump(stored), revision: 7 },
+        isLoading: false,
+        error: undefined,
+      } as any);
+
+      const user = userEvent.setup();
+      renderWithProviders(<K8sAggregatorEditor group="foo" id="my-agg" isNew={false} />);
+      await waitFor(() => expect(screen.getByDisplayValue('my-agg')).toBeInTheDocument());
+
+      // Every stored field is on screen, not carried invisibly.
+      expect(screen.getByLabelText(/distinct endpoint/i)).toBeChecked();
+      expect(screen.getByDisplayValue('topology.kubernetes.io/zone')).toBeInTheDocument();
+      expect(screen.getByDisplayValue('200')).toBeInTheDocument();
+      expect(screen.getByLabelText(/weighted priority health/i)).toBeChecked();
+
+      await user.click(screen.getByRole('button', { name: /^edit$/i }));
+      await user.click(screen.getByRole('button', { name: /^save$/i }));
+
+      await waitFor(() => expect(mockUpdate).toHaveBeenCalled());
+      const sent = jsYaml.load(mockUpdate.mock.calls[0][0].body) as any;
+      const watcher = sent.localityLbEndpoints[0].watcher;
+      expect(watcher.distinctEndpoint).toBe(true);
+      expect(watcher.metadataMapping).toEqual([
+        { resourceType: 'NODE', entryType: 'LABEL', sourceKey: 'topology.kubernetes.io/zone' },
+      ]);
+      expect(sent.policy).toEqual({ overprovisioningFactor: 200, weightedPriorityHealth: true });
+      // The revision the form was loaded at rides with the update so the server can reject a stale save.
+      expect(mockUpdate.mock.calls[0][0].revision).toBe('7');
+    });
+
+    it('shows a stored drop overload read-only and saves it back unchanged', async () => {
+      const stored = {
+        localityLbEndpoints: [
+          {
+            watcher: {
+              serviceName: 'my-service',
+              kubeconfig: { controlPlaneUrl: 'https://kubernetes.default.svc' },
+            },
+          },
+        ],
+        policy: { dropOverloads: [{ category: 'throttle', dropPercentage: { numerator: 30 } }] },
+      };
+      jest.mocked(xdsApiSlice.useGetK8sAggregatorQuery).mockReturnValue({
+        data: { content: jsYaml.dump(stored), revision: 7 },
+        isLoading: false,
+        error: undefined,
+      } as any);
+
+      const user = userEvent.setup();
+      renderWithProviders(<K8sAggregatorEditor group="foo" id="my-agg" isNew={false} />);
+      await waitFor(() => expect(screen.getByDisplayValue('my-agg')).toBeInTheDocument());
+
+      // Visible, but with no input to change it.
+      expect(screen.getByText(/throttle — 30%/)).toBeInTheDocument();
+
+      await user.click(screen.getByRole('button', { name: /^edit$/i }));
+      await user.click(screen.getByRole('button', { name: /^save$/i }));
+
+      await waitFor(() => expect(mockUpdate).toHaveBeenCalled());
+      const sent = jsYaml.load(mockUpdate.mock.calls[0][0].body) as any;
+      expect(sent.policy.dropOverloads).toEqual([{ category: 'throttle', dropPercentage: { numerator: 30 } }]);
+    });
+
+    it('round-trips every field the form renders', async () => {
+      // The refactor rewrote each register() path, and a wrong path drops that field silently.
+      const stored = {
+        localityLbEndpoints: [
+          {
+            watcher: {
+              serviceName: 'my-service',
+              portName: 'http',
+              kubeconfig: {
+                controlPlaneUrl: 'https://kubernetes.default.svc',
+                namespace: 'prod',
+                credentialId: 'my-credential',
+                trustCerts: true,
+              },
+              metadataMapping: [
+                {
+                  resourceType: 'POD',
+                  entryType: 'ANNOTATION',
+                  sourceKeyPrefix: 'topology.kubernetes.io/',
+                  metadataNamespace: 'envoy.lb',
+                },
+              ],
+            },
+            locality: { region: 'us-east-1', zone: 'us-east-1a', subZone: 'rack-3' },
+            priority: 1,
+            loadBalancingWeight: 50,
+          },
+        ],
+        policy: { endpointStaleAfter: '30s' },
+      };
+      jest.mocked(xdsApiSlice.useGetK8sAggregatorQuery).mockReturnValue({
+        data: { content: jsYaml.dump(stored), revision: 7 },
+        isLoading: false,
+        error: undefined,
+      } as any);
+
+      const user = userEvent.setup();
+      renderWithProviders(<K8sAggregatorEditor group="foo" id="my-agg" isNew={false} />);
+      await waitFor(() => expect(screen.getByDisplayValue('my-agg')).toBeInTheDocument());
+
+      await user.click(screen.getByRole('button', { name: /^edit$/i }));
+      await user.click(screen.getByRole('button', { name: /^save$/i }));
+
+      await waitFor(() => expect(mockUpdate).toHaveBeenCalled());
+      const sent = jsYaml.load(mockUpdate.mock.calls[0][0].body) as any;
+      expect(sent.localityLbEndpoints).toEqual(stored.localityLbEndpoints);
+      expect(sent.policy).toEqual(stored.policy);
+    });
+
+    it('keeps an additional property whose value is empty', async () => {
+      const stored = {
+        localityLbEndpoints: [
+          {
+            watcher: {
+              serviceName: 'my-service',
+              kubeconfig: { controlPlaneUrl: 'https://kubernetes.default.svc' },
+              // An empty label value is valid in Kubernetes, so it must survive a save.
+              additionalProperties: { nodeIpLabel: '' },
+            },
+          },
+        ],
+      };
+      jest.mocked(xdsApiSlice.useGetK8sAggregatorQuery).mockReturnValue({
+        data: { content: jsYaml.dump(stored), revision: 7 },
+        isLoading: false,
+        error: undefined,
+      } as any);
+
+      const user = userEvent.setup();
+      renderWithProviders(<K8sAggregatorEditor group="foo" id="my-agg" isNew={false} />);
+      await waitFor(() => expect(screen.getByDisplayValue('my-agg')).toBeInTheDocument());
+
+      await user.click(screen.getByRole('button', { name: /^edit$/i }));
+      await user.click(screen.getByRole('button', { name: /^save$/i }));
+
+      await waitFor(() => expect(mockUpdate).toHaveBeenCalled());
+      const sent = jsYaml.load(mockUpdate.mock.calls[0][0].body) as any;
+      expect(sent.localityLbEndpoints[0].watcher.additionalProperties).toEqual({ nodeIpLabel: '' });
+    });
+
+    it('surfaces a 409 as an update conflict', async () => {
+      mockUpdate.mockReturnValue({ unwrap: () => Promise.reject({ status: 409 }) });
+      const user = userEvent.setup();
+      const { store } = renderWithProviders(<K8sAggregatorEditor group="foo" id="my-agg" isNew={false} />);
+      await waitFor(() => expect(screen.getByDisplayValue('my-agg')).toBeInTheDocument());
+
+      await user.click(screen.getByRole('button', { name: /^edit$/i }));
+      await user.click(screen.getByRole('button', { name: /^save$/i }));
+
+      await waitFor(() => expect(store.getState().notification.title).toBe('Update conflict'));
+      expect(screen.getByRole('button', { name: /^save$/i })).toBeInTheDocument();
+    });
+  });
+
   describe('sticky action bar', () => {
     it('moves Cancel into the bar and reveals the commit input + Save only while editing', async () => {
       const user = userEvent.setup();
