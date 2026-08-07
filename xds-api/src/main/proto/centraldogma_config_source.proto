@@ -16,6 +16,7 @@ syntax = "proto3";
 package com.linecorp.centraldogma.xds.v1;
 
 import "envoy/extensions/transport_sockets/tls/v3/secret.proto";
+import "armeria/xds/supported.proto";
 
 option java_multiple_files = true;
 option java_outer_classname = "CentralDogmaConfigSourceProto";
@@ -29,11 +30,13 @@ option java_package = "com.linecorp.centraldogma.xds.v1";
 message CentralDogmaConfigSource {
   // The name of the cluster that provides connectivity to the Central Dogma server.
   // This cluster must be defined in the bootstrap configuration.
+  option (armeria.xds.supported.field) = 1;
   string cluster_name = 1;
 
   // The authentication method to use when connecting to the Central Dogma server.
   // If not set, the client will connect as an anonymous user.
   oneof auth {
+    option (armeria.xds.supported.oneof_field) = 2;
     BearerTokenCredential bearer_token_credential = 2;
   }
 }
@@ -41,5 +44,6 @@ message CentralDogmaConfigSource {
 // Authentication using a bearer token retrieved from a ``GenericSecret``.
 message BearerTokenCredential {
   // The token value (without the ``Bearer`` prefix).
+  option (armeria.xds.supported.field) = 1;
   envoy.extensions.transport_sockets.tls.v3.SdsSecretConfig token_secret = 1;
 }
