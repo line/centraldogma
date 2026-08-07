@@ -23,6 +23,10 @@ export type XdsResourceType = 'listeners' | 'routes' | 'clusters' | 'endpoints';
 
 export const XDS_RESOURCE_TYPES: XdsResourceType[] = ['listeners', 'routes', 'clusters', 'endpoints'];
 
+// The page sizes offered by the paginated xDS lists (groups, resources, history). Also the set of valid
+// `pageSize` URL query values; anything else falls back to the first (default) size.
+export const XDS_PAGE_SIZES = [10, 20, 50, 100] as const;
+
 export interface XdsResourceTypeMeta {
   type: XdsResourceType;
   // Human readable, singular label.
@@ -48,115 +52,64 @@ export interface GroupDto {
 
 export interface XdsResourceDto {
   // The resource id, i.e. the file path under the type directory without the
-  // leading '/{type}/' prefix and the trailing '.json' suffix.
+  // leading '/{type}/' prefix and the trailing file extension (.yaml or .json).
   id: string;
-  // The full repository path, e.g. '/clusters/foo.json'.
+  // The full repository path, e.g. '/clusters/foo.yaml'.
   path: string;
   revision: number;
 }
 
-// The full xDS resource name derived from its repository path, e.g. group 'foo' + '/clusters/c1.json'
+// The full xDS resource name derived from its repository path, e.g. group 'foo' + '/clusters/c1.yaml'
 // becomes 'groups/foo/clusters/c1'. This matches the `name` the server assigns to CDS/LDS/RDS resources.
 export function resourceName(group: string, path: string): string {
-  return `groups/${group}${path.replace(/\.json$/, '')}`;
+  return `groups/${group}${path.replace(/\.yaml$/, '')}`;
 }
 
 // A starter template offered when creating a new resource of each type.
+// The `name` field (for LDS/RDS/CDS) and `clusterName` field (for EDS) are injected by the server,
+// so they are intentionally omitted here.
 export const XDS_RESOURCE_TEMPLATES: Record<XdsResourceType, string> = {
-  listeners: JSON.stringify(
-    {
-      name: '',
-      apiListener: {
-        apiListener: {
-          '@type':
-            'type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager',
-          rds: {
-            configSource: {
-              ads: {},
-              resourceApiVersion: 'V3',
-            },
-            routeConfigName: '',
-          },
-        },
-      },
-    },
-    null,
-    2,
-  ),
-  routes: JSON.stringify(
-    {
-      name: '',
-      virtualHosts: [
-        {
-          name: '',
-          domains: ['*'],
-          routes: [
-            {
-              match: {
-                prefix: '/',
-              },
-              route: {
-                cluster: '',
-              },
-            },
-          ],
-        },
-      ],
-    },
-    null,
-    2,
-  ),
-  clusters: JSON.stringify(
-    {
-      name: '',
-      type: 'EDS',
-      edsClusterConfig: {
-        edsConfig: {
-          ads: {},
-          resourceApiVersion: 'V3',
-        },
-        serviceName: '',
-      },
-      healthChecks: [
-        {
-          interval: '5s',
-          httpHealthCheck: {
-            path: '/',
-          },
-        },
-      ],
-      respectDnsTtl: true,
-    },
-    null,
-    2,
-  ),
-  endpoints: JSON.stringify(
-    {
-      clusterName: '',
-      endpoints: [
-        {
-          locality: {
-            zone: '',
-          },
-          lbEndpoints: [
-            {
-              endpoint: {
-                address: {
-                  socketAddress: {
-                    address: '',
-                    portValue: 0,
-                  },
-                },
-                hostname: '',
-              },
-              healthStatus: 'HEALTHY',
-              loadBalancingWeight: 1000,
-            },
-          ],
-        },
-      ],
-    },
-    null,
-    2,
-  ),
+  listeners: `apiListener:
+  apiListener:
+    '@type': 'type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager'
+    rds:
+      configSource:
+        ads: {}
+        resourceApiVersion: V3
+      routeConfigName: ''
+`,
+  routes: `virtualHosts:
+  - name: ''
+    domains:
+      - '*'
+    routes:
+      - match:
+          prefix: /
+        route:
+          cluster: ''
+`,
+  clusters: `type: EDS
+edsClusterConfig:
+  edsConfig:
+    ads: {}
+    resourceApiVersion: V3
+  serviceName: ''
+healthChecks:
+  - interval: 5s
+    httpHealthCheck:
+      path: /
+`,
+  endpoints: `endpoints:
+  - locality:
+      zone: ''
+    lbEndpoints:
+      - endpoint:
+          address:
+            socketAddress:
+              address: ''
+              portValue: 0
+          hostname: ''
+        healthStatus: HEALTHY
+        loadBalancingWeight: 1000
+`,
 };

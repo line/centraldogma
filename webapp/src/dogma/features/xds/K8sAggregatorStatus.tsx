@@ -17,16 +17,30 @@ import { Alert, AlertIcon, Badge, Box, Heading, HStack, Link, Spinner, Text } fr
 import { default as RouteLink } from 'next/link';
 import { FetchBaseQueryError } from '@reduxjs/toolkit/query';
 import { useMemo } from 'react';
+import * as jsYaml from 'js-yaml';
 import { DateWithTooltip } from 'dogma/common/components/DateWithTooltip';
 import { useGetGroupHistoryQuery, useGetResourceQuery } from 'dogma/features/xds/xdsApiSlice';
 
 // The aggregator writes its generated endpoints to this path; reading it tells us whether (and when) the
 // aggregator has produced endpoints from Kubernetes.
-const generatedPath = (id: string) => `/k8s/endpoints/${id}.json`;
+const generatedPath = (id: string) => `/k8s/endpoints/${id}.yaml`;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function countEndpoints(content: any): { localities: number; endpoints: number } {
-  const localities = Array.isArray(content?.endpoints) ? content.endpoints : [];
+function countEndpoints(content: any): { localities: number; endpoints: number } | null {
+  // content arrives as a raw YAML string from XdsEndpointReadService (which uses entry.rawContent()).
+  // Returns null when parsing fails so the caller can show an error instead of a misleading zero count.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let parsed: any;
+  if (typeof content === 'string') {
+    try {
+      parsed = jsYaml.load(content);
+    } catch {
+      return null;
+    }
+  } else {
+    parsed = content;
+  }
+  const localities = Array.isArray(parsed?.endpoints) ? parsed.endpoints : [];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const endpoints = localities.reduce(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -46,10 +60,16 @@ export const K8sAggregatorStatus = ({ group, id }: { group: string; id: string }
     { refetchOnMountOrArgChange: true },
   );
   const { data: history } = useGetGroupHistoryQuery({ group, filePath: generatedPath(id), maxCommits: 1 });
+  // Pre-migration servers store the endpoint file under .json; fall back to that path if .yaml has
+  // no history yet (i.e. the aggregator has not yet pushed after the YAML migration was deployed).
+  const { data: legacyHistory } = useGetGroupHistoryQuery(
+    { group, filePath: `/k8s/endpoints/${id}.json`, maxCommits: 1 },
+    { skip: !history || history.length > 0 },
+  );
 
   const notSynced = (error as FetchBaseQueryError | undefined)?.status === 404;
-  const { localities, endpoints } = useMemo(() => countEndpoints(data?.content), [data]);
-  const lastCommit = history?.[0];
+  const counts = useMemo(() => countEndpoints(data?.content), [data]);
+  const lastCommit = history?.[0] ?? legacyHistory?.[0];
   const resourceHref =
     `/app/xds/resource?group=${encodeURIComponent(group)}&type=endpoints` +
     `&id=${encodeURIComponent(id)}&k8s=true`;
@@ -72,12 +92,17 @@ export const K8sAggregatorStatus = ({ group, id }: { group: string; id: string }
           <AlertIcon />
           Could not load sync status.
         </Alert>
+      ) : counts === null ? (
+        <Alert status="error" borderRadius="md" fontSize="sm">
+          <AlertIcon />
+          Could not parse the generated endpoints file.
+        </Alert>
       ) : (
         <HStack spacing={4} wrap="wrap" fontSize="sm">
           <Badge colorScheme="green">Synced</Badge>
           <Text>
-            {localities} localit{localities === 1 ? 'y' : 'ies'} · {endpoints} endpoint
-            {endpoints === 1 ? '' : 's'}
+            {counts.localities} localit{counts.localities === 1 ? 'y' : 'ies'} · {counts.endpoints} endpoint
+            {counts.endpoints === 1 ? '' : 's'}
           </Text>
           {lastCommit && (
             <Text color="gray.600">
@@ -89,9 +114,6 @@ export const K8sAggregatorStatus = ({ group, id }: { group: string; id: string }
           </Link>
         </HStack>
       )}
-      <Text fontSize="xs" color="gray.500" mt={2}>
-        Generated endpoints are written to <code>{generatedPath(id)}</code>.
-      </Text>
     </Box>
   );
 };

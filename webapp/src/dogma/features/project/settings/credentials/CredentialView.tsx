@@ -106,11 +106,19 @@ interface CredentialViewProps {
   projectName: string;
   repoName?: string;
   credential: CredentialDto;
+  editUrl?: string;
+  hideScope?: boolean;
 }
 
 const AlignedIcon = ({ as }: { as: IconType }) => <Icon as={as} marginBottom="-4px" marginRight={2} />;
 
-const CredentialView = ({ projectName, repoName, credential }: CredentialViewProps) => {
+const CredentialView = ({
+  projectName,
+  repoName,
+  credential,
+  editUrl,
+  hideScope = false,
+}: CredentialViewProps) => {
   const dispatch = useAppDispatch();
 
   return (
@@ -129,21 +137,22 @@ const CredentialView = ({ projectName, repoName, credential }: CredentialViewPro
         <TableContainer>
           <Table fontSize={'lg'} variant="unstyled">
             <Tbody>
-              {repoName ? (
-                <Tr>
-                  <HeadRow>
-                    <AlignedIcon as={GoRepo} /> Repository
-                  </HeadRow>
-                  <Td fontWeight="semibold">{repoName}</Td>
-                </Tr>
-              ) : (
-                <Tr>
-                  <HeadRow>
-                    <AlignedIcon as={FiBox} /> Project
-                  </HeadRow>
-                  <Td fontWeight="semibold">{projectName}</Td>
-                </Tr>
-              )}
+              {!hideScope &&
+                (repoName ? (
+                  <Tr>
+                    <HeadRow>
+                      <AlignedIcon as={GoRepo} /> Repository
+                    </HeadRow>
+                    <Td fontWeight="semibold">{repoName}</Td>
+                  </Tr>
+                ) : (
+                  <Tr>
+                    <HeadRow>
+                      <AlignedIcon as={FiBox} /> Project
+                    </HeadRow>
+                    <Td fontWeight="semibold">{projectName}</Td>
+                  </Tr>
+                ))}
               <Tr>
                 <HeadRow>
                   <AlignedIcon as={HiOutlineIdentification} /> Credential ID
@@ -231,7 +240,10 @@ const CredentialView = ({ projectName, repoName, credential }: CredentialViewPro
 
         <Center mt={10}>
           <Link
-            href={`/app/projects/${projectName}${repoName ? `/repos/${repoName}` : ''}/settings/credentials/${credential.id}/edit`}
+            href={
+              editUrl ??
+              `/app/projects/${projectName}${repoName ? `/repos/${repoName}` : ''}/settings/credentials/${credential.id}/edit`
+            }
           >
             <Button colorScheme="teal">
               <EditIcon mr={2} />

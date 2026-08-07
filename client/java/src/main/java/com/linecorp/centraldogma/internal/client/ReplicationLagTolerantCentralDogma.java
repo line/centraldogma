@@ -107,6 +107,14 @@ public final class ReplicationLagTolerantCentralDogma extends AbstractCentralDog
     }
 
     @Override
+    public CentralDogma withAccessToken(String accessToken) {
+        requireNonNull(accessToken, "accessToken");
+        return new ReplicationLagTolerantCentralDogma(
+                executor(), delegate.withAccessToken(accessToken),
+                maxRetries, retryIntervalMillis, currentReplicaHintSupplier, meterRegistry());
+    }
+
+    @Override
     public CompletableFuture<Void> createProject(String projectName) {
         return delegate.createProject(projectName);
     }

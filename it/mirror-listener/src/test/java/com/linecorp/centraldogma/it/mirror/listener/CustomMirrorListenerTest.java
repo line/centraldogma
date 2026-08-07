@@ -127,8 +127,7 @@ class CustomMirrorListenerTest {
         final DefaultMirrorAccessController ac = new DefaultMirrorAccessController();
         ac.setRepository(repositoryExtension.crudRepository());
         final MirrorSchedulingService service = new MirrorSchedulingService(
-                temporaryFolder, pm, new SimpleMeterRegistry(), 1, 1, 1, null, false,
-                ac);
+                temporaryFolder, pm, new SimpleMeterRegistry(), 1, 1, 1, null, ac);
         final CommandExecutor executor = mock(CommandExecutor.class);
         service.start(executor);
 

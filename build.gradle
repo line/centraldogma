@@ -5,6 +5,14 @@ import org.jsoup.select.Elements
 import static java.lang.Math.min
 
 buildscript {
+    repositories {
+        def mavenCentralMirror = providers.gradleProperty('mavenCentralMirror').getOrNull()
+        if (mavenCentralMirror) {
+            maven { url = mavenCentralMirror }
+        } else {
+            mavenCentral()
+        }
+    }
     dependencies {
         classpath libs.jsoup
     }

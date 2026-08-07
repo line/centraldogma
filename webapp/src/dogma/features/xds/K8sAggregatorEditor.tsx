@@ -22,7 +22,6 @@ import {
   BreadcrumbLink,
   Button,
   Checkbox,
-  Divider,
   Flex,
   FormControl,
   FormErrorMessage,
@@ -36,6 +35,7 @@ import {
   Text,
   useDisclosure,
 } from '@chakra-ui/react';
+import * as jsYaml from 'js-yaml';
 import { default as RouteLink } from 'next/link';
 import Router from 'next/router';
 import { useEffect, useState } from 'react';
@@ -56,6 +56,7 @@ import {
   useUpdateK8sAggregatorMutation,
 } from 'dogma/features/xds/xdsApiSlice';
 import { K8sAggregatorPreviewModal, K8sPreviewResult } from 'dogma/features/xds/K8sAggregatorPreviewModal';
+import { EditorActionBar } from 'dogma/features/xds/EditorActionBar';
 import { useGroupWriteAccess } from 'dogma/features/xds/useGroupWriteAccess';
 import { useAppDispatch } from 'dogma/hooks';
 import { newNotification } from 'dogma/features/notification/notificationSlice';
@@ -63,7 +64,8 @@ import ErrorMessageParser from 'dogma/features/services/ErrorMessageParser';
 import { K8sAggregatorStatus } from 'dogma/features/xds/K8sAggregatorStatus';
 
 // Matches the server-side resource id pattern (XdsResourceManager.RESOURCE_ID_PATTERN_STRING).
-const AGGREGATOR_ID_PATTERN = /^[a-z](?:[a-z0-9-_/]*[a-z0-9])?$/;
+// Dots are allowed (e.g. "my-service.v1"), but slashes are not.
+const AGGREGATOR_ID_PATTERN = /^[a-z](?:[a-z0-9_.-]*[a-z0-9])?$/;
 
 interface PropertyForm {
   key: string;
@@ -166,12 +168,18 @@ function buildBody(data: FormData, name?: string): string {
   if (name) {
     body.name = name;
   }
-  return JSON.stringify(body);
+  return jsYaml.dump(body);
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function parseToFormData(aggregatorId: string, content: any): FormData {
-  const endpoints = Array.isArray(content?.localityLbEndpoints) ? content.localityLbEndpoints : [];
+function parseToFormData(aggregatorId: string, raw: any): FormData {
+  // The content API returns YAML files as a raw string; parse it to an object before extracting fields.
+  // Throws YAMLException if raw is a string that is not valid YAML; callers must catch and notify the user.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const content: any = typeof raw === 'string' ? jsYaml.load(raw) : raw;
+  const endpoints = Array.isArray((content as any)?.localityLbEndpoints)
+    ? (content as any).localityLbEndpoints
+    : [];
   const watchers: WatcherForm[] = endpoints.map(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (e: any) => ({
@@ -450,9 +458,16 @@ const AggregatorFormFields = ({
         <Input
           placeholder="e.g. my-service"
           isReadOnly={idReadOnly || readOnly}
-          {...register('aggregatorId', { required: true, pattern: AGGREGATOR_ID_PATTERN })}
+          {...register('aggregatorId', {
+            required: true,
+            // Skip the pattern check for existing resources: the ID is immutable and may contain
+            // slashes that were allowed before this validation was introduced.
+            pattern: idReadOnly ? undefined : AGGREGATOR_ID_PATTERN,
+          })}
         />
-        <FormErrorMessage>ID must match [a-z](?:[a-z0-9-_/]*[a-z0-9])?</FormErrorMessage>
+        <FormErrorMessage>
+          ID must match [a-z](?:[a-z0-9_.-]*[a-z0-9])? (dots allowed, slashes not allowed)
+        </FormErrorMessage>
       </FormControl>
 
       {fields.map((field, index) => (
@@ -492,6 +507,7 @@ const NewK8sAggregatorEditor = ({ group }: { group: string }) => {
   const [previewAggregator, { isLoading: isPreviewing }] = usePreviewK8sAggregatorMutation();
   const { isOpen: previewOpen, onOpen: openPreview, onClose: closePreview } = useDisclosure();
   const [previewResult, setPreviewResult] = useState<K8sPreviewResult | null>(null);
+  const [commitSummary, setCommitSummary] = useState('');
   const {
     register,
     control,
@@ -503,8 +519,8 @@ const NewK8sAggregatorEditor = ({ group }: { group: string }) => {
     setPreviewResult(null);
     openPreview();
     try {
-      const assignment = await previewAggregator({ group, body: buildBody(data) }).unwrap();
-      setPreviewResult({ ok: true, assignment });
+      const yamlText = await previewAggregator({ group, body: buildBody(data) }).unwrap();
+      setPreviewResult({ ok: true, assignment: jsYaml.load(yamlText as string) });
     } catch (err) {
       setPreviewResult({ ok: false, error: ErrorMessageParser.parse(err) });
     }
@@ -515,7 +531,12 @@ const NewK8sAggregatorEditor = ({ group }: { group: string }) => {
       return;
     }
     try {
-      await createAggregator({ group, aggregatorId: data.aggregatorId, body: buildBody(data) }).unwrap();
+      await createAggregator({
+        group,
+        aggregatorId: data.aggregatorId,
+        body: buildBody(data),
+        summary: commitSummary || undefined,
+      }).unwrap();
       dispatch(
         newNotification('Aggregator created', `Aggregator '${data.aggregatorId}' is created`, 'success'),
       );
@@ -547,29 +568,25 @@ const NewK8sAggregatorEditor = ({ group }: { group: string }) => {
         idReadOnly={false}
         readOnly={false}
       />
-      <Divider my={4} maxW="3xl" />
-      <Flex maxW="3xl">
-        <Spacer />
-        <HStack spacing={3}>
-          <Button
-            variant="outline"
-            colorScheme="teal"
-            leftIcon={<AiOutlineEye />}
-            onClick={handleSubmit(onPreview)}
-            isLoading={isPreviewing}
-          >
-            Preview endpoints
-          </Button>
-          <Button
-            colorScheme="teal"
-            leftIcon={<FiSave />}
-            onClick={handleSubmit(onSubmit)}
-            isLoading={isLoading}
-          >
-            Create
-          </Button>
-        </HStack>
-      </Flex>
+      <EditorActionBar
+        maxW="3xl"
+        commitSummary={commitSummary}
+        onCommitSummaryChange={setCommitSummary}
+        commitPlaceholder="Create kubernetes endpoint: ..."
+      >
+        <Button
+          variant="outline"
+          colorScheme="teal"
+          leftIcon={<AiOutlineEye />}
+          onClick={handleSubmit(onPreview)}
+          isLoading={isPreviewing}
+        >
+          Preview endpoints
+        </Button>
+        <Button colorScheme="teal" leftIcon={<FiSave />} onClick={handleSubmit(onSubmit)} isLoading={isLoading}>
+          Create
+        </Button>
+      </EditorActionBar>
       <K8sAggregatorPreviewModal
         isOpen={previewOpen}
         onClose={closePreview}
@@ -596,6 +613,8 @@ const ExistingK8sAggregatorEditor = ({ group, id }: { group: string; id: string 
   const [previewResult, setPreviewResult] = useState<K8sPreviewResult | null>(null);
   // An aggregator opens in read-only view; the user must click Edit to modify it (like the resource editors).
   const [editing, setEditing] = useState(false);
+  const [commitSummary, setCommitSummary] = useState('');
+  const [deleteCommitSummary, setDeleteCommitSummary] = useState('');
   const {
     register,
     control,
@@ -608,16 +627,26 @@ const ExistingK8sAggregatorEditor = ({ group, id }: { group: string; id: string 
   // clobber unsaved edits.
   useEffect(() => {
     if (data && !editing) {
-      reset(parseToFormData(id, (data as FileContentDto).content));
+      try {
+        reset(parseToFormData(id, (data as FileContentDto).content));
+      } catch (e) {
+        dispatch(newNotification('Failed to load aggregator', (e as Error).message, 'error'));
+      }
     }
-  }, [data, id, reset, editing]);
+  }, [data, id, reset, editing, dispatch]);
 
   const onSubmit = async (formData: FormData) => {
     const name = `groups/${group}/k8s/endpointAggregators/${id}`;
     try {
-      await updateAggregator({ group, id, body: buildBody(formData, name) }).unwrap();
+      await updateAggregator({
+        group,
+        id,
+        body: buildBody(formData, name),
+        summary: commitSummary || undefined,
+      }).unwrap();
       dispatch(newNotification('Aggregator updated', `Aggregator '${id}' is updated`, 'success'));
       setEditing(false);
+      setCommitSummary('');
     } catch (err) {
       dispatch(newNotification('Failed to update the aggregator', ErrorMessageParser.parse(err), 'error'));
     }
@@ -625,17 +654,22 @@ const ExistingK8sAggregatorEditor = ({ group, id }: { group: string; id: string 
 
   const handleCancel = () => {
     if (data) {
-      reset(parseToFormData(id, (data as FileContentDto).content));
+      try {
+        reset(parseToFormData(id, (data as FileContentDto).content));
+      } catch (e) {
+        dispatch(newNotification('Failed to restore aggregator content', (e as Error).message, 'error'));
+      }
     }
     setEditing(false);
+    setCommitSummary('');
   };
 
   const onPreview = async (formData: FormData) => {
     setPreviewResult(null);
     openPreview();
     try {
-      const assignment = await previewAggregator({ group, body: buildBody(formData) }).unwrap();
-      setPreviewResult({ ok: true, assignment });
+      const yamlText = await previewAggregator({ group, body: buildBody(formData) }).unwrap();
+      setPreviewResult({ ok: true, assignment: jsYaml.load(yamlText as string) });
     } catch (err) {
       setPreviewResult({ ok: false, error: ErrorMessageParser.parse(err) });
     }
@@ -643,7 +677,7 @@ const ExistingK8sAggregatorEditor = ({ group, id }: { group: string; id: string 
 
   const handleDelete = async () => {
     try {
-      await deleteAggregator({ group, id }).unwrap();
+      await deleteAggregator({ group, id, summary: deleteCommitSummary || undefined }).unwrap();
       dispatch(newNotification('Aggregator deleted', `Aggregator '${id}' is deleted`, 'success'));
       Router.push(`/app/xds/group?name=${encodeURIComponent(group)}&type=k8sAggregators`);
     } catch (err) {
@@ -651,49 +685,44 @@ const ExistingK8sAggregatorEditor = ({ group, id }: { group: string; id: string 
     }
   };
 
+  const handleDeleteModalClose = () => {
+    setDeleteCommitSummary('');
+    onClose();
+  };
+
   return (
     <Deferred isLoading={isLoading} error={error}>
       {() => (
         <Box>
-          <Flex mb={2} maxW="3xl" align="center">
-            <Spacer />
-            {hasWrite &&
-              (editing ? (
+          {/* Read-mode actions; while editing, Cancel/Preview/Save live in the sticky action bar. */}
+          {hasWrite && !editing && (
+            <Flex mb={2} maxW="3xl" align="center">
+              <Spacer />
+              <HStack spacing={3}>
                 <Button
                   variant="outline"
-                  colorScheme="gray"
-                  leftIcon={<AiOutlineClose />}
+                  colorScheme="teal"
+                  leftIcon={<AiOutlineEye />}
                   size="sm"
-                  onClick={handleCancel}
+                  onClick={handleSubmit(onPreview)}
+                  isLoading={isPreviewing}
                 >
-                  Cancel
+                  Preview
                 </Button>
-              ) : (
-                <HStack spacing={3}>
-                  <Button
-                    variant="outline"
-                    colorScheme="teal"
-                    leftIcon={<AiOutlineEye />}
-                    size="sm"
-                    onClick={handleSubmit(onPreview)}
-                    isLoading={isPreviewing}
-                  >
-                    Preview
-                  </Button>
-                  <Button
-                    colorScheme="teal"
-                    leftIcon={<AiOutlineEdit />}
-                    size="sm"
-                    onClick={() => setEditing(true)}
-                  >
-                    Edit
-                  </Button>
-                  <Button colorScheme="red" leftIcon={<AiOutlineDelete />} size="sm" onClick={onOpen}>
-                    Delete
-                  </Button>
-                </HStack>
-              ))}
-          </Flex>
+                <Button
+                  colorScheme="teal"
+                  leftIcon={<AiOutlineEdit />}
+                  size="sm"
+                  onClick={() => setEditing(true)}
+                >
+                  Edit
+                </Button>
+                <Button colorScheme="red" leftIcon={<AiOutlineDelete />} size="sm" onClick={onOpen}>
+                  Delete
+                </Button>
+              </HStack>
+            </Flex>
+          )}
           <K8sAggregatorStatus group={group} id={id} />
           <AggregatorFormFields
             group={group}
@@ -704,31 +733,33 @@ const ExistingK8sAggregatorEditor = ({ group, id }: { group: string; id: string 
             readOnly={!editing}
           />
           {editing && hasWrite && (
-            <>
-              <Divider my={4} maxW="3xl" />
-              <Flex maxW="3xl">
-                <Spacer />
-                <HStack spacing={3}>
-                  <Button
-                    variant="outline"
-                    colorScheme="teal"
-                    leftIcon={<AiOutlineEye />}
-                    onClick={handleSubmit(onPreview)}
-                    isLoading={isPreviewing}
-                  >
-                    Preview endpoints
-                  </Button>
-                  <Button
-                    colorScheme="teal"
-                    leftIcon={<FiSave />}
-                    onClick={handleSubmit(onSubmit)}
-                    isLoading={isSaving}
-                  >
-                    Save
-                  </Button>
-                </HStack>
-              </Flex>
-            </>
+            <EditorActionBar
+              maxW="3xl"
+              commitSummary={commitSummary}
+              onCommitSummaryChange={setCommitSummary}
+              commitPlaceholder="Update kubernetes endpoint aggregator: ..."
+            >
+              <Button variant="outline" colorScheme="gray" leftIcon={<AiOutlineClose />} onClick={handleCancel}>
+                Cancel
+              </Button>
+              <Button
+                variant="outline"
+                colorScheme="teal"
+                leftIcon={<AiOutlineEye />}
+                onClick={handleSubmit(onPreview)}
+                isLoading={isPreviewing}
+              >
+                Preview endpoints
+              </Button>
+              <Button
+                colorScheme="teal"
+                leftIcon={<FiSave />}
+                onClick={handleSubmit(onSubmit)}
+                isLoading={isSaving}
+              >
+                Save
+              </Button>
+            </EditorActionBar>
           )}
           <K8sAggregatorPreviewModal
             isOpen={previewOpen}
@@ -738,13 +769,22 @@ const ExistingK8sAggregatorEditor = ({ group, id }: { group: string; id: string 
           />
           <DeleteConfirmationModal
             isOpen={isOpen}
-            onClose={onClose}
+            onClose={handleDeleteModalClose}
             type="aggregator"
             id={id}
             from={group}
             handleDelete={handleDelete}
             isLoading={isDeleting}
-          />
+          >
+            <FormControl mt={4}>
+              <FormLabel>Commit summary</FormLabel>
+              <Input
+                value={deleteCommitSummary}
+                onChange={(e) => setDeleteCommitSummary(e.target.value)}
+                placeholder="Delete kubernetes endpoint aggregator: ..."
+              />
+            </FormControl>
+          </DeleteConfirmationModal>
         </Box>
       )}
     </Deferred>
@@ -784,7 +824,7 @@ export const K8sAggregatorEditor = ({ group, id, isNew }: { group: string; id?: 
       {isNew || !id ? (
         <NewK8sAggregatorEditor group={group} />
       ) : (
-        <ExistingK8sAggregatorEditor group={group} id={id} />
+        <ExistingK8sAggregatorEditor key={id} group={group} id={id} />
       )}
     </Box>
   );

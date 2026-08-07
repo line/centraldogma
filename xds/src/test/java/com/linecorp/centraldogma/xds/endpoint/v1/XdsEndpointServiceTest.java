@@ -15,6 +15,8 @@
  */
 package com.linecorp.centraldogma.xds.endpoint.v1;
 
+import static com.linecorp.centraldogma.server.internal.storage.InternalProjectConstants.INTERNAL_PROJECT_XDS;
+import static com.linecorp.centraldogma.xds.internal.ControlPlaneService.ENDPOINTS_DIRECTORY;
 import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.JSON_MESSAGE_MARSHALLER;
 import static com.linecorp.centraldogma.xds.internal.XdsTestUtil.createEndpoint;
 import static com.linecorp.centraldogma.xds.internal.XdsTestUtil.createGroup;
@@ -36,7 +38,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
 import com.google.protobuf.Any;
-import com.google.protobuf.Empty;
 import com.google.protobuf.InvalidProtocolBufferException;
 
 import com.linecorp.armeria.client.grpc.GrpcClients;
@@ -46,8 +47,13 @@ import com.linecorp.armeria.common.HttpMethod;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.MediaType;
 import com.linecorp.armeria.common.RequestHeaders;
+import com.linecorp.centraldogma.common.Change;
+import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.internal.Yaml;
+import com.linecorp.centraldogma.server.storage.repository.FindOptions;
+import com.linecorp.centraldogma.server.storage.repository.Repository;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
-import com.linecorp.centraldogma.xds.endpoint.v1.XdsEndpointServiceGrpc.XdsEndpointServiceBlockingStub;
+import com.linecorp.centraldogma.xds.internal.XdsTestUtil;
 
 import io.envoyproxy.controlplane.cache.Resources.V3;
 import io.envoyproxy.envoy.config.endpoint.v3.ClusterLoadAssignment;
@@ -76,15 +82,19 @@ public class XdsEndpointServiceTest {
                 createEndpoint("groups/foo", "@invalid_endpoint_id", endpoint, dogma.httpClient());
         assertThat(response.status()).isSameAs(HttpStatus.BAD_REQUEST);
 
-        response = createEndpoint("groups/non-existent-group", "foo-endpoint/1", endpoint, dogma.httpClient());
+        // Slashes are no longer allowed in new resource IDs.
+        response = createEndpoint("groups/foo", "foo-endpoint/invalid", endpoint, dogma.httpClient());
+        assertThat(response.status()).isSameAs(HttpStatus.BAD_REQUEST);
+
+        response = createEndpoint("groups/non-existent-group", "foo-endpoint.1", endpoint, dogma.httpClient());
         assertThat(response.status()).isSameAs(HttpStatus.NOT_FOUND);
 
-        response = createEndpoint("groups/foo", "foo-endpoint/1", endpoint, dogma.httpClient());
+        response = createEndpoint("groups/foo", "foo-endpoint.1", endpoint, dogma.httpClient());
         assertOk(response);
         final ClusterLoadAssignment.Builder endpointBuilder = ClusterLoadAssignment.newBuilder();
-        JSON_MESSAGE_MARSHALLER.mergeValue(response.contentUtf8(), endpointBuilder);
+        JSON_MESSAGE_MARSHALLER.mergeValue(Yaml.readTree(response.contentUtf8()).traverse(), endpointBuilder);
         final ClusterLoadAssignment actualEndpoint = endpointBuilder.build();
-        final String clusterName = "groups/foo/clusters/foo-endpoint/1";
+        final String clusterName = "groups/foo/clusters/foo-endpoint.1";
         assertThat(actualEndpoint).isEqualTo(
                 endpoint.toBuilder().setClusterName(clusterName).build());
         checkEndpointsViaDiscoveryRequest(dogma.httpClient().uri(), actualEndpoint, clusterName);
@@ -92,7 +102,6 @@ public class XdsEndpointServiceTest {
 
     static void assertOk(AggregatedHttpResponse response) {
         assertThat(response.status()).isSameAs(HttpStatus.OK);
-        assertThat(response.headers().get("grpc-status")).isEqualTo("0");
     }
 
     public static void checkEndpointsViaDiscoveryRequest(
@@ -143,15 +152,15 @@ public class XdsEndpointServiceTest {
     void updateEndpointViaHttp() throws Exception {
         final ClusterLoadAssignment endpoint = loadAssignment("this_endpoint_name_will_be_ignored_and_replaced",
                                                               "127.0.0.1", 8080);
-        AggregatedHttpResponse response = updateEndpoint("foo-endpoint/2", endpoint);
+        AggregatedHttpResponse response = updateEndpoint("foo-endpoint.2", endpoint);
         assertThat(response.status()).isSameAs(HttpStatus.NOT_FOUND);
 
-        response = createEndpoint("groups/foo", "foo-endpoint/2", endpoint, dogma.httpClient());
+        response = createEndpoint("groups/foo", "foo-endpoint.2", endpoint, dogma.httpClient());
         assertOk(response);
         final ClusterLoadAssignment.Builder endpointBuilder = ClusterLoadAssignment.newBuilder();
-        JSON_MESSAGE_MARSHALLER.mergeValue(response.contentUtf8(), endpointBuilder);
+        JSON_MESSAGE_MARSHALLER.mergeValue(Yaml.readTree(response.contentUtf8()).traverse(), endpointBuilder);
         final ClusterLoadAssignment actualEndpoint = endpointBuilder.build();
-        final String clusterName = "groups/foo/clusters/foo-endpoint/2";
+        final String clusterName = "groups/foo/clusters/foo-endpoint.2";
         assertThat(actualEndpoint).isEqualTo(endpoint.toBuilder().setClusterName(clusterName).build());
         checkEndpointsViaDiscoveryRequest(dogma.httpClient().uri(), actualEndpoint, clusterName);
 
@@ -160,47 +169,134 @@ public class XdsEndpointServiceTest {
                         .addEndpoints(LocalityLbEndpoints.newBuilder()
                                                          .addLbEndpoints(endpoint("127.0.0.1", 8081)))
                         .setClusterName(clusterName).build();
-        response = updateEndpoint("foo-endpoint/2", updatingEndpoint);
+        response = updateEndpoint("foo-endpoint.2", updatingEndpoint);
         assertOk(response);
         final ClusterLoadAssignment.Builder endpointBuilder2 = ClusterLoadAssignment.newBuilder();
-        JSON_MESSAGE_MARSHALLER.mergeValue(response.contentUtf8(), endpointBuilder2);
+        JSON_MESSAGE_MARSHALLER.mergeValue(Yaml.readTree(response.contentUtf8()).traverse(), endpointBuilder2);
         final ClusterLoadAssignment actualEndpoint2 = endpointBuilder2.build();
         assertThat(actualEndpoint2).isEqualTo(
                 updatingEndpoint.toBuilder().setClusterName(clusterName).build());
         checkEndpointsViaDiscoveryRequest(dogma.httpClient().uri(), actualEndpoint2, clusterName);
     }
 
+    @Test
+    void createEndpointReturnAlreadyExistsWhenYamlExists() throws Exception {
+        // Pre-populate the repo with a YAML endpoint (simulating a JSON→YAML migration).
+        final String clusterName = "groups/foo/clusters/yaml-exists.1";
+        final ClusterLoadAssignment initial = loadAssignment(clusterName, "127.0.0.1", 8080);
+        dogma.client().forRepo(INTERNAL_PROJECT_XDS, "foo")
+             .commit("Add YAML endpoint",
+                     Change.ofYamlUpsert(ENDPOINTS_DIRECTORY + "yaml-exists.1.yaml",
+                                         JSON_MESSAGE_MARSHALLER.writeValueAsString(initial)))
+             .push().join();
+
+        // A create request for the same logical resource must return ALREADY_EXISTS, not succeed.
+        final AggregatedHttpResponse response =
+                createEndpoint("groups/foo", "yaml-exists.1", initial, dogma.httpClient());
+        assertThat(response.status()).isSameAs(HttpStatus.CONFLICT);
+        // The conflict message must reference the endpoint name, not the cluster name.
+        assertThat(response.contentUtf8()).contains("groups/foo/endpoints/yaml-exists.1");
+        assertThat(response.contentUtf8()).doesNotContain("groups/foo/clusters/yaml-exists.1");
+
+        // The original .yaml file must still be the only file present (no new .json created).
+        final Repository repo =
+                dogma.projectManager().get(INTERNAL_PROJECT_XDS).repos().get("foo");
+        assertThat(repo.find(Revision.HEAD, ENDPOINTS_DIRECTORY + "yaml-exists.1.yaml",
+                             FindOptions.FIND_ONE_WITHOUT_CONTENT).join()).isNotEmpty();
+        assertThat(repo.find(Revision.HEAD, ENDPOINTS_DIRECTORY + "yaml-exists.1.json",
+                             FindOptions.FIND_ONE_WITHOUT_CONTENT).join()).isEmpty();
+    }
+
+    @Test
+    void updateYamlEndpointViaHttp() throws Exception {
+        // Push an endpoint as YAML directly (simulating a JSON→YAML migration).
+        final String clusterName = "groups/foo/clusters/yaml-endpoint/1";
+        final String endpointName = "groups/foo/endpoints/yaml-endpoint/1";
+        final ClusterLoadAssignment initial = loadAssignment(clusterName, "127.0.0.1", 8080);
+        dogma.client().forRepo(INTERNAL_PROJECT_XDS, "foo")
+             .commit("Add YAML endpoint",
+                     Change.ofYamlUpsert(ENDPOINTS_DIRECTORY + "yaml-endpoint/1.yaml",
+                                         JSON_MESSAGE_MARSHALLER.writeValueAsString(initial)))
+             .push().join();
+        checkEndpointsViaDiscoveryRequest(dogma.httpClient().uri(), initial, clusterName);
+
+        // Update via the HTTP API — updateOrDelete must locate the .yaml file, not create a new .json.
+        final ClusterLoadAssignment updated =
+                initial.toBuilder().setClusterName(clusterName)
+                       .addEndpoints(LocalityLbEndpoints.newBuilder()
+                                                        .addLbEndpoints(endpoint("127.0.0.1", 8081)))
+                       .build();
+        final AggregatedHttpResponse response = updateEndpoint("yaml-endpoint/1", updated);
+        assertOk(response);
+
+        // The .yaml file must have been updated in-place; no new .json file should exist.
+        final Repository repo =
+                dogma.projectManager().get(INTERNAL_PROJECT_XDS).repos().get("foo");
+        assertThat(repo.find(Revision.HEAD, ENDPOINTS_DIRECTORY + "yaml-endpoint/1.yaml",
+                             FindOptions.FIND_ONE_WITHOUT_CONTENT).join()).isNotEmpty();
+        assertThat(repo.find(Revision.HEAD, ENDPOINTS_DIRECTORY + "yaml-endpoint/1.json",
+                             FindOptions.FIND_ONE_WITHOUT_CONTENT).join()).isEmpty();
+
+        final ClusterLoadAssignment.Builder endpointBuilder = ClusterLoadAssignment.newBuilder();
+        JSON_MESSAGE_MARSHALLER.mergeValue(Yaml.readTree(response.contentUtf8()).traverse(), endpointBuilder);
+        checkEndpointsViaDiscoveryRequest(dogma.httpClient().uri(), endpointBuilder.build(), clusterName);
+    }
+
+    @Test
+    void deleteYamlEndpointViaHttp() throws Exception {
+        // Push an endpoint as YAML directly.
+        final String clusterName = "groups/foo/clusters/yaml-endpoint/2";
+        final String endpointName = "groups/foo/endpoints/yaml-endpoint/2";
+        final ClusterLoadAssignment initial = loadAssignment(clusterName, "127.0.0.1", 8080);
+        dogma.client().forRepo(INTERNAL_PROJECT_XDS, "foo")
+             .commit("Add YAML endpoint",
+                     Change.ofYamlUpsert(ENDPOINTS_DIRECTORY + "yaml-endpoint/2.yaml",
+                                         JSON_MESSAGE_MARSHALLER.writeValueAsString(initial)))
+             .push().join();
+        checkEndpointsViaDiscoveryRequest(dogma.httpClient().uri(), initial, clusterName);
+
+        // Delete via the HTTP API — updateOrDelete must locate and remove the .yaml file.
+        final AggregatedHttpResponse response = deleteEndpoint(endpointName);
+        assertThat(response.status()).isSameAs(HttpStatus.NO_CONTENT);
+
+        // The .yaml file must be gone.
+        final Repository repo =
+                dogma.projectManager().get(INTERNAL_PROJECT_XDS).repos().get("foo");
+        assertThat(repo.find(Revision.HEAD, ENDPOINTS_DIRECTORY + "yaml-endpoint/2.yaml",
+                             FindOptions.FIND_ONE_WITHOUT_CONTENT).join()).isEmpty();
+
+        // Control plane must no longer serve the deleted endpoint.
+        checkEndpointsViaDiscoveryRequest(dogma.httpClient().uri(), null, clusterName);
+    }
+
     private static AggregatedHttpResponse updateEndpoint(
             String endpointId, ClusterLoadAssignment endpoint) throws IOException {
-        final RequestHeaders headers = RequestHeaders.builder(HttpMethod.PATCH,
+        final RequestHeaders headers = RequestHeaders.builder(HttpMethod.PUT,
                                                               "/api/v1/xds/groups/foo/endpoints/" + endpointId)
                                                      .set(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous")
-                                                     .contentType(MediaType.JSON_UTF_8).build();
-        return dogma.httpClient().execute(headers, JSON_MESSAGE_MARSHALLER.writeValueAsString(endpoint))
+                                                     .contentType(MediaType.parse("application/yaml")).build();
+        return dogma.httpClient().execute(headers, XdsTestUtil.toYaml(endpoint))
                     .aggregate().join();
     }
 
     @Test
     void deleteEndpointViaHttp() throws Exception {
-        final String endpointName = "groups/foo/endpoints/foo-endpoint/3/4";
-        final String clusterName = "groups/foo/clusters/foo-endpoint/3/4";
+        final String endpointName = "groups/foo/endpoints/foo-endpoint.3.4";
+        final String clusterName = "groups/foo/clusters/foo-endpoint.3.4";
         AggregatedHttpResponse response = deleteEndpoint(endpointName);
         assertThat(response.status()).isSameAs(HttpStatus.NOT_FOUND);
 
         final ClusterLoadAssignment endpoint = loadAssignment("this_endpoint_name_will_be_ignored_and_replaced",
                                                               "127.0.0.1", 8080);
-        response = createEndpoint("groups/foo", "foo-endpoint/3/4", endpoint, dogma.httpClient());
+        response = createEndpoint("groups/foo", "foo-endpoint.3.4", endpoint, dogma.httpClient());
         assertOk(response);
 
         final ClusterLoadAssignment actualEndpoint =
                 endpoint.toBuilder().setClusterName(clusterName).build();
         checkEndpointsViaDiscoveryRequest(dogma.httpClient().uri(), actualEndpoint, clusterName);
 
-        // Add permission test.
-
         response = deleteEndpoint(endpointName);
-        assertOk(response);
-        assertThat(response.contentUtf8()).isEqualTo("{}");
+        assertThat(response.status()).isSameAs(HttpStatus.NO_CONTENT);
         checkEndpointsViaDiscoveryRequest(dogma.httpClient().uri(), null, clusterName);
     }
 
@@ -210,46 +306,5 @@ public class XdsEndpointServiceTest {
                               .set(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous")
                               .build();
         return dogma.httpClient().execute(headers).aggregate().join();
-    }
-
-    @Test
-    void viaStub() throws Exception {
-        final XdsEndpointServiceBlockingStub client =
-                GrpcClients.builder(dogma.httpClient().uri())
-                           .setHeader(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous")
-                           .build(XdsEndpointServiceBlockingStub.class);
-        final ClusterLoadAssignment endpoint = loadAssignment("this_endpoint_name_will_be_ignored_and_replaced",
-                                                              "127.0.0.1", 8080);
-        final ClusterLoadAssignment response = client.createEndpoint(
-                CreateEndpointRequest.newBuilder()
-                                     .setParent("groups/foo")
-                                     .setEndpointId("foo-endpoint/5/6")
-                                     .setEndpoint(endpoint)
-                                     .build());
-        final String clusterName = "groups/foo/clusters/foo-endpoint/5/6";
-        assertThat(response).isEqualTo(endpoint.toBuilder().setClusterName(clusterName).build());
-        checkEndpointsViaDiscoveryRequest(dogma.httpClient().uri(), response, clusterName);
-
-        final ClusterLoadAssignment updatingEndpoint =
-                endpoint.toBuilder()
-                        .addEndpoints(LocalityLbEndpoints.newBuilder()
-                                                         .addLbEndpoints(endpoint("127.0.0.1", 8081)))
-                        .setClusterName(clusterName).build();
-
-        final String endpointName = "groups/foo/endpoints/foo-endpoint/5/6";
-        final ClusterLoadAssignment response2 = client.updateEndpoint(
-                UpdateEndpointRequest.newBuilder()
-                                     .setEndpointName(endpointName)
-                                     .setEndpoint(updatingEndpoint)
-                                     .build());
-        assertThat(response2).isEqualTo(updatingEndpoint);
-        checkEndpointsViaDiscoveryRequest(dogma.httpClient().uri(), response2, clusterName);
-
-        // No exception is thrown.
-        final Empty ignored = client.deleteEndpoint(
-                DeleteEndpointRequest.newBuilder()
-                                     .setName(endpointName)
-                                     .build());
-        checkEndpointsViaDiscoveryRequest(dogma.httpClient().uri(), null, clusterName);
     }
 }

@@ -77,6 +77,7 @@ import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.armeria.common.util.SafeCloseable;
 import com.linecorp.armeria.common.util.TimeoutMode;
 import com.linecorp.centraldogma.client.AbstractCentralDogma;
+import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.client.CentralDogmaRepository;
 import com.linecorp.centraldogma.client.RepositoryInfo;
 import com.linecorp.centraldogma.common.ApiRequestTimeoutException;
@@ -174,6 +175,14 @@ public final class ArmeriaCentralDogma extends AbstractCentralDogma {
         authorization = "Bearer " + requireNonNull(accessToken, "accessToken");
         this.safeCloseable = safeCloseable;
         this.whenReady = whenReady;
+    }
+
+    @Override
+    public CentralDogma withAccessToken(String accessToken) {
+        requireNonNull(accessToken, "accessToken");
+        // Pass a no-op SafeCloseable: the base client owns the connection resources.
+        return new ArmeriaCentralDogma(executor(), client, accessToken,
+                                       () -> {}, meterRegistry(), null);
     }
 
     @Override

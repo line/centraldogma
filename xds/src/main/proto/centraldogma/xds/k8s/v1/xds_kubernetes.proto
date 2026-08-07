@@ -70,6 +70,9 @@ message CreateKubernetesEndpointAggregatorRequest {
   // Valid pattern is "^[a-z]([a-z0-9-/]*[a-z0-9])?$"
   string aggregator_id = 2 [(google.api.field_behavior) = REQUIRED];
   KubernetesEndpointAggregator kubernetes_endpoint_aggregator = 3 [(google.api.field_behavior) = REQUIRED];
+
+  // The commit summary for this change. If not specified, a default message is used.
+  string summary = 4 [(google.api.field_behavior) = OPTIONAL];
 }
 
 message KubernetesEndpointAggregator {
@@ -92,6 +95,51 @@ message ServiceEndpointWatcher {
   string port_name = 2 [(google.api.field_behavior) = OPTIONAL];
   Kubeconfig kubeconfig = 3 [(google.api.field_behavior) = REQUIRED];
   map<string, string> additional_properties = 4 [(google.api.field_behavior) = OPTIONAL];
+  // When true, endpoints that share the same host and port are collapsed into a
+  // single LbEndpoint. This is useful in NODE_PORT mode where multiple Pods on
+  // the same node resolve to the same nodeIP:nodePort. The first occurrence
+  // supplies the endpoint metadata.
+  bool distinct_endpoint = 5 [(google.api.field_behavior) = OPTIONAL];
+  // Rules that copy Kubernetes Pod or Node label/annotation values into the
+  // metadata of the generated LbEndpoint.
+  repeated MetadataMapping metadata_mapping = 6 [(google.api.field_behavior) = OPTIONAL];
+}
+
+// A rule that copies a Kubernetes Pod or Node label/annotation value into the
+// metadata of the generated LbEndpoint.
+message MetadataMapping {
+  // The Kubernetes resource to read the value from.
+  ResourceType resource_type = 1 [(google.api.field_behavior) = REQUIRED];
+  // Whether the value is read from a label or an annotation.
+  EntryType entry_type = 2 [(google.api.field_behavior) = REQUIRED];
+  // Exactly one selector must be set.
+  oneof source {
+    // Copies the value of this single label/annotation key,
+    // e.g. "topology.kubernetes.io/zone".
+    string source_key = 3;
+    // Copies the value of every label/annotation key that starts with this
+    // prefix, e.g. "topology.kubernetes.io/". The original keys are preserved
+    // as the metadata keys.
+    string source_key_prefix = 4;
+  }
+  // The Envoy filter_metadata namespace to store the value under. Defaults to
+  // "envoy.lb" when empty.
+  string metadata_namespace = 5 [(google.api.field_behavior) = OPTIONAL];
+  // The metadata key to store the value under. Defaults to source_key when
+  // empty. Ignored in source_key_prefix mode where the original keys are kept.
+  string metadata_key = 6 [(google.api.field_behavior) = OPTIONAL];
+
+  enum ResourceType {
+    RESOURCE_TYPE_UNSPECIFIED = 0;
+    POD = 1;
+    NODE = 2;
+  }
+
+  enum EntryType {
+    ENTRY_TYPE_UNSPECIFIED = 0;
+    LABEL = 1;
+    ANNOTATION = 2;
+  }
 }
 
 message Kubeconfig {
@@ -105,14 +153,20 @@ message UpdateKubernetesEndpointAggregatorRequest {
   // The kubernetes_endpoint_aggregator's `name` field is used to identify the endpoint to update.
   KubernetesEndpointAggregator kubernetes_endpoint_aggregator = 1 [(google.api.field_behavior) = REQUIRED];
 
+  // The commit summary for this change. If not specified, a default message is used.
+  string summary = 2 [(google.api.field_behavior) = OPTIONAL];
+
   // TODO(minwoox): Implement these fields
-  // google.protobuf.FieldMask update_mask = 2;
+  // google.protobuf.FieldMask update_mask = 3;
   //
-  // bool allow_missing = 3;
+  // bool allow_missing = 4;
 }
 
 message DeleteKubernetesEndpointAggregatorRequest {
   string name = 1 [(google.api.field_behavior) = IDENTIFIER];
+
+  // The commit summary for this change. If not specified, a default message is used.
+  string summary = 2 [(google.api.field_behavior) = OPTIONAL];
 }
 
 message PreviewKubernetesEndpointAggregatorRequest {

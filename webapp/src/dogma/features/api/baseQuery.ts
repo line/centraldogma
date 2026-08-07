@@ -21,6 +21,9 @@ import { AuthState, clearAuth } from 'dogma/features/auth/authSlice';
 const baseQuery = fetchBaseQuery({
   baseUrl: `${process.env.NEXT_PUBLIC_HOST || ''}/`,
   credentials: 'include',
+  // YAML and plain-text error responses must not be JSON-parsed. 'content-type' switches between
+  // JSON.parse (application/json) and raw text (everything else) based on the response header.
+  responseHandler: 'content-type',
   prepareHeaders: (headers, { getState, type }) => {
     const { auth } = getState() as { auth: AuthState };
 

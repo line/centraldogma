@@ -8,16 +8,25 @@ import { UserRole } from 'dogma/common/components/UserRole';
 import { DataTableClientPagination } from 'dogma/common/components/table/DataTableClientPagination';
 import { useGetAppIdentitiesQuery } from 'dogma/features/api/apiSlice';
 import { AppIdentityDto, isToken, isCertificate } from 'dogma/features/app-identity/AppIdentity';
-import { useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { DeactivateAppIdentity } from 'dogma/features/app-identity/DeactivateAppIdentity';
 import { ActivateAppIdentity } from 'dogma/features/app-identity/ActivateAppIdentity';
 import { DeleteAppIdentity } from 'dogma/features/app-identity/DeleteAppIdentity';
+import { RegenerateAppIdentitySecret } from 'dogma/features/app-identity/RegenerateAppIdentitySecret';
 import { Deferred } from 'dogma/common/components/Deferred';
 import SettingView from 'dogma/features/settings/SettingView';
 import { useAppSelector } from 'dogma/hooks';
 
 const AppIdentityPage = () => {
   const systemAdmin = useAppSelector((state) => state.auth.user?.systemAdmin ?? false);
+  // Tokens whose secret was regenerated during the current deactivation, keyed by
+  // `appId@deactivationTimestamp`. Hides the regenerate action until the token is
+  // deactivated again so that another regeneration does not revoke a secret being
+  // distributed to the clients.
+  const [regeneratedKeys, setRegeneratedKeys] = useState<Set<string>>(new Set());
+  const markRegenerated = useCallback((key: string) => {
+    setRegeneratedKeys((prev) => new Set(prev).add(key));
+  }, []);
   const columnHelper = createColumnHelper<AppIdentityDto>();
   const columns = useMemo(
     () => [
@@ -74,18 +83,31 @@ const AppIdentityPage = () => {
         header: 'Status',
       }),
       columnHelper.accessor((row: AppIdentityDto) => row.deactivation, {
-        cell: (info) => (
-          <Wrap>
-            <ActivateAppIdentity appId={info.row.original.appId} hidden={info.getValue() === undefined} />
-            <DeactivateAppIdentity appId={info.row.original.appId} hidden={info.getValue() !== undefined} />
-            <DeleteAppIdentity appId={info.row.original.appId} hidden={info.getValue() === undefined} />
-          </Wrap>
-        ),
+        cell: (info) => {
+          const regeneratedKey = `${info.row.original.appId}@${info.getValue()?.timestamp}`;
+          return (
+            <Wrap>
+              <ActivateAppIdentity appId={info.row.original.appId} hidden={info.getValue() === undefined} />
+              <DeactivateAppIdentity appId={info.row.original.appId} hidden={info.getValue() !== undefined} />
+              <RegenerateAppIdentitySecret
+                appId={info.row.original.appId}
+                hidden={
+                  !isToken(info.row.original) ||
+                  info.getValue() === undefined ||
+                  info.row.original.deletion !== undefined ||
+                  regeneratedKeys.has(regeneratedKey)
+                }
+                onRegenerated={() => markRegenerated(regeneratedKey)}
+              />
+              <DeleteAppIdentity appId={info.row.original.appId} hidden={info.getValue() === undefined} />
+            </Wrap>
+          );
+        },
         header: 'Actions',
         enableSorting: false,
       }),
     ],
-    [columnHelper, systemAdmin],
+    [columnHelper, systemAdmin, regeneratedKeys, markRegenerated],
   );
   const { data, error, isLoading } = useGetAppIdentitiesQuery();
   return (

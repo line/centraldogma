@@ -450,6 +450,7 @@ abstract class AbstractGitMirror extends AbstractMirror {
             }
         });
 
+        validateChanges(changes);
         try {
             final Revision revision = executor.execute(Command.push(
                     MIRROR_AUTHOR, localRepo().parent().name(), localRepo().name(),

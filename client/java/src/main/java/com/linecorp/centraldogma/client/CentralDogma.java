@@ -54,6 +54,17 @@ import com.linecorp.centraldogma.common.RevisionNotFoundException;
 public interface CentralDogma extends AutoCloseable {
 
     /**
+     * Returns a derived {@link CentralDogma} that reuses the underlying connection pool of this client
+     * but authenticates with the given {@code accessToken}. Calling {@link #close()} on the derived client
+     * is a no-op; the connection pool is owned by this (base) client.
+     *
+     * @throws UnsupportedOperationException if this implementation does not support derived clients
+     */
+    default CentralDogma withAccessToken(String accessToken) {
+        throw new UnsupportedOperationException(getClass().getName() + " does not support withAccessToken");
+    }
+
+    /**
      * Returns a new {@link CentralDogmaRepository} that is used to send a request to the specified
      * {@code projectName} and {@code repositoryName}.
      */

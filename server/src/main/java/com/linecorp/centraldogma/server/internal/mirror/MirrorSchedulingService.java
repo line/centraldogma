@@ -27,6 +27,7 @@ import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.ServiceLoader;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -104,27 +105,28 @@ public final class MirrorSchedulingService implements MirroringService {
     private final String currentZone;
     private final MirrorAccessController mirrorAccessController;
     private final AtomicInteger numActiveMirrors = new AtomicInteger();
+    // Shared base-client pool for CentralDogmaMirror instances. Keyed by "host:port:tls:maxBytes".
+    // Owned here so stop() can close all entries; injected into each mirror before it runs.
+    private final ConcurrentHashMap<String, Object> baseClientPool = new ConcurrentHashMap<>();
 
     private volatile CommandExecutor commandExecutor;
     private volatile ListeningScheduledExecutorService scheduler;
     private volatile ListeningExecutorService worker;
     private volatile boolean closing;
 
+    @Nullable
     private ZonedDateTime lastExecutionTime;
     private final MeterRegistry meterRegistry;
-    // Used to disable in the tests.
-    private final boolean runMigration;
 
     @VisibleForTesting
     public MirrorSchedulingService(File workDir, ProjectManager projectManager, MeterRegistry meterRegistry,
                                    int numThreads, int maxNumFilesPerMirror, long maxNumBytesPerMirror,
-                                   @Nullable ZoneConfig zoneConfig, boolean runMigration,
+                                   @Nullable ZoneConfig zoneConfig,
                                    MirrorAccessController mirrorAccessController) {
 
         this.workDir = requireNonNull(workDir, "workDir");
         this.projectManager = requireNonNull(projectManager, "projectManager");
         this.meterRegistry = requireNonNull(meterRegistry, "meterRegistry");
-        this.runMigration = runMigration;
 
         checkArgument(numThreads > 0, "numThreads: %s (expected: > 0)", numThreads);
         checkArgument(maxNumFilesPerMirror > 0,
@@ -227,6 +229,16 @@ public final class MirrorSchedulingService implements MirroringService {
         } finally {
             this.scheduler = null;
             this.worker = null;
+            baseClientPool.forEach((key, client) -> {
+                if (client instanceof AutoCloseable) {
+                    try {
+                        ((AutoCloseable) client).close();
+                    } catch (Exception e) {
+                        logger.warn("Failed to close base CentralDogma client for key: {}", key, e);
+                    }
+                }
+            });
+            baseClientPool.clear();
         }
     }
 
@@ -310,6 +322,7 @@ public final class MirrorSchedulingService implements MirroringService {
                               }
                               try {
                                   if (m.nextExecutionTime(currentLastExecutionTime).compareTo(now) < 0) {
+                                      m.setBaseClientPool(baseClientPool);
                                       runAsync(new MirrorTask(m, User.SYSTEM, Instant.now(),
                                                               currentZone, true));
                                   }
@@ -334,7 +347,10 @@ public final class MirrorSchedulingService implements MirroringService {
                     }
                     try {
                         p.metaRepo().mirrors().get(5, TimeUnit.SECONDS)
-                         .forEach(m -> run(new MirrorTask(m, User.SYSTEM, Instant.now(), currentZone, false)));
+                         .forEach(m -> {
+                             m.setBaseClientPool(baseClientPool);
+                             run(new MirrorTask(m, User.SYSTEM, Instant.now(), currentZone, false));
+                         });
                     } catch (InterruptedException | TimeoutException | ExecutionException e) {
                         throw new IllegalStateException(
                                 "Failed to load mirror list with in 5 seconds. project: " + p.name(), e);

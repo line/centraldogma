@@ -168,6 +168,56 @@ final class AppIdentityService {
                                       .join();
     }
 
+    CompletableFuture<Token> regenerateTokenSecret(Author author, String appId) {
+        requireNonNull(author, "author");
+        requireNonNull(appId, "appId");
+
+        final String commitSummary = "Regenerate the secret of the token: " + appId;
+
+        final AppIdentityRegistryTransformer transformer = new AppIdentityRegistryTransformer(
+                (headRevision, registry) -> {
+                    final AppIdentity appIdentity = registry.get(appId); // Raise an exception if not found.
+                    if (appIdentity.deletion() != null) {
+                        // Note that a ChangeConflictException is raised instead of an
+                        // IllegalArgumentException so that the storage layer does not wrap it with
+                        // another exception.
+                        throw new ChangeConflictException(
+                                "The app identity is already destroyed: " + appId);
+                    }
+                    throwIfInvalidType(appId, appIdentity, AppIdentityType.TOKEN);
+                    if (appIdentity.deactivation() == null) {
+                        // Regenerating the secret of an active token would break its clients with no
+                        // way to prepare, so the token must be deactivated first.
+                        throw new ChangeConflictException(
+                                "The token must be deactivated before regenerating its secret: " + appId);
+                    }
+
+                    final Token token = (Token) appIdentity;
+                    final String newSecret = SECRET_PREFIX + UUID.randomUUID();
+                    if (registry.secrets().containsKey(newSecret)) {
+                        throw new ChangeConflictException("Secret already exists");
+                    }
+
+                    final Token newToken = new Token(token.appId(), newSecret, token.isSystemAdmin(),
+                                                     token.allowGuestAccess(), token.creation(),
+                                                     token.deactivation(), null);
+                    final Map<String, AppIdentity> newAppIds =
+                            updateMap(registry.appIds(), appId, newToken);
+                    // A deactivated token has no entry in the secret map; create a new map so that
+                    // the new registry does not share the mutable map with the old one.
+                    return new AppIdentityRegistry(newAppIds, ImmutableMap.copyOf(registry.secrets()),
+                                                   registry.certificateIds());
+                });
+        // Read the registry back at the revision this commit produced so that the caller gets
+        // the secret of this commit even if another commit lands right after.
+        return appIdentityRegistryRepo.push(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, author,
+                                            commitSummary, transformer)
+                                      .thenCompose(revision -> appIdentityRegistryRepo.fetch(
+                                              INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, TOKEN_JSON,
+                                              revision))
+                                      .thenApply(holder -> (Token) holder.object().get(appId));
+    }
+
     CompletableFuture<Revision> activateToken(Author author, String appId) {
         requireNonNull(author, "author");
         requireNonNull(appId, "appId");

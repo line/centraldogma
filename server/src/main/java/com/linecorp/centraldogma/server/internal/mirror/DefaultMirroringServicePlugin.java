@@ -77,7 +77,6 @@ public final class DefaultMirroringServicePlugin implements Plugin {
             final int maxNumFilesPerMirror;
             final long maxNumBytesPerMirror;
             final ZoneConfig zoneConfig;
-            final boolean runMigration;
 
             if (mirroringServicePluginConfig != null) {
                 numThreads = mirroringServicePluginConfig.numMirroringThreads();
@@ -93,13 +92,11 @@ public final class DefaultMirroringServicePlugin implements Plugin {
                     logger.warn("No 'trustedHostKeys' configured in the mirroring service plugin config. " +
                                 "SSH mirror connections will accept any host key without verification.");
                 }
-                runMigration = mirroringServicePluginConfig.runMigration();
             } else {
                 numThreads = MirroringServicePluginConfig.INSTANCE.numMirroringThreads();
                 maxNumFilesPerMirror = MirroringServicePluginConfig.INSTANCE.maxNumFilesPerMirror();
                 maxNumBytesPerMirror = MirroringServicePluginConfig.INSTANCE.maxNumBytesPerMirror();
                 zoneConfig = null;
-                runMigration = true;
                 logger.warn("No 'trustedHostKeys' configured in the mirroring service plugin config. " +
                             "SSH mirror connections will accept any host key without verification.");
             }
@@ -108,7 +105,7 @@ public final class DefaultMirroringServicePlugin implements Plugin {
                                                            context.meterRegistry(),
                                                            numThreads,
                                                            maxNumFilesPerMirror,
-                                                           maxNumBytesPerMirror, zoneConfig, runMigration,
+                                                           maxNumBytesPerMirror, zoneConfig,
                                                            context.mirrorAccessController());
             this.mirroringService = mirroringService;
         }

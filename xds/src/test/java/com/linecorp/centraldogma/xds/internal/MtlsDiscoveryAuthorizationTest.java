@@ -18,7 +18,6 @@ package com.linecorp.centraldogma.xds.internal;
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.PASSWORD;
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.USERNAME;
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.getAccessToken;
-import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.JSON_MESSAGE_MARSHALLER;
 import static com.linecorp.centraldogma.xds.internal.XdsTestUtil.cluster;
 import static com.linecorp.centraldogma.xds.internal.XdsTestUtil.exampleListener;
 import static com.linecorp.centraldogma.xds.internal.XdsTestUtil.routeConfiguration;
@@ -299,7 +298,6 @@ final class MtlsDiscoveryAuthorizationTest {
                 admin.prepare()
                      .post("/api/v1/xds/groups")
                      .queryParam("group_id", group)
-                     .content(MediaType.JSON, "{\"name\":\"groups/" + group + "\"}")
                      .execute().aggregate().join();
         assertThat(response.status()).isEqualTo(HttpStatus.OK);
     }
@@ -325,7 +323,7 @@ final class MtlsDiscoveryAuthorizationTest {
                 admin.prepare()
                      .post(path)
                      .queryParam(idParam, id)
-                     .content(MediaType.JSON, JSON_MESSAGE_MARSHALLER.writeValueAsString(body))
+                     .content(MediaType.parse("application/yaml"), XdsTestUtil.toYaml(body))
                      .execute().aggregate().join();
         assertThat(response.status()).isEqualTo(HttpStatus.OK);
     }
