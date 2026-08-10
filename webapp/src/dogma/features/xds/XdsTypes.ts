@@ -23,6 +23,10 @@ export type XdsResourceType = 'listeners' | 'routes' | 'clusters' | 'endpoints';
 
 export const XDS_RESOURCE_TYPES: XdsResourceType[] = ['listeners', 'routes', 'clusters', 'endpoints'];
 
+// The page sizes offered by the paginated xDS lists (groups, resources, history). Also the set of valid
+// `pageSize` URL query values; anything else falls back to the first (default) size.
+export const XDS_PAGE_SIZES = [10, 20, 50, 100] as const;
+
 export interface XdsResourceTypeMeta {
   type: XdsResourceType;
   // Human readable, singular label.
