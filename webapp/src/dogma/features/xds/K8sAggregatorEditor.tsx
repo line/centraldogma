@@ -23,10 +23,14 @@ import {
   Button,
   Badge,
   Checkbox,
+  Divider,
   Flex,
   FormControl,
   FormErrorMessage,
+  FormHelperText,
+  FormHelperTextProps,
   FormLabel,
+  FormLabelProps,
   Heading,
   HStack,
   IconButton,
@@ -34,15 +38,17 @@ import {
   Select as ChakraSelect,
   SimpleGrid,
   Spacer,
+  Stack,
   Text,
   Tooltip,
+  useColorModeValue,
   useDisclosure,
 } from '@chakra-ui/react';
 import { FetchBaseQueryError } from '@reduxjs/toolkit/query';
 import * as jsYaml from 'js-yaml';
 import { default as RouteLink } from 'next/link';
 import Router from 'next/router';
-import { useEffect, useState } from 'react';
+import { ReactNode, useEffect, useState } from 'react';
 import {
   Control,
   Controller,
@@ -86,6 +92,26 @@ interface DropOverload {
   category?: string;
   dropPercentage?: { numerator?: number; denominator?: string };
 }
+
+// A section label that reads as a boundary: the rule carries the eye across, the label sits on it.
+const SectionLabel = ({ children, mt = 6 }: { children: ReactNode; mt?: number }) => (
+  <Flex align="center" mt={mt} mb={3} gap={3}>
+    <Text fontSize="xs" fontWeight="bold" letterSpacing="wide" textTransform="uppercase" whiteSpace="nowrap">
+      {children}
+    </Text>
+    <Divider />
+  </Flex>
+);
+
+// Chakra's FormLabel is medium; semibold separates it from the hint underneath.
+const Label = (props: FormLabelProps) => <FormLabel fontSize="sm" fontWeight="semibold" {...props} />;
+
+// Chakra's FormHelperText defaults to gray.500 / whiteAlpha.600, which is too faint to read in dark mode.
+const Help = ({ children, ...props }: FormHelperTextProps) => (
+  <FormHelperText fontSize="xs" mt={1} color={useColorModeValue('gray.600', 'gray.400')} {...props}>
+    {children}
+  </FormHelperText>
+);
 
 // A map whose keys are user input cannot be form field names, so the rows live here and the form value
 // stays the map itself. Rows are kept in local state to preserve order and blank rows while typing.
@@ -344,9 +370,9 @@ const MappingRow = ({
           />
         )}
       </Flex>
-      <SimpleGrid columns={3} spacing={3}>
+      <SimpleGrid columns={2} spacingX={4} spacingY={4}>
         <FormControl>
-          <FormLabel fontSize="sm">Read from</FormLabel>
+          <Label>Read from</Label>
           <ChakraSelect
             size="sm"
             isDisabled={readOnly}
@@ -356,9 +382,10 @@ const MappingRow = ({
             <option value="NODE">Node</option>
             <option value="POD">Pod</option>
           </ChakraSelect>
+          <Help>Read the value from the Pod or its Node.</Help>
         </FormControl>
         <FormControl>
-          <FormLabel fontSize="sm">Entry type</FormLabel>
+          <Label>Entry type</Label>
           <ChakraSelect
             size="sm"
             isDisabled={readOnly}
@@ -368,12 +395,14 @@ const MappingRow = ({
             <option value="LABEL">Label</option>
             <option value="ANNOTATION">Annotation</option>
           </ChakraSelect>
+          <Help>Read it from a label or an annotation.</Help>
         </FormControl>
         <FormControl>
-          <FormLabel fontSize="sm">Match</FormLabel>
+          <Label>Match</Label>
           <ChakraSelect
             size="sm"
             isDisabled={readOnly}
+            _disabled={{ opacity: 1, cursor: 'default' }}
             value={prefixMode ? 'prefix' : 'key'}
             onChange={(e) => {
               const prefix = e.target.value === 'prefix';
@@ -393,27 +422,30 @@ const MappingRow = ({
             <option value="key">Exact key</option>
             <option value="prefix">Key prefix</option>
           </ChakraSelect>
+          <Help>Copy one key, or every key with a prefix.</Help>
         </FormControl>
         <FormControl>
-          <FormLabel fontSize="sm">{prefixMode ? 'Source key prefix' : 'Source key'}</FormLabel>
+          <Label>{prefixMode ? 'Source key prefix' : 'Source key'}</Label>
           <Input
             size="sm"
             placeholder={prefixMode ? 'topology.kubernetes.io/' : 'topology.kubernetes.io/zone'}
             isReadOnly={readOnly}
             {...register(prefixMode ? `${path}.sourceKeyPrefix` : `${path}.sourceKey`)}
           />
+          <Help>{prefixMode ? 'Copy every key starting with this.' : 'The key to copy the value from.'}</Help>
         </FormControl>
         <FormControl>
-          <FormLabel fontSize="sm">Metadata namespace</FormLabel>
+          <Label>Metadata namespace</Label>
           <Input
             size="sm"
             placeholder="envoy.lb"
             isReadOnly={readOnly}
             {...register(`${path}.metadataNamespace`)}
           />
+          <Help>Stored under this namespace. Defaults to envoy.lb.</Help>
         </FormControl>
         <FormControl>
-          <FormLabel fontSize="sm">Metadata key</FormLabel>
+          <Label>Metadata key</Label>
           <Input
             size="sm"
             placeholder={prefixMode ? 'keeps the source keys' : 'defaults to the source key'}
@@ -421,6 +453,11 @@ const MappingRow = ({
             isDisabled={prefixMode}
             {...register(`${path}.metadataKey`)}
           />
+          <Help>
+            {prefixMode
+              ? 'Unused — the source keys are kept.'
+              : 'Stored under this key. Defaults to the source key.'}
+          </Help>
         </FormControl>
       </SimpleGrid>
     </Box>
@@ -464,7 +501,7 @@ const WatcherFields = ({
   return (
     <Box borderWidth="1px" borderRadius="md" p={4} mb={4} maxW="3xl">
       <Flex mb={2} align="center">
-        <Text fontWeight="bold">Watcher #{index + 1}</Text>
+        <Text fontWeight="bold">Kubernetes endpoint source #{index + 1}</Text>
         <Spacer />
         {canRemove && !readOnly && (
           <Button size="xs" variant="ghost" colorScheme="red" leftIcon={<AiOutlineDelete />} onClick={onRemove}>
@@ -472,47 +509,33 @@ const WatcherFields = ({
           </Button>
         )}
       </Flex>
-      <SimpleGrid columns={2} spacing={3}>
-        <FormControl isInvalid={serviceNameError} isRequired>
-          <FormLabel fontSize="sm">Service name</FormLabel>
-          <Input
-            size="sm"
-            placeholder="k8s service name"
-            isReadOnly={readOnly}
-            {...register(`localityLbEndpoints.${index}.watcher.serviceName`, { required: true })}
-          />
-          <FormErrorMessage>Service name is required.</FormErrorMessage>
-        </FormControl>
-        <FormControl>
-          <FormLabel fontSize="sm">Port name</FormLabel>
-          <Input
-            size="sm"
-            placeholder="optional"
-            isReadOnly={readOnly}
-            {...register(`localityLbEndpoints.${index}.watcher.portName`)}
-          />
-        </FormControl>
+      <SectionLabel mt={0}>Cluster access</SectionLabel>
+      <SimpleGrid columns={2} spacingX={4} spacingY={4}>
         <FormControl isInvalid={controlPlaneUrlError} isRequired>
-          <FormLabel fontSize="sm">Control plane URL</FormLabel>
+          <Label>Control plane URL</Label>
           <Input
             size="sm"
             placeholder="https://kubernetes.default.svc"
             isReadOnly={readOnly}
-            {...register(`localityLbEndpoints.${index}.watcher.kubeconfig.controlPlaneUrl`, { required: true })}
+            {...register(`localityLbEndpoints.${index}.watcher.kubeconfig.controlPlaneUrl`, {
+              required: true,
+            })}
           />
           <FormErrorMessage>Control plane URL is required.</FormErrorMessage>
+          <Help>The Kubernetes API server to read from.</Help>
         </FormControl>
         <FormControl>
-          <FormLabel fontSize="sm">Namespace</FormLabel>
+          <Label>Namespace</Label>
           <Input
             size="sm"
             placeholder="optional"
             isReadOnly={readOnly}
             {...register(`localityLbEndpoints.${index}.watcher.kubeconfig.namespace`)}
           />
+          <Help>Defaults to the credential&apos;s namespace.</Help>
         </FormControl>
         <FormControl>
-          <FormLabel fontSize="sm">Credential ID</FormLabel>
+          <Label>Credential ID</Label>
           {credentialOptions !== null ? (
             <Controller
               control={control}
@@ -546,9 +569,45 @@ const WatcherFields = ({
               {...register(`localityLbEndpoints.${index}.watcher.kubeconfig.credentialId`)}
             />
           )}
+          <Help>Empty if the cluster needs none.</Help>
+        </FormControl>
+        <FormControl pt={6}>
+          <Checkbox
+            size="sm"
+            isReadOnly={readOnly}
+            {...register(`localityLbEndpoints.${index}.watcher.kubeconfig.trustCerts`)}
+          >
+            Trust certificates
+          </Checkbox>
+          <Help ml={6}>Skips TLS verification. Only for a self-signed control plane.</Help>
+        </FormControl>
+      </SimpleGrid>
+
+      <SectionLabel>Endpoints</SectionLabel>
+      <SimpleGrid columns={2} spacingX={4} spacingY={4}>
+        <FormControl isInvalid={serviceNameError} isRequired>
+          <Label>Service name</Label>
+          <Input
+            size="sm"
+            placeholder="k8s service name"
+            isReadOnly={readOnly}
+            {...register(`localityLbEndpoints.${index}.watcher.serviceName`, { required: true })}
+          />
+          <FormErrorMessage>Service name is required.</FormErrorMessage>
+          <Help>Its Pods become the endpoints.</Help>
         </FormControl>
         <FormControl>
-          <FormLabel fontSize="sm">Priority</FormLabel>
+          <Label>Port name</Label>
+          <Input
+            size="sm"
+            placeholder="optional"
+            isReadOnly={readOnly}
+            {...register(`localityLbEndpoints.${index}.watcher.portName`)}
+          />
+          <Help>Only when the Service has several ports.</Help>
+        </FormControl>
+        <FormControl>
+          <Label>Priority</Label>
           <Input
             size="sm"
             type="number"
@@ -556,9 +615,10 @@ const WatcherFields = ({
             isReadOnly={readOnly}
             {...register(`localityLbEndpoints.${index}.priority`, { valueAsNumber: true })}
           />
+          <Help>0 is highest; the next takes over.</Help>
         </FormControl>
         <FormControl>
-          <FormLabel fontSize="sm">Load balancing weight</FormLabel>
+          <Label>Load balancing weight</Label>
           <Input
             size="sm"
             type="number"
@@ -566,31 +626,27 @@ const WatcherFields = ({
             isReadOnly={readOnly}
             {...register(`localityLbEndpoints.${index}.loadBalancingWeight`, { valueAsNumber: true })}
           />
+          <Help>Share of traffic relative to the other sources.</Help>
         </FormControl>
-        <FormControl display="flex" alignItems="center" pt={6}>
+        <FormControl gridColumn="1 / -1">
           <Checkbox
-            isReadOnly={readOnly}
-            {...register(`localityLbEndpoints.${index}.watcher.kubeconfig.trustCerts`)}
-          >
-            Trust certificates
-          </Checkbox>
-        </FormControl>
-        <FormControl display="flex" alignItems="center" pt={6}>
-          <Checkbox
+            size="sm"
             isReadOnly={readOnly}
             {...register(`localityLbEndpoints.${index}.watcher.distinctEndpoint`)}
           >
             Distinct endpoint
           </Checkbox>
+          <Help ml={6}>Collapses endpoints sharing a host and port.</Help>
         </FormControl>
       </SimpleGrid>
 
-      <Text mt={4} mb={1} fontSize="sm" fontWeight="semibold" color="gray.500">
-        Locality (optional)
+      <SectionLabel>Locality (optional)</SectionLabel>
+      <Text mb={3} fontSize="xs" color="gray.500">
+        Reported to Envoy so it can prefer endpoints close to the caller.
       </Text>
-      <SimpleGrid columns={3} spacing={3}>
+      <SimpleGrid columns={3} spacingX={4} spacingY={4}>
         <FormControl>
-          <FormLabel fontSize="sm">Region</FormLabel>
+          <Label>Region</Label>
           <Input
             size="sm"
             placeholder="optional"
@@ -599,7 +655,7 @@ const WatcherFields = ({
           />
         </FormControl>
         <FormControl>
-          <FormLabel fontSize="sm">Zone</FormLabel>
+          <Label>Zone</Label>
           <Input
             size="sm"
             placeholder="optional"
@@ -608,7 +664,7 @@ const WatcherFields = ({
           />
         </FormControl>
         <FormControl>
-          <FormLabel fontSize="sm">Sub zone</FormLabel>
+          <Label>Sub zone</Label>
           <Input
             size="sm"
             placeholder="optional"
@@ -618,8 +674,9 @@ const WatcherFields = ({
         </FormControl>
       </SimpleGrid>
 
-      <Text mt={4} mb={1} fontSize="sm" fontWeight="semibold" color="gray.500">
-        Additional properties (optional)
+      <SectionLabel>Additional properties (optional)</SectionLabel>
+      <Text mb={2} fontSize="xs" color="gray.500">
+        Passed to the server-side resolvers.
       </Text>
       <Controller
         control={control}
@@ -629,8 +686,9 @@ const WatcherFields = ({
         )}
       />
 
-      <Text mt={4} mb={1} fontSize="sm" fontWeight="semibold" color="gray.500">
-        Metadata mappings (optional)
+      <SectionLabel>Metadata mappings (optional)</SectionLabel>
+      <Text mb={2} fontSize="xs" color="gray.500">
+        Copies Pod or Node labels and annotations into the endpoint metadata for routing rules to match on.
       </Text>
       {mappings.fields.map((field, mappingIndex) => (
         <MappingRow
@@ -690,7 +748,7 @@ const AggregatorFormFields = ({
   return (
     <>
       <FormControl isInvalid={!!errors.aggregatorId} isRequired mb={4} maxW="md">
-        <FormLabel>Aggregator ID</FormLabel>
+        <Label fontSize="md">Aggregator ID</Label>
         <Input
           placeholder="e.g. my-service"
           isReadOnly={idReadOnly || readOnly}
@@ -704,6 +762,7 @@ const AggregatorFormFields = ({
         <FormErrorMessage>
           ID must match [a-z](?:[a-z0-9_.-]*[a-z0-9])? (dots allowed, slashes not allowed)
         </FormErrorMessage>
+        <Help>Names the aggregator and its cluster.</Help>
       </FormControl>
 
       {fields.map((field, index) => (
@@ -729,7 +788,7 @@ const AggregatorFormFields = ({
           leftIcon={<IoAddCircleOutline />}
           onClick={() => append({ ...emptyWatcher })}
         >
-          Add watcher
+          Add source
         </Button>
       )}
 
@@ -776,36 +835,40 @@ const PolicyFields = ({
       <Text fontWeight="semibold" mb={3}>
         Policy (optional)
       </Text>
-      <SimpleGrid columns={2} spacing={3}>
+      <Stack spacing={4}>
         <FormControl>
-          <FormLabel fontSize="sm">Overprovisioning factor</FormLabel>
+          <Label>Overprovisioning factor</Label>
           <Input
             size="sm"
+            maxW="xs"
             type="number"
             placeholder="140 (default)"
             isReadOnly={readOnly}
             {...register('policy.overprovisioningFactor', { valueAsNumber: true })}
           />
+          <Help>Healthy above 100/factor — 140 means 72%.</Help>
         </FormControl>
-        <FormControl display="flex" alignItems="center" pt={6}>
-          <Checkbox isReadOnly={readOnly} {...register('policy.weightedPriorityHealth')}>
+        <FormControl>
+          <Checkbox size="sm" isReadOnly={readOnly} {...register('policy.weightedPriorityHealth')}>
             Weighted priority health
           </Checkbox>
+          <Help>Weighs priority health by endpoint weight, not count.</Help>
         </FormControl>
-      </SimpleGrid>
-
-      <FormControl maxW="xs" mt={4}>
-        <FormLabel fontSize="sm">
-          Endpoint stale after
-          <EnvoyOnlyBadge />
-        </FormLabel>
-        <Input
-          size="sm"
-          placeholder="e.g. 30s"
-          isReadOnly={readOnly}
-          {...register('policy.endpointStaleAfter')}
-        />
-      </FormControl>
+        <FormControl>
+          <Label>
+            Endpoint stale after
+            <EnvoyOnlyBadge />
+          </Label>
+          <Input
+            size="sm"
+            maxW="xs"
+            placeholder="e.g. 30s"
+            isReadOnly={readOnly}
+            {...register('policy.endpointStaleAfter')}
+          />
+          <Help>Drops an endpoint unrefreshed for this long.</Help>
+        </FormControl>
+      </Stack>
       {dropOverloads && dropOverloads.length > 0 && (
         <Box mt={4}>
           <Text fontSize="sm" fontWeight="semibold">
