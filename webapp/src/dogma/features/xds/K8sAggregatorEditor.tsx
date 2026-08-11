@@ -32,6 +32,7 @@ import {
   FormLabel,
   FormLabelProps,
   Heading,
+  Icon,
   HStack,
   IconButton,
   Input,
@@ -58,12 +59,14 @@ import {
   UseFormRegister,
   UseFormSetValue,
   UseFormGetValues,
+  UseFormSetFocus,
   useWatch,
 } from 'react-hook-form';
 import { OptionBase, Select } from 'chakra-react-select';
 import { AiOutlineClose, AiOutlineDelete, AiOutlineEdit, AiOutlineEye } from 'react-icons/ai';
 import { FiSave } from 'react-icons/fi';
 import { IoAddCircleOutline } from 'react-icons/io5';
+import { MdExpandLess, MdExpandMore } from 'react-icons/md';
 import { Deferred } from 'dogma/common/components/Deferred';
 import { DeleteConfirmationModal } from 'dogma/common/components/DeleteConfirmationModal';
 import {
@@ -501,7 +504,9 @@ const WatcherFields = ({
   return (
     <Box borderWidth="1px" borderRadius="md" p={4} mb={4} maxW="3xl">
       <Flex mb={2} align="center">
-        <Text fontWeight="bold">Kubernetes endpoint source #{index + 1}</Text>
+        <Text fontWeight="bold" color={useColorModeValue('blue.700', 'blue.200')}>
+          Kubernetes endpoint source #{index + 1}
+        </Text>
         <Spacer />
         {canRemove && !readOnly && (
           <Button size="xs" variant="ghost" colorScheme="red" leftIcon={<AiOutlineDelete />} onClick={onRemove}>
@@ -723,6 +728,7 @@ interface AggregatorFormFieldsProps {
   register: UseFormRegister<FormData>;
   setValue: UseFormSetValue<FormData>;
   getValues: UseFormGetValues<FormData>;
+  setFocus: UseFormSetFocus<FormData>;
   errors: FieldErrors<FormData>;
   idReadOnly: boolean;
   readOnly: boolean;
@@ -734,6 +740,7 @@ const AggregatorFormFields = ({
   register,
   setValue,
   getValues,
+  setFocus,
   errors,
   idReadOnly,
   readOnly,
@@ -762,7 +769,6 @@ const AggregatorFormFields = ({
         <FormErrorMessage>
           ID must match [a-z](?:[a-z0-9_.-]*[a-z0-9])? (dots allowed, slashes not allowed)
         </FormErrorMessage>
-        <Help>Names the aggregator and its cluster.</Help>
       </FormControl>
 
       {fields.map((field, index) => (
@@ -781,15 +787,21 @@ const AggregatorFormFields = ({
           readOnly={readOnly}
         />
       ))}
+
       {!readOnly && (
-        <Button
-          size="sm"
-          variant="outline"
-          leftIcon={<IoAddCircleOutline />}
-          onClick={() => append({ ...emptyWatcher })}
-        >
-          Add source
-        </Button>
+        <Flex maxW="3xl" mb={4}>
+          <Button
+            size="sm"
+            colorScheme="blue"
+            leftIcon={<IoAddCircleOutline />}
+            onClick={() => {
+              append({ ...emptyWatcher });
+              setFocus(`localityLbEndpoints.${fields.length}.watcher.kubeconfig.controlPlaneUrl`);
+            }}
+          >
+            Add new Kubernetes endpoint source
+          </Button>
+        </Flex>
       )}
 
       <PolicyFields control={control} register={register} readOnly={readOnly} />
@@ -829,13 +841,36 @@ const PolicyFields = ({
   register: UseFormRegister<FormData>;
   readOnly: boolean;
 }) => {
+  // Watched leaf by leaf: watching the `policy` object itself does not re-render when reset() fills it in.
+  const overprovisioningFactor = useWatch({ control, name: 'policy.overprovisioningFactor' });
+  const weightedPriorityHealth = useWatch({ control, name: 'policy.weightedPriorityHealth' });
+  const endpointStaleAfter = useWatch({ control, name: 'policy.endpointStaleAfter' });
   const dropOverloads = useWatch({ control, name: 'policy.dropOverloads' }) as DropOverload[] | undefined;
+  // Most aggregators set no policy, so the section opens only when one is stored or asked for. Derived
+  // rather than initialised, because the stored values arrive after this mounts.
+  const [opened, setOpened] = useState(false);
+  const stored =
+    overprovisioningFactor != null ||
+    !!weightedPriorityHealth ||
+    !!endpointStaleAfter ||
+    !!dropOverloads?.length;
+  const expanded = opened || stored;
+  if (!expanded && readOnly) {
+    return null;
+  }
   return (
     <Box borderWidth="1px" borderRadius="md" p={4} mt={4} maxW="3xl">
-      <Text fontWeight="semibold" mb={3}>
-        Policy (optional)
-      </Text>
-      <Stack spacing={4}>
+      <Flex as="button" type="button" align="center" gap={2} width="100%" onClick={() => setOpened(!expanded)}>
+        <Icon as={expanded ? MdExpandLess : MdExpandMore} boxSize={5} />
+        <Text fontWeight="semibold">Policy (optional)</Text>
+        <Spacer />
+        {!expanded && (
+          <Text fontSize="xs" color="gray.500">
+            How Envoy balances across these endpoints
+          </Text>
+        )}
+      </Flex>
+      <Stack spacing={4} mt={4} display={expanded ? undefined : 'none'}>
         <FormControl>
           <Label>Overprovisioning factor</Label>
           <Input
@@ -904,6 +939,7 @@ const NewK8sAggregatorEditor = ({ group }: { group: string }) => {
     control,
     setValue,
     getValues,
+    setFocus,
     handleSubmit,
     formState: { errors },
   } = useForm<FormData>({
@@ -961,6 +997,7 @@ const NewK8sAggregatorEditor = ({ group }: { group: string }) => {
         register={register}
         setValue={setValue}
         getValues={getValues}
+        setFocus={setFocus}
         errors={errors}
         idReadOnly={false}
         readOnly={false}
@@ -1017,6 +1054,7 @@ const ExistingK8sAggregatorEditor = ({ group, id }: { group: string; id: string 
     control,
     setValue,
     getValues,
+    setFocus,
     handleSubmit,
     reset,
     formState: { errors },
@@ -1144,6 +1182,7 @@ const ExistingK8sAggregatorEditor = ({ group, id }: { group: string; id: string 
             register={register}
             setValue={setValue}
             getValues={getValues}
+            setFocus={setFocus}
             errors={errors}
             idReadOnly
             readOnly={!editing}
