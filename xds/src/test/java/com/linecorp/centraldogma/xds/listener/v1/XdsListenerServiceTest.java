@@ -41,15 +41,20 @@ import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpMethod;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.RequestHeaders;
+import com.linecorp.armeria.xds.athenz.AthenzFilterConfig.AccessTokenConstraintConfig;
 import com.linecorp.centraldogma.internal.Yaml;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
 import io.envoyproxy.controlplane.cache.Resources.V3;
+import io.envoyproxy.envoy.config.listener.v3.ApiListener;
 import io.envoyproxy.envoy.config.listener.v3.Listener;
+import io.envoyproxy.envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager;
+import io.envoyproxy.envoy.extensions.filters.network.http_connection_manager.v3.HttpFilter;
 import io.envoyproxy.envoy.service.discovery.v3.DiscoveryRequest;
 import io.envoyproxy.envoy.service.discovery.v3.DiscoveryResponse;
 import io.envoyproxy.envoy.service.listener.v3.ListenerDiscoveryServiceGrpc.ListenerDiscoveryServiceStub;
 import io.grpc.stub.StreamObserver;
+import jp.co.lycorp.ftd.athenz.v1.AthenzAccessToken.AccessTokenConstraint;
 
 class XdsListenerServiceTest {
 
@@ -83,6 +88,44 @@ class XdsListenerServiceTest {
         JSON_MESSAGE_MARSHALLER.mergeValue(Yaml.readTree(response.contentUtf8()).traverse(), listenerBuilder);
         final Listener actualListener = listenerBuilder.build();
         final String listenerName = "groups/foo/listeners/foo-listener.1";
+        assertThat(actualListener).isEqualTo(listener.toBuilder().setName(listenerName).build());
+        checkResourceViaDiscoveryRequest(actualListener, listenerName, true);
+    }
+
+    @Test
+    void createAthenzListenerViaHttp() throws Exception {
+        // A listener whose HttpConnectionManager carries an Athenz inbound filter config in an HttpFilter
+        // typed_config Any. This exercises both parsing (the create API) and serving (LDS) of a resource that
+        // embeds a custom, non-io.envoyproxy.envoy proto type provided by armeria-xds-api.
+        final AccessTokenConstraintConfig constraintConfig =
+                AccessTokenConstraintConfig.newBuilder()
+                                           .setZtsClusterName("zts-cluster")
+                                           .setAccessTokenConstraint(
+                                                   AccessTokenConstraint.newBuilder()
+                                                                        .setConstraintDomain("my.domain")
+                                                                        .setSyntaxVersion(1))
+                                           .build();
+        final HttpConnectionManager manager =
+                HttpConnectionManager.newBuilder()
+                                     .setStatPrefix("ingress_http")
+                                     .addHttpFilters(
+                                             HttpFilter.newBuilder()
+                                                       .setName("armeria.xds.athenz.access_token_constraint")
+                                                       .setTypedConfig(Any.pack(constraintConfig)))
+                                     .build();
+        final Listener listener =
+                Listener.newBuilder()
+                        .setName("this_listener_name_will_be_ignored_and_replaced")
+                        .setApiListener(ApiListener.newBuilder().setApiListener(Any.pack(manager)))
+                        .build();
+
+        final AggregatedHttpResponse response =
+                createListener("groups/foo", "athenz-listener.1", listener, dogma.httpClient());
+        assertOk(response);
+        final Listener.Builder listenerBuilder = Listener.newBuilder();
+        JSON_MESSAGE_MARSHALLER.mergeValue(Yaml.readTree(response.contentUtf8()).traverse(), listenerBuilder);
+        final Listener actualListener = listenerBuilder.build();
+        final String listenerName = "groups/foo/listeners/athenz-listener.1";
         assertThat(actualListener).isEqualTo(listener.toBuilder().setName(listenerName).build());
         checkResourceViaDiscoveryRequest(actualListener, listenerName, true);
     }
