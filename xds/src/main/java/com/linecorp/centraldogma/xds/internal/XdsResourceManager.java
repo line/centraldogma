@@ -44,9 +44,11 @@ import com.linecorp.armeria.common.MediaType;
 import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
+import com.linecorp.centraldogma.common.ChangeConflictException;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.RedundantChangeException;
 import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.common.RevisionNotFoundException;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.Yaml;
 import com.linecorp.centraldogma.server.command.Command;
@@ -229,10 +231,17 @@ public final class XdsResourceManager {
     private CompletableFuture<HttpResponse> doPush(
             String group, String fileName, String summary,
             Author author, boolean create, String originalBody) {
+        return doPush(group, fileName, summary, author, create, originalBody,
+                      Revision.HEAD);
+    }
+
+    private CompletableFuture<HttpResponse> doPush(
+            String group, String fileName, String summary,
+            Author author, boolean create, String originalBody, Revision baseRevision) {
         // Store the original YAML body as-is (server-set fields are injected by the caller before
         // this method is invoked). Respond with the same body so the client sees exactly what is stored.
         final Change<?> change = Change.ofYamlUpsert(fileName, originalBody);
-        return commandExecutor.execute(Command.push(author, INTERNAL_PROJECT_XDS, group, Revision.HEAD,
+        return commandExecutor.execute(Command.push(author, INTERNAL_PROJECT_XDS, group, baseRevision,
                                                     summary, "", Markup.PLAINTEXT,
                                                     ImmutableList.of(change)))
                               .handle((unused, cause) -> {
@@ -240,6 +249,13 @@ public final class XdsResourceManager {
                                       final Throwable peeled = Exceptions.peel(cause);
                                       if (!create && peeled instanceof RedundantChangeException) {
                                           return toYamlResponse(originalBody);
+                                      }
+                                      if (peeled instanceof ChangeConflictException) {
+                                          return errorResponse(HttpStatus.CONFLICT, peeled);
+                                      }
+                                      if (peeled instanceof RevisionNotFoundException) {
+                                          return errorResponse(HttpStatus.BAD_REQUEST,
+                                                               "Invalid revision: " + baseRevision);
                                       }
                                       return errorResponse(HttpStatus.INTERNAL_SERVER_ERROR, peeled);
                                   }
@@ -249,14 +265,24 @@ public final class XdsResourceManager {
 
     public CompletableFuture<HttpResponse> update(
             String group, String resourceName, String summary, Author author, String originalBody) {
-        return update(group, resourceName, fileName(group, resourceName), summary, author, originalBody);
+        return update(group, resourceName, summary, author, originalBody, Revision.HEAD);
     }
 
+    // A base revision other than HEAD makes the commit a compare-and-swap: it is rejected with 409 once the
+    // group repository has advanced past it, so a save based on a stale read cannot overwrite a newer one.
     public CompletableFuture<HttpResponse> update(
+            String group, String resourceName, String summary, Author author, String originalBody,
+            Revision baseRevision) {
+        return update(group, resourceName, fileName(group, resourceName), summary, author, originalBody,
+                      baseRevision);
+    }
+
+    private CompletableFuture<HttpResponse> update(
             String group, String resourceName, String fileName, String summary,
-            Author author, String originalBody) {
+            Author author, String originalBody, Revision baseRevision) {
         return updateOrDelete(group, resourceName, fileName,
-                              () -> doPush(group, fileName, summary, author, false, originalBody));
+                              () -> doPush(group, fileName, summary, author,
+                                           false, originalBody, baseRevision));
     }
 
     public CompletableFuture<HttpResponse> delete(

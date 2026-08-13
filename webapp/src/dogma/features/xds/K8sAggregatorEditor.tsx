@@ -21,29 +21,52 @@ import {
   BreadcrumbItem,
   BreadcrumbLink,
   Button,
+  Badge,
   Checkbox,
+  Divider,
   Flex,
   FormControl,
   FormErrorMessage,
+  FormHelperText,
+  FormHelperTextProps,
   FormLabel,
+  FormLabelProps,
   Heading,
+  Icon,
   HStack,
   IconButton,
   Input,
+  Select as ChakraSelect,
   SimpleGrid,
   Spacer,
+  Stack,
   Text,
+  Tooltip,
+  useColorModeValue,
   useDisclosure,
 } from '@chakra-ui/react';
+import { FetchBaseQueryError } from '@reduxjs/toolkit/query';
 import * as jsYaml from 'js-yaml';
 import { default as RouteLink } from 'next/link';
 import Router from 'next/router';
-import { useEffect, useState } from 'react';
-import { Control, Controller, FieldErrors, useFieldArray, useForm, UseFormRegister } from 'react-hook-form';
+import { ReactNode, useEffect, useState } from 'react';
+import {
+  Control,
+  Controller,
+  FieldErrors,
+  useFieldArray,
+  useForm,
+  UseFormRegister,
+  UseFormSetValue,
+  UseFormGetValues,
+  UseFormSetFocus,
+  useWatch,
+} from 'react-hook-form';
 import { OptionBase, Select } from 'chakra-react-select';
 import { AiOutlineClose, AiOutlineDelete, AiOutlineEdit, AiOutlineEye } from 'react-icons/ai';
 import { FiSave } from 'react-icons/fi';
 import { IoAddCircleOutline } from 'react-icons/io5';
+import { MdExpandLess, MdExpandMore } from 'react-icons/md';
 import { Deferred } from 'dogma/common/components/Deferred';
 import { DeleteConfirmationModal } from 'dogma/common/components/DeleteConfirmationModal';
 import {
@@ -67,107 +90,207 @@ import { K8sAggregatorStatus } from 'dogma/features/xds/K8sAggregatorStatus';
 // Dots are allowed (e.g. "my-service.v1"), but slashes are not.
 const AGGREGATOR_ID_PATTERN = /^[a-z](?:[a-z0-9_.-]*[a-z0-9])?$/;
 
-interface PropertyForm {
+// The form holds the aggregator document itself, so a field the form edits is the field that gets saved.
+interface DropOverload {
+  category?: string;
+  dropPercentage?: { numerator?: number; denominator?: string };
+}
+
+// A section label that reads as a boundary: the rule carries the eye across, the label sits on it.
+const SectionLabel = ({ children, mt = 6 }: { children: ReactNode; mt?: number }) => (
+  <Flex align="center" mt={mt} mb={3} gap={3}>
+    <Text fontSize="xs" fontWeight="bold" letterSpacing="wide" textTransform="uppercase" whiteSpace="nowrap">
+      {children}
+    </Text>
+    <Divider />
+  </Flex>
+);
+
+// Chakra's FormLabel is medium; semibold separates it from the hint underneath.
+const Label = (props: FormLabelProps) => <FormLabel fontSize="sm" fontWeight="semibold" {...props} />;
+
+// Chakra's FormHelperText defaults to gray.500 / whiteAlpha.600, which is too faint to read in dark mode.
+const Help = ({ children, ...props }: FormHelperTextProps) => (
+  <FormHelperText fontSize="xs" mt={1} color={useColorModeValue('gray.600', 'gray.400')} {...props}>
+    {children}
+  </FormHelperText>
+);
+
+// A map whose keys are user input cannot be form field names, so the rows live here and the form value
+// stays the map itself. Rows are kept in local state to preserve order and blank rows while typing.
+const KeyValueEditor = ({
+  value,
+  onChange,
+  readOnly,
+}: {
+  value?: Record<string, string>;
+  onChange: (value: Record<string, string>) => void;
+  readOnly: boolean;
+}) => {
+  const [rows, setRows] = useState<PropertyRow[]>(() =>
+    Object.entries(value ?? {}).map(([key, v]) => ({ key, value: String(v) })),
+  );
+  const update = (next: PropertyRow[]) => {
+    setRows(next);
+    const map: Record<string, string> = {};
+    next.forEach((row) => {
+      if (row.key.trim()) {
+        map[row.key.trim()] = row.value;
+      }
+    });
+    onChange(map);
+  };
+  return (
+    <>
+      {rows.map((row, rowIndex) => (
+        <HStack key={rowIndex} mb={2}>
+          <Input
+            size="sm"
+            placeholder="key"
+            isReadOnly={readOnly}
+            value={row.key}
+            onChange={(e) => update(rows.map((r, i) => (i === rowIndex ? { ...r, key: e.target.value } : r)))}
+          />
+          <Input
+            size="sm"
+            placeholder="value"
+            isReadOnly={readOnly}
+            value={row.value}
+            onChange={(e) => update(rows.map((r, i) => (i === rowIndex ? { ...r, value: e.target.value } : r)))}
+          />
+          {!readOnly && (
+            <IconButton
+              size="sm"
+              variant="ghost"
+              colorScheme="red"
+              aria-label="Remove property"
+              icon={<AiOutlineDelete />}
+              onClick={() => update(rows.filter((_, i) => i !== rowIndex))}
+            />
+          )}
+        </HStack>
+      ))}
+      {!readOnly && (
+        <Button
+          size="xs"
+          variant="outline"
+          leftIcon={<IoAddCircleOutline />}
+          onClick={() => update([...rows, { key: '', value: '' }])}
+        >
+          Add property
+        </Button>
+      )}
+    </>
+  );
+};
+
+interface PropertyRow {
   key: string;
   value: string;
 }
 
+interface MappingForm {
+  resourceType?: string;
+  entryType?: string;
+  sourceKey?: string;
+  sourceKeyPrefix?: string;
+  metadataNamespace?: string;
+  metadataKey?: string;
+}
+
 interface WatcherForm {
-  serviceName: string;
-  portName: string;
-  controlPlaneUrl: string;
-  namespace: string;
-  credentialId: string;
-  trustCerts: boolean;
-  priority: string;
-  loadBalancingWeight: string;
-  region: string;
-  zone: string;
-  subZone: string;
-  additionalProperties: PropertyForm[];
+  serviceName?: string;
+  portName?: string;
+  kubeconfig: {
+    controlPlaneUrl?: string;
+    namespace?: string;
+    credentialId?: string;
+    trustCerts?: boolean;
+  };
+  distinctEndpoint?: boolean;
+  metadataMapping: MappingForm[];
+  additionalProperties?: Record<string, string>;
+}
+
+interface LocalityLbEndpointsForm {
+  watcher: WatcherForm;
+  locality: { region?: string; zone?: string; subZone?: string };
+  priority?: number;
+  loadBalancingWeight?: number;
 }
 
 interface FormData {
   aggregatorId: string;
-  watchers: WatcherForm[];
+  localityLbEndpoints: LocalityLbEndpointsForm[];
+  policy: {
+    overprovisioningFactor?: number;
+    weightedPriorityHealth?: boolean;
+    endpointStaleAfter?: string;
+    // Not editable here — shown read-only and saved back as it was read.
+    dropOverloads?: DropOverload[];
+  };
+  // The revision the form was loaded at. Sent with the update so the server rejects a stale save.
+  loadedRevision?: string;
 }
 
-const emptyWatcher: WatcherForm = {
-  serviceName: '',
-  portName: '',
-  controlPlaneUrl: '',
-  namespace: '',
-  credentialId: '',
-  trustCerts: false,
-  priority: '',
-  loadBalancingWeight: '',
-  region: '',
-  zone: '',
-  subZone: '',
-  additionalProperties: [],
+const emptyMapping: MappingForm = { resourceType: 'NODE', entryType: 'LABEL' };
+
+const emptyWatcher: LocalityLbEndpointsForm = {
+  watcher: { serviceName: '', kubeconfig: {}, metadataMapping: [] },
+  locality: {},
 };
 
-// Parses a numeric form field, rejecting non-numeric input instead of silently serializing it as null
-// (JSON.stringify(NaN) === 'null'). The thrown error is surfaced to the user by the submit handler.
-function toFiniteNumber(value: string, label: string): number {
-  const num = Number(value);
-  if (!Number.isFinite(num)) {
-    throw new Error(`${label} must be a number, but was '${value}'.`);
+const emptyPolicy: FormData['policy'] = {};
+
+// Drops what the server would reject or store as noise: blank strings, NaN from a cleared number input, and
+// objects or arrays left empty once their own members were dropped.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function pruneEmpty(value: any): any {
+  if (Array.isArray(value)) {
+    const items = value.map(pruneEmpty).filter((v) => v !== undefined);
+    return items.length > 0 ? items : undefined;
   }
-  return num;
+  if (value && typeof value === 'object') {
+    const out: Record<string, unknown> = {};
+    for (const [key, raw] of Object.entries(value)) {
+      const pruned = pruneEmpty(raw);
+      if (pruned !== undefined) {
+        out[key] = pruned;
+      }
+    }
+    return Object.keys(out).length > 0 ? out : undefined;
+  }
+  if (typeof value === 'string') {
+    return value.trim() === '' ? undefined : value.trim();
+  }
+  if (value === null || value === undefined || (typeof value === 'number' && isNaN(value))) {
+    return undefined;
+  }
+  if (value === false) {
+    return undefined;
+  }
+  return value;
 }
 
 function buildBody(data: FormData, name?: string): string {
-  const localityLbEndpoints = data.watchers.map((w) => {
-    const kubeconfig: Record<string, unknown> = { controlPlaneUrl: w.controlPlaneUrl.trim() };
-    if (w.namespace.trim()) {
-      kubeconfig.namespace = w.namespace.trim();
-    }
-    if (w.credentialId.trim()) {
-      kubeconfig.credentialId = w.credentialId.trim();
-    }
-    if (w.trustCerts) {
-      kubeconfig.trustCerts = true;
-    }
-    const watcher: Record<string, unknown> = { serviceName: w.serviceName.trim(), kubeconfig };
-    if (w.portName.trim()) {
-      watcher.portName = w.portName.trim();
-    }
-    const additionalProperties: Record<string, string> = {};
-    w.additionalProperties.forEach((p) => {
-      if (p.key.trim()) {
-        additionalProperties[p.key.trim()] = p.value;
-      }
-    });
-    if (Object.keys(additionalProperties).length > 0) {
-      watcher.additionalProperties = additionalProperties;
-    }
-    const entry: Record<string, unknown> = { watcher };
-    const locality: Record<string, string> = {};
-    if (w.region.trim()) {
-      locality.region = w.region.trim();
-    }
-    if (w.zone.trim()) {
-      locality.zone = w.zone.trim();
-    }
-    if (w.subZone.trim()) {
-      locality.subZone = w.subZone.trim();
-    }
-    if (Object.keys(locality).length > 0) {
-      entry.locality = locality;
-    }
-    if (w.priority.trim()) {
-      entry.priority = toFiniteNumber(w.priority, 'Priority');
-    }
-    if (w.loadBalancingWeight.trim()) {
-      entry.loadBalancingWeight = toFiniteNumber(w.loadBalancingWeight, 'Load balancing weight');
-    }
-    return entry;
-  });
-  const body: Record<string, unknown> = { localityLbEndpoints };
-  if (name) {
-    body.name = name;
+  const { dropOverloads, ...policy } = data.policy;
+  const pruned = pruneEmpty({ localityLbEndpoints: data.localityLbEndpoints, policy, name });
+  const body = (pruned ?? {}) as {
+    localityLbEndpoints?: Record<string, any>[];
+    policy?: Record<string, unknown>;
+  };
+  if (dropOverloads && dropOverloads.length > 0) {
+    body.policy = { ...(body.policy ?? {}), dropOverloads };
   }
+  // Re-attached after pruning: a property is identified by its key, so an entry whose value is empty is a
+  // value the user chose, not an empty field to drop.
+  data.localityLbEndpoints.forEach((entry, index) => {
+    const additionalProperties = entry.watcher.additionalProperties;
+    const target = body.localityLbEndpoints?.[index];
+    if (target && additionalProperties && Object.keys(additionalProperties).length > 0) {
+      target.watcher = { ...(target.watcher ?? {}), additionalProperties };
+    }
+  });
   return jsYaml.dump(body);
 }
 
@@ -177,30 +300,30 @@ function parseToFormData(aggregatorId: string, raw: any): FormData {
   // Throws YAMLException if raw is a string that is not valid YAML; callers must catch and notify the user.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const content: any = typeof raw === 'string' ? jsYaml.load(raw) : raw;
-  const endpoints = Array.isArray((content as any)?.localityLbEndpoints)
-    ? (content as any).localityLbEndpoints
-    : [];
-  const watchers: WatcherForm[] = endpoints.map(
+  const entries = Array.isArray(content?.localityLbEndpoints) ? content.localityLbEndpoints : [];
+  const localityLbEndpoints: LocalityLbEndpointsForm[] = entries.map(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (e: any) => ({
-      serviceName: e?.watcher?.serviceName ?? '',
-      portName: e?.watcher?.portName ?? '',
-      controlPlaneUrl: e?.watcher?.kubeconfig?.controlPlaneUrl ?? '',
-      namespace: e?.watcher?.kubeconfig?.namespace ?? '',
-      credentialId: e?.watcher?.kubeconfig?.credentialId ?? '',
-      trustCerts: !!e?.watcher?.kubeconfig?.trustCerts,
-      priority: e?.priority != null ? String(e.priority) : '',
-      loadBalancingWeight: e?.loadBalancingWeight != null ? String(e.loadBalancingWeight) : '',
-      region: e?.locality?.region ?? '',
-      zone: e?.locality?.zone ?? '',
-      subZone: e?.locality?.subZone ?? '',
-      additionalProperties: Object.entries(e?.watcher?.additionalProperties ?? {}).map(([key, value]) => ({
-        key,
-        value: String(value),
-      })),
+    (entry: any) => ({
+      ...entry,
+      locality: entry?.locality ?? {},
+      watcher: {
+        ...entry?.watcher,
+        kubeconfig: entry?.watcher?.kubeconfig ?? {},
+        metadataMapping: (Array.isArray(entry?.watcher?.metadataMapping)
+          ? entry.watcher.metadataMapping
+          : []
+        ).map(
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (rule: any) => rule,
+        ),
+      },
     }),
   );
-  return { aggregatorId, watchers: watchers.length > 0 ? watchers : [{ ...emptyWatcher }] };
+  return {
+    aggregatorId,
+    localityLbEndpoints: localityLbEndpoints.length > 0 ? localityLbEndpoints : [{ ...emptyWatcher }],
+    policy: { ...emptyPolicy, ...content?.policy },
+  };
 }
 
 interface CredentialOption extends OptionBase {
@@ -208,12 +331,150 @@ interface CredentialOption extends OptionBase {
   label: string;
 }
 
+// One metadata mapping. The schema stores either sourceKey or sourceKeyPrefix, so the row offers one input
+// and a selector; the selector is local state and switching it clears the field it turns off, which keeps the
+// form value equal to the document.
+const MappingRow = ({
+  watcherIndex,
+  mappingIndex,
+  defaultValue,
+  register,
+  setValue,
+  getValues,
+  readOnly,
+  onRemove,
+}: {
+  watcherIndex: number;
+  mappingIndex: number;
+  defaultValue: MappingForm;
+  register: UseFormRegister<FormData>;
+  setValue: UseFormSetValue<FormData>;
+  getValues: UseFormGetValues<FormData>;
+  readOnly: boolean;
+  onRemove: () => void;
+}) => {
+  const [prefixMode, setPrefixMode] = useState(defaultValue.sourceKeyPrefix != null);
+  const path = `localityLbEndpoints.${watcherIndex}.watcher.metadataMapping.${mappingIndex}` as const;
+  return (
+    <Box borderWidth="1px" borderRadius="md" p={3} mb={2}>
+      <Flex align="center" mb={2}>
+        <Text fontSize="sm" fontWeight="semibold">
+          Mapping #{mappingIndex + 1}
+        </Text>
+        <Spacer />
+        {!readOnly && (
+          <IconButton
+            size="xs"
+            variant="ghost"
+            colorScheme="red"
+            aria-label="Remove mapping"
+            icon={<AiOutlineDelete />}
+            onClick={onRemove}
+          />
+        )}
+      </Flex>
+      <SimpleGrid columns={2} spacingX={4} spacingY={4}>
+        <FormControl>
+          <Label>Read from</Label>
+          <ChakraSelect
+            size="sm"
+            isDisabled={readOnly}
+            _disabled={{ opacity: 1, cursor: 'default' }}
+            {...register(`${path}.resourceType`)}
+          >
+            <option value="NODE">Node</option>
+            <option value="POD">Pod</option>
+          </ChakraSelect>
+          <Help>Read the value from the Pod or its Node.</Help>
+        </FormControl>
+        <FormControl>
+          <Label>Entry type</Label>
+          <ChakraSelect
+            size="sm"
+            isDisabled={readOnly}
+            _disabled={{ opacity: 1, cursor: 'default' }}
+            {...register(`${path}.entryType`)}
+          >
+            <option value="LABEL">Label</option>
+            <option value="ANNOTATION">Annotation</option>
+          </ChakraSelect>
+          <Help>Read it from a label or an annotation.</Help>
+        </FormControl>
+        <FormControl>
+          <Label>Match</Label>
+          <ChakraSelect
+            size="sm"
+            isDisabled={readOnly}
+            _disabled={{ opacity: 1, cursor: 'default' }}
+            value={prefixMode ? 'prefix' : 'key'}
+            onChange={(e) => {
+              const prefix = e.target.value === 'prefix';
+              setPrefixMode(prefix);
+              // The document stores one key or the other, so move what was typed instead of dropping it.
+              if (prefix) {
+                setValue(`${path}.sourceKeyPrefix`, getValues(`${path}.sourceKey`) ?? '');
+                setValue(`${path}.sourceKey`, '');
+                // The server keeps the source keys in prefix mode and ignores this one.
+                setValue(`${path}.metadataKey`, '');
+              } else {
+                setValue(`${path}.sourceKey`, getValues(`${path}.sourceKeyPrefix`) ?? '');
+                setValue(`${path}.sourceKeyPrefix`, '');
+              }
+            }}
+          >
+            <option value="key">Exact key</option>
+            <option value="prefix">Key prefix</option>
+          </ChakraSelect>
+          <Help>Copy one key, or every key with a prefix.</Help>
+        </FormControl>
+        <FormControl>
+          <Label>{prefixMode ? 'Source key prefix' : 'Source key'}</Label>
+          <Input
+            size="sm"
+            placeholder={prefixMode ? 'topology.kubernetes.io/' : 'topology.kubernetes.io/zone'}
+            isReadOnly={readOnly}
+            {...register(prefixMode ? `${path}.sourceKeyPrefix` : `${path}.sourceKey`)}
+          />
+          <Help>{prefixMode ? 'Copy every key starting with this.' : 'The key to copy the value from.'}</Help>
+        </FormControl>
+        <FormControl>
+          <Label>Metadata namespace</Label>
+          <Input
+            size="sm"
+            placeholder="envoy.lb"
+            isReadOnly={readOnly}
+            {...register(`${path}.metadataNamespace`)}
+          />
+          <Help>Stored under this namespace. Defaults to envoy.lb.</Help>
+        </FormControl>
+        <FormControl>
+          <Label>Metadata key</Label>
+          <Input
+            size="sm"
+            placeholder={prefixMode ? 'keeps the source keys' : 'defaults to the source key'}
+            isReadOnly={readOnly}
+            isDisabled={prefixMode}
+            {...register(`${path}.metadataKey`)}
+          />
+          <Help>
+            {prefixMode
+              ? 'Unused — the source keys are kept.'
+              : 'Stored under this key. Defaults to the source key.'}
+          </Help>
+        </FormControl>
+      </SimpleGrid>
+    </Box>
+  );
+};
+
 interface WatcherFieldsProps {
   index: number;
   control: Control<FormData>;
   register: UseFormRegister<FormData>;
   serviceNameError: boolean;
   controlPlaneUrlError: boolean;
+  setValue: UseFormSetValue<FormData>;
+  getValues: UseFormGetValues<FormData>;
   // The group's access-token credential ids to choose from, or null when they cannot be listed
   // (e.g. the user lacks the ADMIN role required by the credential API) — in which case a free-text input is
   // shown so the id can still be entered.
@@ -229,19 +490,23 @@ const WatcherFields = ({
   register,
   serviceNameError,
   controlPlaneUrlError,
+  setValue,
+  getValues,
   credentialOptions,
   onRemove,
   canRemove,
   readOnly,
 }: WatcherFieldsProps) => {
-  const { fields, append, remove } = useFieldArray({
+  const mappings = useFieldArray({
     control,
-    name: `watchers.${index}.additionalProperties` as `watchers.${number}.additionalProperties`,
+    name: `localityLbEndpoints.${index}.watcher.metadataMapping`,
   });
   return (
     <Box borderWidth="1px" borderRadius="md" p={4} mb={4} maxW="3xl">
       <Flex mb={2} align="center">
-        <Text fontWeight="bold">Watcher #{index + 1}</Text>
+        <Text fontWeight="bold" color={useColorModeValue('blue.700', 'blue.200')}>
+          Kubernetes endpoint source #{index + 1}
+        </Text>
         <Spacer />
         {canRemove && !readOnly && (
           <Button size="xs" variant="ghost" colorScheme="red" leftIcon={<AiOutlineDelete />} onClick={onRemove}>
@@ -249,51 +514,37 @@ const WatcherFields = ({
           </Button>
         )}
       </Flex>
-      <SimpleGrid columns={2} spacing={3}>
-        <FormControl isInvalid={serviceNameError} isRequired>
-          <FormLabel fontSize="sm">Service name</FormLabel>
-          <Input
-            size="sm"
-            placeholder="k8s service name"
-            isReadOnly={readOnly}
-            {...register(`watchers.${index}.serviceName`, { required: true })}
-          />
-          <FormErrorMessage>Service name is required.</FormErrorMessage>
-        </FormControl>
-        <FormControl>
-          <FormLabel fontSize="sm">Port name</FormLabel>
-          <Input
-            size="sm"
-            placeholder="optional"
-            isReadOnly={readOnly}
-            {...register(`watchers.${index}.portName`)}
-          />
-        </FormControl>
+      <SectionLabel mt={0}>Cluster access</SectionLabel>
+      <SimpleGrid columns={2} spacingX={4} spacingY={4}>
         <FormControl isInvalid={controlPlaneUrlError} isRequired>
-          <FormLabel fontSize="sm">Control plane URL</FormLabel>
+          <Label>Control plane URL</Label>
           <Input
             size="sm"
             placeholder="https://kubernetes.default.svc"
             isReadOnly={readOnly}
-            {...register(`watchers.${index}.controlPlaneUrl`, { required: true })}
+            {...register(`localityLbEndpoints.${index}.watcher.kubeconfig.controlPlaneUrl`, {
+              required: true,
+            })}
           />
           <FormErrorMessage>Control plane URL is required.</FormErrorMessage>
+          <Help>The Kubernetes API server to read from.</Help>
         </FormControl>
         <FormControl>
-          <FormLabel fontSize="sm">Namespace</FormLabel>
+          <Label>Namespace</Label>
           <Input
             size="sm"
             placeholder="optional"
             isReadOnly={readOnly}
-            {...register(`watchers.${index}.namespace`)}
+            {...register(`localityLbEndpoints.${index}.watcher.kubeconfig.namespace`)}
           />
+          <Help>Defaults to the credential&apos;s namespace.</Help>
         </FormControl>
         <FormControl>
-          <FormLabel fontSize="sm">Credential ID</FormLabel>
+          <Label>Credential ID</Label>
           {credentialOptions !== null ? (
             <Controller
               control={control}
-              name={`watchers.${index}.credentialId`}
+              name={`localityLbEndpoints.${index}.watcher.kubeconfig.credentialId`}
               render={({ field: { onChange, value, name, ref } }) => {
                 const ids = value ? [...new Set([...credentialOptions, value])] : credentialOptions;
                 const options: CredentialOption[] = ids.map((id) => ({ value: id, label: id }));
@@ -320,107 +571,151 @@ const WatcherFields = ({
               size="sm"
               placeholder="optional"
               isReadOnly={readOnly}
-              {...register(`watchers.${index}.credentialId`)}
+              {...register(`localityLbEndpoints.${index}.watcher.kubeconfig.credentialId`)}
             />
           )}
+          <Help>Empty if the cluster needs none.</Help>
         </FormControl>
-        <FormControl>
-          <FormLabel fontSize="sm">Priority</FormLabel>
-          <Input
+        <FormControl pt={6}>
+          <Checkbox
             size="sm"
-            type="number"
-            placeholder="optional"
             isReadOnly={readOnly}
-            {...register(`watchers.${index}.priority`)}
-          />
-        </FormControl>
-        <FormControl>
-          <FormLabel fontSize="sm">Load balancing weight</FormLabel>
-          <Input
-            size="sm"
-            type="number"
-            placeholder="optional"
-            isReadOnly={readOnly}
-            {...register(`watchers.${index}.loadBalancingWeight`)}
-          />
-        </FormControl>
-        <FormControl display="flex" alignItems="center" pt={6}>
-          <Checkbox isReadOnly={readOnly} {...register(`watchers.${index}.trustCerts`)}>
+            {...register(`localityLbEndpoints.${index}.watcher.kubeconfig.trustCerts`)}
+          >
             Trust certificates
           </Checkbox>
+          <Help ml={6}>Skips TLS verification. Only for a self-signed control plane.</Help>
         </FormControl>
       </SimpleGrid>
 
-      <Text mt={4} mb={1} fontSize="sm" fontWeight="semibold" color="gray.500">
-        Locality (optional)
+      <SectionLabel>Endpoints</SectionLabel>
+      <SimpleGrid columns={2} spacingX={4} spacingY={4}>
+        <FormControl isInvalid={serviceNameError} isRequired>
+          <Label>Service name</Label>
+          <Input
+            size="sm"
+            placeholder="k8s service name"
+            isReadOnly={readOnly}
+            {...register(`localityLbEndpoints.${index}.watcher.serviceName`, { required: true })}
+          />
+          <FormErrorMessage>Service name is required.</FormErrorMessage>
+          <Help>Its Pods become the endpoints.</Help>
+        </FormControl>
+        <FormControl>
+          <Label>Port name</Label>
+          <Input
+            size="sm"
+            placeholder="optional"
+            isReadOnly={readOnly}
+            {...register(`localityLbEndpoints.${index}.watcher.portName`)}
+          />
+          <Help>Only when the Service has several ports.</Help>
+        </FormControl>
+        <FormControl>
+          <Label>Priority</Label>
+          <Input
+            size="sm"
+            type="number"
+            placeholder="optional"
+            isReadOnly={readOnly}
+            {...register(`localityLbEndpoints.${index}.priority`, { valueAsNumber: true })}
+          />
+          <Help>0 is highest; the next takes over.</Help>
+        </FormControl>
+        <FormControl>
+          <Label>Load balancing weight</Label>
+          <Input
+            size="sm"
+            type="number"
+            placeholder="optional"
+            isReadOnly={readOnly}
+            {...register(`localityLbEndpoints.${index}.loadBalancingWeight`, { valueAsNumber: true })}
+          />
+          <Help>Share of traffic relative to the other sources.</Help>
+        </FormControl>
+        <FormControl gridColumn="1 / -1">
+          <Checkbox
+            size="sm"
+            isReadOnly={readOnly}
+            {...register(`localityLbEndpoints.${index}.watcher.distinctEndpoint`)}
+          >
+            Distinct endpoint
+          </Checkbox>
+          <Help ml={6}>Collapses endpoints sharing a host and port.</Help>
+        </FormControl>
+      </SimpleGrid>
+
+      <SectionLabel>Locality (optional)</SectionLabel>
+      <Text mb={3} fontSize="xs" color="gray.500">
+        Reported to Envoy so it can prefer endpoints close to the caller.
       </Text>
-      <SimpleGrid columns={3} spacing={3}>
+      <SimpleGrid columns={3} spacingX={4} spacingY={4}>
         <FormControl>
-          <FormLabel fontSize="sm">Region</FormLabel>
+          <Label>Region</Label>
           <Input
             size="sm"
             placeholder="optional"
             isReadOnly={readOnly}
-            {...register(`watchers.${index}.region`)}
+            {...register(`localityLbEndpoints.${index}.locality.region`)}
           />
         </FormControl>
         <FormControl>
-          <FormLabel fontSize="sm">Zone</FormLabel>
+          <Label>Zone</Label>
           <Input
             size="sm"
             placeholder="optional"
             isReadOnly={readOnly}
-            {...register(`watchers.${index}.zone`)}
+            {...register(`localityLbEndpoints.${index}.locality.zone`)}
           />
         </FormControl>
         <FormControl>
-          <FormLabel fontSize="sm">Sub zone</FormLabel>
+          <Label>Sub zone</Label>
           <Input
             size="sm"
             placeholder="optional"
             isReadOnly={readOnly}
-            {...register(`watchers.${index}.subZone`)}
+            {...register(`localityLbEndpoints.${index}.locality.subZone`)}
           />
         </FormControl>
       </SimpleGrid>
 
-      <Text mt={4} mb={1} fontSize="sm" fontWeight="semibold" color="gray.500">
-        Additional properties (optional)
+      <SectionLabel>Additional properties (optional)</SectionLabel>
+      <Text mb={2} fontSize="xs" color="gray.500">
+        Passed to the server-side resolvers.
       </Text>
-      {fields.map((field, propIndex) => (
-        <HStack key={field.id} mb={2}>
-          <Input
-            size="sm"
-            placeholder="key"
-            isReadOnly={readOnly}
-            {...register(`watchers.${index}.additionalProperties.${propIndex}.key`)}
-          />
-          <Input
-            size="sm"
-            placeholder="value"
-            isReadOnly={readOnly}
-            {...register(`watchers.${index}.additionalProperties.${propIndex}.value`)}
-          />
-          {!readOnly && (
-            <IconButton
-              size="sm"
-              variant="ghost"
-              colorScheme="red"
-              aria-label="Remove property"
-              icon={<AiOutlineDelete />}
-              onClick={() => remove(propIndex)}
-            />
-          )}
-        </HStack>
+      <Controller
+        control={control}
+        name={`localityLbEndpoints.${index}.watcher.additionalProperties`}
+        render={({ field }) => (
+          <KeyValueEditor value={field.value} onChange={field.onChange} readOnly={readOnly} />
+        )}
+      />
+
+      <SectionLabel>Metadata mappings (optional)</SectionLabel>
+      <Text mb={2} fontSize="xs" color="gray.500">
+        Copies Pod or Node labels and annotations into the endpoint metadata for routing rules to match on.
+      </Text>
+      {mappings.fields.map((field, mappingIndex) => (
+        <MappingRow
+          key={field.id}
+          watcherIndex={index}
+          mappingIndex={mappingIndex}
+          defaultValue={field}
+          register={register}
+          setValue={setValue}
+          getValues={getValues}
+          readOnly={readOnly}
+          onRemove={() => mappings.remove(mappingIndex)}
+        />
       ))}
       {!readOnly && (
         <Button
           size="xs"
           variant="outline"
           leftIcon={<IoAddCircleOutline />}
-          onClick={() => append({ key: '', value: '' })}
+          onClick={() => mappings.append({ ...emptyMapping })}
         >
-          Add property
+          Add mapping
         </Button>
       )}
     </Box>
@@ -431,6 +726,9 @@ interface AggregatorFormFieldsProps {
   group: string;
   control: Control<FormData>;
   register: UseFormRegister<FormData>;
+  setValue: UseFormSetValue<FormData>;
+  getValues: UseFormGetValues<FormData>;
+  setFocus: UseFormSetFocus<FormData>;
   errors: FieldErrors<FormData>;
   idReadOnly: boolean;
   readOnly: boolean;
@@ -440,11 +738,14 @@ const AggregatorFormFields = ({
   group,
   control,
   register,
+  setValue,
+  getValues,
+  setFocus,
   errors,
   idReadOnly,
   readOnly,
 }: AggregatorFormFieldsProps) => {
-  const { fields, append, remove } = useFieldArray({ control, name: 'watchers' });
+  const { fields, append, remove } = useFieldArray({ control, name: 'localityLbEndpoints' });
   // Offer the group's access-token credentials as a dropdown. Listing requires the ADMIN role, so on any error
   // (e.g. 403 for non-admins) fall back to a free-text credential id input.
   const { data: credentials, error: credentialsError } = useListCredentialsQuery({ group });
@@ -454,7 +755,7 @@ const AggregatorFormFields = ({
   return (
     <>
       <FormControl isInvalid={!!errors.aggregatorId} isRequired mb={4} maxW="md">
-        <FormLabel>Aggregator ID</FormLabel>
+        <Label fontSize="md">Aggregator ID</Label>
         <Input
           placeholder="e.g. my-service"
           isReadOnly={idReadOnly || readOnly}
@@ -476,25 +777,150 @@ const AggregatorFormFields = ({
           index={index}
           control={control}
           register={register}
-          serviceNameError={!!errors.watchers?.[index]?.serviceName}
-          controlPlaneUrlError={!!errors.watchers?.[index]?.controlPlaneUrl}
+          setValue={setValue}
+          getValues={getValues}
+          serviceNameError={!!errors.localityLbEndpoints?.[index]?.watcher?.serviceName}
+          controlPlaneUrlError={!!errors.localityLbEndpoints?.[index]?.watcher?.kubeconfig?.controlPlaneUrl}
           credentialOptions={credentialOptions}
           onRemove={() => remove(index)}
           canRemove={fields.length > 1}
           readOnly={readOnly}
         />
       ))}
+
       {!readOnly && (
-        <Button
-          size="sm"
-          variant="outline"
-          leftIcon={<IoAddCircleOutline />}
-          onClick={() => append({ ...emptyWatcher })}
-        >
-          Add watcher
-        </Button>
+        <Flex maxW="3xl" mb={4}>
+          <Button
+            size="sm"
+            colorScheme="blue"
+            leftIcon={<IoAddCircleOutline />}
+            onClick={() => {
+              append({ ...emptyWatcher });
+              setFocus(`localityLbEndpoints.${fields.length}.watcher.kubeconfig.controlPlaneUrl`);
+            }}
+          >
+            Add new Kubernetes endpoint source
+          </Button>
+        </Flex>
       )}
+
+      <PolicyFields control={control} register={register} readOnly={readOnly} />
+      {/* Room for the sticky action bar, which would otherwise cover the last fields. */}
+      <Box h={16} />
     </>
+  );
+};
+
+// A drop percentage is a numerator over a chosen denominator; render it the way an operator reads it.
+function formatDropShare(drop: DropOverload): string {
+  const numerator = drop.dropPercentage?.numerator ?? 0;
+  const denominator = drop.dropPercentage?.denominator ?? 'HUNDRED';
+  if (denominator === 'HUNDRED') {
+    return `${numerator}%`;
+  }
+  return `${numerator} in ${(denominator === 'MILLION' ? 1_000_000 : 10_000).toLocaleString('en-US')}`;
+}
+
+// Marks a policy field the Armeria xDS client does not read, so an operator does not expect an effect.
+const EnvoyOnlyBadge = () => (
+  <Tooltip label="The Armeria xDS client ignores this field; only Envoy applies it.">
+    <Badge ml={2} colorScheme="orange" cursor="help">
+      Envoy only
+    </Badge>
+  </Tooltip>
+);
+
+// Load-balancing policy of the generated ClusterLoadAssignment. Envoy honours every field the form offers;
+// the Armeria xDS client reads only the first two, so the rest is marked to set the operator's expectation.
+const PolicyFields = ({
+  control,
+  register,
+  readOnly,
+}: {
+  control: Control<FormData>;
+  register: UseFormRegister<FormData>;
+  readOnly: boolean;
+}) => {
+  // Watched leaf by leaf: watching the `policy` object itself does not re-render when reset() fills it in.
+  const overprovisioningFactor = useWatch({ control, name: 'policy.overprovisioningFactor' });
+  const weightedPriorityHealth = useWatch({ control, name: 'policy.weightedPriorityHealth' });
+  const endpointStaleAfter = useWatch({ control, name: 'policy.endpointStaleAfter' });
+  const dropOverloads = useWatch({ control, name: 'policy.dropOverloads' }) as DropOverload[] | undefined;
+  // Most aggregators set no policy, so the section opens only when one is stored or asked for. Derived
+  // rather than initialised, because the stored values arrive after this mounts.
+  const [opened, setOpened] = useState(false);
+  const stored =
+    overprovisioningFactor != null ||
+    !!weightedPriorityHealth ||
+    !!endpointStaleAfter ||
+    !!dropOverloads?.length;
+  const expanded = opened || stored;
+  if (!expanded && readOnly) {
+    return null;
+  }
+  return (
+    <Box borderWidth="1px" borderRadius="md" p={4} mt={4} maxW="3xl">
+      <Flex as="button" type="button" align="center" gap={2} width="100%" onClick={() => setOpened(!expanded)}>
+        <Icon as={expanded ? MdExpandLess : MdExpandMore} boxSize={5} />
+        <Text fontWeight="semibold">Policy (optional)</Text>
+        <Spacer />
+        {!expanded && (
+          <Text fontSize="xs" color="gray.500">
+            How Envoy balances across these endpoints
+          </Text>
+        )}
+      </Flex>
+      <Stack spacing={4} mt={4} display={expanded ? undefined : 'none'}>
+        <FormControl>
+          <Label>Overprovisioning factor</Label>
+          <Input
+            size="sm"
+            maxW="xs"
+            type="number"
+            placeholder="140 (default)"
+            isReadOnly={readOnly}
+            {...register('policy.overprovisioningFactor', { valueAsNumber: true })}
+          />
+          <Help>Healthy above 100/factor — 140 means 72%.</Help>
+        </FormControl>
+        <FormControl>
+          <Checkbox size="sm" isReadOnly={readOnly} {...register('policy.weightedPriorityHealth')}>
+            Weighted priority health
+          </Checkbox>
+          <Help>Weighs priority health by endpoint weight, not count.</Help>
+        </FormControl>
+        <FormControl>
+          <Label>
+            Endpoint stale after
+            <EnvoyOnlyBadge />
+          </Label>
+          <Input
+            size="sm"
+            maxW="xs"
+            placeholder="e.g. 30s"
+            isReadOnly={readOnly}
+            {...register('policy.endpointStaleAfter')}
+          />
+          <Help>Drops an endpoint unrefreshed for this long.</Help>
+        </FormControl>
+      </Stack>
+      {dropOverloads && dropOverloads.length > 0 && (
+        <Box mt={4}>
+          <Text fontSize="sm" fontWeight="semibold">
+            Drop overload
+            <EnvoyOnlyBadge />
+          </Text>
+          <Text fontSize="xs" color="gray.500" mb={2}>
+            Envoy drops this share of requests to the cluster. Edit it where it was set.
+          </Text>
+          {dropOverloads.map((drop, dropIndex) => (
+            <Text key={dropIndex} fontSize="sm">
+              {drop.category ?? '(no category)'} — {formatDropShare(drop)}
+            </Text>
+          ))}
+        </Box>
+      )}
+    </Box>
   );
 };
 
@@ -511,9 +937,14 @@ const NewK8sAggregatorEditor = ({ group }: { group: string }) => {
   const {
     register,
     control,
+    setValue,
+    getValues,
+    setFocus,
     handleSubmit,
     formState: { errors },
-  } = useForm<FormData>({ defaultValues: { aggregatorId: '', watchers: [{ ...emptyWatcher }] } });
+  } = useForm<FormData>({
+    defaultValues: { aggregatorId: '', localityLbEndpoints: [{ ...emptyWatcher }], policy: { ...emptyPolicy } },
+  });
 
   const onPreview = async (data: FormData) => {
     setPreviewResult(null);
@@ -564,6 +995,9 @@ const NewK8sAggregatorEditor = ({ group }: { group: string }) => {
         group={group}
         control={control}
         register={register}
+        setValue={setValue}
+        getValues={getValues}
+        setFocus={setFocus}
         errors={errors}
         idReadOnly={false}
         readOnly={false}
@@ -618,17 +1052,23 @@ const ExistingK8sAggregatorEditor = ({ group, id }: { group: string; id: string 
   const {
     register,
     control,
+    setValue,
+    getValues,
+    setFocus,
     handleSubmit,
     reset,
     formState: { errors },
-  } = useForm<FormData>({ defaultValues: { aggregatorId: id, watchers: [{ ...emptyWatcher }] } });
+  } = useForm<FormData>({
+    defaultValues: { aggregatorId: id, localityLbEndpoints: [{ ...emptyWatcher }], policy: { ...emptyPolicy } },
+  });
 
   // Sync the form to the latest fetched content, but never while editing so a background refetch cannot
   // clobber unsaved edits.
   useEffect(() => {
     if (data && !editing) {
       try {
-        reset(parseToFormData(id, (data as FileContentDto).content));
+        const file = data as FileContentDto;
+        reset({ ...parseToFormData(id, file.content), loadedRevision: String(file.revision) });
       } catch (e) {
         dispatch(newNotification('Failed to load aggregator', (e as Error).message, 'error'));
       }
@@ -643,19 +1083,31 @@ const ExistingK8sAggregatorEditor = ({ group, id }: { group: string; id: string 
         id,
         body: buildBody(formData, name),
         summary: commitSummary || undefined,
+        revision: String(formData.loadedRevision),
       }).unwrap();
       dispatch(newNotification('Aggregator updated', `Aggregator '${id}' is updated`, 'success'));
       setEditing(false);
       setCommitSummary('');
     } catch (err) {
-      dispatch(newNotification('Failed to update the aggregator', ErrorMessageParser.parse(err), 'error'));
+      if ((err as FetchBaseQueryError | undefined)?.status === 409) {
+        dispatch(
+          newNotification(
+            'Update conflict',
+            `Group '${group}' changed after you loaded this aggregator. Reload the page and re-apply your edits.`,
+            'error',
+          ),
+        );
+      } else {
+        dispatch(newNotification('Failed to update the aggregator', ErrorMessageParser.parse(err), 'error'));
+      }
     }
   };
 
   const handleCancel = () => {
     if (data) {
       try {
-        reset(parseToFormData(id, (data as FileContentDto).content));
+        const file = data as FileContentDto;
+        reset({ ...parseToFormData(id, file.content), loadedRevision: String(file.revision) });
       } catch (e) {
         dispatch(newNotification('Failed to restore aggregator content', (e as Error).message, 'error'));
       }
@@ -728,6 +1180,9 @@ const ExistingK8sAggregatorEditor = ({ group, id }: { group: string; id: string 
             group={group}
             control={control}
             register={register}
+            setValue={setValue}
+            getValues={getValues}
+            setFocus={setFocus}
             errors={errors}
             idReadOnly
             readOnly={!editing}

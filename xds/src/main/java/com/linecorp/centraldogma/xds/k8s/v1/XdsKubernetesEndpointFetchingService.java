@@ -298,6 +298,9 @@ final class XdsKubernetesEndpointFetchingService extends XdsResourceWatchingServ
             logger.debug("Pushing k8s endpoints: {}, group: {}", aggregator.getClusterName(), groupName);
             final ClusterLoadAssignment.Builder clusterLoadAssignmentBuilder =
                     ClusterLoadAssignment.newBuilder().setClusterName(aggregator.getClusterName());
+            if (aggregator.hasPolicy()) {
+                clusterLoadAssignmentBuilder.setPolicy(aggregator.getPolicy());
+            }
 
             for (int i = 0; i < kubernetesEndpointGroupFutures.size(); i++) {
                 final CompletableFuture<KubernetesEndpointGroup> future =
