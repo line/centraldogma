@@ -51,6 +51,7 @@ import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.annotation.Blocking;
 import com.linecorp.armeria.server.annotation.Consumes;
+import com.linecorp.armeria.server.annotation.Default;
 import com.linecorp.armeria.server.annotation.Delete;
 import com.linecorp.armeria.server.annotation.Param;
 import com.linecorp.armeria.server.annotation.Post;
@@ -58,12 +59,15 @@ import com.linecorp.armeria.server.annotation.Put;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.EntryNotFoundException;
 import com.linecorp.centraldogma.common.RepositoryRole;
+import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.server.internal.credential.AccessTokenCredential;
 import com.linecorp.centraldogma.server.storage.repository.MetaRepository;
 import com.linecorp.centraldogma.xds.internal.RequiresXdsGroupRole;
 import com.linecorp.centraldogma.xds.internal.XdsResourceManager;
 
 import io.envoyproxy.envoy.config.endpoint.v3.ClusterLoadAssignment;
+import io.envoyproxy.envoy.config.endpoint.v3.ClusterLoadAssignment.Policy;
+import io.envoyproxy.envoy.config.endpoint.v3.ClusterLoadAssignment.Policy.DropOverload;
 import io.envoyproxy.envoy.config.endpoint.v3.LocalityLbEndpoints;
 import io.fabric8.kubernetes.client.Config;
 import io.fabric8.kubernetes.client.ConfigBuilder;
@@ -161,16 +165,20 @@ public final class XdsKubernetesService {
         bodyToStore = XdsResourceManager.injectYamlField(bodyToStore, "clusterName", clusterName);
         final String finalBodyToStore = bodyToStore;
         return validateKubernetesEndpointAndPushHttp(
-                kubernetesLocalityLbEndpointsList, group, aggregatorFileName,
+                kubernetesLocalityLbEndpointsList, aggregator.hasPolicy() ? aggregator.getPolicy() : null,
+                group, aggregatorFileName,
                 () -> xdsResourceManager.push(group, kubernetesEndpointName,
                                               aggregatorFileName, createSummary, author,
                                               true, finalBodyToStore));
     }
 
     /**
-     * PUT /xds/groups/{group}/k8s/endpointAggregators/{aggregator_id}
+     * PUT /xds/groups/{group}/k8s/endpointAggregators/{aggregator_id}?revision={baseRevision}
      *
-     * <p>Updates an existing Kubernetes endpoint aggregator.
+     * <p>Updates an existing Kubernetes endpoint aggregator. {@code revision} is the absolute revision the
+     * client read the aggregator at; the update is rejected with {@code 409 Conflict} if the group
+     * repository has advanced since, so a stale save cannot silently roll back a concurrent change. It
+     * defaults to {@code -1} (HEAD), which always applies.
      */
     @Blocking
     @Put("/xds/groups/{group}/k8s/endpointAggregators/{*aggregator_id}")
@@ -180,6 +188,7 @@ public final class XdsKubernetesService {
             @Param("group") String group,
             @Param("aggregator_id") String aggregatorId,
             @Param("summary") @Nullable String summary,
+            @Param("revision") @Default("-1") Revision baseRevision,
             String body) {
         final String aggregatorName = "groups/" + group + K8S_ENDPOINT_AGGREGATORS_DIRECTORY + aggregatorId;
         final Matcher matcher = K8S_ENDPOINT_AGGREGATORS_NAME_PATTERN.matcher(aggregatorName);
@@ -214,9 +223,10 @@ public final class XdsKubernetesService {
         bodyToStore = XdsResourceManager.injectYamlField(bodyToStore, "clusterName", clusterName);
         final String finalBodyToStore = bodyToStore;
         return validateKubernetesEndpointAndPushHttp(
-                kubernetesLocalityLbEndpointsList, group, fileName(group, aggregatorName),
+                kubernetesLocalityLbEndpointsList, aggregator.hasPolicy() ? aggregator.getPolicy() : null,
+                group, fileName(group, aggregatorName),
                 () -> xdsResourceManager.update(group, aggregatorName, updateSummary, author,
-                                                finalBodyToStore));
+                                                finalBodyToStore, baseRevision));
     }
 
     /**
@@ -288,6 +298,9 @@ public final class XdsKubernetesService {
                                     if (!aggregator.getClusterName().isEmpty()) {
                                         cla.setClusterName(aggregator.getClusterName());
                                     }
+                                    if (aggregator.hasPolicy()) {
+                                        cla.setPolicy(aggregator.getPolicy());
+                                    }
                                     for (CompletableFuture<LocalityLbEndpoints> future : futures) {
                                         cla.addEndpoints(future.join());
                                     }
@@ -302,11 +315,19 @@ public final class XdsKubernetesService {
 
     private CompletableFuture<HttpResponse> validateKubernetesEndpointAndPushHttp(
             List<KubernetesLocalityLbEndpoints> kubernetesLocalityLbEndpointsList,
-            String group, String fileNameForLookup,
+            @Nullable Policy policy, String group, String fileNameForLookup,
             Supplier<CompletableFuture<HttpResponse>> onSuccess) {
         for (KubernetesLocalityLbEndpoints kubernetesLocalityLbEndpoints : kubernetesLocalityLbEndpointsList) {
             try {
                 validateMetadataMappings(kubernetesLocalityLbEndpoints.getWatcher());
+            } catch (IllegalArgumentException e) {
+                return CompletableFuture.completedFuture(
+                        XdsResourceManager.errorResponse(HttpStatus.BAD_REQUEST, e));
+            }
+        }
+        if (policy != null) {
+            try {
+                validatePolicy(policy);
             } catch (IllegalArgumentException e) {
                 return CompletableFuture.completedFuture(
                         XdsResourceManager.errorResponse(HttpStatus.BAD_REQUEST, e));
@@ -439,6 +460,23 @@ public final class XdsKubernetesService {
         KubernetesEndpointConverter.addLbEndpoints(builder, endpointGroup.endpoints(),
                                                    localityLbEndpoints.getWatcher());
         return builder.build();
+    }
+
+    // The policy is copied into the generated ClusterLoadAssignment, so a value Envoy rejects would take
+    // the whole endpoint set down with it.
+    private static void validatePolicy(Policy policy) {
+        if (policy.getDropOverloadsCount() > 1) {
+            throw new IllegalArgumentException(
+                    "at most one drop_overload is supported, but got: " + policy.getDropOverloadsCount());
+        }
+        for (DropOverload dropOverload : policy.getDropOverloadsList()) {
+            if (dropOverload.getCategory().isEmpty()) {
+                throw new IllegalArgumentException("category must not be empty in drop_overloads");
+            }
+        }
+        if (policy.hasOverprovisioningFactor() && policy.getOverprovisioningFactor().getValue() == 0) {
+            throw new IllegalArgumentException("overprovisioning_factor must be greater than 0");
+        }
     }
 
     private static void validateMetadataMappings(ServiceEndpointWatcher watcher) {
