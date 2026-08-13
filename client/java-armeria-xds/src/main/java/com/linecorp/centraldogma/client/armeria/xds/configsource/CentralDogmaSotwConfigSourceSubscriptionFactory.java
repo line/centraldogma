@@ -102,8 +102,8 @@ final class CentralDogmaSotwConfigSourceSubscriptionFactory
             final Map<XdsType, InterestedResources> accumulated = new EnumMap<>(XdsType.class);
             final Function<String, SnapshotStream<JsonNode>> watcherCache =
                     SnapshotStream.caching(
-                            name -> new WatcherStream(centralDogma, ResourcePath.parse(name))
-                                    .rescheduleEventsOn(eventLoop));
+                            name -> new WatcherStream(centralDogma, ResourcePath.parse(name),
+                                                      eventLoop));
             return interestedResources
                     .map(interest -> {
                         accumulated.put(interest.type(), interest);
@@ -192,10 +192,12 @@ final class CentralDogmaSotwConfigSourceSubscriptionFactory
 
         private final CentralDogma centralDogma;
         private final ResourcePath resourcePath;
+        private final EventExecutor eventLoop;
 
-        WatcherStream(CentralDogma centralDogma, ResourcePath resourcePath) {
+        WatcherStream(CentralDogma centralDogma, ResourcePath resourcePath, EventExecutor eventLoop) {
             this.centralDogma = centralDogma;
             this.resourcePath = resourcePath;
+            this.eventLoop = eventLoop;
         }
 
         @Override
@@ -211,14 +213,15 @@ final class CentralDogmaSotwConfigSourceSubscriptionFactory
                     textRequest.renderTemplate(resourcePath.profile());
                 }
                 final Watcher<String> textWatcher = textRequest.start();
-                textWatcher.watch((revision, text) -> emitText(text));
+                textWatcher.watch((revision, text) -> eventLoop.execute(() -> emitText(text)));
                 cdWatcher = textWatcher;
             } else {
                 final WatcherRequest<JsonNode> jsonRequest =
                         centralDogma.forRepo(resourcePath.project(), resourcePath.repo())
                                     .watcher(resourcePath.query());
                 final Watcher<JsonNode> jsonWatcher = jsonRequest.start();
-                jsonWatcher.watch((revision, jsonNode) -> emit(jsonNode, null));
+                jsonWatcher.watch((revision, jsonNode) ->
+                                          eventLoop.execute(() -> emit(jsonNode, null)));
                 cdWatcher = jsonWatcher;
             }
             return cdWatcher::close;
