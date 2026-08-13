@@ -284,6 +284,115 @@ class CentralDogmaConfigSourceTest {
     }
 
     @Test
+    void resourceNameShouldBeOverriddenByInterestedName() {
+        final String cdPath = "test/xds/clusters/overridden-name.json";
+        dogma.client().forRepo("test", "xds")
+             .commit("Add cluster with mismatched name",
+                     Change.ofJsonUpsert("/clusters/overridden-name.json",
+                                         clusterJson("arbitrary-name", 4444)))
+             .push()
+             .join();
+
+        final Bootstrap bootstrap = XdsResourceReader.from(bootstrapYaml(), Bootstrap.class);
+        final AtomicReference<ClusterSnapshot> snapshotRef = new AtomicReference<>();
+        final AtomicReference<Throwable> errorRef = new AtomicReference<>();
+
+        try (XdsBootstrap xdsBootstrap = XdsBootstrap.builder(bootstrap)
+                                                     .defaultSnapshotWatcher((snapshot, t) -> {
+                                                         if (t != null) {
+                                                             errorRef.set(t);
+                                                             return;
+                                                         }
+                                                         if (snapshot instanceof ClusterSnapshot) {
+                                                             snapshotRef.set((ClusterSnapshot) snapshot);
+                                                         }
+                                                     })
+                                                     .build()) {
+            xdsBootstrap.clusterRoot(cdPath);
+            await().untilAsserted(() -> {
+                assertThat(errorRef.get()).isNull();
+                assertThat(snapshotRef.get()).isNotNull();
+                assertThat(snapshotRef.get().xdsResource().resource().getName())
+                        .isEqualTo(cdPath);
+                assertThat(portValue(snapshotRef.get())).isEqualTo(4444);
+            });
+        }
+    }
+
+    @Test
+    void endpointClusterNameShouldBeOverriddenByInterestedName() {
+        final String edsCdPath = "test/xds/endpoints/overridden-eds.json";
+        final String clusterCdPath = "test/xds/clusters/overridden-eds-cluster.json";
+        //language=JSON
+        final String edsCluster = """
+                {
+                  "name": "%s",
+                  "type": "EDS",
+                  "eds_cluster_config": {
+                    "service_name": "%s",
+                    "eds_config": {
+                      "self": {}
+                    }
+                  }
+                }
+                """.formatted(clusterCdPath, edsCdPath);
+        //language=JSON
+        final String endpoint = """
+                {
+                  "cluster_name": "arbitrary-endpoint",
+                  "endpoints": [
+                    {
+                      "lb_endpoints": [
+                        {
+                          "endpoint": {
+                            "address": {
+                              "socket_address": {
+                                "address": "127.0.0.1",
+                                "port_value": 3333
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                }
+                """;
+        dogma.client().forRepo("test", "xds")
+             .commit("Add EDS cluster with mismatched cluster_name",
+                     Change.ofJsonUpsert("/clusters/overridden-eds-cluster.json", edsCluster),
+                     Change.ofJsonUpsert("/endpoints/overridden-eds.json", endpoint))
+             .push()
+             .join();
+
+        final Bootstrap bootstrap = XdsResourceReader.from(bootstrapYaml(), Bootstrap.class);
+        final AtomicReference<ClusterSnapshot> snapshotRef = new AtomicReference<>();
+        final AtomicReference<Throwable> errorRef = new AtomicReference<>();
+
+        try (XdsBootstrap xdsBootstrap = XdsBootstrap.builder(bootstrap)
+                                                     .defaultSnapshotWatcher((snapshot, t) -> {
+                                                         if (t != null) {
+                                                             errorRef.set(t);
+                                                             return;
+                                                         }
+                                                         if (snapshot instanceof ClusterSnapshot) {
+                                                             snapshotRef.set((ClusterSnapshot) snapshot);
+                                                         }
+                                                     })
+                                                     .build()) {
+            xdsBootstrap.clusterRoot(clusterCdPath);
+            await().untilAsserted(() -> {
+                assertThat(errorRef.get()).isNull();
+                assertThat(snapshotRef.get()).isNotNull();
+                assertThat(snapshotRef.get().endpointSnapshot()).isNotNull();
+                assertThat(snapshotRef.get().endpointSnapshot().xdsResource().resource()
+                                      .getClusterName())
+                        .isEqualTo(edsCdPath);
+            });
+        }
+    }
+
+    @Test
     void clusterUpdateShouldBeReceivedAfterListenerSubscription() {
         // Push a separate cluster so this test doesn't interfere with others.
         final String clusterName = "test/xds/clusters/stable-cluster.json";

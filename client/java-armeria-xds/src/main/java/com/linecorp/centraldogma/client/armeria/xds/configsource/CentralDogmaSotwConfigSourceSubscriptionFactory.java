@@ -129,15 +129,15 @@ final class CentralDogmaSotwConfigSourceSubscriptionFactory
         protected Subscription onStart(SnapshotWatcher<DiscoveryResponse> watcher) {
             final List<Subscription> subs = new ArrayList<>();
             for (InterestedResources interested : interests.values()) {
-                final String typeUrl = interested.type().typeUrl();
+                final XdsType type = interested.type();
                 final List<SnapshotStream<Any>> streams =
                         interested.resourceNames().stream()
                                   .map(name -> watcherCache.apply(name)
-                                                           .map(jsonNode -> toAny(jsonNode, typeUrl)))
+                                                           .map(jsonNode -> toAny(jsonNode, type, name)))
                                   .collect(ImmutableList.toImmutableList());
                 subs.add(SnapshotStream.combineNLatest(streams)
                                        .map(resources -> DiscoveryResponse.newBuilder()
-                                                                          .setTypeUrl(typeUrl)
+                                                                          .setTypeUrl(type.typeUrl())
                                                                           .addAllResources(resources)
                                                                           .build())
                                        .subscribe(this::emit));
@@ -148,8 +148,13 @@ final class CentralDogmaSotwConfigSourceSubscriptionFactory
             };
         }
 
-        private static Any toAny(JsonNode jsonNode, String typeUrl) {
-            ((ObjectNode) jsonNode).put("@type", typeUrl);
+        private static Any toAny(JsonNode jsonNode, XdsType type, String resourceName) {
+            ((ObjectNode) jsonNode).put("@type", type.typeUrl());
+            if (type == XdsType.ENDPOINT) {
+                ((ObjectNode) jsonNode).put("cluster_name", resourceName);
+            } else {
+                ((ObjectNode) jsonNode).put("name", resourceName);
+            }
             return XdsResourceReader.from(jsonNode.toString(), Any.class);
         }
     }
