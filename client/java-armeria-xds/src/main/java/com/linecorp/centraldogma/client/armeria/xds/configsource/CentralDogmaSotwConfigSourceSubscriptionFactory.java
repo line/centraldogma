@@ -149,13 +149,14 @@ final class CentralDogmaSotwConfigSourceSubscriptionFactory
         }
 
         private static Any toAny(JsonNode jsonNode, XdsType type, String resourceName) {
-            ((ObjectNode) jsonNode).put("@type", type.typeUrl());
+            final ObjectNode copy = jsonNode.deepCopy();
+            copy.put("@type", type.typeUrl());
             if (type == XdsType.ENDPOINT) {
-                ((ObjectNode) jsonNode).put("cluster_name", resourceName);
+                copy.put("cluster_name", resourceName);
             } else {
-                ((ObjectNode) jsonNode).put("name", resourceName);
+                copy.put("name", resourceName);
             }
-            return XdsResourceReader.from(jsonNode.toString(), Any.class);
+            return XdsResourceReader.from(copy.toString(), Any.class);
         }
     }
 
