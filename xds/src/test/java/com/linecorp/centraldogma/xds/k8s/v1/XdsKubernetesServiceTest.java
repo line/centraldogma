@@ -34,6 +34,7 @@ import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.TimeUnit;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -46,6 +47,7 @@ import org.junit.jupiter.params.provider.CsvSource;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.protobuf.UInt32Value;
 
 import com.linecorp.armeria.client.WebClient;
 import com.linecorp.armeria.common.AggregatedHttpResponse;
@@ -67,6 +69,8 @@ import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 import com.linecorp.centraldogma.xds.internal.XdsTestUtil;
 
 import io.envoyproxy.envoy.config.endpoint.v3.ClusterLoadAssignment;
+import io.envoyproxy.envoy.config.endpoint.v3.ClusterLoadAssignment.Policy;
+import io.envoyproxy.envoy.config.endpoint.v3.ClusterLoadAssignment.Policy.DropOverload;
 import io.envoyproxy.envoy.config.endpoint.v3.LocalityLbEndpoints;
 import io.fabric8.kubernetes.api.model.Container;
 import io.fabric8.kubernetes.api.model.ContainerBuilder;
@@ -264,6 +268,164 @@ class XdsKubernetesServiceTest {
         });
 
         assertNoContent(deleteAggregator0(aggregator.getName()));
+    }
+
+    @Test
+    void policyIsPropagatedToTheGeneratedEndpoints() throws IOException {
+        final String aggregatorId = "policy-propagation-test";
+        final Policy policy = Policy.newBuilder()
+                                    .setOverprovisioningFactor(UInt32Value.of(200))
+                                    .setWeightedPriorityHealth(true)
+                                    .build();
+        final KubernetesEndpointAggregator aggregator =
+                aggregator(aggregatorId, "repo-credential").toBuilder().setPolicy(policy).build();
+        assertOk(createAggregator(aggregator, aggregatorId));
+
+        final Repository fooGroup = dogma.projectManager().get(INTERNAL_PROJECT_XDS).repos().get("foo");
+        await().pollInterval(100, TimeUnit.MILLISECONDS).untilAsserted(() -> {
+            final Entry<JsonNode> endpoints =
+                    fooGroup.getOrNull(Revision.HEAD,
+                                       Query.ofYaml(K8S_ENDPOINTS_DIRECTORY + aggregatorId + ".yaml"))
+                            .join();
+            assertThat(endpoints).isNotNull();
+            final JsonNode generatedPolicy = endpoints.content().get("policy");
+            assertThat(generatedPolicy).isNotNull();
+            assertThat(generatedPolicy.get("overprovisioningFactor").asInt()).isEqualTo(200);
+            assertThat(generatedPolicy.get("weightedPriorityHealth").asBoolean()).isTrue();
+        });
+
+        assertNoContent(deleteAggregator0(aggregator.getName()));
+    }
+
+    @Test
+    void policyEnvoyWouldRejectIsRefused() throws IOException {
+        final String aggregatorId = "policy-validation-test";
+        final DropOverload drop = DropOverload.newBuilder().setCategory("throttle").build();
+        final KubernetesEndpointAggregator aggregator =
+                aggregator(aggregatorId, "repo-credential").toBuilder()
+                          .setPolicy(Policy.newBuilder()
+                                           .addDropOverloads(drop)
+                                           .addDropOverloads(drop.toBuilder().setCategory("lb")))
+                          .build();
+        AggregatedHttpResponse response = createAggregator(aggregator, aggregatorId);
+        assertThat(response.status()).isSameAs(HttpStatus.BAD_REQUEST);
+        assertThat(response.contentUtf8()).contains("at most one drop_overload");
+
+        final KubernetesEndpointAggregator zeroFactor =
+                aggregator(aggregatorId, "repo-credential").toBuilder()
+                          .setPolicy(Policy.newBuilder().setOverprovisioningFactor(UInt32Value.of(0)))
+                          .build();
+        response = createAggregator(zeroFactor, aggregatorId);
+        assertThat(response.status()).isSameAs(HttpStatus.BAD_REQUEST);
+        assertThat(response.contentUtf8()).contains("overprovisioning_factor");
+    }
+
+    @Test
+    void previewIncludesThePolicyThatWouldBeStored() throws IOException {
+        final Policy policy = Policy.newBuilder()
+                                    .setOverprovisioningFactor(UInt32Value.of(200))
+                                    .build();
+        final KubernetesEndpointAggregator aggregator =
+                aggregator("preview-policy-test", "repo-credential").toBuilder().setPolicy(policy).build();
+        final RequestHeaders headers =
+                RequestHeaders.builder(HttpMethod.POST,
+                                       "/api/v1/xds/groups/foo/k8s/endpointAggregators:preview")
+                              .set(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous")
+                              .contentType(MediaType.parse("application/yaml"))
+                              .build();
+        final AggregatedHttpResponse response =
+                dogma.httpClient().blocking().execute(headers, XdsTestUtil.toYaml(aggregator));
+        assertOk(response);
+        assertThat(response.contentUtf8()).contains("overprovisioningFactor: 200");
+    }
+
+    @Test
+    void updateAggregatorRejectsStaleRevision() throws IOException {
+        final String aggregatorId = "update-cas-test";
+        final KubernetesEndpointAggregator aggregator = aggregator(aggregatorId, "repo-credential");
+        assertOk(createAggregator(aggregator, aggregatorId));
+
+        final Repository fooGroup = dogma.projectManager().get(INTERNAL_PROJECT_XDS).repos().get("foo");
+        // KubernetesEndpointsUpdater commits the generated endpoints shortly after the aggregator is
+        // created; wait for it so a background commit cannot advance the head under this test.
+        await().pollInterval(100, TimeUnit.MILLISECONDS).untilAsserted(() -> {
+            assertThat(fooGroup.find(Revision.HEAD, K8S_ENDPOINTS_DIRECTORY + aggregatorId + ".yaml")
+                               .join()).isNotEmpty();
+        });
+        final String aggregatorFile = K8S_ENDPOINT_AGGREGATORS_DIRECTORY + aggregatorId + ".yaml";
+        final Revision loadedRevision = fooGroup.normalizeNow(Revision.HEAD);
+        final JsonNode storedContent = fooGroup.get(Revision.HEAD, Query.ofYaml(aggregatorFile))
+                                               .join().content();
+
+        final KubernetesEndpointAggregator updatedAggregator =
+                aggregator.toBuilder()
+                          .setLocalityLbEndpoints(
+                                  0, aggregator.getLocalityLbEndpoints(0).toBuilder()
+                                               .setWatcher(aggregator.getLocalityLbEndpoints(0).getWatcher()
+                                                                     .toBuilder()
+                                                                     .setDistinctEndpoint(true)))
+                          .build();
+
+        // Any commit in the group repository makes the loaded revision stale: the update is rejected and
+        // the stored file is left untouched.
+        bumpGroupRepository();
+        final AggregatedHttpResponse conflict =
+                updateAggregatorWithRevision(updatedAggregator, aggregatorId, loadedRevision.text());
+        assertThat(conflict.status()).isSameAs(HttpStatus.CONFLICT);
+        assertThat(fooGroup.get(Revision.HEAD, Query.ofYaml(aggregatorFile)).join().content())
+                .isEqualTo(storedContent);
+
+        // Retrying at the current revision applies.
+        assertOk(updateAggregatorWithRevision(updatedAggregator, aggregatorId,
+                                              fooGroup.normalizeNow(Revision.HEAD).text()));
+        final Entry<JsonNode> entry = fooGroup.get(Revision.HEAD, Query.ofYaml(aggregatorFile)).join();
+        assertThat(entry.content().get("localityLbEndpoints").get(0).get("watcher")
+                        .get("distinctEndpoint").asBoolean()).isTrue();
+
+        assertNoContent(deleteAggregator0(aggregator.getName()));
+    }
+
+    @Test
+    void updateAggregatorWithInvalidRevision() throws IOException {
+        final String aggregatorId = "update-cas-invalid-revision";
+        final KubernetesEndpointAggregator aggregator = aggregator(aggregatorId, "repo-credential");
+        assertOk(createAggregator(aggregator, aggregatorId));
+
+        // Unparsable revision.
+        AggregatedHttpResponse response =
+                updateAggregatorWithRevision(aggregator, aggregatorId, "not-a-revision");
+        assertThat(response.status()).isSameAs(HttpStatus.BAD_REQUEST);
+
+        // Well-formed but nonexistent (future) revision.
+        response = updateAggregatorWithRevision(aggregator, aggregatorId, "999999");
+        assertThat(response.status()).isSameAs(HttpStatus.BAD_REQUEST);
+        assertThat(response.contentUtf8()).contains("Invalid revision");
+
+        assertNoContent(deleteAggregator0(aggregator.getName()));
+    }
+
+    private static AggregatedHttpResponse updateAggregatorWithRevision(
+            KubernetesEndpointAggregator aggregator, String aggregatorId,
+            String revision) throws IOException {
+        final String path = "/api/v1/xds/groups/foo/k8s/endpointAggregators/" + aggregatorId +
+                            "?revision=" + revision;
+        final RequestHeaders headers = RequestHeaders.builder(HttpMethod.PUT, path)
+                                                     .contentType(MediaType.parse("application/yaml"))
+                                                     .set(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous")
+                                                     .build();
+        return dogma.httpClient().blocking().execute(headers, XdsTestUtil.toYaml(aggregator));
+    }
+
+    // Simulates a concurrent writer editing the aggregator file itself (not through the aggregator API):
+    // appends a semantic change so the parsed content differs, and returns the stored content after it.
+    private static int bumpCounter;
+
+    // Commits an unrelated file, so a save that conflicts on it proves the compare-and-swap is scoped to
+    // the group repository rather than to the aggregator file.
+    private static void bumpGroupRepository() {
+        dogma.client().forRepo(INTERNAL_PROJECT_XDS, "foo")
+             .commit("bump", Change.ofTextUpsert("/bump.txt", "bump-" + ++bumpCounter))
+             .push().join();
     }
 
     private static KubernetesEndpointAggregator aggregator(String aggregatorId, String credentialId) {
