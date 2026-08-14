@@ -1,0 +1,4 @@
+dependencies {
+    api libs.protobuf.java
+    api libs.armeria.xds.api
+}
