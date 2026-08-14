@@ -56,7 +56,7 @@ public final class XdsEndpointReadService {
                          .thenApply(entries -> {
             final ArrayNode array = JsonNodeFactory.instance.arrayNode();
             for (Entry<?> entry : entries.values()) {
-                if (entry.type() != EntryType.JSON && entry.type() != EntryType.YAML) {
+                if (entry.type() != EntryType.YAML) {
                     continue;
                 }
                 final ObjectNode node = array.addObject();
@@ -87,16 +87,9 @@ public final class XdsEndpointReadService {
 
     private CompletableFuture<JsonNode> readByBase(String group, String pathBase) {
         final Repository repository = xdsProject.repos().get(group);
-        return repository.find(Revision.HEAD, pathBase + ".json," + pathBase + ".yaml")
-                         .thenCompose(entries -> {
-                             if (entries.isEmpty()) {
-                                 // Delegate to get() so the caller receives a proper EntryNotFoundException.
-                                 return repository.get(Revision.HEAD, pathBase + ".yaml")
-                                                  .thenApply(XdsEndpointReadService::toNode);
-                             }
-                             return CompletableFuture.completedFuture(
-                                     toNode(entries.values().iterator().next()));
-                         });
+        // get() throws a proper EntryNotFoundException when the resource does not exist.
+        return repository.get(Revision.HEAD, pathBase + ".yaml")
+                         .thenApply(XdsEndpointReadService::toNode);
     }
 
     private static JsonNode toNode(Entry<?> entry) {

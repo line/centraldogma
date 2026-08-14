@@ -43,12 +43,9 @@ import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.armeria.internal.common.util.ReentrantShortLock;
 import com.linecorp.centraldogma.common.Author;
-import com.linecorp.centraldogma.common.Change;
-import com.linecorp.centraldogma.common.ChangeConflictException;
 import com.linecorp.centraldogma.common.EntryNotFoundException;
 import com.linecorp.centraldogma.common.EntryType;
 import com.linecorp.centraldogma.common.Markup;
-import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.RedundantChangeException;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.Jackson;
@@ -179,8 +176,7 @@ final class XdsEndpointUpdateScheduler {
                                                          "Group not found: " + group)));
                 return;
             }
-            final String altFileName = XdsResourceManager.alternativeFileName(fileName);
-            repository.find(Revision.HEAD, fileName + ',' + altFileName, FIND_ONE_WITHOUT_CONTENT)
+            repository.find(Revision.HEAD, fileName, FIND_ONE_WITHOUT_CONTENT)
                       .handle((entries, cause) -> {
                 if (cause != null) {
                     final Throwable peeled = Exceptions.peel(cause);
@@ -195,52 +191,10 @@ final class XdsEndpointUpdateScheduler {
                     return null;
                 }
 
-                final String resolvedFileName = entries.keySet().iterator().next();
                 final String commitMessage =
                         "Batch update for " + endpointName + " in group " + group + ": " +
                         toRegister.size() + " register, " + toDeregister.size() + " deregister";
-                if (resolvedFileName.endsWith(".json")) {
-                    // Legacy .json file: transform and atomically migrate to .yaml.
-                    repository.get(Revision.HEAD, Query.ofJson(resolvedFileName))
-                              .thenCompose(entry -> {
-                                  final JsonNode newJsonNode =
-                                          new BatchUpdateTransformer(toRegister, toDeregister)
-                                                  .apply(Revision.HEAD, entry.content());
-                                  final ImmutableList<Change<?>> changes = ImmutableList.of(
-                                          Change.ofRemoval(resolvedFileName),
-                                          Change.ofYamlUpsert(fileName, newJsonNode));
-                                  return xdsResourceManager.commandExecutor()
-                                                           .execute(Command.push(
-                                                                   Author.SYSTEM,
-                                                                   INTERNAL_PROJECT_XDS, group,
-                                                                   Revision.HEAD, commitMessage, "",
-                                                                   Markup.PLAINTEXT, changes));
-                              })
-                              .handle((result, cause2) -> {
-                                  if (cause2 != null) {
-                                      final Throwable peeled = Exceptions.peel(cause2);
-                                      if (peeled instanceof RedundantChangeException) {
-                                          completeUpdates(copied);
-                                          return null;
-                                      }
-                                      if (peeled instanceof ChangeConflictException) {
-                                          // The .json was concurrently migrated away; apply the
-                                          // update via the atomic .yaml transform path.
-                                          executeYamlTransform(commitMessage, toRegister,
-                                                               toDeregister, copied);
-                                          return null;
-                                      }
-                                      copied.forEach(u -> u.future.complete(
-                                              XdsResourceManager.errorResponse(
-                                                      HttpStatus.INTERNAL_SERVER_ERROR, peeled)));
-                                      return null;
-                                  }
-                                  completeUpdates(copied);
-                                  return null;
-                              });
-                } else {
-                    executeYamlTransform(commitMessage, toRegister, toDeregister, copied);
-                }
+                executeYamlTransform(commitMessage, toRegister, toDeregister, copied);
                 return null;
             });
         }
