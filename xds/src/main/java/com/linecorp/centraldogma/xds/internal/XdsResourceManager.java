@@ -58,8 +58,6 @@ import com.linecorp.centraldogma.server.storage.repository.Repository;
 import com.linecorp.centraldogma.xds.endpoint.v1.LocalityLbEndpoint;
 import com.linecorp.centraldogma.xds.k8s.v1.KubernetesEndpointAggregator;
 
-import io.envoyproxy.envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager;
-
 public final class XdsResourceManager {
 
     private static final Logger logger = LoggerFactory.getLogger(XdsResourceManager.class);
@@ -77,24 +75,40 @@ public final class XdsResourceManager {
 
     public static final MessageMarshaller JSON_MESSAGE_MARSHALLER;
 
+    // Packages of proto types that xDS resources may embed in a google.protobuf.Any (e.g. an HttpFilter
+    // typed_config) but that do not live under io.envoyproxy.envoy, so the Envoy scan does not pick them up.
+    // These are the Armeria xDS filter configs and their metadata messages, provided by armeria-xds-api.
+    private static final ImmutableList<String> CUSTOM_TYPE_PACKAGES = ImmutableList.of(
+            "com.linecorp.armeria.xds.athenz",
+            "jp.co.lycorp.ftd.athenz.v1");
+
     static {
         final MessageMarshaller.Builder builder =
                 MessageMarshaller.builder().omittingInsignificantWhitespace(true);
         // These Central Dogma-specific types are not in the io.envoyproxy.envoy package, so they
-        // must be registered explicitly; envoyExtension() does not pick them up.
+        // must be registered explicitly; the io.envoyproxy.envoy scan does not pick them up.
         builder.register(KubernetesEndpointAggregator.getDefaultInstance())
                .register(LocalityLbEndpoint.getDefaultInstance());
-        envoyExtension(builder);
+        // Envoy types use java_multiple_files, so every message is a top-level class.
+        registerPackage(builder, "io.envoyproxy.envoy", false);
+        // The custom (non-Envoy) protos do not set java_multiple_files, so their messages are nested.
+        for (String customTypePackage : CUSTOM_TYPE_PACKAGES) {
+            registerPackage(builder, customTypePackage, true);
+        }
         JSON_MESSAGE_MARSHALLER = builder.build();
     }
 
-    private static void envoyExtension(MessageMarshaller.Builder builder) {
+    private static void registerPackage(MessageMarshaller.Builder builder, String packageName,
+                                        boolean includeNested) {
         final Reflections reflections = new Reflections(
-                "io.envoyproxy.envoy", HttpConnectionManager.class.getClassLoader(),
+                packageName, XdsResourceManager.class.getClassLoader(),
                 new SubTypesScanner(true));
         reflections.getSubTypesOf(GeneratedMessageV3.class)
                    .stream()
-                   .filter(c -> !c.getName().contains("$")) // exclude inner classes
+                   // For java_multiple_files packages, a nested ('$') class is never a registrable message.
+                   // For custom packages the messages themselves are nested, so nested classes are kept and
+                   // the non-message ones (Builders, enums) are filtered out below by getDefaultInstance check.
+                   .filter(c -> includeNested || !c.getName().contains("$"))
                    .filter(XdsResourceManager::hasGetDefaultInstanceMethod)
                    .forEach(c -> {
                        // register() does not throw; build() does. A test build per class is needed
