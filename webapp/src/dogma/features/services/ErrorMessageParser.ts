@@ -17,6 +17,9 @@ class ErrorMessageParser {
       // value is always a string.
       return ErrorMessageParser.asString(object.error);
     }
+    if (object.data && typeof object.data === 'string') {
+      return object.data;
+    }
     if (object.data && object.data.message) {
       let message = ErrorMessageParser.asString(object.data.message);
       if (object.data.detail) {

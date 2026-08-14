@@ -689,14 +689,21 @@ public final class ZooKeeperCommandExecutor
     protected void doStop(@Nullable Runnable onReleaseLeadership,
                           @Nullable Runnable onReleaseZoneLeadership) throws Exception {
         canReplicate = false;
+        // Stop accepting new replay logs.
         listenerInfo = null;
+
         logger.info("Stopping the worker threads");
         boolean interrupted = shutdown(executor);
         logger.info("Stopped the worker threads");
 
         try {
-            logger.info("Stopping the delegate command executor");
-            delegate.stop();
+            // A replay holds this monitor until it records its progress; close() would interrupt it.
+            logger.info("Waiting for an in-flight replay to finish");
+            synchronized (this) {
+                logger.info("No replay in flight; last replayed revision: {}", lastReplayedRevision);
+                logger.info("Stopping the delegate command executor");
+                delegate.stop();
+            }
             logger.info("Stopped the delegate command executor");
         } catch (Exception e) {
             logger.warn("Failed to stop the delegate command executor {}: {}", delegate, e.getMessage(), e);
@@ -828,7 +835,9 @@ public final class ZooKeeperCommandExecutor
                 assert l != null : "logContext: " + logContext;
                 final Command<?> command = l.command();
                 final Object expectedResult = l.result();
-                final Object actualResult = delegate.execute(REPLAY_CONTEXT, command).get();
+                // An interrupt here would split the local apply from updateLastReplayedRevision() below.
+                final Object actualResult =
+                        Uninterruptibles.getUninterruptibly(delegate.execute(REPLAY_CONTEXT, command));
 
                 if (!Objects.equals(expectedResult, actualResult)) {
                     throw new ReplicationException(

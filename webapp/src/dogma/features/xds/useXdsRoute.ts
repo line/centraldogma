@@ -24,6 +24,7 @@ export type XdsSection =
   | 'permissions'
   | 'dangerZone'
   | 'history'
+  | 'mirroring'
   | 'references';
 
 export interface XdsRoute {
@@ -46,6 +47,7 @@ export function useXdsRoute(): XdsRoute {
     type === 'credentials' ||
     type === 'dangerZone' ||
     type === 'history' ||
+    type === 'mirroring' ||
     type === 'references' ||
     (type && Object.prototype.hasOwnProperty.call(XDS_RESOURCE_META, type))
       ? (type as XdsSection)

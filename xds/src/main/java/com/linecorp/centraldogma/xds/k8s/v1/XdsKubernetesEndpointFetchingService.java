@@ -16,7 +16,7 @@
 package com.linecorp.centraldogma.xds.k8s.v1;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
-import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.XDS_CENTRAL_DOGMA_PROJECT;
+import static com.linecorp.centraldogma.server.internal.storage.InternalProjectConstants.INTERNAL_PROJECT_XDS;
 import static com.linecorp.centraldogma.xds.internal.ControlPlaneService.K8S_ENDPOINTS_DIRECTORY;
 import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.JSON_MESSAGE_MARSHALLER;
 import static com.linecorp.centraldogma.xds.k8s.v1.XdsKubernetesService.AGGREGATORS_REPLCACE_PATTERN;
@@ -147,6 +147,7 @@ final class XdsKubernetesEndpointFetchingService extends XdsResourceWatchingServ
         if (oldUpdater != null) {
             oldUpdater.close();
         }
+
         final KubernetesEndpointsUpdater updater =
                 new KubernetesEndpointsUpdater(commandExecutor, futures, executorService,
                                                groupName, aggregator);
@@ -174,31 +175,40 @@ final class XdsKubernetesEndpointFetchingService extends XdsResourceWatchingServ
     protected void onFileRemoved(String groupName, String path) {
         final Map<String, KubernetesEndpointsUpdater> updaters = kubernetesEndpointsUpdaters.get(groupName);
         // e.g. groups/foo/k8s/endpointAggregators/foo-cluster
-        // Remove .json or .yaml (both 5 chars)
+        // Remove .yaml (5 chars)
         final String aggregatorName = "groups/" + groupName + path.substring(0, path.length() - 5);
         if (updaters != null) {
-            final KubernetesEndpointsUpdater updater = updaters.get(aggregatorName);
+            final KubernetesEndpointsUpdater updater = updaters.remove(aggregatorName);
             if (updater != null) {
                 updater.close();
             }
+            if (updaters.isEmpty()) {
+                kubernetesEndpointsUpdaters.remove(groupName);
+            }
         }
 
-        // Remove corresponding endpoints.
-        final String endpointPath = AGGREGATORS_REPLCACE_PATTERN.matcher(path).replaceFirst("/endpoints/");
-        logger.info("Removing {} from {}. aggregatorName: {}", endpointPath, groupName, aggregatorName);
+        // Remove the corresponding endpoint file. removeEndpointFile tolerates a missing file, so no
+        // existence check is needed.
+        final String endpointPath = AGGREGATORS_REPLCACE_PATTERN.matcher(
+                path.substring(0, path.length() - 5)).replaceFirst("/endpoints/") + ".yaml";
+        logger.info("Removing endpoint {} from {}. aggregatorName: {}", endpointPath, groupName,
+                    aggregatorName);
+        removeEndpointFile(groupName, endpointPath);
+    }
+
+    private void removeEndpointFile(String groupName, String endpointPath) {
         commandExecutor.execute(
-                Command.push(Author.SYSTEM, XDS_CENTRAL_DOGMA_PROJECT, groupName, Revision.HEAD,
+                Command.push(Author.SYSTEM, INTERNAL_PROJECT_XDS, groupName, Revision.HEAD,
                              "Remove " + endpointPath, "",
                              Markup.PLAINTEXT, Change.ofRemoval(endpointPath))).handle((unused, cause) -> {
             if (cause != null) {
                 final Throwable peeled = Exceptions.peel(cause);
                 if (peeled instanceof ChangeConflictException &&
+                    peeled.getMessage() != null &&
                     peeled.getMessage().contains("non-existent file")) {
-                    // TODO(minwoox): Provide a type to ChangeConflictException to distinguish this case.
-                    // Could happen if deleteKubernetesEndpointAggregator is called before the file is created.
+                    // File was already removed or never created; nothing to do.
                     return null;
                 }
-
                 logger.warn("Failed to remove {} from {}", endpointPath, groupName, cause);
             }
             return null;
@@ -288,6 +298,9 @@ final class XdsKubernetesEndpointFetchingService extends XdsResourceWatchingServ
             logger.debug("Pushing k8s endpoints: {}, group: {}", aggregator.getClusterName(), groupName);
             final ClusterLoadAssignment.Builder clusterLoadAssignmentBuilder =
                     ClusterLoadAssignment.newBuilder().setClusterName(aggregator.getClusterName());
+            if (aggregator.hasPolicy()) {
+                clusterLoadAssignmentBuilder.setPolicy(aggregator.getPolicy());
+            }
 
             for (int i = 0; i < kubernetesEndpointGroupFutures.size(); i++) {
                 final CompletableFuture<KubernetesEndpointGroup> future =
@@ -311,7 +324,7 @@ final class XdsKubernetesEndpointFetchingService extends XdsResourceWatchingServ
             final boolean matches = matcher.matches();
             assert matches;
             final String aggregatorId = matcher.group(2);
-            final String fileName = K8S_ENDPOINTS_DIRECTORY + aggregatorId + ".json";
+            final String fileName = K8S_ENDPOINTS_DIRECTORY + aggregatorId + ".yaml";
             final JsonNode jsonNode;
             try {
                 jsonNode = Jackson.readTree(json);
@@ -319,15 +332,19 @@ final class XdsKubernetesEndpointFetchingService extends XdsResourceWatchingServ
                 // Should never reach here as it is already validated.
                 throw new IllegalStateException(e);
             }
-            final Change<JsonNode> change = Change.ofJsonUpsert(fileName, jsonNode);
+            final Change<JsonNode> yamlChange = Change.ofYamlUpsert(fileName, jsonNode);
+            pushYamlChange(yamlChange);
+        }
+
+        private void pushYamlChange(Change<JsonNode> change) {
             commandExecutor.execute(
-                    Command.push(Author.SYSTEM, XDS_CENTRAL_DOGMA_PROJECT, groupName, Revision.HEAD,
+                    Command.push(Author.SYSTEM, INTERNAL_PROJECT_XDS, groupName, Revision.HEAD,
                                  "Add " + aggregator.getClusterName() + '.', "",
                                  Markup.PLAINTEXT, change)).handle((unused, cause) -> {
                 if (cause != null) {
                     final Throwable peeled = Exceptions.peel(cause);
                     if (peeled instanceof RedundantChangeException) {
-                        // ignore
+                        // Ignore: the same endpoint state was already committed.
                         return null;
                     }
                     logger.warn("Failed to push {} to {}", change, groupName, peeled);

@@ -114,13 +114,13 @@ Here is the properties of the mirroring task:
   - whether the mirroring task is enabled.
 
 Central Dogma to Central Dogma mirroring
-=========================================
+----------------------------------------
 In addition to Git-to-CD mirroring, Central Dogma supports mirroring between two Central Dogma servers.
 This is useful when you want to replicate configuration across multiple Central Dogma clusters, such as
 syncing configurations between different environments or regions.
 
 Setting up a CD-to-CD mirror
------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 The setup is similar to Git mirroring, with a few differences:
 
 - ``Remote``
@@ -161,7 +161,7 @@ All other properties (``Mirror ID``, ``Schedule``, ``Local path``, ``Zone``, ``E
 same way as in Git mirroring.
 
 Mirror limit settings
----------------------
+^^^^^^^^^^^^^^^^^^^^^^
 Central Dogma limits the number of files and the total size of the files in a mirror for its reliability.
 As your configuration grows, you may want to bump the limit. See :ref:`setup-configuration` to learn about
 the options related with mirroring: ``numMirroringThreads``, ``maxNumFilesPerMirror`` and

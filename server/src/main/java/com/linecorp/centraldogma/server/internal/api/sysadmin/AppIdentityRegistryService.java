@@ -249,6 +249,33 @@ public final class AppIdentityRegistryService extends AbstractService {
     }
 
     /**
+     * POST /appIdentities/{appId}/secret
+     *
+     * <p>Regenerates the secret of the deactivated token of the specified {@code appId} and returns the
+     * token with a newly-generated secret. The token must be deactivated first and the new secret does
+     * not authenticate until the token is activated, so that the new secret can be distributed to the
+     * clients before it takes effect.
+     */
+    @Post("/appIdentities/{appId}/secret")
+    public CompletableFuture<Token> regenerateTokenSecret(ServiceRequestContext ctx,
+                                                          @Param String appId,
+                                                          Author author, User loginUser) {
+        // Permission is checked at the HTTP layer; the metadata layer is caller-agnostic.
+        return getTokenOrRespondForbidden(ctx, appId, loginUser).thenCompose(
+                token -> {
+                    if (token.isDeleted()) {
+                        throw new IllegalArgumentException(
+                                "You can't regenerate the secret of the token scheduled for deletion.");
+                    }
+                    if (token.isActive()) {
+                        throw new IllegalArgumentException(
+                                "You can't regenerate the secret of an active token. Deactivate it first.");
+                    }
+                    return mds.regenerateTokenSecret(author, appId);
+                });
+    }
+
+    /**
      * PATCH /appIdentities/{appId}/level
      *
      * <p>Updates a level of the app identity of the specified ID.

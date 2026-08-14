@@ -3,14 +3,14 @@
 #     If its classes are exposed in Javadoc, update offline links as well.
 #
 [versions]
-armeria = "1.40.0"
+armeria = "1.41.0"
 assertj = "3.27.7"
 awaitility = "4.3.0"
-bouncycastle = "1.84"
+bouncycastle = "1.85"
 caffeine = "3.2.4"
 checkstyle = "10.3.3"
-conscrypt = "2.5.2"
-controlplane = "1.0.53"
+conscrypt = "2.6.2"
+controlplane = "1.0.55"
 # Ensure that we use the same ZooKeeper version as what Curator depends on.
 # See: https://github.com/apache/curator/blob/master/pom.xml
 #      (Switch to the right tag to find out the right version.)
@@ -24,15 +24,17 @@ eddsa = "0.3.0"
 findbugs = "3.0.2"
 freemarker = "2.3.34"
 futures-completable = "0.3.6"
-grpc-java = "1.82.0"
+# Ensure that we use the same gRPC-Java version as what Armeria depends on.
+# See: https://github.com/line/armeria/blob/main/dependencies.toml
+grpc-java = "1.83.0"
 guava = "33.6.0-jre"
 guava-failureaccess = "1.0.1"
 hamcrest-library = "3.0"
 hibernate-validator6 = "6.2.5.Final"
 hibernate-validator8 = "8.0.3.Final"
-hibernate-validator9 = "9.1.0.Final"
-jackson = "2.22.0"
-javassist = "3.31.0-GA"
+hibernate-validator9 = "9.1.3.Final"
+jackson = "2.22.1"
+javassist = "3.32.0-GA"
 javax-annotation = "1.3.2"
 javax-inject = "1"
 javax-validation = "2.0.1.Final"
@@ -50,15 +52,17 @@ jsch = "0.1.55"
 json-path = "2.2.0"
 # 3.0.0 requires java 17
 json-unit = "2.38.0"
-jsoup = "1.22.2" # JSoup is only used for Gradle script.
-jspecify = "1.0.0"
+jsoup = "1.23.1" # JSoup is only used for Gradle script.
+jspecify = "1.0.1"
 jmh-core = "1.37"
 jmh-gradle-plugin = "0.7.3"
 jxr = "0.2.1"
+# Ensure that we use the same Kubernetes client version as what Armeria depends on.
+# See: https://github.com/line/armeria/blob/main/dependencies.toml
 kubernetes-client = "7.7.0"
 logback15 = "1.5.34"
 micrometer = "1.17.0"
-mina-sshd = "2.18.0"
+mina-sshd = "2.19.0"
 mockito = "5.23.0"
 nimbus-jose-jwt = "10.9.1"
 nexus-publish-plugin = "2.0.0"
@@ -90,7 +94,7 @@ thrift09 = { strictly = "0.9.3-1" }
 # See: https://github.com/apache/curator/blob/master/pom.xml
 #      (Switch to the right tag to find out the right version.)
 zookeeper = "3.9.3"
-zstd = "1.5.7-11"
+zstd = "1.5.7-13"
 
 [boms]
 armeria = { module = "com.linecorp.armeria:armeria-bom", version.ref = "armeria" }
@@ -392,6 +396,9 @@ version.ref = "owasp"
 module = "com.guardsquare:proguard-gradle"
 version.ref = "proguard"
 
+[libraries.protobuf-java]
+module = "com.google.protobuf:protobuf-java"
+version.ref = "protobuf"
 [libraries.protobuf-protoc]
 module = "com.google.protobuf:protoc"
 version.ref = "protobuf"

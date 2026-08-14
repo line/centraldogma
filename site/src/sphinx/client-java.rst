@@ -49,7 +49,8 @@ First, we should create a new instance of :api:`com.linecorp.centraldogma.client
     CentralDogma dogma = new ArmeriaCentralDogmaBuilder()
             .host("127.0.0.1")
             .build();
-    // You can specify an alternative port or enable TLS as well:
+    // You can specify an alternative port or enable TLS as well.
+    // When TLS is enabled, the default port 443 is used if unspecified.
     CentralDogma dogma2 = new ArmeriaCentralDogmaBuilder()
             .useTls()                   // Enable TLS.
             .host("example.com", 8443)  // Use port 8443.

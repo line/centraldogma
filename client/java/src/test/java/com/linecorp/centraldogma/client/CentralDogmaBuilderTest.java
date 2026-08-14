@@ -126,6 +126,69 @@ class CentralDogmaBuilderTest {
     }
 
     @Test
+    void tlsHostWithoutPort() {
+        // useTls() before host()
+        final CentralDogmaBuilder b1 = new CentralDogmaBuilder();
+        b1.useTls();
+        b1.host("foo");
+        assertThat(b1.hosts()).containsExactly(InetSocketAddress.createUnresolved("foo", 443));
+
+        // useTls() after host()
+        final CentralDogmaBuilder b2 = new CentralDogmaBuilder();
+        b2.host("foo");
+        b2.useTls();
+        assertThat(b2.hosts()).containsExactly(InetSocketAddress.createUnresolved("foo", 443));
+
+        // An IP address without a port number
+        final CentralDogmaBuilder b3 = new CentralDogmaBuilder();
+        b3.host("192.168.0.1");
+        b3.useTls();
+        assertThat(b3.hosts()).containsExactly(new InetSocketAddress("192.168.0.1", 443));
+
+        // An IPv6 address without a port number
+        final CentralDogmaBuilder b4 = new CentralDogmaBuilder();
+        b4.host("::1");
+        b4.useTls();
+        assertThat(b4.hosts()).containsExactly(new InetSocketAddress("::1", 443));
+
+        // useTls(false) keeps the default cleartext port.
+        final CentralDogmaBuilder b5 = new CentralDogmaBuilder();
+        b5.host("foo");
+        b5.useTls(false);
+        assertThat(b5.hosts()).containsExactly(InetSocketAddress.createUnresolved("foo", 36462));
+    }
+
+    @Test
+    void tlsHostWithExplicitPort() {
+        final CentralDogmaBuilder b = new CentralDogmaBuilder();
+        b.host("foo", 36462);
+        b.useTls();
+        assertThat(b.hosts()).containsExactly(InetSocketAddress.createUnresolved("foo", 36462));
+    }
+
+    @Test
+    void tlsHostDeduplication() {
+        // A host added with and without an explicit port collapses into one entry once resolved.
+        final CentralDogmaBuilder b = new CentralDogmaBuilder();
+        b.host("foo");
+        b.host("foo", 443);
+        b.useTls();
+        assertThat(b.hosts()).containsExactly(InetSocketAddress.createUnresolved("foo", 443));
+    }
+
+    @Test
+    void uriWithoutPort() {
+        final CentralDogmaBuilder b1 = new CentralDogmaBuilder();
+        b1.uri("tbinary+https://foo/cd/thrift/v1");
+        b1.useTls();
+        assertThat(b1.hosts()).containsExactly(InetSocketAddress.createUnresolved("foo", 443));
+
+        final CentralDogmaBuilder b2 = new CentralDogmaBuilder();
+        b2.uri("tbinary+http://foo/cd/thrift/v1");
+        assertThat(b2.hosts()).containsExactly(InetSocketAddress.createUnresolved("foo", 36462));
+    }
+
+    @Test
     void multipleHosts() {
         final CentralDogmaBuilder b = new CentralDogmaBuilder();
         b.host("foo", 1);

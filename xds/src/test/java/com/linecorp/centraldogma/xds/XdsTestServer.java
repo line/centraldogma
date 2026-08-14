@@ -189,7 +189,6 @@ public final class XdsTestServer {
             bootstrapStep("create group", admin.prepare()
                     .post("/api/v1/xds/groups")
                     .queryParam("group_id", SAMPLE_GROUP)
-                    .content(MediaType.JSON, "{\"name\":\"groups/" + SAMPLE_GROUP + "\"}")
                     .execute().aggregate().join());
 
             // An access-token credential the aggregator authenticates the Kubernetes API with. The mock does
@@ -204,12 +203,14 @@ public final class XdsTestServer {
             bootstrapStep("create k8s aggregator", admin.prepare()
                     .post("/api/v1/xds/groups/" + SAMPLE_GROUP + "/k8s/endpointAggregators")
                     .queryParam("aggregator_id", SAMPLE_AGGREGATOR)
-                    .content(MediaType.JSON,
-                             "{\"localityLbEndpoints\":[{\"watcher\":{" +
-                             "\"serviceName\":\"" + SAMPLE_K8S_SERVICE + "\",\"kubeconfig\":{" +
-                             "\"controlPlaneUrl\":\"" + k8sClient.getMasterUrl() + "\"," +
-                             "\"namespace\":\"" + k8sClient.getNamespace() + "\"," +
-                             "\"credentialId\":\"" + SAMPLE_CREDENTIAL + "\"}}}]}")
+                    .content(MediaType.parse("application/yaml"),
+                             "localityLbEndpoints:\n" +
+                             "  - watcher:\n" +
+                             "      serviceName: " + SAMPLE_K8S_SERVICE + '\n' +
+                             "      kubeconfig:\n" +
+                             "        controlPlaneUrl: '" + k8sClient.getMasterUrl() + "'\n" +
+                             "        namespace: '" + k8sClient.getNamespace() + "'\n" +
+                             "        credentialId: " + SAMPLE_CREDENTIAL + '\n')
                     .execute().aggregate().join());
 
             bootstrapSampleResources(admin);
@@ -236,96 +237,143 @@ public final class XdsTestServer {
     private static void bootstrapSampleResources(WebClient admin) {
         // EDS: two ClusterLoadAssignments, each with a single static endpoint. The server overrides the cluster
         // name to 'groups/my-group/clusters/{endpointId}'.
-        bootstrapResource(admin, "endpoints", "endpoint_id", SAMPLE_ENDPOINT, endpointJson(8080));
-        bootstrapResource(admin, "endpoints", "endpoint_id", SAMPLE_ENDPOINT_2, endpointJson(8081));
+        bootstrapResource(admin, "endpoints", "endpoint_id", SAMPLE_ENDPOINT, endpointYaml(8080));
+        bootstrapResource(admin, "endpoints", "endpoint_id", SAMPLE_ENDPOINT_2, endpointYaml(8081));
 
         // CDS: two EDS-type clusters, each referencing one of the EDS resources above through its service name.
         bootstrapResource(admin, "clusters", "cluster_id", SAMPLE_CLUSTER,
-                          clusterJson(SAMPLE_CLUSTER, SAMPLE_ENDPOINT));
+                          clusterYaml(SAMPLE_CLUSTER, SAMPLE_ENDPOINT));
         bootstrapResource(admin, "clusters", "cluster_id", SAMPLE_CLUSTER_2,
-                          clusterJson(SAMPLE_CLUSTER_2, SAMPLE_ENDPOINT_2));
+                          clusterYaml(SAMPLE_CLUSTER_2, SAMPLE_ENDPOINT_2));
 
         // RDS: a route configuration that fans out to BOTH clusters - one route targets a single cluster, the
         // other splits traffic across the two clusters with weighted clusters, so the route references two CDS.
         bootstrapResource(admin, "routes", "route_id", SAMPLE_ROUTE,
-                          '{' +
-                          "\"name\":\"my-route\",\"virtualHosts\": " +
-                          "[{\"name\":\"my-vhost\",\"domains\":[\"*\"],\"routes\":[" +
-                          "{\"match\":{\"prefix\":\"/a\"}," +
-                          "\"route\":{\"cluster\":\"groups/{group}/clusters/my-cluster\"}}," +
-                          "{\"match\":{\"prefix\":\"/b\"},\"route\":{\"weightedClusters\":{\"clusters\":[" +
-                          "{\"name\":\"groups/{group}/clusters/my-cluster\",\"weight\":50}," +
-                          "{\"name\":\"groups/{group}/clusters/my-cluster-2\",\"weight\":50}]}}}]}]}");
+                          "name: my-route\n" +
+                          "virtualHosts:\n" +
+                          "  - name: my-vhost\n" +
+                          "    domains:\n" +
+                          "      - '*'\n" +
+                          "    routes:\n" +
+                          "      - match:\n" +
+                          "          prefix: /a\n" +
+                          "        route:\n" +
+                          "          cluster: 'groups/" + SAMPLE_GROUP + "/clusters/my-cluster'\n" +
+                          "      - match:\n" +
+                          "          prefix: /b\n" +
+                          "        route:\n" +
+                          "          weightedClusters:\n" +
+                          "            clusters:\n" +
+                          "              - name: 'groups/" + SAMPLE_GROUP + "/clusters/my-cluster'\n" +
+                          "                weight: 50\n" +
+                          "              - name: 'groups/" + SAMPLE_GROUP + "/clusters/my-cluster-2'\n" +
+                          "                weight: 50\n");
 
         // RDS: a second, simple route configuration targeting the other cluster.
         bootstrapResource(admin, "routes", "route_id", SAMPLE_ROUTE_2,
-                          '{' +
-                          "\"name\":\"my-route-2\",\"virtualHosts\":" +
-                          "[{\"name\":\"my-vhost\",\"domains\":[\"*\"]," +
-                          "\"routes\":[{\"match\":{\"prefix\":\"/\"}," +
-                          "\"route\":{\"cluster\":\"groups/{group}/clusters/my-cluster-2\"}}]}]}");
+                          "name: my-route-2\n" +
+                          "virtualHosts:\n" +
+                          "  - name: my-vhost\n" +
+                          "    domains:\n" +
+                          "      - '*'\n" +
+                          "    routes:\n" +
+                          "      - match:\n" +
+                          "          prefix: /\n" +
+                          "        route:\n" +
+                          "          cluster: 'groups/" + SAMPLE_GROUP + "/clusters/my-cluster-2'\n");
 
         // LDS: an HTTP listener with two filter chains whose connection managers point at BOTH route configs
         // via RDS, so the listener references two RDS.
         bootstrapResource(admin, "listeners", "listener_id", SAMPLE_LISTENER,
-                          '{' +
-                          "\"name\":\"my-listener\"," +
-                          "\"address\":{\"socketAddress\":{\"address\":\"0.0.0.0\",\"portValue\":10000}}," +
-                          "\"filterChains\":[" +
-                          hcmFilterChain("chain-a", "a.example.com", SAMPLE_ROUTE) + ',' +
-                          hcmFilterChain("chain-b", "b.example.com", SAMPLE_ROUTE_2) + "]}");
+                          "name: my-listener\n" +
+                          "address:\n" +
+                          "  socketAddress:\n" +
+                          "    address: 0.0.0.0\n" +
+                          "    portValue: 10000\n" +
+                          "filterChains:\n" +
+                          hcmFilterChainYaml("chain-a", "a.example.com", SAMPLE_ROUTE) +
+                          hcmFilterChainYaml("chain-b", "b.example.com", SAMPLE_ROUTE_2));
 
         // LDS: a TCP listener that splits traffic across BOTH clusters directly with weighted clusters, so the
         // listener references two CDS.
         bootstrapResource(admin, "listeners", "listener_id", SAMPLE_TCP_LISTENER,
-                          '{' +
-                          "\"name\":\"my-tcp-listener\"," +
-                          "\"address\":{\"socketAddress\":{\"address\":\"0.0.0.0\",\"portValue\":10001}}," +
-                          "\"filterChains\":[{\"filters\":[{" +
-                          "\"name\":\"envoy.filters.network.tcp_proxy\"," +
-                          "\"typedConfig\":{\"@type\":\"type.googleapis.com/" +
-                          "envoy.extensions.filters.network.tcp_proxy.v3.TcpProxy\"," +
-                          "\"statPrefix\":\"tcp\",\"weightedClusters\":{\"clusters\":[" +
-                          "{\"name\":\"groups/{group}/clusters/my-cluster\",\"weight\":50}," +
-                          "{\"name\":\"groups/{group}/clusters/my-cluster-2\",\"weight\":50}]}}}]}]}");
+                          "name: my-tcp-listener\n" +
+                          "address:\n" +
+                          "  socketAddress:\n" +
+                          "    address: 0.0.0.0\n" +
+                          "    portValue: 10001\n" +
+                          "filterChains:\n" +
+                          "  - filters:\n" +
+                          "      - name: envoy.filters.network.tcp_proxy\n" +
+                          "        typedConfig:\n" +
+                          "          '@type': 'type.googleapis.com/" +
+                          "envoy.extensions.filters.network.tcp_proxy.v3.TcpProxy'\n" +
+                          "          statPrefix: tcp\n" +
+                          "          weightedClusters:\n" +
+                          "            clusters:\n" +
+                          "              - name: 'groups/" + SAMPLE_GROUP + "/clusters/my-cluster'\n" +
+                          "                weight: 50\n" +
+                          "              - name: 'groups/" + SAMPLE_GROUP + "/clusters/my-cluster-2'\n" +
+                          "                weight: 50\n");
     }
 
     // An EDS ClusterLoadAssignment with a single static endpoint at 127.0.0.1:{port}.
-    private static String endpointJson(int port) {
-        return "{\"endpoints\":[{\"lbEndpoints\":[{" +
-               "\"endpoint\":{\"address\":{\"socketAddress\":" +
-               "{\"address\":\"127.0.0.1\",\"portValue\":" + port + "}}}," +
-               "\"healthStatus\":\"HEALTHY\",\"loadBalancingWeight\":1000}]}]}";
+    private static String endpointYaml(int port) {
+        return "endpoints:\n" +
+               "  - lbEndpoints:\n" +
+               "      - endpoint:\n" +
+               "          address:\n" +
+               "            socketAddress:\n" +
+               "              address: 127.0.0.1\n" +
+               "              portValue: " + port + '\n' +
+               "        healthStatus: HEALTHY\n" +
+               "        loadBalancingWeight: 1000\n";
     }
 
     // An EDS-type cluster that references the given endpoint via its EDS service name (the cluster name the
     // server assigns to the endpoint, which uses '/clusters/').
-    private static String clusterJson(String clusterId, String endpointId) {
-        return "{\"name\":\"" + clusterId + "\",\"type\":\"EDS\",\"connectTimeout\":\"5s\"," +
-               "\"edsClusterConfig\":{\"edsConfig\":{\"ads\":{},\"resourceApiVersion\":\"V3\"}," +
-               "\"serviceName\":\"groups/{group}/clusters/" + endpointId + "\"}}";
+    private static String clusterYaml(String clusterId, String endpointId) {
+        return "name: " + clusterId + '\n' +
+               "type: EDS\n" +
+               "connectTimeout: 5s\n" +
+               "edsClusterConfig:\n" +
+               "  edsConfig:\n" +
+               "    ads: {}\n" +
+               "    resourceApiVersion: V3\n" +
+               "  serviceName: 'groups/" + SAMPLE_GROUP + "/clusters/" + endpointId + "'\n";
     }
 
     // A listener filter chain with an HTTP connection manager that references the given route config via RDS.
-    private static String hcmFilterChain(String chainName, String serverName, String routeId) {
-        return "{\"name\":\"" + chainName + "\"," +
-               "\"filterChainMatch\":{\"serverNames\":[\"" + serverName + "\"]}," +
-               "\"filters\":[{\"name\":\"envoy.filters.network.http_connection_manager\"," +
-               "\"typedConfig\":{\"@type\":\"type.googleapis.com/" +
-               "envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager\"," +
-               "\"statPrefix\":\"ingress_http\"," +
-               "\"rds\":{\"configSource\":{\"ads\":{},\"resourceApiVersion\":\"V3\"}," +
-               "\"routeConfigName\":\"groups/{group}/routes/" + routeId + "\"}," +
-               "\"httpFilters\":[{\"name\":\"envoy.filters.http.router\",\"typedConfig\":{\"@type\":" +
-               "\"type.googleapis.com/envoy.extensions.filters.http.router.v3.Router\"}}]}}]}";
+    // Returns a YAML sequence item (starts with '  - ') for embedding directly under 'filterChains:'.
+    private static String hcmFilterChainYaml(String chainName, String serverName, String routeId) {
+        return "  - name: " + chainName + '\n' +
+               "    filterChainMatch:\n" +
+               "      serverNames:\n" +
+               "        - " + serverName + '\n' +
+               "    filters:\n" +
+               "      - name: envoy.filters.network.http_connection_manager\n" +
+               "        typedConfig:\n" +
+               "          '@type': 'type.googleapis.com/" +
+               "envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager'\n" +
+               "          statPrefix: ingress_http\n" +
+               "          rds:\n" +
+               "            configSource:\n" +
+               "              ads: {}\n" +
+               "              resourceApiVersion: V3\n" +
+               "            routeConfigName: 'groups/" + SAMPLE_GROUP + "/routes/" + routeId + "'\n" +
+               "          httpFilters:\n" +
+               "            - name: envoy.filters.http.router\n" +
+               "              typedConfig:\n" +
+               "                '@type': 'type.googleapis.com/" +
+               "envoy.extensions.filters.http.router.v3.Router'\n";
     }
 
     private static void bootstrapResource(WebClient admin, String type,
-                                          String idParam, String id, String json) {
+                                          String idParam, String id, String yaml) {
         bootstrapStep("create " + type + '/' + id, admin.prepare()
                 .post("/api/v1/xds/groups/" + SAMPLE_GROUP + '/' + type)
                 .queryParam(idParam, id)
-                .content(MediaType.JSON, json.replace("{group}", SAMPLE_GROUP))
+                .content(MediaType.parse("application/yaml"), yaml)
                 .execute().aggregate().join());
     }
 

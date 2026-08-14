@@ -16,6 +16,8 @@
 
 package com.linecorp.centraldogma.xds.internal;
 
+import static com.linecorp.centraldogma.server.internal.storage.InternalProjectConstants.INTERNAL_PROJECT_XDS;
+
 import java.util.concurrent.CompletionStage;
 
 import org.jspecify.annotations.Nullable;
@@ -31,17 +33,15 @@ import com.linecorp.centraldogma.server.storage.project.InternalProjectInitializ
 
 public final class ControlPlanePlugin extends AllReplicasPlugin {
 
-    public static final String XDS_CENTRAL_DOGMA_PROJECT = "@xds";
-
     @Nullable
     private volatile ControlPlaneService controlPlaneService;
 
     @Override
     public void init(PluginInitContext pluginInitContext) {
         final InternalProjectInitializer projectInitializer = pluginInitContext.internalProjectInitializer();
-        projectInitializer.initialize(XDS_CENTRAL_DOGMA_PROJECT);
+        projectInitializer.initialize(INTERNAL_PROJECT_XDS);
         final ControlPlaneService controlPlaneService = new ControlPlaneService(
-                pluginInitContext.projectManager().get(XDS_CENTRAL_DOGMA_PROJECT),
+                pluginInitContext.projectManager().get(INTERNAL_PROJECT_XDS),
                 pluginInitContext.meterRegistry());
         this.controlPlaneService = controlPlaneService;
         controlPlaneService.start(pluginInitContext);
