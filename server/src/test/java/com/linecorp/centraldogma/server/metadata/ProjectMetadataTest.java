@@ -78,6 +78,7 @@ class ProjectMetadataTest {
                 ImmutableMap.of("app-id-1",
                                 new AppIdentityRegistration("app-id-1", ProjectRole.MEMBER, creation)
                 ),
+                null,
                 new UserAndTimestamp(User.SYSTEM.id()),
                 null);
 

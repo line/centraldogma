@@ -81,6 +81,7 @@ class SerializationTest {
                                                     new AppIdentityRegistration(token.id(),
                                                                                 ProjectRole.MEMBER,
                                                                                 newCreationTag())),
+                                    null,
                                     newCreationTag(),
                                     null);
         assertThatJson(metadata)
@@ -136,6 +137,7 @@ class SerializationTest {
                            "      }\n" +
                            "    }\n" +
                            "  },\n" +
+                           "  \"allowPublicRepositories\" : true,\n" +
                            "  \"creation\" : {\n" +
                            "    \"user\" : \"editor@dogma.org\",\n" +
                            "    \"timestamp\" : \"2017-01-01T00:00:00Z\"\n" +
@@ -183,6 +185,7 @@ class SerializationTest {
                            "      }\n" +
                            "    }\n" +
                            "  },\n" +
+                           "  \"allowPublicRepositories\" : true,\n" +
                            "  \"creation\" : {\n" +
                            "    \"user\" : \"editor@dogma.org\",\n" +
                            "    \"timestamp\" : \"2017-01-01T00:00:00Z\"\n" +
@@ -218,6 +221,7 @@ class SerializationTest {
                                                     new AppIdentityRegistration(token.id(),
                                                                                 ProjectRole.MEMBER,
                                                                                 newCreationTag())),
+                                    null,
                                     newCreationTag(),
                                     newRemovalTag());
 
@@ -261,6 +265,7 @@ class SerializationTest {
                                            "      }\n" +
                                            "    }\n" +
                                            "  },\n" +
+                                           "  \"allowPublicRepositories\" : true,\n" +
                                            "  \"creation\" : {\n" +
                                            "    \"user\" : \"editor@dogma.org\",\n" +
                                            "    \"timestamp\" : \"2017-01-01T00:00:00Z\"\n" +

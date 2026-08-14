@@ -1,10 +1,10 @@
-import { Icon, Tag, TagLabel, Wrap, WrapItem } from '@chakra-ui/react';
+import { Badge, Icon, Tag, TagLabel, Wrap, WrapItem } from '@chakra-ui/react';
 import { ColumnDef, createColumnHelper } from '@tanstack/react-table';
 import { DataTableClientPagination } from 'dogma/common/components/table/DataTableClientPagination';
-import { RepositoryMetadataDto } from 'dogma/features/repo/RepositoriesMetadataDto';
+import { isPublicRepo, RepositoryMetadataDto } from 'dogma/features/repo/RepositoriesMetadataDto';
 import { useMemo } from 'react';
 import { ChakraLink } from 'dogma/common/components/ChakraLink';
-import { RiGitRepositoryPrivateLine } from 'react-icons/ri';
+import { GoRepo } from 'react-icons/go';
 
 export type RepoRoleListProps<Data extends object> = {
   data: Data[];
@@ -21,7 +21,7 @@ const RepoRoleList = <Data extends object>({ data, projectName }: RepoRoleListPr
             fontWeight={'semibold'}
             href={`/app/projects/${projectName}/repos/${info.getValue()}/settings`}
           >
-            <Icon as={RiGitRepositoryPrivateLine} marginBottom={-0.5} /> {info.getValue()}
+            <Icon as={GoRepo} marginBottom={-0.5} /> {info.getValue()}
           </ChakraLink>
         ),
         header: 'Name',
@@ -42,18 +42,17 @@ const RepoRoleList = <Data extends object>({ data, projectName }: RepoRoleListPr
         enableSorting: false,
       }),
       columnHelper.accessor((row: RepositoryMetadataDto) => row.roles.projects.guest, {
-        cell: (info) => (
-          <Wrap>
-            {info.getValue() !== null && (
-              <WrapItem key={info.getValue()}>
-                <Tag borderRadius="full" colorScheme="blue" size="sm">
-                  <TagLabel>{info.getValue()}</TagLabel>
-                </Tag>
-              </WrapItem>
-            )}
-          </Wrap>
-        ),
-        header: 'Guest',
+        cell: (info) =>
+          isPublicRepo(info.row.original) ? (
+            <Badge fontSize="x-small" colorScheme="teal" variant="outline" borderRadius="full" px={2}>
+              Public
+            </Badge>
+          ) : (
+            <Badge fontSize="x-small" colorScheme="gray" variant="outline" borderRadius="full" px={2}>
+              Private
+            </Badge>
+          ),
+        header: 'Visibility',
         enableSorting: false,
       }),
     ],

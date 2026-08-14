@@ -21,6 +21,8 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.linecorp.centraldogma.server.internal.api.DtoConverter.newRepositoryDto;
 import static com.linecorp.centraldogma.server.internal.api.HttpApiUtil.checkUnremoveArgument;
 import static com.linecorp.centraldogma.server.internal.api.HttpApiUtil.returnOrThrow;
+import static com.linecorp.centraldogma.server.metadata.RepositoryMetadata.DEFAULT_PROJECT_ROLES;
+import static com.linecorp.centraldogma.server.metadata.RepositoryMetadata.PUBLIC_PROJECT_ROLES;
 import static java.util.Objects.requireNonNull;
 
 import java.util.List;
@@ -66,6 +68,7 @@ import com.linecorp.centraldogma.server.internal.api.auth.RequiresSystemAdminist
 import com.linecorp.centraldogma.server.internal.api.converter.CreateApiResponseConverter;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
 import com.linecorp.centraldogma.server.metadata.ProjectMetadata;
+import com.linecorp.centraldogma.server.metadata.ProjectRoles;
 import com.linecorp.centraldogma.server.metadata.RepositoryMetadata;
 import com.linecorp.centraldogma.server.metadata.User;
 import com.linecorp.centraldogma.server.storage.encryption.EncryptionStorageManager;
@@ -198,12 +201,25 @@ public class RepositoryServiceV1 extends AbstractService {
                                              "Encryption is not enabled in the server.");
         }
 
+        if (request.isPublic()) {
+            // Reject before the storage repository is created so a rejected public creation does not
+            // leave an orphaned repository in the common case. MetadataService.addRepo re-validates
+            // atomically.
+            final ProjectMetadata metadata = project.metadata();
+            if (metadata == null || !metadata.allowPublicRepositories()) {
+                return HttpApiUtil.throwResponse(ctx, HttpStatus.BAD_REQUEST,
+                                                 "Public repositories are not allowed in the project: %s",
+                                                 project.name());
+            }
+        }
+
         final boolean encrypt = request.encrypt() || isEncryptedProject(project);
+        final ProjectRoles projectRoles = request.isPublic() ? PUBLIC_PROJECT_ROLES : DEFAULT_PROJECT_ROLES;
 
         final CommandExecutor commandExecutor = executor();
         final CompletableFuture<Revision> future =
                 RepositoryServiceUtil.createRepository(commandExecutor, mds, author, project.name(), repoName,
-                                                       encrypt, encryptionStorageManager);
+                                                       projectRoles, encrypt, encryptionStorageManager);
         return future.handle(returnOrThrow(() -> {
             final Repository repository = project.repos().get(repoName);
             return newRepositoryDto(repository, repositoryStatus(repository));

@@ -3,7 +3,7 @@ import { ColumnDef, createColumnHelper } from '@tanstack/react-table';
 import { DateWithTooltip } from 'dogma/common/components/DateWithTooltip';
 import { DataTableClientPagination } from 'dogma/common/components/table/DataTableClientPagination';
 import { DeleteRepo } from 'dogma/features/repo/DeleteRepo';
-import { RepositoryMetadataDto } from 'dogma/features/repo/RepositoriesMetadataDto';
+import { isPublicRepo, RepositoryMetadataDto } from 'dogma/features/repo/RepositoriesMetadataDto';
 import { RestoreRepo } from 'dogma/features/repo/RestoreRepo';
 import { useMemo } from 'react';
 import { RepoIcon } from 'dogma/common/components/RepoIcon';
@@ -24,6 +24,7 @@ const RepoMetaList = <Data extends object>({ data, projectName }: RepoListProps<
               projectName={projectName}
               repoName={info.getValue()}
               isActive={info.row.original.removal == null}
+              isPublic={isPublicRepo(info.row.original)}
             />
           );
         },

@@ -16,12 +16,14 @@
 
 package com.linecorp.centraldogma.server.metadata;
 
+import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static com.linecorp.centraldogma.server.internal.storage.project.ProjectApiManager.listProjectsWithoutInternal;
 import static com.linecorp.centraldogma.server.metadata.RepositoryMetadata.DEFAULT_PROJECT_ROLES;
 import static java.util.Objects.requireNonNull;
 
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
@@ -186,6 +188,7 @@ public class MetadataService {
                                                projectMetadata.members(),
                                                null,
                                                projectMetadata.appIds(),
+                                               projectMetadata.allowPublicRepositories(),
                                                projectMetadata.creation(),
                                                UserAndTimestamp.of(author));
                 });
@@ -210,6 +213,7 @@ public class MetadataService {
                                                projectMetadata.members(),
                                                null,
                                                projectMetadata.appIds(),
+                                               projectMetadata.allowPublicRepositories(),
                                                projectMetadata.creation(),
                                                null);
                 });
@@ -259,6 +263,7 @@ public class MetadataService {
                                                newMembers,
                                                null,
                                                projectMetadata.appIds(),
+                                               projectMetadata.allowPublicRepositories(),
                                                projectMetadata.creation(),
                                                projectMetadata.removal());
                 });
@@ -290,6 +295,7 @@ public class MetadataService {
                                                newMembers,
                                                null,
                                                projectMetadata.appIds(),
+                                               projectMetadata.allowPublicRepositories(),
                                                projectMetadata.creation(),
                                                projectMetadata.removal());
                 });
@@ -355,6 +361,7 @@ public class MetadataService {
                                                newMembers,
                                                null,
                                                projectMetadata.appIds(),
+                                               projectMetadata.allowPublicRepositories(),
                                                projectMetadata.creation(),
                                                projectMetadata.removal());
                 });
@@ -412,6 +419,11 @@ public class MetadataService {
                     if (projectMetadata.repos().containsKey(repoName)) {
                         throw RepositoryExistsException.of(projectName, repoName);
                     }
+                    if (repositoryMetadata.roles().projectRoles().guest() != null &&
+                        !projectMetadata.allowPublicRepositories()) {
+                        // Raced with disallowing public repositories.
+                        throw new ChangeConflictException(publicRepositoriesNotAllowed(projectName));
+                    }
                     final ImmutableMap<String, RepositoryMetadata> newRepos =
                             ImmutableMap.<String, RepositoryMetadata>builderWithExpectedSize(
                                                 projectMetadata.repos().size() + 1)
@@ -423,10 +435,20 @@ public class MetadataService {
                                                projectMetadata.members(),
                                                null,
                                                projectMetadata.appIds(),
+                                               projectMetadata.allowPublicRepositories(),
                                                projectMetadata.creation(),
                                                projectMetadata.removal());
                 });
-        return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, transformer);
+        if (repositoryMetadata.roles().projectRoles().guest() == null) {
+            return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, transformer);
+        }
+        return fetchMetadata(projectName).thenCompose(projectMetadata -> {
+            // Give a specific 400 for the common case; the transformer above atomically re-validates.
+            if (!projectMetadata.allowPublicRepositories()) {
+                throw new IllegalArgumentException(publicRepositoriesNotAllowed(projectName));
+            }
+            return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, transformer);
+        });
     }
 
     /**
@@ -481,6 +503,7 @@ public class MetadataService {
                                                projectMetadata.members(),
                                                null,
                                                projectMetadata.appIds(),
+                                               projectMetadata.allowPublicRepositories(),
                                                projectMetadata.creation(),
                                                projectMetadata.removal());
                 });
@@ -531,17 +554,111 @@ public class MetadataService {
 
         final String commitSummary =
                 "Update the project roles of the '" + repoName + "' in the project '" + projectName + '\'';
-        final RepositoryMetadataTransformer transformer = new RepositoryMetadataTransformer(
-                repoName, (headRevision, repositoryMetadata) -> {
-            final Roles newRoles = new Roles(projectRoles, repositoryMetadata.roles().users(), null,
-                                             repositoryMetadata.roles().appIds());
-            return new RepositoryMetadata(repositoryMetadata.name(),
-                                          newRoles,
-                                          repositoryMetadata.creation(),
-                                          repositoryMetadata.removal(),
-                                          repositoryMetadata.status());
+        final ProjectMetadataTransformer transformer = new ProjectMetadataTransformer(
+                (headRevision, projectMetadata) -> {
+                    final RepositoryMetadata repositoryMetadata = projectMetadata.repo(repoName);
+                    // Only a private-to-public transition requires the project to allow public
+                    // repositories; an already-public repository can still update its member role.
+                    if (projectRoles.guest() != null &&
+                        repositoryMetadata.roles().projectRoles().guest() == null &&
+                        !projectMetadata.allowPublicRepositories()) {
+                        // Raced with disallowing public repositories.
+                        throw new ChangeConflictException(publicRepositoriesNotAllowed(projectName));
+                    }
+                    final Roles newRoles = new Roles(projectRoles, repositoryMetadata.roles().users(), null,
+                                                     repositoryMetadata.roles().appIds());
+                    final RepositoryMetadata newRepositoryMetadata =
+                            new RepositoryMetadata(repositoryMetadata.name(),
+                                                   newRoles,
+                                                   repositoryMetadata.creation(),
+                                                   repositoryMetadata.removal(),
+                                                   repositoryMetadata.status());
+                    return RepositoryMetadataTransformer.newProjectMetadata(projectMetadata,
+                                                                            newRepositoryMetadata);
+                });
+        if (projectRoles.guest() == null) {
+            return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, transformer);
+        }
+        return fetchMetadata(projectName).thenCompose(projectMetadata -> {
+            // Raise RepositoryNotFoundException for a missing repository.
+            final RepositoryMetadata repositoryMetadata = projectMetadata.repo(repoName);
+            // Give a specific 400 for the common case; the transformer above atomically re-validates.
+            if (repositoryMetadata.roles().projectRoles().guest() == null &&
+                !projectMetadata.allowPublicRepositories()) {
+                throw new IllegalArgumentException(publicRepositoriesNotAllowed(projectName));
+            }
+            return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, transformer);
         });
-        return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, transformer);
+    }
+
+    /**
+     * Updates whether the repositories of the specified {@code projectName} can be made public.
+     * Disallowing is rejected while the project still has a public repository.
+     */
+    public CompletableFuture<Revision> updateAllowPublicRepositories(Author author, String projectName,
+                                                                     boolean allowPublicRepositories) {
+        requireNonNull(author, "author");
+        requireNonNull(projectName, "projectName");
+
+        final String commitSummary =
+                (allowPublicRepositories ? "Allow" : "Disallow") +
+                " public repositories in the project '" + projectName + '\'';
+        final ProjectMetadataTransformer transformer = new ProjectMetadataTransformer(
+                (headRevision, projectMetadata) -> {
+                    if (projectMetadata.allowPublicRepositories() == allowPublicRepositories) {
+                        // Swallowed by the push layer, which returns the current head revision.
+                        throw new RedundantChangeException(
+                                headRevision,
+                                "allowPublicRepositories is already " + allowPublicRepositories +
+                                " in the project: " + projectName);
+                    }
+                    if (!allowPublicRepositories) {
+                        final List<String> publicRepos = publicRepositories(projectMetadata);
+                        if (!publicRepos.isEmpty()) {
+                            // Raced with making a repository public.
+                            throw new ChangeConflictException(
+                                    cannotDisallowPublicRepositories(projectName, publicRepos));
+                        }
+                    }
+                    return new ProjectMetadata(projectMetadata.name(),
+                                               projectMetadata.repos(),
+                                               projectMetadata.members(),
+                                               null,
+                                               projectMetadata.appIds(),
+                                               allowPublicRepositories,
+                                               projectMetadata.creation(),
+                                               projectMetadata.removal());
+                });
+        if (allowPublicRepositories) {
+            return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, transformer);
+        }
+        return fetchMetadata(projectName).thenCompose(projectMetadata -> {
+            // Give a specific 400 for the common case; the transformer above atomically re-validates.
+            final List<String> publicRepos = publicRepositories(projectMetadata);
+            if (!publicRepos.isEmpty()) {
+                throw new IllegalArgumentException(
+                        cannotDisallowPublicRepositories(projectName, publicRepos));
+            }
+            return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, transformer);
+        });
+    }
+
+    private static List<String> publicRepositories(ProjectMetadata metadata) {
+        // Removed repositories count as well; otherwise restoring one could resurrect a guest role
+        // into a project which disallows public repositories.
+        return metadata.repos().values().stream()
+                       .filter(repo -> repo.roles().projectRoles().guest() != null)
+                       .map(repo -> repo.removal() != null ? repo.name() + " (removed)" : repo.name())
+                       .collect(toImmutableList());
+    }
+
+    private static String publicRepositoriesNotAllowed(String projectName) {
+        return "Public repositories are not allowed in the project: " + projectName;
+    }
+
+    private static String cannotDisallowPublicRepositories(String projectName, List<String> publicRepos) {
+        return "Cannot disallow public repositories in the project '" + projectName +
+               "'. Make the following repositories private first: " + publicRepos;
     }
 
     /**
@@ -575,6 +692,7 @@ public class MetadataService {
                                                projectMetadata.members(),
                                                null,
                                                newAppIds,
+                                               projectMetadata.allowPublicRepositories(),
                                                projectMetadata.creation(),
                                                projectMetadata.removal());
                 });
@@ -623,6 +741,7 @@ public class MetadataService {
                                                projectMetadata.members(),
                                                null,
                                                newAppIds,
+                                               projectMetadata.allowPublicRepositories(),
                                                projectMetadata.creation(),
                                                projectMetadata.removal());
                 });
@@ -687,6 +806,7 @@ public class MetadataService {
                                                projectMetadata.members(),
                                                null,
                                                newAppIds,
+                                               projectMetadata.allowPublicRepositories(),
                                                projectMetadata.creation(),
                                                projectMetadata.removal());
                 });
@@ -978,41 +1098,6 @@ public class MetadataService {
         return repositoryRole(roles, repositoryRole, projectRole);
     }
 
-    /**
-     * Finds {@link RepositoryRole} of the specified {@link AppIdentity} from the specified
-     * {@code repoName} in the specified {@code projectName}. If the {@code appIdentity} is not found,
-     * it will return {@code null}.
-     */
-    public CompletableFuture<RepositoryRole> findRepositoryRole(String projectName, String repoName,
-                                                                AppIdentity appIdentity) {
-        requireNonNull(projectName, "projectName");
-        requireNonNull(repoName, "repoName");
-        requireNonNull(appIdentity, "appIdentity");
-
-        return getProject(projectName).thenApply(metadata -> {
-            final RepositoryMetadata repositoryMetadata = metadata.repo(repoName);
-            final Roles roles = repositoryMetadata.roles();
-            final String appId = appIdentity.appId();
-            final RepositoryRole repositoryRole = roles.appIds().get(appId);
-
-            final AppIdentityRegistration projectAppIdentityRegistration = metadata.appIds().get(appId);
-            final ProjectRole projectRole;
-            if (projectAppIdentityRegistration != null) {
-                projectRole = projectAppIdentityRegistration.role();
-            } else {
-                // System admin app identities were checked before this method.
-                assert !appIdentity.isSystemAdmin();
-                if (repositoryRole != null || appIdentity.allowGuestAccess()) {
-                    projectRole = ProjectRole.GUEST;
-                } else {
-                    // The app identity is not allowed with the GUEST permission.
-                    return null;
-                }
-            }
-            return repositoryRole(roles, repositoryRole, projectRole);
-        });
-    }
-
     @Nullable
     private static RepositoryRole repositoryRole(Roles roles, @Nullable RepositoryRole repositoryRole,
                                                  ProjectRole projectRole) {
@@ -1085,7 +1170,7 @@ public class MetadataService {
      * will be automatically generated.
      */
     public CompletableFuture<Revision> createToken(Author author, String appId) {
-        return appIdentityService.createToken(author, appId);
+        return createToken(author, appId, null, false, false);
     }
 
     /**
@@ -1093,14 +1178,14 @@ public class MetadataService {
      * secret.
      */
     public CompletableFuture<Revision> createToken(Author author, String appId, boolean isSystemAdmin) {
-        return appIdentityService.createToken(author, appId, isSystemAdmin);
+        return createToken(author, appId, null, isSystemAdmin, false);
     }
 
     /**
      * Creates a new user-level {@link Token} with the specified {@code appId} and {@code secret}.
      */
     public CompletableFuture<Revision> createToken(Author author, String appId, String secret) {
-        return appIdentityService.createToken(author, appId, secret);
+        return createToken(author, appId, requireNonNull(secret, "secret"), false, false);
     }
 
     /**
@@ -1108,7 +1193,17 @@ public class MetadataService {
      */
     public CompletableFuture<Revision> createToken(Author author, String appId, String secret,
                                                    boolean isSystemAdmin) {
-        return appIdentityService.createToken(author, appId, secret, isSystemAdmin);
+        return createToken(author, appId, requireNonNull(secret, "secret"), isSystemAdmin, false);
+    }
+
+    /**
+     * Creates a new {@link Token} with the specified {@code appId}, {@code secret}, {@code isSystemAdmin}
+     * and {@code allowGuestAccess}. If {@code secret} is {@code null}, it will be automatically generated.
+     * A system admin {@link Token} always allows guest access.
+     */
+    public CompletableFuture<Revision> createToken(Author author, String appId, @Nullable String secret,
+                                                   boolean isSystemAdmin, boolean allowGuestAccess) {
+        return appIdentityService.createToken(author, appId, secret, isSystemAdmin, allowGuestAccess);
     }
 
     /**
@@ -1259,6 +1354,7 @@ public class MetadataService {
                                            projectMetadata.members(),
                                            null,
                                            projectMetadata.appIds(),
+                                           projectMetadata.allowPublicRepositories(),
                                            projectMetadata.creation(),
                                            projectMetadata.removal());
             });
@@ -1291,11 +1387,22 @@ public class MetadataService {
 
     /**
      * Creates a new app identity {@link CertificateAppIdentity} with the specified {@code appId} and
-     * {@code certificateId}.
+     * {@code certificateId}. A system admin {@link CertificateAppIdentity} always allows guest access.
      */
     public CompletableFuture<Revision> createCertificate(Author author, String appId, String certificateId,
                                                          boolean isSystemAdmin) {
-        return appIdentityService.createCertificate(author, appId, certificateId, isSystemAdmin);
+        return createCertificate(author, appId, certificateId, isSystemAdmin, false);
+    }
+
+    /**
+     * Creates a new app identity {@link CertificateAppIdentity} with the specified {@code appId},
+     * {@code certificateId}, {@code isSystemAdmin} and {@code allowGuestAccess}.
+     * A system admin {@link CertificateAppIdentity} always allows guest access.
+     */
+    public CompletableFuture<Revision> createCertificate(Author author, String appId, String certificateId,
+                                                         boolean isSystemAdmin, boolean allowGuestAccess) {
+        return appIdentityService.createCertificate(author, appId, certificateId, isSystemAdmin,
+                                                    allowGuestAccess);
     }
 
     /**

@@ -21,7 +21,9 @@ import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUti
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.getAccessToken;
 import static net.javacrumbs.jsonunit.fluent.JsonFluentAssert.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
@@ -378,6 +380,93 @@ class MetadataApiServiceTest {
     }
 
     @Test
+    void updateProjectRolesWithoutGuestField() {
+        // A missing guest field means a private repository, not an internal server error.
+        final ResponseEntity<Revision> response =
+                systemAdminClient.prepare()
+                                 .post("/api/v1/metadata/{project}/repos/{repo}/roles/projects")
+                                 .pathParam("project", PROJECT_NAME)
+                                 .pathParam("repo", REPOSITORY_NAME)
+                                 .content(MediaType.JSON, "{ \"member\": \"WRITE\" }")
+                                 .asJson(Revision.class)
+                                 .execute();
+        assertThat(response.status()).isEqualTo(HttpStatus.OK);
+        await().untilAsserted(
+                () -> assertThat(projectMetadata().repo(REPOSITORY_NAME).roles().projectRoles().guest())
+                        .isNull());
+    }
+
+    @Test
+    void allowPublicRepositoriesLifecycle() {
+        // Make the repository public.
+        updateGuestRole(RepositoryRole.READ);
+
+        // Cannot disallow public repositories while one exists.
+        AggregatedHttpResponse response = putAllowPublicRepositories(false);
+        assertThat(response.status()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(response.contentUtf8()).contains("Make the following repositories private first")
+                                          .contains(REPOSITORY_NAME);
+
+        // Make the repository private, then disallow.
+        updateGuestRole(null);
+        response = putAllowPublicRepositories(false);
+        assertThat(response.status()).isEqualTo(HttpStatus.OK);
+
+        // Disallowing again is a no-op returning the current head revision.
+        response = putAllowPublicRepositories(false);
+        assertThat(response.status()).isEqualTo(HttpStatus.OK);
+
+        // Cannot make a repository public anymore.
+        final AggregatedHttpResponse guestUpdateResponse =
+                systemAdminClient.prepare()
+                                 .post("/api/v1/metadata/{project}/repos/{repo}/roles/projects")
+                                 .pathParam("project", PROJECT_NAME)
+                                 .pathParam("repo", REPOSITORY_NAME)
+                                 .contentJson(ProjectRoles.of(RepositoryRole.WRITE, RepositoryRole.READ))
+                                 .execute();
+        assertThat(guestUpdateResponse.status()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(guestUpdateResponse.contentUtf8())
+                .contains("Public repositories are not allowed in the project");
+
+        // A missing repository is reported as 404, not as a policy violation.
+        final AggregatedHttpResponse notFound =
+                systemAdminClient.prepare()
+                                 .post("/api/v1/metadata/{project}/repos/{repo}/roles/projects")
+                                 .pathParam("project", PROJECT_NAME)
+                                 .pathParam("repo", "no_such_repo")
+                                 .contentJson(ProjectRoles.of(RepositoryRole.WRITE, RepositoryRole.READ))
+                                 .execute();
+        assertThat(notFound.status()).isEqualTo(HttpStatus.NOT_FOUND);
+
+        // Re-allow public repositories and make sure the repository can be public again.
+        response = putAllowPublicRepositories(true);
+        assertThat(response.status()).isEqualTo(HttpStatus.OK);
+        updateGuestRole(RepositoryRole.READ);
+        // Restore the scaffold state.
+        updateGuestRole(null);
+    }
+
+    private static void updateGuestRole(@Nullable RepositoryRole guestRole) {
+        final ResponseEntity<Revision> response =
+                systemAdminClient.prepare()
+                                 .post("/api/v1/metadata/{project}/repos/{repo}/roles/projects")
+                                 .pathParam("project", PROJECT_NAME)
+                                 .pathParam("repo", REPOSITORY_NAME)
+                                 .contentJson(ProjectRoles.of(RepositoryRole.WRITE, guestRole))
+                                 .asJson(Revision.class)
+                                 .execute();
+        assertThat(response.status()).isEqualTo(HttpStatus.OK);
+    }
+
+    private static AggregatedHttpResponse putAllowPublicRepositories(boolean allow) {
+        return systemAdminClient.prepare()
+                                .put("/api/v1/metadata/{project}/settings")
+                                .pathParam("project", PROJECT_NAME)
+                                .content(MediaType.JSON, "{ \"allowPublicRepositories\": " + allow + " }")
+                                .execute();
+    }
+
+    @Test
     void repositoryAdminCanUpdateRepositoryMetadata() {
         addProjectMember();
         HttpRequest updateRepositoryProjectRolesRequest = updateRepositoryProjectRolesRequest();
@@ -445,6 +534,85 @@ class MetadataApiServiceTest {
         assertThat(memberCertClient.execute(removeUserRepositoryRoleRequest).status())
                 .isSameAs(HttpStatus.NO_CONTENT);
         removeProjectMember();
+    }
+
+    @Test
+    void updateAllowPublicRepositories() throws JsonProcessingException {
+        // Use a dedicated project so the shared scaffold state is not mutated.
+        final String project = "allow_public_proj";
+        dogma.client().createProject(project).join();
+
+        // A caller who is not the project owner is forbidden.
+        final AggregatedHttpResponse forbidden =
+                memberTokenClient.prepare()
+                                 .put("/api/v1/metadata/{project}/settings")
+                                 .pathParam("project", project)
+                                 .content(MediaType.JSON, "{ \"allowPublicRepositories\": false }")
+                                 .execute();
+        assertThat(forbidden.status()).isSameAs(HttpStatus.FORBIDDEN);
+
+        // A malformed body (non-boolean 'allow') is rejected with 400.
+        final AggregatedHttpResponse badRequest =
+                systemAdminClient.prepare()
+                                 .put("/api/v1/metadata/{project}/settings")
+                                 .pathParam("project", project)
+                                 .content(MediaType.JSON, "{ \"allowPublicRepositories\": \"not-a-boolean\" }")
+                                 .execute();
+        assertThat(badRequest.status()).isSameAs(HttpStatus.BAD_REQUEST);
+
+        // A body with no settings is rejected as well.
+        final AggregatedHttpResponse emptySettings =
+                systemAdminClient.prepare()
+                                 .put("/api/v1/metadata/{project}/settings")
+                                 .pathParam("project", project)
+                                 .content(MediaType.JSON, "{}")
+                                 .execute();
+        assertThat(emptySettings.status()).isSameAs(HttpStatus.BAD_REQUEST);
+
+        // A project MEMBER is forbidden as well.
+        final HttpRequest addMember =
+                HttpRequest.builder()
+                           .post("/api/v1/metadata/" + project + "/appIdentities")
+                           .contentJson(new IdAndProjectRole(MEMBER_TOKEN_APP_ID, ProjectRole.MEMBER))
+                           .build();
+        assertThat(systemAdminClient.execute(addMember).status()).isSameAs(HttpStatus.OK);
+        final AggregatedHttpResponse memberForbidden =
+                memberTokenClient.prepare()
+                                 .put("/api/v1/metadata/{project}/settings")
+                                 .pathParam("project", project)
+                                 .content(MediaType.JSON, "{ \"allowPublicRepositories\": false }")
+                                 .execute();
+        assertThat(memberForbidden.status()).isSameAs(HttpStatus.FORBIDDEN);
+
+        // A project OWNER who is not a system administrator can update the setting.
+        final JsonPatch toOwner = JsonPatch.generate(Jackson.readTree("{\"role\":\"MEMBER\"}"),
+                                                     Jackson.readTree("{\"role\":\"OWNER\"}"),
+                                                     ReplaceMode.RFC6902);
+        final HttpRequest promote =
+                HttpRequest.builder()
+                           .patch("/api/v1/metadata/" + project + "/appIdentities/" + MEMBER_TOKEN_APP_ID)
+                           .content(MediaType.JSON_PATCH, Jackson.writeValueAsString(toOwner))
+                           .build();
+        assertThat(systemAdminClient.execute(promote).status()).isSameAs(HttpStatus.OK);
+        final ResponseEntity<Revision> ok =
+                memberTokenClient.prepare()
+                                 .put("/api/v1/metadata/{project}/settings")
+                                 .pathParam("project", project)
+                                 .content(MediaType.JSON, "{ \"allowPublicRepositories\": false }")
+                                 .asJson(Revision.class)
+                                 .execute();
+        assertThat(ok.status()).isSameAs(HttpStatus.OK);
+        assertThat(ok.content().major()).isGreaterThan(0);
+
+        await().untilAsserted(() -> {
+            final ProjectMetadata metadata =
+                    systemAdminClient.prepare()
+                                     .get("/api/v1/projects/" + project)
+                                     .asJson(ProjectMetadata.class, new ObjectMapper())
+                                     .execute()
+                                     .content();
+            assertThat(metadata.allowPublicRepositories()).isFalse();
+        });
     }
 
     private static ProjectMetadata projectMetadata() {

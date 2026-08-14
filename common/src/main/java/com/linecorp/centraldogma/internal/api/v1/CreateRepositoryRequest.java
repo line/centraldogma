@@ -32,12 +32,15 @@ public class CreateRepositoryRequest {
 
     private final String name;
     private final boolean encrypt;
+    private final boolean isPublic;
 
     @JsonCreator
     public CreateRepositoryRequest(@JsonProperty("name") String name,
-                                   @JsonProperty("encrypt") @Nullable Boolean encrypt) {
+                                   @JsonProperty("encrypt") @Nullable Boolean encrypt,
+                                   @JsonProperty("isPublic") @Nullable Boolean isPublic) {
         this.name = validateRepositoryName(name, "name");
         this.encrypt = firstNonNull(encrypt, false);
+        this.isPublic = firstNonNull(isPublic, false);
     }
 
     @JsonProperty
@@ -50,11 +53,17 @@ public class CreateRepositoryRequest {
         return encrypt;
     }
 
+    @JsonProperty("isPublic")
+    public boolean isPublic() {
+        return isPublic;
+    }
+
     @Override
     public String toString() {
         return MoreObjects.toStringHelper(this)
                           .add("name", name())
                           .add("encrypt", encrypt)
+                          .add("isPublic", isPublic)
                           .toString();
     }
 }
