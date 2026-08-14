@@ -31,6 +31,7 @@ includeWithFlags ':testing:testing-common',                 'java', 'publish', '
 includeWithFlags ':testing:junit',                          'java', 'publish', 'relocate'
 includeWithFlags ':testing:junit4',                         'java', 'publish', 'relocate'
 includeWithFlags ':xds',                                    'java', 'publish', 'relocate'
+includeWithFlags ':xds-api',                                'java', 'publish', 'relocate'
 // Set correct directory names
 project(':testing:testing-common').projectDir = file('testing/common')
 
@@ -46,6 +47,7 @@ project(':it:it-server').projectDir = file('it/server')
 includeWithFlags ':it:mirror-listener',                     'java', 'relocate'
 includeWithFlags ':it:server-healthy-plugin',               'java', 'relocate'
 includeWithFlags ':it:zone-leader-plugin',                  'java', 'relocate'
+includeWithFlags ':it:xds-client',                          'java17', 'relocate'
 includeWithFlags ':it:xds-member-permission',               'java', 'relocate'
 includeWithFlags ':it:xds-k8s-node-ip-extractor',           'java', 'relocate'
 includeWithFlags ':testing-internal',                       'java', 'relocate'

@@ -1,12 +1,15 @@
 import '@testing-library/jest-dom';
+import { waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { renderWithProviders } from 'dogma/util/test-utils';
 import AppIdentityPage from 'pages/app/settings/app-identities';
 import { AppIdentityDto } from 'dogma/features/app-identity/AppIdentity';
-import { useGetAppIdentitiesQuery } from 'dogma/features/api/apiSlice';
+import { useGetAppIdentitiesQuery, useRegenerateAppIdentitySecretMutation } from 'dogma/features/api/apiSlice';
 
 jest.mock('dogma/features/api/apiSlice', () => ({
   ...jest.requireActual('dogma/features/api/apiSlice'),
   useGetAppIdentitiesQuery: jest.fn(),
+  useRegenerateAppIdentitySecretMutation: jest.fn(),
 }));
 
 jest.mock('next/router', () => ({
@@ -50,6 +53,10 @@ describe('AppIdentityPage', () => {
       error: undefined,
       isLoading: false,
     });
+    (useRegenerateAppIdentitySecretMutation as jest.Mock).mockReturnValue([
+      jest.fn(),
+      { isLoading: false, reset: jest.fn() },
+    ]);
   });
 
   it('hides the Level column for non-system-admin users', () => {
@@ -88,5 +95,81 @@ describe('AppIdentityPage', () => {
 
     expect(getByText('app-token-1')).toBeInTheDocument();
     expect(getByText('app-admin-1')).toBeInTheDocument();
+  });
+
+  it('offers the regenerate secret action only for deactivated tokens', () => {
+    (useGetAppIdentitiesQuery as jest.Mock).mockReturnValue({
+      data: [
+        // An active token must be deactivated before its secret can be regenerated.
+        mockIdentities[0],
+        {
+          appId: 'app-inactive-1',
+          type: 'TOKEN',
+          systemAdmin: false,
+          allowGuestAccess: false,
+          creation: { user: 'user@example.com', timestamp: '2024-01-02T00:00:00Z' },
+          deactivation: { user: 'user@example.com', timestamp: '2024-01-03T00:00:00Z' },
+        },
+        {
+          appId: 'app-cert-1',
+          type: 'CERTIFICATE',
+          certificateId: 'cert/1',
+          systemAdmin: false,
+          allowGuestAccess: false,
+          creation: { user: 'user@example.com', timestamp: '2024-01-03T00:00:00Z' },
+        },
+        {
+          appId: 'app-deleted-1',
+          type: 'TOKEN',
+          systemAdmin: false,
+          allowGuestAccess: false,
+          creation: { user: 'user@example.com', timestamp: '2024-01-04T00:00:00Z' },
+          deactivation: { user: 'user@example.com', timestamp: '2024-01-05T00:00:00Z' },
+          deletion: { user: 'user@example.com', timestamp: '2024-01-05T00:00:00Z' },
+        },
+      ] as AppIdentityDto[],
+      error: undefined,
+      isLoading: false,
+    });
+    const { getAllByRole } = renderWithProviders(<AppIdentityPage />, {
+      preloadedState: { auth: baseAuthState },
+    });
+
+    // Hidden buttons are excluded from the accessibility tree, so only the deactivated token row's
+    // button is found; active tokens, certificates and tokens scheduled for deletion offer none.
+    expect(getAllByRole('button', { name: /regenerate secret/i })).toHaveLength(1);
+  });
+
+  it('hides the regenerate secret action once the secret is regenerated', async () => {
+    const inactiveToken: AppIdentityDto = {
+      appId: 'app-inactive-1',
+      type: 'TOKEN',
+      systemAdmin: false,
+      allowGuestAccess: false,
+      creation: { user: 'user@example.com', timestamp: '2024-01-01T00:00:00Z' },
+      deactivation: { user: 'user@example.com', timestamp: '2024-01-02T00:00:00Z' },
+    };
+    (useGetAppIdentitiesQuery as jest.Mock).mockReturnValue({
+      data: [inactiveToken],
+      error: undefined,
+      isLoading: false,
+    });
+    (useRegenerateAppIdentitySecretMutation as jest.Mock).mockReturnValue([
+      jest.fn().mockReturnValue({
+        unwrap: () => Promise.resolve({ ...inactiveToken, secret: 'appToken-regenerated-secret' }),
+      }),
+      { isLoading: false, reset: jest.fn() },
+    ]);
+    const { getByRole, getByText, queryByRole } = renderWithProviders(<AppIdentityPage />, {
+      preloadedState: { auth: baseAuthState },
+    });
+
+    await userEvent.click(getByRole('button', { name: /regenerate secret/i }));
+    await userEvent.click(getByRole('button', { name: 'Regenerate' }));
+    await waitFor(() => expect(getByText('Secret regenerated')).toBeInTheDocument());
+    await userEvent.click(getByRole('button', { name: 'OK' }));
+
+    // The action stays hidden until the token is deactivated again.
+    await waitFor(() => expect(queryByRole('button', { name: /regenerate secret/i })).not.toBeInTheDocument());
   });
 });

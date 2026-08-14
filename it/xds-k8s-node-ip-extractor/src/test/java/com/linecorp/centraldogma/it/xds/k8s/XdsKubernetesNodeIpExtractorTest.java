@@ -17,6 +17,7 @@ package com.linecorp.centraldogma.it.xds.k8s;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.linecorp.centraldogma.it.xds.k8s.LabelBasedNodeIpExtractor.NODE_IP_LABEL_PROPERTY;
+import static com.linecorp.centraldogma.server.internal.storage.InternalProjectConstants.INTERNAL_PROJECT_XDS;
 import static net.javacrumbs.jsonunit.fluent.JsonFluentAssert.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
@@ -42,6 +43,8 @@ import com.linecorp.armeria.common.RequestHeaders;
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.internal.Yaml;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 import com.linecorp.centraldogma.xds.internal.XdsResourceManager;
@@ -85,7 +88,6 @@ import io.fabric8.kubernetes.client.server.mock.EnableKubernetesMockClient;
 @EnableKubernetesMockClient(crud = true)
 class XdsKubernetesNodeIpExtractorTest {
 
-    private static final String XDS_CENTRAL_DOGMA_PROJECT = "@xds";
     private static final String K8S_ENDPOINT_AGGREGATORS_DIRECTORY = "/k8s/endpointAggregators/";
     private static final String K8S_ENDPOINTS_DIRECTORY = "/k8s/endpoints/";
 
@@ -147,20 +149,19 @@ class XdsKubernetesNodeIpExtractorTest {
 
         final AggregatedHttpResponse response = createAggregator(aggregator, aggregatorId);
         assertThat(response.status()).isSameAs(HttpStatus.OK);
-        assertThat(response.headers().get("grpc-status")).isEqualTo("0");
 
-        final Repository fooGroup = dogma.projectManager().get(XDS_CENTRAL_DOGMA_PROJECT)
+        final Repository fooGroup = dogma.projectManager().get(INTERNAL_PROJECT_XDS)
                                          .repos().get("foo");
         final Entry<JsonNode> aggregatorEntry =
-                fooGroup.get(Revision.HEAD, Query.ofJson(
-                        K8S_ENDPOINT_AGGREGATORS_DIRECTORY + aggregatorId + ".json")).join();
+                fooGroup.get(Revision.HEAD, Query.ofYaml(
+                        K8S_ENDPOINT_AGGREGATORS_DIRECTORY + aggregatorId + ".yaml")).join();
 
         // KubernetesEndpointsUpdater commits the resolved endpoints in the next revision.
         await().until(() -> fooGroup.normalizeNow(Revision.HEAD)
                                     .equals(aggregatorEntry.revision().forward(1)));
 
         final Entry<JsonNode> endpointEntry = fooGroup.get(
-                Revision.HEAD, Query.ofJson(K8S_ENDPOINTS_DIRECTORY + aggregatorId + ".json")).join();
+                Revision.HEAD, Query.ofYaml(K8S_ENDPOINTS_DIRECTORY + aggregatorId + ".yaml")).join();
 
         // The endpoints must use the label values resolved by LabelBasedNodeIpExtractor,
         // not the default InternalIP addresses (1.1.1.1 / 2.2.2.2).
@@ -223,18 +224,17 @@ class XdsKubernetesNodeIpExtractorTest {
 
         final AggregatedHttpResponse response = createAggregator(aggregator, aggregatorId);
         assertThat(response.status()).isSameAs(HttpStatus.OK);
-        assertThat(response.headers().get("grpc-status")).isEqualTo("0");
 
-        final Repository fooGroup = dogma.projectManager().get(XDS_CENTRAL_DOGMA_PROJECT)
+        final Repository fooGroup = dogma.projectManager().get(INTERNAL_PROJECT_XDS)
                                          .repos().get("foo");
         final Entry<JsonNode> aggregatorEntry =
-                fooGroup.get(Revision.HEAD, Query.ofJson(
-                        K8S_ENDPOINT_AGGREGATORS_DIRECTORY + aggregatorId + ".json")).join();
+                fooGroup.get(Revision.HEAD, Query.ofYaml(
+                        K8S_ENDPOINT_AGGREGATORS_DIRECTORY + aggregatorId + ".yaml")).join();
         await().until(() -> fooGroup.normalizeNow(Revision.HEAD)
                                     .equals(aggregatorEntry.revision().forward(1)));
 
         final Entry<JsonNode> endpointEntry = fooGroup.get(
-                Revision.HEAD, Query.ofJson(K8S_ENDPOINTS_DIRECTORY + aggregatorId + ".json")).join();
+                Revision.HEAD, Query.ofYaml(K8S_ENDPOINTS_DIRECTORY + aggregatorId + ".yaml")).join();
         assertThatJson(endpointEntry.content()).isEqualTo(
                 '{' +
                 "  \"clusterName\": \"groups/foo/k8s/clusters/" + aggregatorId + "\"," +
@@ -315,11 +315,12 @@ class XdsKubernetesNodeIpExtractorTest {
                 RequestHeaders.builder(HttpMethod.POST,
                                        "/api/v1/xds/groups/foo/k8s/endpointAggregators?" +
                                        "aggregator_id=" + aggregatorId)
-                              .contentType(MediaType.JSON_UTF_8)
+                              .contentType(MediaType.parse("application/yaml"))
                               .set(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous")
                               .build();
-        return dogma.httpClient().blocking().execute(
-                headers, XdsResourceManager.JSON_MESSAGE_MARSHALLER.writeValueAsString(aggregator));
+        final String yaml = Yaml.writeValueAsString(
+                Jackson.readTree(XdsResourceManager.JSON_MESSAGE_MARSHALLER.writeValueAsString(aggregator)));
+        return dogma.httpClient().blocking().execute(headers, yaml);
     }
 
     private static Node newNodeWithLabel(String internalIp, String labelKey, String labelValue) {

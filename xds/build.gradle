@@ -19,8 +19,8 @@ dependencies {
     testImplementation libs.logback15
     testImplementation libs.testcontainers.junit.jupiter
 
-    // The xDS web UI is bundled into and served by the main ':webapp' (under '/app/xds'); the control plane
-    // plugin only exposes the xDS APIs and the '/api/v1/xds/web' enabled flag.
+    testImplementation project(":server-mirror-git")
+    testImplementation project(":server-mirror-dogma")
     testImplementation project(":server-auth:shiro")
     testImplementation libs.shiro.core
 }

@@ -369,6 +369,14 @@ export const apiSlice = createApi({
       }),
       invalidatesTags: ['AppIdentity'],
     }),
+    regenerateAppIdentitySecret: builder.mutation<AppIdentityDto, { appId: string }>({
+      query: ({ appId }) => ({
+        url: `/api/v1/appIdentities/${appId}/secret`,
+        method: 'POST',
+      }),
+      // Refetching remounts the table cell that shows the new secret in a modal, so the caller
+      // invalidates the 'AppIdentity' tag when the modal is closed instead.
+    }),
     getProjectMirrors: builder.query<MirrorDto[], string>({
       query: (projectName) => `/api/v1/projects/${projectName}/mirrors`,
       providesTags: ['Metadata'],
@@ -694,6 +702,7 @@ export const {
   useDeactivateAppIdentityMutation,
   useActivateAppIdentityMutation,
   useDeleteAppIdentityMutation,
+  useRegenerateAppIdentitySecretMutation,
   // File
   useGetFilesQuery,
   useGetFileContentQuery,

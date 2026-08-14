@@ -56,7 +56,7 @@ public final class XdsEndpointReadService {
                          .thenApply(entries -> {
             final ArrayNode array = JsonNodeFactory.instance.arrayNode();
             for (Entry<?> entry : entries.values()) {
-                if (entry.type() != EntryType.JSON && entry.type() != EntryType.YAML) {
+                if (entry.type() != EntryType.YAML) {
                     continue;
                 }
                 final ObjectNode node = array.addObject();
@@ -87,16 +87,9 @@ public final class XdsEndpointReadService {
 
     private CompletableFuture<JsonNode> readByBase(String group, String pathBase) {
         final Repository repository = xdsProject.repos().get(group);
-        return repository.find(Revision.HEAD, pathBase + ".json," + pathBase + ".yaml")
-                         .thenCompose(entries -> {
-                             if (entries.isEmpty()) {
-                                 // Delegate to get() so the caller receives a proper EntryNotFoundException.
-                                 return repository.get(Revision.HEAD, pathBase + ".json")
-                                                  .thenApply(XdsEndpointReadService::toNode);
-                             }
-                             return CompletableFuture.completedFuture(
-                                     toNode(entries.values().iterator().next()));
-                         });
+        // get() throws a proper EntryNotFoundException when the resource does not exist.
+        return repository.get(Revision.HEAD, pathBase + ".yaml")
+                         .thenApply(XdsEndpointReadService::toNode);
     }
 
     private static JsonNode toNode(Entry<?> entry) {
@@ -104,7 +97,15 @@ public final class XdsEndpointReadService {
         node.put("path", entry.path());
         node.put("type", entry.type().name());
         node.put("revision", entry.revision().major());
-        node.set("content", (JsonNode) entry.content());
+        // rawContent is the raw YAML string, which is what the UI expects (same as the Central Dogma
+        // content API). entry.content() is a parsed JsonNode, which the TypeScript side cannot
+        // distinguish from a JSON object and would display as empty.
+        final String rawContent = entry.rawContent();
+        if (rawContent != null) {
+            node.put("content", rawContent);
+        } else {
+            node.set("content", (JsonNode) entry.content());
+        }
         return node;
     }
 }

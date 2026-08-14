@@ -15,7 +15,7 @@
  */
 package com.linecorp.centraldogma.xds.internal;
 
-import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.XDS_CENTRAL_DOGMA_PROJECT;
+import static com.linecorp.centraldogma.server.internal.storage.InternalProjectConstants.INTERNAL_PROJECT_XDS;
 import static com.linecorp.centraldogma.xds.internal.ControlPlaneService.CLUSTERS_DIRECTORY;
 import static com.linecorp.centraldogma.xds.internal.ControlPlaneService.ENDPOINTS_DIRECTORY;
 import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.JSON_MESSAGE_MARSHALLER;
@@ -72,7 +72,6 @@ class XdsYamlCompatibilityTest {
 
     @Test
     void controlPlaneLoadsYamlCluster() throws Exception {
-        // Simulate a YAML file existing in the repo (as if it was migrated from JSON).
         final String clusterName = "groups/foo/clusters/yaml-load-cluster";
         final Cluster cluster = cluster(clusterName, 1);
         pushYamlCluster("yaml-load-cluster", cluster);
@@ -95,16 +94,13 @@ class XdsYamlCompatibilityTest {
         final Cluster updated = cluster.toBuilder()
                                        .setConnectTimeout(Duration.newBuilder().setSeconds(2).build())
                                        .build();
-        final AggregatedHttpResponse response = patchCluster("foo", "yaml-update-cluster", updated);
+        final AggregatedHttpResponse response = putCluster("foo", "yaml-update-cluster", updated);
         assertThat(response.status()).isSameAs(HttpStatus.OK);
-        assertThat(response.headers().get("grpc-status")).isEqualTo("0");
 
-        // The .yaml file must be updated in place; no new .json file should appear.
+        // The .yaml file must be updated in place.
         final Repository repo = xdsRepo("foo");
         assertThat(repo.find(Revision.HEAD, CLUSTERS_DIRECTORY + "yaml-update-cluster.yaml",
                              FindOptions.FIND_ONE_WITHOUT_CONTENT).join()).isNotEmpty();
-        assertThat(repo.find(Revision.HEAD, CLUSTERS_DIRECTORY + "yaml-update-cluster.json",
-                             FindOptions.FIND_ONE_WITHOUT_CONTENT).join()).isEmpty();
 
         // Control plane must serve the updated cluster.
         await().pollInterval(100, TimeUnit.MILLISECONDS)
@@ -122,9 +118,7 @@ class XdsYamlCompatibilityTest {
 
         // Delete via the HTTP API — updateOrDelete must locate and remove the .yaml file.
         final AggregatedHttpResponse response = deleteCluster(clusterName);
-        assertThat(response.status()).isSameAs(HttpStatus.OK);
-        assertThat(response.headers().get("grpc-status")).isEqualTo("0");
-        assertThat(response.contentUtf8()).isEqualTo("{}");
+        assertThat(response.status()).isSameAs(HttpStatus.NO_CONTENT);
 
         // The .yaml file must be gone.
         final Repository repo = xdsRepo("foo");
@@ -171,33 +165,11 @@ class XdsYamlCompatibilityTest {
         });
     }
 
-    @Test
-    void jsonFileStillWorksAlongsideYaml() throws Exception {
-        // Push a JSON cluster via the normal API (still .json).
-        final String jsonClusterName = "groups/foo/clusters/json-alongside-yaml";
-        final AggregatedHttpResponse createResp = createCluster("foo", "json-alongside-yaml",
-                                                                 cluster(jsonClusterName, 1));
-        assertThat(createResp.status()).isSameAs(HttpStatus.OK);
-
-        // Push a YAML cluster directly.
-        final String yamlClusterName = "groups/foo/clusters/yaml-alongside-json";
-        final Cluster yamlCluster = cluster(yamlClusterName, 1);
-        pushYamlCluster("yaml-alongside-json", yamlCluster);
-
-        // Both must be served by the control plane.
-        final Cluster expectedJson = cluster(jsonClusterName, 1).toBuilder()
-                                                                 .setRespectDnsTtl(true).build();
-        await().pollInterval(100, TimeUnit.MILLISECONDS).untilAsserted(() -> {
-            checkClusterViaDiscovery(jsonClusterName, expectedJson, true);
-            checkClusterViaDiscovery(yamlClusterName, yamlCluster, true);
-        });
-    }
-
     // ---- helpers ----
 
     private static void pushYamlCluster(String clusterId, Cluster cluster) throws Exception {
         final String content = JSON_MESSAGE_MARSHALLER.writeValueAsString(cluster);
-        dogma.client().forRepo(XDS_CENTRAL_DOGMA_PROJECT, "foo")
+        dogma.client().forRepo(INTERNAL_PROJECT_XDS, "foo")
              .commit("Add YAML cluster: " + clusterId,
                      Change.ofYamlUpsert(CLUSTERS_DIRECTORY + clusterId + ".yaml", content))
              .push().join();
@@ -206,33 +178,21 @@ class XdsYamlCompatibilityTest {
     private static void pushYamlEndpoint(String endpointId, ClusterLoadAssignment endpoint)
             throws Exception {
         final String content = JSON_MESSAGE_MARSHALLER.writeValueAsString(endpoint);
-        dogma.client().forRepo(XDS_CENTRAL_DOGMA_PROJECT, "foo")
+        dogma.client().forRepo(INTERNAL_PROJECT_XDS, "foo")
              .commit("Add YAML endpoint: " + endpointId,
                      Change.ofYamlUpsert(ENDPOINTS_DIRECTORY + endpointId + ".yaml", content))
              .push().join();
     }
 
-    private static AggregatedHttpResponse createCluster(String group, String clusterId, Cluster cluster)
-            throws Exception {
-        return dogma.httpClient()
-                    .prepare()
-                    .method(HttpMethod.POST)
-                    .path("/api/v1/xds/groups/" + group + "/clusters")
-                    .queryParam("cluster_id", clusterId)
-                    .header(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous")
-                    .content(MediaType.JSON_UTF_8, JSON_MESSAGE_MARSHALLER.writeValueAsString(cluster))
-                    .execute().aggregate().join();
-    }
-
-    private static AggregatedHttpResponse patchCluster(String group, String clusterId, Cluster cluster)
+    private static AggregatedHttpResponse putCluster(String group, String clusterId, Cluster cluster)
             throws Exception {
         final RequestHeaders headers =
-                RequestHeaders.builder(HttpMethod.PATCH,
+                RequestHeaders.builder(HttpMethod.PUT,
                                        "/api/v1/xds/groups/" + group + "/clusters/" + clusterId)
                               .set(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous")
-                              .contentType(MediaType.JSON_UTF_8).build();
+                              .contentType(MediaType.parse("application/yaml")).build();
         return dogma.httpClient()
-                    .execute(headers, JSON_MESSAGE_MARSHALLER.writeValueAsString(cluster))
+                    .execute(headers, XdsTestUtil.toYaml(cluster))
                     .aggregate().join();
     }
 
@@ -244,7 +204,7 @@ class XdsYamlCompatibilityTest {
     }
 
     private static Repository xdsRepo(String group) {
-        return dogma.projectManager().get(XDS_CENTRAL_DOGMA_PROJECT).repos().get(group);
+        return dogma.projectManager().get(INTERNAL_PROJECT_XDS).repos().get(group);
     }
 
     private static void checkClusterViaDiscovery(String clusterName, Cluster expectedCluster,

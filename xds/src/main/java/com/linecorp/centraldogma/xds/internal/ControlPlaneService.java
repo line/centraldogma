@@ -30,7 +30,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Function;
 
-import org.curioswitch.common.protobuf.json.MessageMarshaller;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -42,10 +41,10 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.protobuf.Message;
 
+import com.linecorp.armeria.common.DependencyInjector;
 import com.linecorp.armeria.common.HttpRequest;
 import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.util.Exceptions;
-import com.linecorp.armeria.internal.common.grpc.DefaultJsonMarshaller;
 import com.linecorp.armeria.server.HttpService;
 import com.linecorp.armeria.server.ServerBuilder;
 import com.linecorp.armeria.server.ServiceRequestContext;
@@ -69,6 +68,7 @@ import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.xds.cluster.v1.XdsClusterService;
 import com.linecorp.centraldogma.xds.endpoint.v1.XdsEndpointService;
 import com.linecorp.centraldogma.xds.group.v1.XdsGroupService;
+import com.linecorp.centraldogma.xds.internal.RequiresXdsGroupRoleDecorator.RequiresXdsGroupRoleDecoratorFactory;
 import com.linecorp.centraldogma.xds.k8s.v1.XdsKubernetesService;
 import com.linecorp.centraldogma.xds.listener.v1.XdsListenerService;
 import com.linecorp.centraldogma.xds.route.v1.XdsRouteService;
@@ -79,9 +79,6 @@ import io.envoyproxy.envoy.config.cluster.v3.Cluster;
 import io.envoyproxy.envoy.config.endpoint.v3.ClusterLoadAssignment;
 import io.envoyproxy.envoy.config.listener.v3.Listener;
 import io.envoyproxy.envoy.config.route.v3.RouteConfiguration;
-import io.grpc.MethodDescriptor;
-import io.grpc.MethodDescriptor.Marshaller;
-import io.grpc.MethodDescriptor.PrototypeMarshaller;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.binder.jvm.ExecutorServiceMetrics;
 import io.netty.util.concurrent.DefaultThreadFactory;
@@ -152,43 +149,23 @@ public final class ControlPlaneService extends XdsResourceWatchingService {
         final ServerBuilder serverBuilder = pluginInitContext.serverBuilder();
         serverBuilder.service(grpcService, optionalAppIdentityAuth(mds));
         final XdsResourceManager xdsResourceManager = new XdsResourceManager(xdsProject(), commandExecutor);
+        serverBuilder.dependencyInjector(
+                DependencyInjector.ofSingletons(
+                        new RequiresXdsGroupRoleDecoratorFactory(xdsProject())), false);
+        serverBuilder.annotatedService().pathPrefix("/api/v1").build(
+                new XdsClusterService(xdsResourceManager));
+        serverBuilder.annotatedService().pathPrefix("/api/v1").build(
+                new XdsListenerService(xdsResourceManager));
+        serverBuilder.annotatedService().pathPrefix("/api/v1").build(
+                new XdsRouteService(xdsResourceManager));
         final XdsEndpointService xdsEndpointService =
                 new XdsEndpointService(xdsResourceManager, controlPlaneExecutor);
         this.xdsEndpointService = xdsEndpointService;
-        final GrpcService xdsApplicationService =
-                GrpcService.builder()
-                           .addService(new XdsGroupService(xdsProject(), commandExecutor, mds))
-                           .addService(new XdsListenerService(xdsResourceManager))
-                           .addService(new XdsRouteService(xdsResourceManager))
-                           .addService(new XdsClusterService(xdsResourceManager))
-                           .addService(xdsEndpointService)
-                           .addService(new XdsKubernetesService(xdsResourceManager))
-                           .exceptionHandler(new ControlPlaneExceptionHandlerFunction())
-                           .jsonMarshallerFactory(
-                                   serviceDescriptor -> {
-                                       // Use JSON_MESSAGE_MARSHALLER not to parse Envoy extensions twice.
-                                       final MessageMarshaller.Builder builder =
-                                               JSON_MESSAGE_MARSHALLER.toBuilder();
-                                       for (MethodDescriptor<?, ?> method : ImmutableList.copyOf(
-                                               serviceDescriptor.getMethods())) {
-                                           final Message reqPrototype =
-                                                   marshallerPrototype(method.getRequestMarshaller());
-                                           final Message resPrototype =
-                                                   marshallerPrototype(method.getResponseMarshaller());
-                                           if (reqPrototype != null) {
-                                               builder.register(reqPrototype);
-                                           }
-                                           if (resPrototype != null) {
-                                               builder.register(resPrototype);
-                                           }
-                                       }
-                                       return new DefaultJsonMarshaller(builder.build());
-                                   })
-                           .enableHttpJsonTranscoding(true).build();
-        // The global /api/v1/** route decorator in CentralDogma covers the HTTP-transcoded routes, but
-        // the native gRPC paths (e.g. /centraldogma.xds.*.v1.*Service/Method) bypass it. The per-service
-        // decorator ensures both paths require authentication.
-        serverBuilder.service(xdsApplicationService, pluginInitContext.authService());
+        serverBuilder.annotatedService().pathPrefix("/api/v1").build(xdsEndpointService);
+        serverBuilder.annotatedService().pathPrefix("/api/v1").build(
+                new XdsGroupService(xdsProject(), commandExecutor, mds));
+        serverBuilder.annotatedService().pathPrefix("/api/v1").build(
+                new XdsKubernetesService(xdsResourceManager));
 
         // Endpoints (EDS) are not access-controlled: any authenticated user can read the endpoints of every
         // group regardless of its READ access.
@@ -314,17 +291,6 @@ public final class ControlPlaneService extends XdsResourceWatchingService {
             }
         });
         return new XdsResourceTypeDto(version, builder.build());
-    }
-
-    @Nullable
-    private static Message marshallerPrototype(Marshaller<?> marshaller) {
-        if (marshaller instanceof MethodDescriptor.PrototypeMarshaller) {
-            final Object prototype = ((PrototypeMarshaller<?>) marshaller).getMessagePrototype();
-            if (prototype instanceof Message) {
-                return (Message) prototype;
-            }
-        }
-        return null;
     }
 
     @Override
@@ -511,6 +477,7 @@ public final class ControlPlaneService extends XdsResourceWatchingService {
     void stop() {
         stop = true;
         metrics.onStopped();
+
         final XdsEndpointService xdsEndpointService = this.xdsEndpointService;
         if (xdsEndpointService != null) {
             if (xdsEndpointService.batchUpdateTaskSize() > 0) {

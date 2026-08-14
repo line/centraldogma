@@ -18,7 +18,6 @@ package com.linecorp.centraldogma.xds.internal;
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.PASSWORD;
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.USERNAME;
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.getAccessToken;
-import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.JSON_MESSAGE_MARSHALLER;
 import static com.linecorp.centraldogma.xds.internal.XdsTestUtil.cluster;
 import static com.linecorp.centraldogma.xds.internal.XdsTestUtil.loadAssignment;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -308,7 +307,6 @@ final class TokenDiscoveryAuthorizationTest {
                 admin.prepare()
                      .post("/api/v1/xds/groups")
                      .queryParam("group_id", group)
-                     .content(MediaType.JSON, "{\"name\":\"groups/" + group + "\"}")
                      .execute().aggregate().join();
         assertThat(response.status()).isEqualTo(HttpStatus.OK);
     }
@@ -319,7 +317,7 @@ final class TokenDiscoveryAuthorizationTest {
                 admin.prepare()
                      .post("/api/v1/xds/groups/" + group + "/clusters")
                      .queryParam("cluster_id", clusterId)
-                     .content(MediaType.JSON, JSON_MESSAGE_MARSHALLER.writeValueAsString(cluster))
+                     .content(MediaType.parse("application/yaml"), XdsTestUtil.toYaml(cluster))
                      .execute().aggregate().join();
         assertThat(response.status()).isEqualTo(HttpStatus.OK);
     }
@@ -330,7 +328,7 @@ final class TokenDiscoveryAuthorizationTest {
                 admin.prepare()
                      .post("/api/v1/xds/groups/" + group + "/endpoints")
                      .queryParam("endpoint_id", endpointId)
-                     .content(MediaType.JSON, JSON_MESSAGE_MARSHALLER.writeValueAsString(endpoint))
+                     .content(MediaType.parse("application/yaml"), XdsTestUtil.toYaml(endpoint))
                      .execute().aggregate().join();
         assertThat(response.status()).isEqualTo(HttpStatus.OK);
     }

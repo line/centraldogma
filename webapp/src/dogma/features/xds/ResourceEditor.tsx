@@ -23,6 +23,7 @@ import {
   Button,
   Flex,
   FormControl,
+  FormErrorMessage,
   FormLabel,
   Heading,
   HStack,
@@ -45,6 +46,7 @@ import Router from 'next/router';
 import { useEffect, useMemo, useState } from 'react';
 import { AiOutlineClose, AiOutlineDelete, AiOutlineEdit } from 'react-icons/ai';
 import { FiSave } from 'react-icons/fi';
+import * as jsYaml from 'js-yaml';
 import { Deferred } from 'dogma/common/components/Deferred';
 import { JsonEditor } from 'dogma/common/components/JsonEditor';
 import { DeleteConfirmationModal } from 'dogma/common/components/DeleteConfirmationModal';
@@ -58,17 +60,22 @@ import { XdsResourceType, XDS_RESOURCE_META, XDS_RESOURCE_TEMPLATES } from 'dogm
 import { extractReferences, referenceHref, resolveReference } from 'dogma/features/xds/xdsReferences';
 import { ResourceGraph } from 'dogma/features/xds/ResourceGraph';
 import { ResourceHistory } from 'dogma/features/xds/ResourceHistory';
+import { EditorActionBar } from 'dogma/features/xds/EditorActionBar';
 import { useGroupWriteAccess } from 'dogma/features/xds/useGroupWriteAccess';
 import { useAppDispatch } from 'dogma/hooks';
 import { newNotification } from 'dogma/features/notification/notificationSlice';
 import ErrorMessageParser from 'dogma/features/services/ErrorMessageParser';
 
-function parseJsonOrNotify(dispatch: ReturnType<typeof useAppDispatch>, value: string): object | null {
+// Dots are allowed (e.g. "my-service.v1"), but slashes are not.
+const RESOURCE_ID_PATTERN = /^[a-z](?:[a-z0-9_.-]*[a-z0-9])?$/;
+
+function validateYamlOrNotify(dispatch: ReturnType<typeof useAppDispatch>, value: string): boolean {
   try {
-    return JSON.parse(value);
+    jsYaml.load(value);
+    return true;
   } catch (e) {
-    dispatch(newNotification('Invalid JSON', (e as Error).message, 'error'));
-    return null;
+    dispatch(newNotification('Invalid YAML', (e as Error).message, 'error'));
+    return false;
   }
 }
 
@@ -79,7 +86,10 @@ const NewResourceEditor = ({ group, type }: { group: string; type: XdsResourceTy
   const { hasWrite, isLoading: accessLoading } = useGroupWriteAccess(group);
   const [id, setId] = useState('');
   const [content, setContent] = useState(XDS_RESOURCE_TEMPLATES[type]);
+  const [commitSummary, setCommitSummary] = useState('');
   const [createResource, { isLoading }] = useCreateResourceMutation();
+
+  const idIsInvalid = id.length > 0 && !RESOURCE_ID_PATTERN.test(id);
 
   const handleCreate = async () => {
     if (!hasWrite) {
@@ -89,11 +99,21 @@ const NewResourceEditor = ({ group, type }: { group: string; type: XdsResourceTy
       dispatch(newNotification('ID is required', `Please enter the ${meta.label} ID`, 'error'));
       return;
     }
-    if (parseJsonOrNotify(dispatch, content) === null) {
+    if (idIsInvalid) {
+      dispatch(
+        newNotification(
+          'Invalid ID',
+          `${meta.label} ID must match [a-z](?:[a-z0-9_.-]*[a-z0-9])? (dots allowed, slashes not allowed)`,
+          'error',
+        ),
+      );
+      return;
+    }
+    if (!validateYamlOrNotify(dispatch, content)) {
       return;
     }
     try {
-      await createResource({ group, type, id, body: content }).unwrap();
+      await createResource({ group, type, id, body: content, summary: commitSummary || undefined }).unwrap();
       dispatch(newNotification(`${meta.label} created`, `${meta.label} '${id}' is created`, 'success'));
       Router.push(`/app/xds/group?name=${encodeURIComponent(group)}&type=${type}`);
     } catch (err) {
@@ -115,17 +135,23 @@ const NewResourceEditor = ({ group, type }: { group: string; type: XdsResourceTy
 
   return (
     <Box>
-      <FormControl isRequired mb={4} maxW="md">
+      <FormControl isRequired isInvalid={idIsInvalid} mb={4} maxW="md">
         <FormLabel>{meta.label} ID</FormLabel>
         <Input value={id} onChange={(e) => setId(e.target.value)} placeholder={`Enter ${meta.label} ID ...`} />
+        <FormErrorMessage>
+          ID must match [a-z](?:[a-z0-9_.-]*[a-z0-9])? (dots allowed, slashes not allowed)
+        </FormErrorMessage>
       </FormControl>
-      <JsonEditor value={content} onChange={setContent} />
-      <Flex mt={4}>
-        <Spacer />
+      <JsonEditor value={content} onChange={setContent} language="yaml" />
+      <EditorActionBar
+        commitSummary={commitSummary}
+        onCommitSummaryChange={setCommitSummary}
+        commitPlaceholder={`Create ${meta.label.toLowerCase()}: ...`}
+      >
         <Button colorScheme="teal" leftIcon={<FiSave />} onClick={handleCreate} isLoading={isLoading}>
           Create
         </Button>
-      </Flex>
+      </EditorActionBar>
     </Box>
   );
 };
@@ -192,6 +218,8 @@ const ExistingResourceEditor = ({
   const [content, setContent] = useState('');
   // A resource opens in read-only view; the user must click Edit to modify it (like the main web app).
   const [editing, setEditing] = useState(false);
+  const [commitSummary, setCommitSummary] = useState('');
+  const [deleteCommitSummary, setDeleteCommitSummary] = useState('');
   const [updateResource, { isLoading: isSaving }] = useUpdateResourceMutation();
   const [deleteResource, { isLoading: isDeleting }] = useDeleteResourceMutation();
   const { isOpen, onOpen, onClose } = useDisclosure();
@@ -200,8 +228,8 @@ const ExistingResourceEditor = ({
     if (!data) {
       return '';
     }
-    const raw = data.content !== undefined ? data.content : {};
-    return typeof raw === 'string' ? raw : JSON.stringify(raw, null, 2);
+    const raw = data.content;
+    return typeof raw === 'string' ? raw : '';
   }, [data]);
 
   // Sync the editor to the latest fetched content, but never while the user is editing: a background
@@ -213,13 +241,14 @@ const ExistingResourceEditor = ({
   }, [originalContent, editing]);
 
   const handleSave = async () => {
-    if (parseJsonOrNotify(dispatch, content) === null) {
+    if (!validateYamlOrNotify(dispatch, content)) {
       return;
     }
     try {
-      await updateResource({ group, type, id, body: content }).unwrap();
+      await updateResource({ group, type, id, body: content, summary: commitSummary || undefined }).unwrap();
       dispatch(newNotification(`${meta.label} updated`, `${meta.label} '${id}' is updated`, 'success'));
       setEditing(false);
+      setCommitSummary('');
     } catch (err) {
       dispatch(newNotification(`Failed to update the ${meta.label}`, ErrorMessageParser.parse(err), 'error'));
     }
@@ -228,16 +257,22 @@ const ExistingResourceEditor = ({
   const handleCancel = () => {
     setContent(originalContent);
     setEditing(false);
+    setCommitSummary('');
   };
 
   const handleDelete = async () => {
     try {
-      await deleteResource({ group, type, id }).unwrap();
+      await deleteResource({ group, type, id, summary: deleteCommitSummary || undefined }).unwrap();
       dispatch(newNotification(`${meta.label} deleted`, `${meta.label} '${id}' is deleted`, 'success'));
       Router.push(`/app/xds/group?name=${encodeURIComponent(group)}&type=${type}`);
     } catch (err) {
       dispatch(newNotification(`Failed to delete the ${meta.label}`, ErrorMessageParser.parse(err), 'error'));
     }
+  };
+
+  const handleDeleteModalClose = () => {
+    setDeleteCommitSummary('');
+    onClose();
   };
 
   // Resources generated by a k8s aggregator are managed by the aggregator, so they are always read-only
@@ -278,22 +313,14 @@ const ExistingResourceEditor = ({
                       This endpoint is generated by a Kubernetes aggregator and is read-only.
                     </Alert>
                   ) : (
-                    <Flex mb={2} align="center">
-                      {type !== 'endpoints' && <ResourceGraph group={group} type={type} id={id} k8s={k8s} />}
-                      <Spacer />
-                      {/* Mutating controls are shown only to users with WRITE on the group. */}
-                      {hasWrite &&
-                        (editing ? (
-                          <Button
-                            variant="outline"
-                            colorScheme="gray"
-                            leftIcon={<AiOutlineClose />}
-                            size="sm"
-                            onClick={handleCancel}
-                          >
-                            Cancel
-                          </Button>
-                        ) : (
+                    // While editing, Cancel/Save move to the sticky action bar, so the toolbar only needs
+                    // to render when it has something to show (the graph link, or the read-mode buttons).
+                    (type !== 'endpoints' || (hasWrite && !editing)) && (
+                      <Flex mb={2} align="center">
+                        {type !== 'endpoints' && <ResourceGraph group={group} type={type} id={id} k8s={k8s} />}
+                        <Spacer />
+                        {/* Edit/Delete are shown only to users with WRITE on the group, and only in read mode. */}
+                        {hasWrite && !editing && (
                           <HStack spacing={3}>
                             <Button
                               colorScheme="teal"
@@ -307,18 +334,31 @@ const ExistingResourceEditor = ({
                               Delete
                             </Button>
                           </HStack>
-                        ))}
-                    </Flex>
+                        )}
+                      </Flex>
+                    )
                   )}
                   <ReferencePanel group={group} type={type} content={originalContent} />
                   <JsonEditor
                     value={content}
                     onChange={readOnly ? undefined : setContent}
                     readOnly={readOnly}
+                    language="yaml"
                   />
                   {editing && hasWrite && (
-                    <Flex mt={4}>
-                      <Spacer />
+                    <EditorActionBar
+                      commitSummary={commitSummary}
+                      onCommitSummaryChange={setCommitSummary}
+                      commitPlaceholder={`Update ${meta.label.toLowerCase()}: ...`}
+                    >
+                      <Button
+                        variant="outline"
+                        colorScheme="gray"
+                        leftIcon={<AiOutlineClose />}
+                        onClick={handleCancel}
+                      >
+                        Cancel
+                      </Button>
                       <Button
                         colorScheme="teal"
                         leftIcon={<FiSave />}
@@ -327,7 +367,7 @@ const ExistingResourceEditor = ({
                       >
                         Save
                       </Button>
-                    </Flex>
+                    </EditorActionBar>
                   )}
                 </TabPanel>
                 <TabPanel px={0}>
@@ -338,13 +378,22 @@ const ExistingResourceEditor = ({
             </Tabs>
             <DeleteConfirmationModal
               isOpen={isOpen}
-              onClose={onClose}
+              onClose={handleDeleteModalClose}
               type={meta.label}
               id={id}
               from={group}
               handleDelete={handleDelete}
               isLoading={isDeleting}
-            />
+            >
+              <FormControl mt={4}>
+                <FormLabel>Commit summary</FormLabel>
+                <Input
+                  value={deleteCommitSummary}
+                  onChange={(e) => setDeleteCommitSummary(e.target.value)}
+                  placeholder={`Delete ${meta.label.toLowerCase()}: ...`}
+                />
+              </FormControl>
+            </DeleteConfirmationModal>
           </Box>
         )
       }
@@ -399,7 +448,7 @@ export const ResourceEditor = ({
       {isNew || !id ? (
         <NewResourceEditor group={group} type={type} />
       ) : (
-        <ExistingResourceEditor group={group} type={type} id={id} k8s={k8s} />
+        <ExistingResourceEditor key={id} group={group} type={type} id={id} k8s={k8s} />
       )}
     </Box>
   );

@@ -111,8 +111,7 @@ public abstract class XdsResourceWatchingService {
                                                " at revision: " + normalizedRevision, cause);
                 }
                 for (Entry<?> entry : entries.values()) {
-                    if ((entry.type() != EntryType.JSON && entry.type() != EntryType.YAML) ||
-                        !entry.hasContent()) {
+                    if (entry.type() != EntryType.YAML || !entry.hasContent()) {
                         continue;
                     }
                     final String path = entry.path();
@@ -222,7 +221,6 @@ public abstract class XdsResourceWatchingService {
             for (Change<?> change : changes.values()) {
                 final String path = change.path();
                 switch (change.type()) {
-                    case UPSERT_JSON:
                     case UPSERT_YAML:
                         try {
                             handleXdsResource(path, (JsonNode) change.content(), groupName);

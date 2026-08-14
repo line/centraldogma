@@ -1163,6 +1163,16 @@ public class MetadataService {
     }
 
     /**
+     * Regenerates the secret of the deactivated {@link Token} of the specified {@code appId} and
+     * returns the {@link Token} with the newly-generated secret. The token must be deactivated first
+     * and the new secret does not authenticate until the token is activated. The regeneration fails
+     * with a {@link ChangeConflictException} if the token is still active.
+     */
+    public CompletableFuture<Token> regenerateTokenSecret(Author author, String appId) {
+        return appIdentityService.regenerateTokenSecret(author, appId);
+    }
+
+    /**
      * Returns an {@link AppIdentity} which has the specified {@code appId}.
      */
     public AppIdentity findAppIdentity(String appId) {

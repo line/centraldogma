@@ -18,7 +18,6 @@ package com.linecorp.centraldogma.xds.internal;
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.PASSWORD;
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.USERNAME;
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.getAccessToken;
-import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.JSON_MESSAGE_MARSHALLER;
 import static com.linecorp.centraldogma.xds.internal.XdsTestUtil.cluster;
 import static com.linecorp.centraldogma.xds.internal.XdsTestUtil.loadAssignment;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -79,14 +78,14 @@ final class XdsEndpointReadPermissionTest {
         final AggregatedHttpResponse list =
                 reader.get("/api/v1/xds/groups/foo/endpoints").aggregate().join();
         assertThat(list.status()).isEqualTo(HttpStatus.OK);
-        assertThat(list.contentUtf8()).contains("/endpoints/e1.json");
+        assertThat(list.contentUtf8()).contains("/endpoints/e1.yaml");
 
         final AggregatedHttpResponse get =
                 reader.get("/api/v1/xds/groups/foo/endpoints/e1").aggregate().join();
         assertThat(get.status()).isEqualTo(HttpStatus.OK);
-        assertThat(get.contentUtf8()).contains("/endpoints/e1.json").contains("127.0.0.1");
+        assertThat(get.contentUtf8()).contains("/endpoints/e1.yaml").contains("127.0.0.1");
 
-        final String clusterPath = "/api/v1/projects/@xds/repos/foo/contents/clusters/c1.json?revision=head";
+        final String clusterPath = "/api/v1/projects/@xds/repos/foo/contents/clusters/c1.yaml?revision=head";
         final AggregatedHttpResponse cluster = reader.get(clusterPath).aggregate().join();
         assertThat(cluster.status()).isEqualTo(HttpStatus.FORBIDDEN);
 
@@ -100,7 +99,6 @@ final class XdsEndpointReadPermissionTest {
         return client.prepare()
                      .post("/api/v1/xds/groups")
                      .queryParam("group_id", group)
-                     .content(MediaType.JSON, "{\"name\":\"groups/" + group + "\"}")
                      .execute().aggregate().join();
     }
 
@@ -109,7 +107,7 @@ final class XdsEndpointReadPermissionTest {
         return client.prepare()
                      .post("/api/v1/xds/groups/" + group + "/clusters")
                      .queryParam("cluster_id", clusterId)
-                     .content(MediaType.JSON, JSON_MESSAGE_MARSHALLER.writeValueAsString(cluster))
+                     .content(MediaType.parse("application/yaml"), XdsTestUtil.toYaml(cluster))
                      .execute().aggregate().join();
     }
 
@@ -118,7 +116,7 @@ final class XdsEndpointReadPermissionTest {
         return client.prepare()
                      .post("/api/v1/xds/groups/" + group + "/endpoints")
                      .queryParam("endpoint_id", endpointId)
-                     .content(MediaType.JSON, JSON_MESSAGE_MARSHALLER.writeValueAsString(endpoint))
+                     .content(MediaType.parse("application/yaml"), XdsTestUtil.toYaml(endpoint))
                      .execute().aggregate().join();
     }
 }

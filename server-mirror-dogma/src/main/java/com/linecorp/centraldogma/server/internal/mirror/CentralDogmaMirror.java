@@ -408,6 +408,7 @@ public final class CentralDogmaMirror extends AbstractMirror {
                     changes.put(path, Change.ofRemoval(path));
                 }
             });
+            validateChanges(changes);
 
             final String summary = "Mirror " + remoteHead + ", '" + remoteUri() +
                                    "' to the repository '" + localRepo().name() + '\'';
