@@ -576,46 +576,6 @@ class XdsKubernetesServiceTest {
         checkEndpointsViaDiscoveryRequest(dogma.httpClient().uri(), null, clusterName);
     }
 
-    @Test
-    void createAggregator_migratesLegacyJsonEndpoint() throws IOException {
-        final String aggregatorId = "k8s-mig-cluster.1";
-        final String clusterName = "groups/foo/k8s/clusters/" + aggregatorId;
-        final Repository fooGroup =
-                dogma.projectManager().get(INTERNAL_PROJECT_XDS).repos().get("foo");
-
-        // Pre-push a legacy .json endpoint file — simulates an old server that wrote .json.
-        final String legacyJsonPath = K8S_ENDPOINTS_DIRECTORY + aggregatorId + ".json";
-        final ClusterLoadAssignment legacyEndpoints = clusterLoadAssignment(clusterName, 30000);
-        final JsonNode legacyJsonNode = Jackson.readTree(
-                JSON_MESSAGE_MARSHALLER.writeValueAsString(legacyEndpoints));
-        dogma.client().forRepo(INTERNAL_PROJECT_XDS, "foo")
-             .commit("Add legacy k8s JSON endpoint", Change.ofJsonUpsert(legacyJsonPath, legacyJsonNode))
-             .push().join();
-
-        // Create the aggregator — pushK8sEndpoints will atomically remove the .json and upsert .yaml.
-        final KubernetesEndpointAggregator aggregator = aggregator(aggregatorId, "repo-credential");
-        assertOk(createAggregator(aggregator, aggregatorId));
-
-        // Wait until the migration commit lands (the next revision after the aggregator config commit).
-        final Entry<JsonNode> aggEntry =
-                fooGroup.get(Revision.HEAD,
-                             Query.ofYaml(K8S_ENDPOINT_AGGREGATORS_DIRECTORY + aggregatorId + ".yaml"))
-                        .join();
-        await().until(() -> fooGroup.normalizeNow(Revision.HEAD)
-                                    .equals(aggEntry.revision().forward(1)));
-
-        final Entry<JsonNode> endpointEntry =
-                fooGroup.getOrNull(Revision.HEAD,
-                                   Query.ofYaml(K8S_ENDPOINTS_DIRECTORY + aggregatorId + ".yaml"))
-                        .join();
-        assertThat(endpointEntry).isNotNull();
-
-        // The legacy .json file must be absent after atomic migration.
-        assertThat(fooGroup.getOrNull(Revision.HEAD, Query.ofJson(legacyJsonPath)).join()).isNull();
-
-        assertNoContent(deleteAggregator0(aggregator.getName()));
-    }
-
     private static AggregatedHttpResponse deleteAggregator0(String aggregatorName) {
         final RequestHeaders headers =
                 RequestHeaders.builder(HttpMethod.DELETE, "/api/v1/xds/" + aggregatorName)

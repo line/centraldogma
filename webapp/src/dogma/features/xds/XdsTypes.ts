@@ -52,7 +52,7 @@ export interface GroupDto {
 
 export interface XdsResourceDto {
   // The resource id, i.e. the file path under the type directory without the
-  // leading '/{type}/' prefix and the trailing file extension (.yaml or .json).
+  // leading '/{type}/' prefix and the trailing '.yaml' extension.
   id: string;
   // The full repository path, e.g. '/clusters/foo.yaml'.
   path: string;
