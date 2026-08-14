@@ -748,6 +748,68 @@ class ZooKeeperCommandExecutorTest {
         }
     }
 
+    /**
+     * A replay still in flight when the executor stops must finish and record its progress durably,
+     * because closing the log watcher cancels its tasks with an interrupt. Otherwise the command is
+     * applied to the local data while last_revision is not advanced, and the next start-up applies it
+     * a second time.
+     */
+    @Test
+    @Timeout(120)
+    void inFlightReplayOnStopIsRecordedAndNotReplayed() throws Exception {
+        final CountDownLatch replayEntered = new CountDownLatch(1);
+        final CountDownLatch proceed = new CountDownLatch(1);
+        final AtomicInteger replayCount = new AtomicInteger();
+        final AtomicInteger replicaIndex = new AtomicInteger();
+        final Supplier<Function<Command<?>, CompletableFuture<?>>> delegateSupplier = () -> {
+            final boolean replaying = replicaIndex.getAndIncrement() == 1;
+            final Function<Command<?>, CompletableFuture<?>> base = newMockDelegate();
+            return command -> {
+                if (replaying && command != null && command.type() == CommandType.CREATE_REPOSITORY) {
+                    // Park inside replayLogs() so we can stop while the replay is in flight.
+                    replayCount.incrementAndGet();
+                    replayEntered.countDown();
+                    return CompletableFuture.supplyAsync(() -> {
+                        try {
+                            proceed.await();
+                        } catch (InterruptedException e) {
+                            throw new RuntimeException(e);
+                        }
+                        return null;
+                    }, CommonPools.blockingTaskExecutor());
+                }
+                return base.apply(command);
+            };
+        };
+
+        try (Cluster cluster = Cluster.builder().numReplicas(3).build(delegateSupplier)) {
+            final Replica origin = cluster.get(0);
+            final Replica replaying = cluster.get(1);
+            origin.commandExecutor().execute(Command.createProject(Author.SYSTEM, "p")).join();
+            await().untilAsserted(() -> assertThat(replaying.localRevision()).isEqualTo(0L));
+
+            // Park the replay of revision 1, then stop while it is in flight.
+            origin.commandExecutor().execute(Command.createRepository(Author.SYSTEM, "p", "r")).join();
+            assertThat(replayEntered.await(10, TimeUnit.SECONDS)).isTrue();
+            final CompletableFuture<Void> stopFuture = replaying.commandExecutor().stop();
+            // The shutdown must not finish while the replay is parked; that is the barrier doing its job.
+            assertThatThrownBy(() -> stopFuture.get(3, TimeUnit.SECONDS))
+                    .isInstanceOf(TimeoutException.class);
+            proceed.countDown();
+            stopFuture.join();
+
+            // The replay finished before the log watcher was closed, so its progress is durable.
+            assertThat(replaying.localRevision()).isEqualTo(1L);
+
+            // Catch up on a later revision to prove revision 1 was not applied a second time.
+            replaying.commandExecutor().start().join();
+            origin.commandExecutor().execute(Command.createProject(Author.SYSTEM, "p2")).join();
+            await().untilAsserted(() -> assertThat(replaying.localRevision()).isEqualTo(2L));
+            assertThat(replayCount).hasValue(1);
+            assertThat(replaying.commandExecutor().isWritable()).isTrue();
+        }
+    }
+
     private static <T> void awaitUntilReplicated(Cluster cluster, Command<T> command) {
         for (int i = 0; i < cluster.size(); i++) {
             final Replica replica = cluster.get(i);

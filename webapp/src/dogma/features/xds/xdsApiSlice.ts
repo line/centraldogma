@@ -295,11 +295,16 @@ export const xdsApiSlice = createApi({
     }),
     updateK8sAggregator: builder.mutation<
       unknown,
-      { group: string; id: string; body: string; summary?: string }
+      // `revision` is the revision the client read the aggregator at; the server rejects the update with
+      // 409 when the aggregator changed since. Required so no caller opts out of the check.
+      { group: string; id: string; body: string; summary?: string; revision: string }
     >({
-      query: ({ group, id, body, summary }) => {
+      query: ({ group, id, body, summary, revision }) => {
         let url = `/api/v1/xds/groups/${group}/k8s/endpointAggregators/${id}`;
-        if (summary) url += `?summary=${encodeURIComponent(summary)}`;
+        const params = new URLSearchParams();
+        if (summary) params.set('summary', summary);
+        params.set('revision', revision);
+        url += `?${params.toString()}`;
         return { url, method: 'PUT', body, headers: { 'Content-Type': 'application/yaml' } };
       },
       invalidatesTags: ['K8sAggregator'],
