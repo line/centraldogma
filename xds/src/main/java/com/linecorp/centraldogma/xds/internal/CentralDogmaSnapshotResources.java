@@ -120,9 +120,15 @@ final class CentralDogmaSnapshotResources<T extends Message> extends SnapshotRes
         if (allResourceVersion != null) {
             return allResourceVersion;
         }
-        return allResourceVersion = Hashing.sha256()
-                                           .hashInt(versionedResources.values().hashCode())
-                                           .toString();
+        // Hash the resources in a canonical order. `versionedResources` is built from
+        // HashMap iteration, whose order is not guaranteed to be stable across snapshot
+        // rebuilds even when the resource set is unchanged.
+        final List<VersionedResource<T>> sorted =
+                versionedResources.entrySet().stream()
+                                  .sorted(Map.Entry.comparingByKey())
+                                  .map(Map.Entry::getValue)
+                                  .collect(toImmutableList());
+        return allResourceVersion = Hashing.sha256().hashInt(sorted.hashCode()).toString();
     }
 
     @Override

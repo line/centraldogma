@@ -74,4 +74,36 @@ class CentralDogmaSnapshotResourcesTest {
         assertThat(snapshotResources.version(ImmutableList.of("foo/cluster", "bar/cluster", "qux/cluster")))
                 .isEqualTo(fooBarVersion);
     }
+
+    @Test
+    void wildcardVersionIsStableRegardlessOfInsertionOrder() {
+        // The same three clusters.
+        final SnapshotResources<Cluster> ascending = clusterSnapshot("foo", "bar", "baz");
+        final SnapshotResources<Cluster> descending = clusterSnapshot("baz", "bar", "foo");
+
+        // The wildcard version (empty resource names) must be identical for identical content.
+        assertThat(ascending.version(ImmutableList.of()))
+                .isEqualTo(descending.version(ImmutableList.of()));
+        // "*" and the explicit full set resolve to the same wildcard version too.
+        assertThat(ascending.version(ImmutableList.of("*")))
+                .isEqualTo(descending.version(ImmutableList.of()));
+        assertThat(ascending.version(ImmutableList.of("foo/cluster", "bar/cluster", "baz/cluster")))
+                .isEqualTo(descending.version(ImmutableList.of()));
+
+        // A genuine content change must still change the wildcard version.
+        final SnapshotResources<Cluster> changed = clusterSnapshot("foo", "bar", "qux");
+        assertThat(changed.version(ImmutableList.of()))
+                .isNotEqualTo(ascending.version(ImmutableList.of()));
+    }
+
+    private static SnapshotResources<Cluster> clusterSnapshot(String... groups) {
+        final ImmutableMap.Builder<String, Map<String, VersionedResource<Cluster>>> builder =
+                ImmutableMap.builder();
+        for (String group : groups) {
+            final String clusterName = group + "/cluster";
+            builder.put(group, ImmutableMap.of(
+                    clusterName, VersionedResource.create(Cluster.newBuilder().setName(clusterName).build())));
+        }
+        return CentralDogmaSnapshotResources.create(builder.build(), ResourceType.CLUSTER);
+    }
 }
