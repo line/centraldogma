@@ -23,12 +23,11 @@ import java.io.IOException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.concurrent.CompletableFuture;
-import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.curioswitch.common.protobuf.json.MessageMarshaller;
-import org.jspecify.annotations.Nullable;
 import org.reflections.Reflections;
 import org.reflections.scanners.SubTypesScanner;
 import org.slf4j.Logger;
@@ -212,44 +211,39 @@ public final class XdsResourceManager {
                 return CompletableFuture.completedFuture(
                         errorResponse(HttpStatus.NOT_FOUND, "Group not found: " + group));
             }
-            final String altFileName = alternativeFileName(fileName);
             // Note: There is a TOCTOU race between this check and the subsequent ofYamlUpsert —
             // two concurrent creates can both pass this check and the second will silently overwrite
             // the first. This is acceptable for xDS resources where concurrent creates of the same
             // resource are extremely rare.
-            return repository.find(Revision.HEAD, fileName + ',' + altFileName, FIND_ONE_WITHOUT_CONTENT)
+            return repository.find(Revision.HEAD, fileName, FIND_ONE_WITHOUT_CONTENT)
                              .thenCompose(entries -> {
                                  if (!entries.isEmpty()) {
                                      return CompletableFuture.completedFuture(
                                              errorResponse(HttpStatus.CONFLICT,
                                                            "Resource already exists: " + resourceName));
                                  }
-                                 return doPush(group, fileName, summary, author,
-                                               true, null, originalBody);
+                                 return doPush(group, fileName, summary, author, true, originalBody);
                              });
         }
-        return doPush(group, fileName, summary, author, false, null, originalBody);
+        return doPush(group, fileName, summary, author, false, originalBody);
     }
 
     private CompletableFuture<HttpResponse> doPush(
             String group, String fileName, String summary,
-            Author author, boolean create, @Nullable String legacyFileToRemove, String originalBody) {
-        return doPush(group, fileName, summary, author, create, legacyFileToRemove, originalBody,
+            Author author, boolean create, String originalBody) {
+        return doPush(group, fileName, summary, author, create, originalBody,
                       Revision.HEAD);
     }
 
     private CompletableFuture<HttpResponse> doPush(
             String group, String fileName, String summary,
-            Author author, boolean create, @Nullable String legacyFileToRemove, String originalBody,
-            Revision baseRevision) {
+            Author author, boolean create, String originalBody, Revision baseRevision) {
         // Store the original YAML body as-is (server-set fields are injected by the caller before
         // this method is invoked). Respond with the same body so the client sees exactly what is stored.
         final Change<?> change = Change.ofYamlUpsert(fileName, originalBody);
-        final ImmutableList<Change<?>> changes =
-                legacyFileToRemove != null ? ImmutableList.of(Change.ofRemoval(legacyFileToRemove), change)
-                                           : ImmutableList.of(change);
         return commandExecutor.execute(Command.push(author, INTERNAL_PROJECT_XDS, group, baseRevision,
-                                                    summary, "", Markup.PLAINTEXT, changes))
+                                                    summary, "", Markup.PLAINTEXT,
+                                                    ImmutableList.of(change)))
                               .handle((unused, cause) -> {
                                   if (cause != null) {
                                       final Throwable peeled = Exceptions.peel(cause);
@@ -283,21 +277,12 @@ public final class XdsResourceManager {
                       baseRevision);
     }
 
-    public CompletableFuture<HttpResponse> update(
-            String group, String resourceName, String fileName, String summary,
-            Author author, String originalBody) {
-        return update(group, resourceName, fileName, summary, author, originalBody, Revision.HEAD);
-    }
-
     private CompletableFuture<HttpResponse> update(
             String group, String resourceName, String fileName, String summary,
             Author author, String originalBody, Revision baseRevision) {
-        return updateOrDelete(group, resourceName, fileName, resolvedFileName -> {
-            final String legacyFileToRemove = resolvedFileName.endsWith(".json") ? resolvedFileName : null;
-            final String targetFileName = legacyFileToRemove != null ? fileName : resolvedFileName;
-            return doPush(group, targetFileName, summary, author, false, legacyFileToRemove, originalBody,
-                          baseRevision);
-        });
+        return updateOrDelete(group, resourceName, fileName,
+                              () -> doPush(group, fileName, summary, author,
+                                           false, originalBody, baseRevision));
     }
 
     public CompletableFuture<HttpResponse> delete(
@@ -307,10 +292,10 @@ public final class XdsResourceManager {
 
     public CompletableFuture<HttpResponse> delete(
             String group, String resourceName, String fileName, String summary, Author author) {
-        return updateOrDelete(group, resourceName, fileName, resolvedFileName ->
+        return updateOrDelete(group, resourceName, fileName, () ->
                 commandExecutor.execute(Command.push(author, INTERNAL_PROJECT_XDS, group,
                                                      Revision.HEAD, summary, "", Markup.PLAINTEXT,
-                                                     ImmutableList.of(Change.ofRemoval(resolvedFileName))))
+                                                     ImmutableList.of(Change.ofRemoval(fileName))))
                                .handle((unused, cause) -> {
                                    if (cause != null) {
                                        return errorResponse(HttpStatus.INTERNAL_SERVER_ERROR,
@@ -322,7 +307,7 @@ public final class XdsResourceManager {
 
     public CompletableFuture<HttpResponse> updateOrDelete(
             String group, String resourceName, String fileName,
-            Function<String, CompletableFuture<HttpResponse>> task) {
+            Supplier<CompletableFuture<HttpResponse>> task) {
         final Repository repository;
         try {
             repository = xdsProject.repos().get(group);
@@ -330,27 +315,14 @@ public final class XdsResourceManager {
             return CompletableFuture.completedFuture(
                     errorResponse(HttpStatus.NOT_FOUND, "Group not found: " + group));
         }
-        final String altFileName = alternativeFileName(fileName);
-        return repository.find(Revision.HEAD, fileName + ',' + altFileName, FIND_ONE_WITHOUT_CONTENT)
+        return repository.find(Revision.HEAD, fileName, FIND_ONE_WITHOUT_CONTENT)
                          .thenCompose(entries -> {
                              if (entries.isEmpty()) {
                                  return CompletableFuture.completedFuture(
                                          errorResponse(HttpStatus.NOT_FOUND,
                                                        "Resource not found: " + resourceName));
                              }
-                             final String resolvedFileName = entries.keySet().iterator().next();
-                             return task.apply(resolvedFileName);
+                             return task.get();
                          });
-    }
-
-    public static String alternativeFileName(String fileName) {
-        final String baseFileName = fileName.substring(0, fileName.length() - 5);
-        if (fileName.endsWith(".json")) {
-            return baseFileName + ".yaml";
-        }
-        if (fileName.endsWith(".yaml")) {
-            return baseFileName + ".json";
-        }
-        return fileName;
     }
 }

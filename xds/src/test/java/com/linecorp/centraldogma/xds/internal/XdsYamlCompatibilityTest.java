@@ -72,7 +72,6 @@ class XdsYamlCompatibilityTest {
 
     @Test
     void controlPlaneLoadsYamlCluster() throws Exception {
-        // Simulate a YAML file existing in the repo (as if it was migrated from JSON).
         final String clusterName = "groups/foo/clusters/yaml-load-cluster";
         final Cluster cluster = cluster(clusterName, 1);
         pushYamlCluster("yaml-load-cluster", cluster);
@@ -98,12 +97,10 @@ class XdsYamlCompatibilityTest {
         final AggregatedHttpResponse response = putCluster("foo", "yaml-update-cluster", updated);
         assertThat(response.status()).isSameAs(HttpStatus.OK);
 
-        // The .yaml file must be updated in place; no new .json file should appear.
+        // The .yaml file must be updated in place.
         final Repository repo = xdsRepo("foo");
         assertThat(repo.find(Revision.HEAD, CLUSTERS_DIRECTORY + "yaml-update-cluster.yaml",
                              FindOptions.FIND_ONE_WITHOUT_CONTENT).join()).isNotEmpty();
-        assertThat(repo.find(Revision.HEAD, CLUSTERS_DIRECTORY + "yaml-update-cluster.json",
-                             FindOptions.FIND_ONE_WITHOUT_CONTENT).join()).isEmpty();
 
         // Control plane must serve the updated cluster.
         await().pollInterval(100, TimeUnit.MILLISECONDS)
@@ -168,27 +165,6 @@ class XdsYamlCompatibilityTest {
         });
     }
 
-    @Test
-    void jsonFileStillWorksAlongsideYaml() throws Exception {
-        // Push a JSON cluster via the normal API (still .json).
-        final String jsonClusterName = "groups/foo/clusters/json-alongside-yaml";
-        final AggregatedHttpResponse createResp = createCluster("foo", "json-alongside-yaml",
-                                                                 cluster(jsonClusterName, 1));
-        assertThat(createResp.status()).isSameAs(HttpStatus.OK);
-
-        // Push a YAML cluster directly.
-        final String yamlClusterName = "groups/foo/clusters/yaml-alongside-json";
-        final Cluster yamlCluster = cluster(yamlClusterName, 1);
-        pushYamlCluster("yaml-alongside-json", yamlCluster);
-
-        // Both must be served by the control plane.
-        final Cluster expectedJson = cluster(jsonClusterName, 1);
-        await().pollInterval(100, TimeUnit.MILLISECONDS).untilAsserted(() -> {
-            checkClusterViaDiscovery(jsonClusterName, expectedJson, true);
-            checkClusterViaDiscovery(yamlClusterName, yamlCluster, true);
-        });
-    }
-
     // ---- helpers ----
 
     private static void pushYamlCluster(String clusterId, Cluster cluster) throws Exception {
@@ -206,18 +182,6 @@ class XdsYamlCompatibilityTest {
              .commit("Add YAML endpoint: " + endpointId,
                      Change.ofYamlUpsert(ENDPOINTS_DIRECTORY + endpointId + ".yaml", content))
              .push().join();
-    }
-
-    private static AggregatedHttpResponse createCluster(String group, String clusterId, Cluster cluster)
-            throws Exception {
-        return dogma.httpClient()
-                    .prepare()
-                    .method(HttpMethod.POST)
-                    .path("/api/v1/xds/groups/" + group + "/clusters")
-                    .queryParam("cluster_id", clusterId)
-                    .header(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous")
-                    .content(MediaType.parse("application/yaml"), XdsTestUtil.toYaml(cluster))
-                    .execute().aggregate().join();
     }
 
     private static AggregatedHttpResponse putCluster(String group, String clusterId, Cluster cluster)

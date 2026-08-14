@@ -45,6 +45,7 @@ import {
   useReactTable,
 } from '@tanstack/react-table';
 import { FetchBaseQueryError } from '@reduxjs/toolkit/query';
+import * as jsYaml from 'js-yaml';
 import { useCallback, useMemo, useState } from 'react';
 import { VscGitCommit } from 'react-icons/vsc';
 import { DataTable } from 'dogma/features/xds/DataTable';
@@ -65,15 +66,16 @@ const columnHelper = createColumnHelper<HistoryDto>();
 // The most recent commits to show. Each xDS resource create/update/delete is one commit.
 const MAX_COMMITS = 100;
 
-// Re-serializes JSON content so the before/after sides of the diff have identical formatting and only real
-// changes stand out. Returns '' when the file is absent at that revision (a create or delete).
+// Parses the YAML resource and re-serializes it as pretty JSON so the before/after sides of the diff have
+// identical formatting and only real changes stand out. Returns '' when the file is absent at that revision
+// (a create or delete). jsYaml.load also accepts JSON, since JSON is a subset of YAML.
 function prettyContent(content: string | undefined, rawContent: string | undefined): string {
   const raw = content ?? rawContent;
-  if (raw == null) {
+  if (!raw) {
     return '';
   }
   try {
-    return JSON.stringify(JSON.parse(raw), null, 2);
+    return JSON.stringify(jsYaml.load(raw), null, 2);
   } catch {
     return raw;
   }
@@ -257,7 +259,7 @@ const CommitDiffModal = ({
 };
 
 // Shows the change history (commit log) of a group. When `filePath` is given, the history is scoped to that
-// single resource file (e.g. '/clusters/foo.json') and each commit is clickable to see its before/after diff;
+// single resource file (e.g. '/clusters/foo.yaml') and each commit is clickable to see its before/after diff;
 // otherwise it covers the whole group and each commit is still clickable to see all files changed.
 export const ResourceHistory = ({ group, filePath }: { group: string; filePath?: string }) => {
   const { data, isLoading, error } = useGetGroupHistoryQuery(

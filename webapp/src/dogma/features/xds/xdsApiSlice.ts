@@ -62,7 +62,7 @@ export interface FileContentDto {
   path: string;
   type: string;
   revision: string;
-  // For JSON files the server returns the parsed object.
+  // The server returns the resource content as a raw YAML string.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   content?: any;
 }
