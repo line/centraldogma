@@ -11,7 +11,9 @@ const nextConfig = {
   productionBrowserSourceMaps: isDev,
   trailingSlash: false,
   output: isDev ? 'standalone' : 'export',
-  distDir: 'build/web/',
+  // `npm run build` and `next dev` share this directory, so a gradle build (which runs the former as part
+  // of :webapp:runTestServer) wipes a running dev server's manifests. Point the dev server elsewhere.
+  distDir: process.env.NEXT_DIST_DIR || 'build/web/',
   images: {
     unoptimized: true,
   },
