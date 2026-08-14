@@ -23,6 +23,7 @@ import org.jspecify.annotations.Nullable;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.base.MoreObjects;
 
 /**
@@ -32,12 +33,16 @@ public class CreateRepositoryRequest {
 
     private final String name;
     private final boolean encrypt;
+    @Nullable
+    private final JsonNode properties;
 
     @JsonCreator
     public CreateRepositoryRequest(@JsonProperty("name") String name,
-                                   @JsonProperty("encrypt") @Nullable Boolean encrypt) {
+                                   @JsonProperty("encrypt") @Nullable Boolean encrypt,
+                                   @JsonProperty("properties") @Nullable JsonNode properties) {
         this.name = validateRepositoryName(name, "name");
         this.encrypt = firstNonNull(encrypt, false);
+        this.properties = properties;
     }
 
     @JsonProperty
@@ -50,11 +55,18 @@ public class CreateRepositoryRequest {
         return encrypt;
     }
 
+    @Nullable
+    @JsonProperty
+    public JsonNode properties() {
+        return properties;
+    }
+
     @Override
     public String toString() {
         return MoreObjects.toStringHelper(this)
                           .add("name", name())
                           .add("encrypt", encrypt)
+                          .add("properties", properties())
                           .toString();
     }
 }

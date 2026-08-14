@@ -30,6 +30,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableMap;
 
@@ -51,6 +52,7 @@ public class ProjectMetadata implements Identifiable, HasWeight {
                                 null,
                                 ImmutableMap.of(),
                                 new UserAndTimestamp(User.SYSTEM.id()),
+                                null,
                                 null);
 
     /**
@@ -85,6 +87,12 @@ public class ProjectMetadata implements Identifiable, HasWeight {
     private final UserAndTimestamp removal;
 
     /**
+     * The additional properties of this project.
+     */
+    @Nullable
+    private final JsonNode properties;
+
+    /**
      * Creates a new instance.
      */
     @JsonCreator
@@ -94,7 +102,8 @@ public class ProjectMetadata implements Identifiable, HasWeight {
                            @JsonProperty("tokens") @Nullable Map<String, AppIdentityRegistration> tokens,
                            @JsonProperty("appIds") @Nullable Map<String, AppIdentityRegistration> appIds,
                            @JsonProperty("creation") UserAndTimestamp creation,
-                           @JsonProperty("removal") @Nullable UserAndTimestamp removal) {
+                           @JsonProperty("removal") @Nullable UserAndTimestamp removal,
+                           @JsonProperty("properties") @Nullable JsonNode properties) {
         this.name = requireNonNull(name, "name");
         this.repos = ImmutableMap.copyOf(requireNonNull(repos, "repos"));
         this.members = ImmutableMap.copyOf(requireNonNull(members, "members"));
@@ -110,6 +119,8 @@ public class ProjectMetadata implements Identifiable, HasWeight {
 
         this.creation = requireNonNull(creation, "creation");
         this.removal = removal;
+        // Copy so that a later mutation of the argument cannot change this instance.
+        this.properties = properties != null ? properties.deepCopy() : null;
     }
 
     @Override
@@ -164,6 +175,15 @@ public class ProjectMetadata implements Identifiable, HasWeight {
     @JsonProperty
     public UserAndTimestamp removal() {
         return removal;
+    }
+
+    /**
+     * Returns the additional properties of this project.
+     */
+    @Nullable
+    @JsonProperty
+    public JsonNode properties() {
+        return properties;
     }
 
     /**
@@ -227,6 +247,9 @@ public class ProjectMetadata implements Identifiable, HasWeight {
         for (AppIdentityRegistration appIdentityRegistration : appIds.values()) {
             weight += appIdentityRegistration.weight();
         }
+        if (properties != null) {
+            weight += properties.toString().length();
+        }
 
         return weight;
     }
@@ -245,12 +268,13 @@ public class ProjectMetadata implements Identifiable, HasWeight {
                members.equals(that.members) &&
                appIds.equals(that.appIds) &&
                creation.equals(that.creation) &&
-               Objects.equals(removal, that.removal);
+               Objects.equals(removal, that.removal) &&
+               Objects.equals(properties, that.properties);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(name, repos, members, appIds, creation, removal);
+        return Objects.hash(name, repos, members, appIds, creation, removal, properties);
     }
 
     @Override
@@ -262,6 +286,7 @@ public class ProjectMetadata implements Identifiable, HasWeight {
                           .add("appIds", appIds())
                           .add("creation", creation())
                           .add("removal", removal())
+                          .add("properties", properties())
                           .toString();
     }
 
@@ -281,6 +306,7 @@ public class ProjectMetadata implements Identifiable, HasWeight {
                                    null,
                                    appIds(),
                                    creation(),
-                                   removal());
+                                   removal(),
+                                   properties());
     }
 }

@@ -254,7 +254,7 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
             }
 
             try {
-                projectManager.create(c.projectName(), c.timestamp(), c.author(), encrypt);
+                projectManager.create(c.projectName(), c.timestamp(), c.author(), encrypt, c.properties());
             } catch (Throwable t) {
                 if (encrypt) {
                     try {

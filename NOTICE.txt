@@ -200,6 +200,11 @@ This product depends on Hibernate Validator, distributed by Red Hat, Inc:
   * License: licenses/LICENSE.hibernate.al20.txt
   * Homepage: http://hibernate.org/validator/
 
+This product depends on itu, distributed by Morten Haraldsen:
+
+  * License: licenses/LICENSE.itu.al20.txt (Apache License v2.0)
+  * Homepage: https://github.com/ethlo/itu
+
 This product depends on Jackson, distributed by FasterXML, LLC:
 
   * License: licenses/LICENSE.jackson.al20.txt (Apache License v2.0)
@@ -259,6 +264,11 @@ This product depends on JSch, distributed by JCraft, Inc:
 
   * License: licenses/LICENSE.jsch.bsd.txt (New BSD License)
   * Homepage: http://www.jcraft.com/jsch/
+
+This product depends on json-schema-validator, distributed by networknt:
+
+  * License: licenses/LICENSE.json-schema-validator.al20.txt (Apache License v2.0)
+  * Homepage: https://github.com/networknt/json-schema-validator
 
 This product depends on JsonUnit, distributed by Lukáš Křečan:
 

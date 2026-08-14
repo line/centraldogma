@@ -21,6 +21,7 @@ import org.jspecify.annotations.Nullable;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 
 /**
@@ -74,6 +75,13 @@ public interface AppIdentity extends Identifiable {
     @Nullable
     @JsonProperty
     UserAndTimestamp deletion();
+
+    /**
+     * Returns the additional properties of this application identity.
+     */
+    @Nullable
+    @JsonProperty
+    JsonNode properties();
 
     /**
      * Returns whether this application identity is active.

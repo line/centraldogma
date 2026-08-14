@@ -22,6 +22,7 @@ import java.util.concurrent.CompletableFuture;
 
 import org.jspecify.annotations.Nullable;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.ImmutableMap;
 
 import com.linecorp.centraldogma.common.Author;
@@ -42,7 +43,8 @@ public final class RepositoryServiceUtil {
     public static CompletableFuture<Revision> createRepository(
             CommandExecutor commandExecutor, MetadataService mds,
             Author author, String projectName, String repoName, boolean encrypt,
-            @Nullable EncryptionStorageManager encryptionStorageManager) {
+            @Nullable EncryptionStorageManager encryptionStorageManager,
+            @Nullable JsonNode properties) {
         final Map<String, RepositoryRole> users;
         final Map<String, RepositoryRole> appIds;
         if (author.isAppIdentity()) {
@@ -56,7 +58,7 @@ public final class RepositoryServiceUtil {
 
         final Roles roles = new Roles(DEFAULT_PROJECT_ROLES, users, null, appIds);
         final RepositoryMetadata repositoryMetadata =
-                RepositoryMetadata.of(repoName, roles, UserAndTimestamp.of(author));
+                RepositoryMetadata.of(repoName, roles, UserAndTimestamp.of(author), properties);
 
         if (!encrypt) {
             return commandExecutor.execute(Command.createRepository(author, projectName, repoName))

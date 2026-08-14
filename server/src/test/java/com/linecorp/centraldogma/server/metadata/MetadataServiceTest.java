@@ -78,12 +78,14 @@ class MetadataServiceTest {
     private static final String cert2 = "cert-2";
     private static final String certificateId1 = "certificate/id/1";
     private static final String certificateId2 = "certificate/id/2";
-    private static final Token appToken1 = new Token(app1, "secret", false, true, UserAndTimestamp.of(author));
-    private static final Token appToken2 = new Token(app2, "secret", false, true, UserAndTimestamp.of(author));
+    private static final Token appToken1 =
+            new Token(app1, "secret", false, true, UserAndTimestamp.of(author), null);
+    private static final Token appToken2 =
+            new Token(app2, "secret", false, true, UserAndTimestamp.of(author), null);
     private static final CertificateAppIdentity certificate1 =
-            new CertificateAppIdentity(cert1, certificateId1, false, true, UserAndTimestamp.of(author));
+            new CertificateAppIdentity(cert1, certificateId1, false, true, UserAndTimestamp.of(author), null);
     private static final CertificateAppIdentity certificate2 =
-            new CertificateAppIdentity(cert2, certificateId2, false, true, UserAndTimestamp.of(author));
+            new CertificateAppIdentity(cert2, certificateId2, false, true, UserAndTimestamp.of(author), null);
 
     @Test
     void project() {
@@ -227,7 +229,7 @@ class MetadataServiceTest {
         final MetadataService mds = newMetadataService(manager);
 
         final RepositoryMetadata repositoryMetadata =
-                RepositoryMetadata.of(repo1, Roles.EMPTY, UserAndTimestamp.of(author));
+                RepositoryMetadata.of(repo1, Roles.EMPTY, UserAndTimestamp.of(author), null);
 
         mds.addRepo(author, project1, repo1, repositoryMetadata).join();
         await().until(() -> getRepo1(mds) != null);
@@ -475,8 +477,8 @@ class MetadataServiceTest {
         final MetadataService mds = newMetadataService(manager);
 
         mds.addRepo(author, project1, repo1, ProjectRoles.of(null, null)).join();
-        mds.createCertificate(author, cert1, certificateId1, false).join();
-        mds.createCertificate(author, cert2, certificateId2, false).join();
+        mds.createCertificate(author, cert1, certificateId1, false, null).join();
+        mds.createCertificate(author, cert2, certificateId2, false, null).join();
 
         mds.addAppIdentity(author, project1, cert1, ProjectRole.MEMBER).join();
         mds.addAppIdentity(author, project1, cert2, ProjectRole.MEMBER).join();
@@ -507,8 +509,8 @@ class MetadataServiceTest {
         final MetadataService mds = newMetadataService(manager);
 
         mds.addRepo(author, project1, repo1, ProjectRoles.of(null, null)).join();
-        mds.createCertificate(author, cert1, certificateId1, false).join();
-        mds.createCertificate(author, cert2, certificateId2, false).join();
+        mds.createCertificate(author, cert1, certificateId1, false, null).join();
+        mds.createCertificate(author, cert2, certificateId2, false, null).join();
 
         mds.addAppIdentity(author, project1, cert1, ProjectRole.MEMBER).join();
         mds.addAppIdentity(author, project1, cert2, ProjectRole.MEMBER).join();
@@ -633,7 +635,7 @@ class MetadataServiceTest {
     void certificateActivationAndDeactivation() {
         final MetadataService mds = newMetadataService(manager);
 
-        mds.createCertificate(author, cert1, certificateId1, false).join();
+        mds.createCertificate(author, cert1, certificateId1, false, null).join();
         await().untilAsserted(() -> assertThat(mds.getAppIdentityRegistry().get(cert1)).isNotNull());
         assertThat(mds.getAppIdentityRegistry().get(cert1).creation().user()).isEqualTo(owner.id());
         assertThat(mds.getAppIdentityRegistry().get(cert1).type()).isEqualTo(AppIdentityType.CERTIFICATE);
@@ -774,7 +776,7 @@ class MetadataServiceTest {
         // but has an explicit repository role, it should still be accessible.
         final MetadataService mds = newMetadataService(manager);
 
-        final Token noGuestToken = new Token(app1, "secret", false, false, UserAndTimestamp.of(author));
+        final Token noGuestToken = new Token(app1, "secret", false, false, UserAndTimestamp.of(author), null);
 
         mds.addRepo(author, project1, repo1,
                      ProjectRoles.of(RepositoryRole.WRITE, RepositoryRole.READ)).join();
@@ -790,7 +792,7 @@ class MetadataServiceTest {
 
         // Without an explicit repository role, allowGuestAccess=false should deny access.
         assertThat(mds.findRepositoryRole(project1, repo1,
-                new Token(app2, "secret2", false, false, UserAndTimestamp.of(author))).join())
+                new Token(app2, "secret2", false, false, UserAndTimestamp.of(author), null)).join())
                 .isNull();
     }
 
@@ -890,8 +892,8 @@ class MetadataServiceTest {
 
     private static void createCertificateAndVerifyDuplicateFails(MetadataService mds, String appId,
                                                                  String certificateId) {
-        mds.createCertificate(author, appId, certificateId, false).join();
-        assertThatThrownBy(() -> mds.createCertificate(author, appId, certificateId, false).join())
+        mds.createCertificate(author, appId, certificateId, false, null).join();
+        assertThatThrownBy(() -> mds.createCertificate(author, appId, certificateId, false, null).join())
                 .hasCauseInstanceOf(ChangeConflictException.class);
     }
 

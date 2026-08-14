@@ -25,6 +25,24 @@ import com.linecorp.centraldogma.internal.Jackson;
 class AppIdentityDeserializerTest {
 
     @Test
+    void deserializeLegacyTokenWithProperties() throws Exception {
+        final String legacyTokenJson = '{' +
+                                       "  \"appId\": \"legacy-app\"," +
+                                       "  \"secret\": \"legacy-secret\"," +
+                                       "  \"creation\": {" +
+                                       "    \"user\": \"admin@localhost.com\"," +
+                                       "    \"timestamp\": \"2025-01-01T00:00:00Z\"" +
+                                       "  }," +
+                                       "  \"properties\": { \"serviceId\": \"foo\" }" +
+                                       '}';
+
+        final AppIdentity appIdentity = Jackson.readValue(legacyTokenJson, AppIdentity.class);
+
+        assertThat(appIdentity).isInstanceOf(Token.class);
+        assertThat(appIdentity.properties()).isEqualTo(Jackson.readTree("{\"serviceId\":\"foo\"}"));
+    }
+
+    @Test
     void deserializeLegacyTokenWithoutType() throws Exception {
         final String legacyTokenJson = '{' +
                                        "  \"appId\": \"legacy-app\"," +

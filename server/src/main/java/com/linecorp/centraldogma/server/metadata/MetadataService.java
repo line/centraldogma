@@ -32,6 +32,7 @@ import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableMap.Builder;
@@ -187,7 +188,8 @@ public class MetadataService {
                                                null,
                                                projectMetadata.appIds(),
                                                projectMetadata.creation(),
-                                               UserAndTimestamp.of(author));
+                                               UserAndTimestamp.of(author),
+                                               projectMetadata.properties());
                 });
         return metadataRepo.push(projectName, Project.REPO_DOGMA, author,
                                  "Remove the project: " + projectName, transformer);
@@ -211,7 +213,8 @@ public class MetadataService {
                                                null,
                                                projectMetadata.appIds(),
                                                projectMetadata.creation(),
-                                               null);
+                                               null,
+                                               projectMetadata.properties());
                 });
         return metadataRepo.push(projectName, Project.REPO_DOGMA, author,
                                  "Restore the project: " + projectName, transformer);
@@ -260,7 +263,8 @@ public class MetadataService {
                                                null,
                                                projectMetadata.appIds(),
                                                projectMetadata.creation(),
-                                               projectMetadata.removal());
+                                               projectMetadata.removal(),
+                                               projectMetadata.properties());
                 });
         return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, transformer);
     }
@@ -291,7 +295,8 @@ public class MetadataService {
                                                null,
                                                projectMetadata.appIds(),
                                                projectMetadata.creation(),
-                                               projectMetadata.removal());
+                                               projectMetadata.removal(),
+                                               projectMetadata.properties());
                 });
         return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, transformer);
     }
@@ -312,7 +317,8 @@ public class MetadataService {
                                                         newRoles,
                                                         repositoryMetadata.creation(),
                                                         repositoryMetadata.removal(),
-                                                        repositoryMetadata.status()));
+                                                        repositoryMetadata.status(),
+                                                        repositoryMetadata.properties()));
             } else {
                 reposBuilder.put(entry);
             }
@@ -356,7 +362,8 @@ public class MetadataService {
                                                null,
                                                projectMetadata.appIds(),
                                                projectMetadata.creation(),
-                                               projectMetadata.removal());
+                                               projectMetadata.removal(),
+                                               projectMetadata.properties());
                 });
         return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, transformer);
     }
@@ -424,7 +431,8 @@ public class MetadataService {
                                                null,
                                                projectMetadata.appIds(),
                                                projectMetadata.creation(),
-                                               projectMetadata.removal());
+                                               projectMetadata.removal(),
+                                               projectMetadata.properties());
                 });
         return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, transformer);
     }
@@ -451,7 +459,8 @@ public class MetadataService {
                                           repositoryMetadata.roles(),
                                           repositoryMetadata.creation(),
                                           UserAndTimestamp.of(author),
-                                          repositoryMetadata.status());
+                                          repositoryMetadata.status(),
+                                          repositoryMetadata.properties());
         });
         return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, transformer);
     }
@@ -482,7 +491,8 @@ public class MetadataService {
                                                null,
                                                projectMetadata.appIds(),
                                                projectMetadata.creation(),
-                                               projectMetadata.removal());
+                                               projectMetadata.removal(),
+                                               projectMetadata.properties());
                 });
         return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, transformer);
     }
@@ -508,7 +518,8 @@ public class MetadataService {
                                           repositoryMetadata.roles(),
                                           repositoryMetadata.creation(),
                                           null,
-                                          repositoryMetadata.status());
+                                          repositoryMetadata.status(),
+                                          repositoryMetadata.properties());
         });
         return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, transformer);
     }
@@ -539,7 +550,8 @@ public class MetadataService {
                                           newRoles,
                                           repositoryMetadata.creation(),
                                           repositoryMetadata.removal(),
-                                          repositoryMetadata.status());
+                                          repositoryMetadata.status(),
+                                          repositoryMetadata.properties());
         });
         return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, transformer);
     }
@@ -576,7 +588,8 @@ public class MetadataService {
                                                null,
                                                newAppIds,
                                                projectMetadata.creation(),
-                                               projectMetadata.removal());
+                                               projectMetadata.removal(),
+                                               projectMetadata.properties());
                 });
         return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, transformer);
     }
@@ -624,7 +637,8 @@ public class MetadataService {
                                                null,
                                                newAppIds,
                                                projectMetadata.creation(),
-                                               projectMetadata.removal());
+                                               projectMetadata.removal(),
+                                               projectMetadata.properties());
                 });
         return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, transformer);
     }
@@ -643,7 +657,8 @@ public class MetadataService {
                                                                    newRoles,
                                                                    repositoryMetadata.creation(),
                                                                    repositoryMetadata.removal(),
-                                                                   repositoryMetadata.status()));
+                                                                   repositoryMetadata.status(),
+                                                                   repositoryMetadata.properties()));
             } else {
                 builder.put(entry);
             }
@@ -688,7 +703,8 @@ public class MetadataService {
                                                null,
                                                newAppIds,
                                                projectMetadata.creation(),
-                                               projectMetadata.removal());
+                                               projectMetadata.removal(),
+                                               projectMetadata.properties());
                 });
         return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, transformer);
     }
@@ -726,7 +742,8 @@ public class MetadataService {
                                               newRoles,
                                               repositoryMetadata.creation(),
                                               repositoryMetadata.removal(),
-                                              repositoryMetadata.status());
+                                              repositoryMetadata.status(),
+                                              repositoryMetadata.properties());
             });
             return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, transformer);
         });
@@ -757,7 +774,8 @@ public class MetadataService {
                                           newRoles,
                                           repositoryMetadata.creation(),
                                           repositoryMetadata.removal(),
-                                          repositoryMetadata.status());
+                                          repositoryMetadata.status(),
+                                          repositoryMetadata.properties());
         });
         final String commitSummary = "Remove repository role of the '" + memberId +
                                      "' from '" + projectName + '/' + repoName + '\'';
@@ -799,7 +817,8 @@ public class MetadataService {
                                           newRoles,
                                           repositoryMetadata.creation(),
                                           repositoryMetadata.removal(),
-                                          repositoryMetadata.status());
+                                          repositoryMetadata.status(),
+                                          repositoryMetadata.properties());
         });
         final String commitSummary = "Update repository role of the '" + memberId + "' as '" + role +
                                      "' for '" + projectName + '/' + repoName + '\'';
@@ -839,7 +858,8 @@ public class MetadataService {
                                               newRoles,
                                               repositoryMetadata.creation(),
                                               repositoryMetadata.removal(),
-                                              repositoryMetadata.status());
+                                              repositoryMetadata.status(),
+                                              repositoryMetadata.properties());
             });
             return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, transformer);
         });
@@ -871,7 +891,8 @@ public class MetadataService {
                                           newRoles,
                                           repositoryMetadata.creation(),
                                           repositoryMetadata.removal(),
-                                          repositoryMetadata.status());
+                                          repositoryMetadata.status(),
+                                          repositoryMetadata.properties());
         });
         final String commitSummary = "Remove repository role of the app identity '" + appId +
                                      "' from '" + projectName + '/' + repoName + '\'';
@@ -915,7 +936,8 @@ public class MetadataService {
                                           newRoles,
                                           repositoryMetadata.creation(),
                                           repositoryMetadata.removal(),
-                                          repositoryMetadata.status());
+                                          repositoryMetadata.status(),
+                                          repositoryMetadata.properties());
         });
         final String commitSummary = "Update repository role of the app identity '" + appId +
                                      "' for '" + projectName + '/' + repoName + '\'';
@@ -1092,8 +1114,9 @@ public class MetadataService {
      * Creates a new {@link Token} with the specified {@code appId}, {@code isSystemAdmin} and an auto-generated
      * secret.
      */
-    public CompletableFuture<Revision> createToken(Author author, String appId, boolean isSystemAdmin) {
-        return appIdentityService.createToken(author, appId, isSystemAdmin);
+    public CompletableFuture<Revision> createToken(Author author, String appId, boolean isSystemAdmin,
+                                                   @Nullable JsonNode properties) {
+        return appIdentityService.createToken(author, appId, isSystemAdmin, properties);
     }
 
     /**
@@ -1107,8 +1130,8 @@ public class MetadataService {
      * Creates a new {@link Token} with the specified {@code appId}, {@code secret} and {@code isSystemAdmin}.
      */
     public CompletableFuture<Revision> createToken(Author author, String appId, String secret,
-                                                   boolean isSystemAdmin) {
-        return appIdentityService.createToken(author, appId, secret, isSystemAdmin);
+                                                   boolean isSystemAdmin, @Nullable JsonNode properties) {
+        return appIdentityService.createToken(author, appId, secret, isSystemAdmin, properties);
     }
 
     /**
@@ -1260,7 +1283,8 @@ public class MetadataService {
                                            null,
                                            projectMetadata.appIds(),
                                            projectMetadata.creation(),
-                                           projectMetadata.removal());
+                                           projectMetadata.removal(),
+                                           projectMetadata.properties());
             });
         } else {
             transformer = new RepositoryMetadataTransformer(
@@ -1271,7 +1295,8 @@ public class MetadataService {
                                               repositoryMetadata.roles(),
                                               repositoryMetadata.creation(),
                                               repositoryMetadata.removal(),
-                                              repositoryStatus);
+                                              repositoryStatus,
+                                              repositoryMetadata.properties());
             });
         }
 
@@ -1294,8 +1319,9 @@ public class MetadataService {
      * {@code certificateId}.
      */
     public CompletableFuture<Revision> createCertificate(Author author, String appId, String certificateId,
-                                                         boolean isSystemAdmin) {
-        return appIdentityService.createCertificate(author, appId, certificateId, isSystemAdmin);
+                                                         boolean isSystemAdmin,
+                                                         @Nullable JsonNode properties) {
+        return appIdentityService.createCertificate(author, appId, certificateId, isSystemAdmin, properties);
     }
 
     /**

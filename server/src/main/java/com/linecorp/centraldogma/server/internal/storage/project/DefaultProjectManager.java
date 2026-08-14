@@ -32,6 +32,7 @@ import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.ImmutableMap;
 
 import com.linecorp.centraldogma.common.Author;
@@ -89,9 +90,16 @@ public final class DefaultProjectManager extends DirectoryBasedStorageManager<Pr
     @Override
     protected Project createChild(
             File childDir, Author author, long creationTimeMillis, boolean encrypt) throws Exception {
+        return createChild(childDir, author, creationTimeMillis, encrypt, null);
+    }
+
+    @Override
+    protected Project createChild(
+            File childDir, Author author, long creationTimeMillis, boolean encrypt,
+            @Nullable JsonNode properties) throws Exception {
         return new DefaultProject(childDir, repositoryWorker, purgeWorker(),
                                   creationTimeMillis, author, cache, encryptionStorageManager(), encrypt,
-                                  trustedHostKeys);
+                                  trustedHostKeys, properties);
     }
 
     @Override

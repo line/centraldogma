@@ -54,6 +54,7 @@ final class RepositoryMetadataTransformer extends ProjectMetadataTransformer {
                                    null,
                                    projectMetadata.appIds(),
                                    projectMetadata.creation(),
-                                   projectMetadata.removal());
+                                   projectMetadata.removal(),
+                                   projectMetadata.properties());
     }
 }

@@ -151,6 +151,7 @@ import com.linecorp.centraldogma.server.internal.api.GitHttpService;
 import com.linecorp.centraldogma.server.internal.api.HttpApiExceptionHandler;
 import com.linecorp.centraldogma.server.internal.api.LoggerService;
 import com.linecorp.centraldogma.server.internal.api.MetadataApiService;
+import com.linecorp.centraldogma.server.internal.api.MetadataPropertiesService;
 import com.linecorp.centraldogma.server.internal.api.MirroringServiceV1;
 import com.linecorp.centraldogma.server.internal.api.ProjectServiceV1;
 import com.linecorp.centraldogma.server.internal.api.RepositoryServiceV1;
@@ -165,6 +166,7 @@ import com.linecorp.centraldogma.server.internal.api.sysadmin.KeyManagementServi
 import com.linecorp.centraldogma.server.internal.api.sysadmin.MirrorAccessControlService;
 import com.linecorp.centraldogma.server.internal.api.sysadmin.ServerStatusService;
 import com.linecorp.centraldogma.server.internal.api.variable.VariableServiceV1;
+import com.linecorp.centraldogma.server.internal.metadata.MetadataPropertiesValidator;
 import com.linecorp.centraldogma.server.internal.mirror.DefaultMirrorAccessController;
 import com.linecorp.centraldogma.server.internal.mirror.DefaultMirroringServicePlugin;
 import com.linecorp.centraldogma.server.internal.mirror.MirrorAccessControl;
@@ -1009,13 +1011,18 @@ public class CentralDogma implements AutoCloseable {
         }
 
         assert statusManager != null;
+        final MetadataPropertiesValidator metadataPropertiesValidator =
+                new MetadataPropertiesValidator(cfg.metadataProperties());
         final ContextPathServicesBuilder apiV1ServiceBuilder = sb.contextPath(API_V1_PATH_PREFIX);
         apiV1ServiceBuilder
                 .annotatedService(new ServerStatusService(executor, statusManager))
-                .annotatedService(new ProjectServiceV1(projectApiManager, executor))
-                .annotatedService(new RepositoryServiceV1(executor, mds, encryptionStorageManager))
+                .annotatedService(new ProjectServiceV1(projectApiManager, executor,
+                                                       metadataPropertiesValidator))
+                .annotatedService(new RepositoryServiceV1(executor, mds, encryptionStorageManager,
+                                                          metadataPropertiesValidator))
                 .annotatedService(new CredentialServiceV1(projectApiManager, executor))
-                .annotatedService(new VariableServiceV1(pm, executor));
+                .annotatedService(new VariableServiceV1(pm, executor))
+                .annotatedService(new MetadataPropertiesService(cfg.metadataProperties()));
         if (LOGBACK_ENABLED) {
             apiV1ServiceBuilder.annotatedService(new LoggerService());
         }
@@ -1059,7 +1066,8 @@ public class CentralDogma implements AutoCloseable {
             assert sessionManager != null : "sessionManager";
             apiV1ServiceBuilder
                     .annotatedService(new MetadataApiService(executor, mds, authCfg.loginNameNormalizer()))
-                    .annotatedService(new AppIdentityRegistryService(executor, mds, mtlsEnabled));
+                    .annotatedService(new AppIdentityRegistryService(executor, mds, mtlsEnabled,
+                                                                     metadataPropertiesValidator));
 
             // authentication services:
             Optional.ofNullable(authProvider.loginApiService())

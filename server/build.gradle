@@ -39,6 +39,9 @@ dependencies {
 
     implementation libs.jgit6
 
+    // JSON Schema validation for metadata properties
+    implementation libs.json.schema.validator
+
     // Micrometer
     implementation libs.micrometer.core
     implementation libs.micrometer.prometheus

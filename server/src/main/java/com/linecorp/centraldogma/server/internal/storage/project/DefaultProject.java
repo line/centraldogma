@@ -137,7 +137,7 @@ public class DefaultProject implements Project {
     DefaultProject(File rootDir, Executor repositoryWorker, Executor purgeWorker,
                    long creationTimeMillis, Author author, @Nullable RepositoryCache cache,
                    EncryptionStorageManager encryptionStorageManager, boolean encryptDogmaRepo,
-                   Map<String, List<String>> trustedHostKeys) {
+                   Map<String, List<String>> trustedHostKeys, @Nullable JsonNode properties) {
         requireNonNull(rootDir, "rootDir");
         requireNonNull(repositoryWorker, "repositoryWorker");
         requireNonNull(encryptionStorageManager, "encryptionStorageManager");
@@ -154,7 +154,7 @@ public class DefaultProject implements Project {
         try {
             createReservedRepos(creationTimeMillis, encryptDogmaRepo);
             if (!name.equals(INTERNAL_PROJECT_DOGMA)) {
-                initializeMetadata(creationTimeMillis, author);
+                initializeMetadata(creationTimeMillis, author, properties);
                 attachMetadataListener();
                 metaRepo = new DefaultMetaRepository(repos.get(REPO_DOGMA), trustedHostKeys);
                 registerMigrationCallback();
@@ -205,7 +205,8 @@ public class DefaultProject implements Project {
         return projectMetadata;
     }
 
-    private void initializeMetadata(long creationTimeMillis, Author author) {
+    private void initializeMetadata(long creationTimeMillis, Author author,
+                                    @Nullable JsonNode properties) {
         // Do not generate a metadata file for internal projects.
         if (name.equals(INTERNAL_PROJECT_DOGMA)) {
             return;
@@ -237,7 +238,8 @@ public class DefaultProject implements Project {
                                                                  members,
                                                                  null,
                                                                  appIds,
-                                                                 userAndTimestamp, null);
+                                                                 userAndTimestamp, null,
+                                                                 properties);
             final CommitResult result =
                     dogmaRepo.commit(headRev, creationTimeMillis, Author.SYSTEM,
                                      "Initialize metadata", "",

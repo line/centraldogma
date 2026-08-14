@@ -64,6 +64,8 @@ import com.linecorp.centraldogma.server.internal.api.auth.RequiresProjectRole;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresRepositoryRole;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresSystemAdministrator;
 import com.linecorp.centraldogma.server.internal.api.converter.CreateApiResponseConverter;
+import com.linecorp.centraldogma.server.internal.metadata.MetadataPropertiesValidator;
+import com.linecorp.centraldogma.server.internal.metadata.MetadataPropertiesValidator.ResourceType;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
 import com.linecorp.centraldogma.server.metadata.ProjectMetadata;
 import com.linecorp.centraldogma.server.metadata.RepositoryMetadata;
@@ -86,12 +88,16 @@ public class RepositoryServiceV1 extends AbstractService {
 
     private final MetadataService mds;
     private final EncryptionStorageManager encryptionStorageManager;
+    private final MetadataPropertiesValidator metadataPropertiesValidator;
 
     public RepositoryServiceV1(CommandExecutor executor, MetadataService mds,
-                               EncryptionStorageManager encryptionStorageManager) {
+                               EncryptionStorageManager encryptionStorageManager,
+                               MetadataPropertiesValidator metadataPropertiesValidator) {
         super(executor);
         this.mds = requireNonNull(mds, "mds");
         this.encryptionStorageManager = requireNonNull(encryptionStorageManager, "encryptionStorageManager");
+        this.metadataPropertiesValidator = requireNonNull(metadataPropertiesValidator,
+                                                          "metadataPropertiesValidator");
     }
 
     /**
@@ -199,11 +205,13 @@ public class RepositoryServiceV1 extends AbstractService {
         }
 
         final boolean encrypt = request.encrypt() || isEncryptedProject(project);
+        final JsonNode properties =
+                metadataPropertiesValidator.validate(ResourceType.REPO, request.properties());
 
         final CommandExecutor commandExecutor = executor();
         final CompletableFuture<Revision> future =
                 RepositoryServiceUtil.createRepository(commandExecutor, mds, author, project.name(), repoName,
-                                                       encrypt, encryptionStorageManager);
+                                                       encrypt, encryptionStorageManager, properties);
         return future.handle(returnOrThrow(() -> {
             final Repository repository = project.repos().get(repoName);
             return newRepositoryDto(repository, repositoryStatus(repository));

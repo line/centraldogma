@@ -39,6 +39,7 @@ class CertificateAppIdentityTest {
                 false,
                 creation,
                 null,
+                null,
                 null
         );
 
@@ -102,6 +103,7 @@ class CertificateAppIdentityTest {
                 true,
                 creation,
                 deactivation,
+                null,
                 null
         );
 

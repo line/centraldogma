@@ -32,7 +32,7 @@ class AppIdentityRegistryTest {
     @Test
     void nullCertificateIds() {
         final UserAndTimestamp creation = UserAndTimestamp.of(Author.SYSTEM);
-        final Token token = new Token("app-id-1", "appToken-secret-1", false, null, creation, null, null);
+        final Token token = new Token("app-id-1", "appToken-secret-1", false, null, creation, null, null, null);
         final ImmutableMap<String, AppIdentity> appIds = ImmutableMap.of("app-id-1", token);
         final ImmutableMap<String, String> secrets = ImmutableMap.of("appToken-secret-1", "app-id-1");
 
@@ -47,9 +47,9 @@ class AppIdentityRegistryTest {
     @Test
     void withCertificateIds() {
         final UserAndTimestamp creation = UserAndTimestamp.of(Author.SYSTEM);
-        final Token token = new Token("app-id-1", "appToken-secret-1", false, null, creation, null, null);
+        final Token token = new Token("app-id-1", "appToken-secret-1", false, null, creation, null, null, null);
         final CertificateAppIdentity certAppIdentity =
-                new CertificateAppIdentity("app-id-2", "cert-id", false, false, creation);
+                new CertificateAppIdentity("app-id-2", "cert-id", false, false, creation, null);
         final ImmutableMap<String, AppIdentity> appIds = ImmutableMap.of("app-id-1", token,
                                                                          "app-id-2", certAppIdentity);
         final ImmutableMap<String, String> secrets = ImmutableMap.of("appToken-secret-1", "app-id-1");
@@ -139,9 +139,9 @@ class AppIdentityRegistryTest {
     @Test
     void serializationIncludesCertificateIds() throws Exception {
         final UserAndTimestamp creation = UserAndTimestamp.of(Author.SYSTEM);
-        final Token token = new Token("app-id-1", "appToken-secret-1", false, null, creation, null, null);
+        final Token token = new Token("app-id-1", "appToken-secret-1", false, null, creation, null, null, null);
         final CertificateAppIdentity certAppIdentity =
-                new CertificateAppIdentity("app-id-2", "cert-id", false, false, creation);
+                new CertificateAppIdentity("app-id-2", "cert-id", false, false, creation, null);
         final ImmutableMap<String, AppIdentity> appIds = ImmutableMap.of("app-id-1", token,
                                                                          "app-id-2", certAppIdentity);
         final ImmutableMap<String, String> secrets = ImmutableMap.of("appToken-secret-1", "app-id-1");
@@ -159,9 +159,9 @@ class AppIdentityRegistryTest {
     @Test
     void roundTripSerialization() throws Exception {
         final UserAndTimestamp creation = UserAndTimestamp.of(Author.SYSTEM);
-        final Token token = new Token("app-id-1", "appToken-secret-1", false, null, creation, null, null);
+        final Token token = new Token("app-id-1", "appToken-secret-1", false, null, creation, null, null, null);
         final CertificateAppIdentity certAppIdentity =
-                new CertificateAppIdentity("app-id-2", "cert-id", false, false, creation);
+                new CertificateAppIdentity("app-id-2", "cert-id", false, false, creation, null);
         final ImmutableMap<String, AppIdentity> appIds = ImmutableMap.of("app-id-1", token,
                                                                          "app-id-2", certAppIdentity);
         final ImmutableMap<String, String> secrets = ImmutableMap.of("appToken-secret-1", "app-id-1");
@@ -184,7 +184,7 @@ class AppIdentityRegistryTest {
     @Test
     void roundTripSerializationWithoutCertificateIds() throws Exception {
         final UserAndTimestamp creation = UserAndTimestamp.of(Author.SYSTEM);
-        final Token token = new Token("app-id-1", "appToken-secret-1", false, null, creation, null, null);
+        final Token token = new Token("app-id-1", "appToken-secret-1", false, null, creation, null, null, null);
         final ImmutableMap<String, AppIdentity> appIds = ImmutableMap.of("app-id-1", token);
         final ImmutableMap<String, String> secrets = ImmutableMap.of("appToken-secret-1", "app-id-1");
         final AppIdentityRegistry originalAppIdentityRegistry = new AppIdentityRegistry(appIds, secrets, null);

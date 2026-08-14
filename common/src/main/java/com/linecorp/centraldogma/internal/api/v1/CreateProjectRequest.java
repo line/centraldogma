@@ -24,6 +24,7 @@ import org.jspecify.annotations.Nullable;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableSet;
 
@@ -35,14 +36,18 @@ public class CreateProjectRequest {
     private final String name;
     private final Set<String> owners;
     private final Set<String> members;
+    @Nullable
+    private final JsonNode properties;
 
     @JsonCreator
     public CreateProjectRequest(@JsonProperty("name") String name,
                                 @JsonProperty("owners") @Nullable Set<String> owners,
-                                @JsonProperty("members") @Nullable Set<String> members) {
+                                @JsonProperty("members") @Nullable Set<String> members,
+                                @JsonProperty("properties") @Nullable JsonNode properties) {
         this.name = validateProjectName(name, "name", false);
         this.owners = owners != null ? ImmutableSet.copyOf(owners) : ImmutableSet.of();
         this.members = members != null ? ImmutableSet.copyOf(members) : ImmutableSet.of();
+        this.properties = properties;
     }
 
     @JsonProperty
@@ -60,12 +65,19 @@ public class CreateProjectRequest {
         return members;
     }
 
+    @Nullable
+    @JsonProperty
+    public JsonNode properties() {
+        return properties;
+    }
+
     @Override
     public String toString() {
         return MoreObjects.toStringHelper(this)
                           .add("name", name())
                           .add("owners", owners())
                           .add("members", members())
+                          .add("properties", properties())
                           .toString();
     }
 }

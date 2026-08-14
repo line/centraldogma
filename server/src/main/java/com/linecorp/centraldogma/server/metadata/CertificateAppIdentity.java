@@ -26,6 +26,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.base.MoreObjects.ToStringHelper;
 import com.google.common.base.Objects;
 
@@ -39,8 +40,8 @@ public final class CertificateAppIdentity extends AbstractAppIdentity {
     private final String certificateId;
 
     CertificateAppIdentity(String appId, String certificateId, boolean isSystemAdmin, boolean allowGuestAccess,
-                           UserAndTimestamp creation) {
-        this(appId, certificateId, isSystemAdmin, allowGuestAccess, creation, null, null);
+                           UserAndTimestamp creation, @Nullable JsonNode properties) {
+        this(appId, certificateId, isSystemAdmin, allowGuestAccess, creation, null, null, properties);
     }
 
     /**
@@ -53,10 +54,11 @@ public final class CertificateAppIdentity extends AbstractAppIdentity {
                                   @JsonProperty("allowGuestAccess") @Nullable Boolean allowGuestAccess,
                                   @JsonProperty("creation") UserAndTimestamp creation,
                                   @JsonProperty("deactivation") @Nullable UserAndTimestamp deactivation,
-                                  @JsonProperty("deletion") @Nullable UserAndTimestamp deletion) {
+                                  @JsonProperty("deletion") @Nullable UserAndTimestamp deletion,
+                                  @JsonProperty("properties") @Nullable JsonNode properties) {
         super(appId, AppIdentityType.CERTIFICATE, isSystemAdmin,
               firstNonNull(allowGuestAccess, false), // Disallow guest access by default for certificate.
-              requireNonNull(creation, "creation"), deactivation, deletion);
+              requireNonNull(creation, "creation"), deactivation, deletion, properties);
         this.certificateId = requireNonNull(certificateId, "certificateId");
     }
 
@@ -74,7 +76,7 @@ public final class CertificateAppIdentity extends AbstractAppIdentity {
             return this;
         }
         return new CertificateAppIdentity(appId(), certificateId, isSystemAdmin, allowGuestAccess(),
-                                          creation(), deactivation(), deletion());
+                                          creation(), deactivation(), deletion(), properties());
     }
 
     @Override

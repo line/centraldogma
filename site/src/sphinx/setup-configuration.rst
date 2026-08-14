@@ -62,7 +62,8 @@ defaults:
         "protocol": null,
         "path": null
       },
-      "zone": null
+      "zone": null,
+      "metadataProperties": null
     }
 
 Core properties
@@ -262,6 +263,42 @@ Core properties
       - the list of zone names.
 
       - the current zone name must be included in the list of zone names.
+
+- ``metadataProperties``
+
+    - the additional metadata properties of projects, repositories and app identities. Each field is a
+      `JSON Schema <https://json-schema.org/>`_ that the ``properties`` of the corresponding resource must
+      conform to at creation time. Properties that are not declared in the schema's top-level
+      ``properties`` keyword are silently dropped rather than rejected, so that a new property can be
+      declared with a rolling restart. If the schema declares its shape in another way (e.g. ``$ref`` or
+      ``allOf``), nothing is dropped and the whole object is validated as is.
+      If not specified, the creation APIs behave as before.
+
+    - all replicas must be running a binary that understands ``metadataProperties`` before this section
+      is enabled. Also note that declaring a ``required`` property for ``appIdentity`` effectively
+      disables the deprecated ``POST /api/v1/tokens`` endpoint, which cannot carry properties.
+
+    - ``project`` / ``repo`` / ``appIdentity`` (object)
+
+      - the JSON Schema for the properties of a project, a repository and an app identity respectively.
+        For example:
+
+        .. code-block:: json
+
+            {
+              "metadataProperties": {
+                "project": {
+                  "type": "object",
+                  "properties": {
+                    "serviceId": { "type": "string" }
+                  },
+                  "required": [ "serviceId" ]
+                }
+              }
+            }
+
+      - the declared schemas are exposed via ``GET /api/v1/metadataProperties`` so that clients such as
+        the web UI can render input forms for the declared properties.
 
 .. _replication:
 
