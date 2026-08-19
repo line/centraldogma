@@ -89,12 +89,13 @@ final class ReplicatedShiroCentralDogmaTestServer {
         start1.join();
         start2.join();
         start3.join();
-        scaffold(System.getenv(DIVERGE_ENV) != null);
+        // Registered before the scaffold, so a failure there does not leave the replicas running.
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             server1.close();
             server2.close();
             server3.close();
         }));
+        scaffold(System.getenv(DIVERGE_ENV) != null);
     }
 
     private static final DivergenceInjector injector = new DivergenceInjector();

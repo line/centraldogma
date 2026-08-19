@@ -513,7 +513,7 @@ export const apiSlice = createApi({
         body: { fromRevision, toRevision, sourceServerId },
       }),
       // Recovery rewrites the repository history on the other replicas.
-      invalidatesTags: ['Repo'],
+      invalidatesTags: ['Repo', 'File'],
     }),
     getProjectCredentials: builder.query<CredentialDto[], string>({
       query: (projectName) => `/api/v1/projects/${projectName}/credentials`,
