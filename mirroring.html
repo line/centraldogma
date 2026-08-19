@@ -7,7 +7,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   
-  <title>Better configuration change workflow with Git-to-CD mirroring &mdash; Central Dogma 0.85.0 documentation</title>
+  <title>Better configuration change workflow with Git-to-CD mirroring &mdash; Central Dogma 0.86.0 documentation</title>
   
 
   
@@ -39,7 +39,7 @@
     
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="Authentication and Access Control" href="auth.html" />
+    <link rel="next" title="Serving Envoy configuration with the xDS control plane" href="xds.html" />
     <link rel="prev" title="Templates and Variables" href="templates-variables.html" />
   <script src="https://cdn.jsdelivr.net/npm/interactjs@1.4.0/dist/interact.min.js"></script>
   <script src="_static/center_page.js"></script>
@@ -72,7 +72,7 @@
             
             
               <div class="version">
-                0.85
+                0.86
               </div>
             
           
@@ -108,13 +108,14 @@
 <li class="toctree-l3"><a class="reference internal" href="#setting-up-a-mirroring-task">Setting up a mirroring task</a></li>
 </ul>
 </li>
+<li class="toctree-l2"><a class="reference internal" href="#central-dogma-to-central-dogma-mirroring">Central Dogma to Central Dogma mirroring</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#setting-up-a-cd-to-cd-mirror">Setting up a CD-to-CD mirror</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#mirror-limit-settings">Mirror limit settings</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="#central-dogma-to-central-dogma-mirroring">Central Dogma to Central Dogma mirroring</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="#setting-up-a-cd-to-cd-mirror">Setting up a CD-to-CD mirror</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#mirror-limit-settings">Mirror limit settings</a></li>
 </ul>
 </li>
+<li class="toctree-l1"><a class="reference internal" href="xds.html">Serving Envoy configuration with the xDS control plane</a></li>
 <li class="toctree-l1"><a class="reference internal" href="auth.html">Authentication and Access Control</a></li>
 <li class="toctree-l1"><a class="reference internal" href="known-issues.html">Known issues</a></li>
 <li class="toctree-l1"><a class="reference external" href="https://github.com/line/centraldogma/releases">Release notes</a></li>
@@ -321,14 +322,13 @@ of strings where each line represents a single pattern.</p></li>
 </ul>
 </div>
 </div>
-</div>
 <div class="section" id="central-dogma-to-central-dogma-mirroring">
-<h1>Central Dogma to Central Dogma mirroring<a class="headerlink" href="#central-dogma-to-central-dogma-mirroring" title="Permalink to this headline">¶</a></h1>
+<h2>Central Dogma to Central Dogma mirroring<a class="headerlink" href="#central-dogma-to-central-dogma-mirroring" title="Permalink to this headline">¶</a></h2>
 <p>In addition to Git-to-CD mirroring, Central Dogma supports mirroring between two Central Dogma servers.
 This is useful when you want to replicate configuration across multiple Central Dogma clusters, such as
 syncing configurations between different environments or regions.</p>
 <div class="section" id="setting-up-a-cd-to-cd-mirror">
-<h2>Setting up a CD-to-CD mirror<a class="headerlink" href="#setting-up-a-cd-to-cd-mirror" title="Permalink to this headline">¶</a></h2>
+<h3>Setting up a CD-to-CD mirror<a class="headerlink" href="#setting-up-a-cd-to-cd-mirror" title="Permalink to this headline">¶</a></h3>
 <p>The setup is similar to Git mirroring, with a few differences:</p>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">Remote</span></code></p>
@@ -377,11 +377,12 @@ from being mirrored.</p></li>
 same way as in Git mirroring.</p>
 </div>
 <div class="section" id="mirror-limit-settings">
-<h2>Mirror limit settings<a class="headerlink" href="#mirror-limit-settings" title="Permalink to this headline">¶</a></h2>
+<h3>Mirror limit settings<a class="headerlink" href="#mirror-limit-settings" title="Permalink to this headline">¶</a></h3>
 <p>Central Dogma limits the number of files and the total size of the files in a mirror for its reliability.
 As your configuration grows, you may want to bump the limit. See <a class="reference internal" href="setup-configuration.html#setup-configuration"><span class="std std-ref">Configuration</span></a> to learn about
 the options related with mirroring: <code class="docutils literal notranslate"><span class="pre">numMirroringThreads</span></code>, <code class="docutils literal notranslate"><span class="pre">maxNumFilesPerMirror</span></code> and
 <code class="docutils literal notranslate"><span class="pre">maxNumBytesPerMirror</span></code>.</p>
+</div>
 </div>
 </div>
 
@@ -391,7 +392,7 @@ the options related with mirroring: <code class="docutils literal notranslate"><
           </div>
           <footer>
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
-        <a href="auth.html" class="btn btn-neutral float-right" title="Authentication and Access Control" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="xds.html" class="btn btn-neutral float-right" title="Serving Envoy configuration with the xDS control plane" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
         <a href="templates-variables.html" class="btn btn-neutral float-left" title="Templates and Variables" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
     </div>
 

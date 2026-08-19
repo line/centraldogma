@@ -64,7 +64,7 @@
 <a class="jxr_linenumber" name="L56" href="#L56">56</a>                           .thenApply(entries -&gt; {
 <a class="jxr_linenumber" name="L57" href="#L57">57</a>              <strong class="jxr_keyword">final</strong> ArrayNode array = JsonNodeFactory.instance.arrayNode();
 <a class="jxr_linenumber" name="L58" href="#L58">58</a>              <strong class="jxr_keyword">for</strong> (Entry&lt;?&gt; entry : entries.values()) {
-<a class="jxr_linenumber" name="L59" href="#L59">59</a>                  <strong class="jxr_keyword">if</strong> (entry.type() != EntryType.JSON &amp;&amp; entry.type() != EntryType.YAML) {
+<a class="jxr_linenumber" name="L59" href="#L59">59</a>                  <strong class="jxr_keyword">if</strong> (entry.type() != EntryType.YAML) {
 <a class="jxr_linenumber" name="L60" href="#L60">60</a>                      <strong class="jxr_keyword">continue</strong>;
 <a class="jxr_linenumber" name="L61" href="#L61">61</a>                  }
 <a class="jxr_linenumber" name="L62" href="#L62">62</a>                  <strong class="jxr_keyword">final</strong> ObjectNode node = array.addObject();
@@ -95,27 +95,28 @@
 <a class="jxr_linenumber" name="L87" href="#L87">87</a>  
 <a class="jxr_linenumber" name="L88" href="#L88">88</a>      <strong class="jxr_keyword">private</strong> CompletableFuture&lt;JsonNode&gt; readByBase(String group, String pathBase) {
 <a class="jxr_linenumber" name="L89" href="#L89">89</a>          <strong class="jxr_keyword">final</strong> <a href="../../../../../com/linecorp/centraldogma/server/storage/repository/Repository.html">Repository</a> repository = xdsProject.repos().get(group);
-<a class="jxr_linenumber" name="L90" href="#L90">90</a>          <strong class="jxr_keyword">return</strong> repository.find(Revision.HEAD, pathBase + <span class="jxr_string">".json,"</span> + pathBase + <span class="jxr_string">".yaml"</span>)
-<a class="jxr_linenumber" name="L91" href="#L91">91</a>                           .thenCompose(entries -&gt; {
-<a class="jxr_linenumber" name="L92" href="#L92">92</a>                               <strong class="jxr_keyword">if</strong> (entries.isEmpty()) {
-<a class="jxr_linenumber" name="L93" href="#L93">93</a>                                   <em class="jxr_comment">// Delegate to get() so the caller receives a proper EntryNotFoundException.</em>
-<a class="jxr_linenumber" name="L94" href="#L94">94</a>                                   <strong class="jxr_keyword">return</strong> repository.get(Revision.HEAD, pathBase + <span class="jxr_string">".yaml"</span>)
-<a class="jxr_linenumber" name="L95" href="#L95">95</a>                                                    .thenApply(XdsEndpointReadService::toNode);
-<a class="jxr_linenumber" name="L96" href="#L96">96</a>                               }
-<a class="jxr_linenumber" name="L97" href="#L97">97</a>                               <strong class="jxr_keyword">return</strong> CompletableFuture.completedFuture(
-<a class="jxr_linenumber" name="L98" href="#L98">98</a>                                       toNode(entries.values().iterator().next()));
-<a class="jxr_linenumber" name="L99" href="#L99">99</a>                           });
-<a class="jxr_linenumber" name="L100" href="#L100">100</a>     }
-<a class="jxr_linenumber" name="L101" href="#L101">101</a> 
-<a class="jxr_linenumber" name="L102" href="#L102">102</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> JsonNode toNode(Entry&lt;?&gt; entry) {
-<a class="jxr_linenumber" name="L103" href="#L103">103</a>         <strong class="jxr_keyword">final</strong> ObjectNode node = JsonNodeFactory.instance.objectNode();
-<a class="jxr_linenumber" name="L104" href="#L104">104</a>         node.put(<span class="jxr_string">"path"</span>, entry.path());
-<a class="jxr_linenumber" name="L105" href="#L105">105</a>         node.put(<span class="jxr_string">"type"</span>, entry.type().name());
-<a class="jxr_linenumber" name="L106" href="#L106">106</a>         node.put(<span class="jxr_string">"revision"</span>, entry.revision().major());
-<a class="jxr_linenumber" name="L107" href="#L107">107</a>         node.set(<span class="jxr_string">"content"</span>, (JsonNode) entry.content());
-<a class="jxr_linenumber" name="L108" href="#L108">108</a>         <strong class="jxr_keyword">return</strong> node;
-<a class="jxr_linenumber" name="L109" href="#L109">109</a>     }
-<a class="jxr_linenumber" name="L110" href="#L110">110</a> }
+<a class="jxr_linenumber" name="L90" href="#L90">90</a>          <em class="jxr_comment">// get() throws a proper EntryNotFoundException when the resource does not exist.</em>
+<a class="jxr_linenumber" name="L91" href="#L91">91</a>          <strong class="jxr_keyword">return</strong> repository.get(Revision.HEAD, pathBase + <span class="jxr_string">".yaml"</span>)
+<a class="jxr_linenumber" name="L92" href="#L92">92</a>                           .thenApply(XdsEndpointReadService::toNode);
+<a class="jxr_linenumber" name="L93" href="#L93">93</a>      }
+<a class="jxr_linenumber" name="L94" href="#L94">94</a>  
+<a class="jxr_linenumber" name="L95" href="#L95">95</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> JsonNode toNode(Entry&lt;?&gt; entry) {
+<a class="jxr_linenumber" name="L96" href="#L96">96</a>          <strong class="jxr_keyword">final</strong> ObjectNode node = JsonNodeFactory.instance.objectNode();
+<a class="jxr_linenumber" name="L97" href="#L97">97</a>          node.put(<span class="jxr_string">"path"</span>, entry.path());
+<a class="jxr_linenumber" name="L98" href="#L98">98</a>          node.put(<span class="jxr_string">"type"</span>, entry.type().name());
+<a class="jxr_linenumber" name="L99" href="#L99">99</a>          node.put(<span class="jxr_string">"revision"</span>, entry.revision().major());
+<a class="jxr_linenumber" name="L100" href="#L100">100</a>         <em class="jxr_comment">// rawContent is the raw YAML string, which is what the UI expects (same as the Central Dogma</em>
+<a class="jxr_linenumber" name="L101" href="#L101">101</a>         <em class="jxr_comment">// content API). entry.content() is a parsed JsonNode, which the TypeScript side cannot</em>
+<a class="jxr_linenumber" name="L102" href="#L102">102</a>         <em class="jxr_comment">// distinguish from a JSON object and would display as empty.</em>
+<a class="jxr_linenumber" name="L103" href="#L103">103</a>         <strong class="jxr_keyword">final</strong> String rawContent = entry.rawContent();
+<a class="jxr_linenumber" name="L104" href="#L104">104</a>         <strong class="jxr_keyword">if</strong> (rawContent != <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="L105" href="#L105">105</a>             node.put(<span class="jxr_string">"content"</span>, rawContent);
+<a class="jxr_linenumber" name="L106" href="#L106">106</a>         } <strong class="jxr_keyword">else</strong> {
+<a class="jxr_linenumber" name="L107" href="#L107">107</a>             node.set(<span class="jxr_string">"content"</span>, (JsonNode) entry.content());
+<a class="jxr_linenumber" name="L108" href="#L108">108</a>         }
+<a class="jxr_linenumber" name="L109" href="#L109">109</a>         <strong class="jxr_keyword">return</strong> node;
+<a class="jxr_linenumber" name="L110" href="#L110">110</a>     }
+<a class="jxr_linenumber" name="L111" href="#L111">111</a> }
 </pre>
 <hr/>
 <div id="footer">&copy; Copyright 2017&ndash;2026 <a href="https://engineering.linecorp.com/en/">LINE Corporation</a>. All rights reserved.</div>

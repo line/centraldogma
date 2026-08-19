@@ -111,7 +111,7 @@
 <a class="jxr_linenumber" name="L103" href="#L103">103</a>     }
 <a class="jxr_linenumber" name="L104" href="#L104">104</a> 
 <a class="jxr_linenumber" name="L105" href="#L105">105</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> String getResourceName(String groupName, String path) {
-<a class="jxr_linenumber" name="L106" href="#L106">106</a>         <em class="jxr_comment">// Remove .json or .yaml (both 5 chars)</em>
+<a class="jxr_linenumber" name="L106" href="#L106">106</a>         <em class="jxr_comment">// Remove .yaml (5 chars)</em>
 <a class="jxr_linenumber" name="L107" href="#L107">107</a>         <strong class="jxr_keyword">return</strong> <span class="jxr_string">"groups/"</span> + groupName + path.substring(0, path.length() - 5);
 <a class="jxr_linenumber" name="L108" href="#L108">108</a>     }
 <a class="jxr_linenumber" name="L109" href="#L109">109</a> 
@@ -121,11 +121,11 @@
 <a class="jxr_linenumber" name="L113" href="#L113">113</a>         <strong class="jxr_keyword">if</strong> (groupEndpoints == <strong class="jxr_keyword">null</strong>) {
 <a class="jxr_linenumber" name="L114" href="#L114">114</a>             <strong class="jxr_keyword">return</strong>;
 <a class="jxr_linenumber" name="L115" href="#L115">115</a>         }
-<a class="jxr_linenumber" name="L116" href="#L116">116</a>         <em class="jxr_comment">// e.g. /endpoints/foo-cluster.json/.yaml file with group foo -&gt; groups/foo/clusters/foo-cluster</em>
-<a class="jxr_linenumber" name="L117" href="#L117">117</a>         <em class="jxr_comment">// e.g. /k8s/endpoints/foo-cluster.json/.yaml file with group foo -&gt; groups/foo/k8s/clusters/foo-cluster</em>
+<a class="jxr_linenumber" name="L116" href="#L116">116</a>         <em class="jxr_comment">// e.g. /endpoints/foo-cluster.yaml file with group foo -&gt; groups/foo/clusters/foo-cluster</em>
+<a class="jxr_linenumber" name="L117" href="#L117">117</a>         <em class="jxr_comment">// e.g. /k8s/endpoints/foo-cluster.yaml file with group foo -&gt; groups/foo/k8s/clusters/foo-cluster</em>
 <a class="jxr_linenumber" name="L118" href="#L118">118</a>         <strong class="jxr_keyword">final</strong> String clusterName =
 <a class="jxr_linenumber" name="L119" href="#L119">119</a>                 <span class="jxr_string">"groups/"</span> + groupName +
-<a class="jxr_linenumber" name="L120" href="#L120">120</a>                 ENDPOINTS_PATTERN.matcher(path.substring(0, path.length() - 5) <em class="jxr_comment">/* remove .json or .yaml */</em>)
+<a class="jxr_linenumber" name="L120" href="#L120">120</a>                 ENDPOINTS_PATTERN.matcher(path.substring(0, path.length() - 5) <em class="jxr_comment">/* remove .yaml */</em>)
 <a class="jxr_linenumber" name="L121" href="#L121">121</a>                                  .replaceFirst(<span class="jxr_string">"/clusters/"</span>);
 <a class="jxr_linenumber" name="L122" href="#L122">122</a>         endpointUpdated |= groupEndpoints.remove(clusterName) != <strong class="jxr_keyword">null</strong>;
 <a class="jxr_linenumber" name="L123" href="#L123">123</a>     }

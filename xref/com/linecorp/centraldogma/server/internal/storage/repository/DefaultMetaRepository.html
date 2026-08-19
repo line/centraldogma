@@ -197,9 +197,9 @@
 <a class="jxr_linenumber" name="L189" href="#L189">189</a>                                     } <strong class="jxr_keyword">catch</strong> (Exception e) {
 <a class="jxr_linenumber" name="L190" href="#L190">190</a>                                         <em class="jxr_comment">// Skip a malformed mirror so that a single bad mirror does not</em>
 <a class="jxr_linenumber" name="L191" href="#L191">191</a>                                         <em class="jxr_comment">// prevent the rest of the mirrors from being loaded.</em>
-<a class="jxr_linenumber" name="L192" href="#L192">192</a>                                         logger.debug(<span class="jxr_string">"Failed to convert a mirror configuration to a mirror. "</span> +
-<a class="jxr_linenumber" name="L193" href="#L193">193</a>                                                      <span class="jxr_string">"project: {}, mirror: {}"</span>, parent().name(), mirrorConfig,
-<a class="jxr_linenumber" name="L194" href="#L194">194</a>                                                      e);
+<a class="jxr_linenumber" name="L192" href="#L192">192</a>                                         logger.warn(<span class="jxr_string">"Failed to convert a mirror configuration to a mirror. "</span> +
+<a class="jxr_linenumber" name="L193" href="#L193">193</a>                                                     <span class="jxr_string">"project: {}, mirror: {}"</span>, parent().name(), mirrorConfig,
+<a class="jxr_linenumber" name="L194" href="#L194">194</a>                                                     e);
 <a class="jxr_linenumber" name="L195" href="#L195">195</a>                                         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">null</strong>;
 <a class="jxr_linenumber" name="L196" href="#L196">196</a>                                     }
 <a class="jxr_linenumber" name="L197" href="#L197">197</a>                                 })

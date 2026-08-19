@@ -1,0 +1,535 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <title>Serving Envoy configuration with the xDS control plane &mdash; Central Dogma 0.86.0 documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="_static/overrides.css" type="text/css" />
+
+  
+  
+
+  
+  
+
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/doctools.js"></script>
+    
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Authentication and Access Control" href="auth.html" />
+    <link rel="prev" title="Better configuration change workflow with Git-to-CD mirroring" href="mirroring.html" />
+  <script src="https://cdn.jsdelivr.net/npm/interactjs@1.4.0/dist/interact.min.js"></script>
+  <script src="_static/center_page.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.15.6/styles/default.min.css">
+   
+
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="index.html">
+          
+
+          
+            
+            <img src="_static/central_dogma.png" class="logo" alt="Logo"/>
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                0.86
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="setup.html">Setting up</a></li>
+<li class="toctree-l1"><a class="reference internal" href="concepts.html">Concepts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="client-cli.html">Command-line client</a></li>
+<li class="toctree-l1"><a class="reference internal" href="client-java.html">Java client library</a></li>
+<li class="toctree-l1"><a class="reference internal" href="templates-variables.html">Templates and Variables</a></li>
+<li class="toctree-l1"><a class="reference internal" href="mirroring.html">Better configuration change workflow with Git-to-CD mirroring</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Serving Envoy configuration with the xDS control plane</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#concepts">Concepts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#managing-xds-resources-with-the-web-ui">Managing xDS resources with the Web UI</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#creating-a-group">Creating a group</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#editing-resources">Editing resources</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#aggregating-kubernetes-service-endpoints">Aggregating Kubernetes service endpoints</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#creating-and-editing-in-the-web-ui">Creating and editing in the Web UI</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#watcher-fields">Watcher fields</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#access-control">Access control</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#serving-resources-to-clients">Serving resources to clients</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#connecting-envoy">Connecting Envoy</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="auth.html">Authentication and Access Control</a></li>
+<li class="toctree-l1"><a class="reference internal" href="known-issues.html">Known issues</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://github.com/line/centraldogma/releases">Release notes</a></li>
+<li class="toctree-l1"><a class="reference external" href="apidocs/index.html#://">API documentation</a></li>
+<li class="toctree-l1"><a class="reference external" href="xref/index.html#://">Source cross-reference</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://github.com/line/centraldogma/issues?q=label%3Aquestion-answered">Questions and answers</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://github.com/line/centraldogma">Fork me on GitHub</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://github.com/line/centraldogma/blob/main/CONTRIBUTING.md">Contributing</a></li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Central Dogma</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
+        
+      <li>Serving Envoy configuration with the xDS control plane</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+          
+            
+              <a href="https://github.com/line/centraldogma/blob/main/site/src/sphinx/xds.rst" class="fa fa-github"> Edit on GitHub</a>
+            
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="serving-envoy-configuration-with-the-xds-control-plane">
+<span id="xds"></span><h1>Serving Envoy configuration with the xDS control plane<a class="headerlink" href="#serving-envoy-configuration-with-the-xds-control-plane" title="Permalink to this headline">¶</a></h1>
+<p>Central Dogma can act as an <a class="reference external" href="https://www.envoyproxy.io/">Envoy</a>
+<a class="reference external" href="https://www.envoyproxy.io/docs/envoy/latest/api-docs/xds_protocol">xDS</a> v3 control plane. It stores Envoy
+resources — Listeners, Routes, Clusters and Endpoints — as version-controlled YAML files, lets you edit them
+through the Web UI, and serves them to Envoy and Armeria clients over the gRPC xDS discovery services — LDS,
+RDS, CDS, EDS and the aggregated ADS.</p>
+<p>Because the resources live in ordinary Central Dogma repositories, every change is reviewable, auditable and
+revertible, and you can watch or mirror them just like any other configuration file. This brings the
+<a class="reference internal" href="mirroring.html#mirroring"><span class="std std-ref">configuration change workflow</span></a> and <a class="reference internal" href="auth.html#auth"><span class="std std-ref">access control</span></a> you already use for your
+YAML settings to your Envoy service mesh.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The xDS control plane runs only when the xDS plugin is enabled on the server. When it is enabled, the Web
+UI exposes the xDS console at <code class="docutils literal notranslate"><span class="pre">/app/xds</span></code>.</p>
+</div>
+<div class="section" id="concepts">
+<h2>Concepts<a class="headerlink" href="#concepts" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li><p><strong>Group</strong> — the unit of organization and access control. A group is a repository under the internal
+<code class="docutils literal notranslate"><span class="pre">&#64;xds</span></code> project, and it holds all the xDS resources for one logical set of services.</p></li>
+<li><p><strong>Resource types</strong> — each group contains a directory per resource type: <code class="docutils literal notranslate"><span class="pre">listeners</span></code> (LDS), <code class="docutils literal notranslate"><span class="pre">routes</span></code>
+(RDS), <code class="docutils literal notranslate"><span class="pre">clusters</span></code> (CDS) and <code class="docutils literal notranslate"><span class="pre">endpoints</span></code> (EDS). Each resource is a single YAML file,
+e.g. <code class="docutils literal notranslate"><span class="pre">/clusters/foo.yaml</span></code>.</p></li>
+<li><p><strong>Resource name</strong> — the server assigns each resource a name derived from its group and ID, so you never
+write it yourself:</p>
+<ul>
+<li><p>Listeners, Routes and Clusters get a <code class="docutils literal notranslate"><span class="pre">name</span></code> of <code class="docutils literal notranslate"><span class="pre">groups/{group}/{type}/{id}</span></code> — for example, a cluster
+<code class="docutils literal notranslate"><span class="pre">foo</span></code> in group <code class="docutils literal notranslate"><span class="pre">my-group</span></code> becomes <code class="docutils literal notranslate"><span class="pre">groups/my-group/clusters/foo</span></code>.</p></li>
+<li><p>Endpoints get a <code class="docutils literal notranslate"><span class="pre">clusterName</span></code> of <code class="docutils literal notranslate"><span class="pre">groups/{group}/clusters/{id}</span></code>, binding the load assignment to the
+cluster of the same ID (an endpoint <code class="docutils literal notranslate"><span class="pre">foo</span></code> supplies the endpoints for cluster
+<code class="docutils literal notranslate"><span class="pre">groups/my-group/clusters/foo</span></code>).</p></li>
+</ul>
+</li>
+</ul>
+<p>A group repository is laid out like this:</p>
+<div class="highlight-none notranslate"><div class="highlight hljs"><pre class="none">@xds  (project)
+└── my-group  (repository = xDS group)
+    ├── listeners/&lt;id&gt;.yaml    (LDS)
+    ├── routes/&lt;id&gt;.yaml       (RDS)
+    ├── clusters/&lt;id&gt;.yaml     (CDS)
+    └── endpoints/&lt;id&gt;.yaml    (EDS)</pre></div>
+</div>
+</div>
+<div class="section" id="managing-xds-resources-with-the-web-ui">
+<h2>Managing xDS resources with the Web UI<a class="headerlink" href="#managing-xds-resources-with-the-web-ui" title="Permalink to this headline">¶</a></h2>
+<p>The xDS console lives at <code class="docutils literal notranslate"><span class="pre">/app/xds</span></code>. It opens on the list of groups you can access, with a button to create
+a new one.</p>
+<img alt="xDS group list" src="_images/xds_1.png" />
+<div class="section" id="creating-a-group">
+<h3>Creating a group<a class="headerlink" href="#creating-a-group" title="Permalink to this headline">¶</a></h3>
+<p>Click “New Group” and enter a group ID. The ID must start with a lowercase letter and may contain
+lowercase letters, digits, <code class="docutils literal notranslate"><span class="pre">_</span></code>, <code class="docutils literal notranslate"><span class="pre">.</span></code> and <code class="docutils literal notranslate"><span class="pre">-</span></code>.</p>
+<img alt="Creating a new xDS group" src="_images/xds_2.png" />
+</div>
+<div class="section" id="editing-resources">
+<h3>Editing resources<a class="headerlink" href="#editing-resources" title="Permalink to this headline">¶</a></h3>
+<p>Selecting a group reveals a sidebar that navigates everything in it:</p>
+<ul class="simple">
+<li><p><em>Overview</em> — a summary of the group.</p></li>
+<li><p><em>Listeners</em>, <em>Routes</em>, <em>Clusters</em>, <em>Endpoints</em> — the four core resource types.</p></li>
+<li><p><em>K8s Aggregators</em> — generate Endpoints from Kubernetes services (see
+<a class="reference internal" href="#aggregating-kubernetes-service-endpoints">Aggregating Kubernetes service endpoints</a>).</p></li>
+<li><p><em>References</em> — a dependency graph of the group’s resources, with reverse-reference lookup and
+dangling-reference detection.</p></li>
+<li><p><em>History</em> — the commit log of every resource change.</p></li>
+<li><p><em>Mirroring</em>, <em>Credentials</em>, <em>Permissions</em>, <em>Danger Zone</em> — administrative sections, visible to group
+administrators only.</p></li>
+</ul>
+<p>To add a resource, open its type and click “New”. The editor is pre-filled with a starter YAML template for
+that type; edit it, optionally add a commit summary, and save. Each resource follows its Envoy v3 API schema —
+see the Envoy reference for the
+<a class="reference external" href="https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/listener/v3/listener.proto">Listener</a>,
+<a class="reference external" href="https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/route/v3/route.proto">RouteConfiguration</a>,
+<a class="reference external" href="https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/cluster/v3/cluster.proto">Cluster</a> and
+<a class="reference external" href="https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/endpoint/v3/endpoint.proto">ClusterLoadAssignment</a>
+messages.</p>
+<img alt="Editing an xDS resource" src="_images/xds_3.png" />
+<p>The <em>Mirroring</em> section configures <a class="reference internal" href="mirroring.html#mirroring"><span class="std std-ref">mirroring</span></a> for the group’s backing repository, the
+<em>Permissions</em> section manages <a class="reference internal" href="auth.html#auth"><span class="std std-ref">access control</span></a>, and the <em>Credentials</em> section holds the credentials
+the group uses for mirroring and for reaching a Kubernetes control plane.</p>
+</div>
+</div>
+<div class="section" id="aggregating-kubernetes-service-endpoints">
+<h2>Aggregating Kubernetes service endpoints<a class="headerlink" href="#aggregating-kubernetes-service-endpoints" title="Permalink to this headline">¶</a></h2>
+<p>A <strong>Kubernetes endpoint aggregator</strong> watches one or more Kubernetes services and continuously generates an EDS
+<code class="docutils literal notranslate"><span class="pre">ClusterLoadAssignment</span></code> from their ready endpoints, served to xDS clients under the name
+<code class="docutils literal notranslate"><span class="pre">groups/{group}/k8s/clusters/{id}</span></code>. Unlike a hand-written Endpoint resource, it stays in sync with the
+cluster automatically as Pods come and go.</p>
+<div class="admonition tip">
+<p class="admonition-title">Tip</p>
+<p>Aggregators are created and edited through the Web UI form, so you never write the resource YAML by hand.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>When you create or update an aggregator, the server connects to each watcher’s Kubernetes API and requires
+the endpoints to resolve within a few seconds, otherwise the request is rejected. A saved aggregator is
+therefore always known to be resolvable.</p>
+</div>
+<div class="section" id="creating-and-editing-in-the-web-ui">
+<h3>Creating and editing in the Web UI<a class="headerlink" href="#creating-and-editing-in-the-web-ui" title="Permalink to this headline">¶</a></h3>
+<p>Open a group’s <em>K8s Aggregators</em> section and click “New”. The editor is a form: enter an <em>Aggregator ID</em>, then
+add one or more <em>Watchers</em> — each watcher maps to a single Kubernetes service. Click “Preview endpoints” to
+resolve the watchers against Kubernetes and see the <code class="docutils literal notranslate"><span class="pre">ClusterLoadAssignment</span></code> that would be generated, without
+saving; then click “Create”. An existing aggregator opens read-only; click “Edit” to modify it or “Delete” to
+remove it. Both require the <code class="docutils literal notranslate"><span class="pre">WRITE</span></code> role on the group. The endpoints an aggregator generates appear,
+read-only, in the group’s <em>Endpoints</em> section.</p>
+<img alt="Creating a Kubernetes endpoint aggregator" src="_images/xds_4.png" />
+</div>
+<div class="section" id="watcher-fields">
+<h3>Watcher fields<a class="headerlink" href="#watcher-fields" title="Permalink to this headline">¶</a></h3>
+<p>Each watcher exposes the following fields (the underlying YAML key is shown in parentheses):</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">Service</span> <span class="pre">name</span></code> (required, <code class="docutils literal notranslate"><span class="pre">watcher.serviceName</span></code>)</p>
+<ul>
+<li><p>the Kubernetes service whose endpoints are resolved.</p></li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Port</span> <span class="pre">name</span></code> (<code class="docutils literal notranslate"><span class="pre">watcher.portName</span></code>)</p>
+<ul>
+<li><p>the named port to select when the service exposes more than one port.</p></li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Control</span> <span class="pre">plane</span> <span class="pre">URL</span></code> (required, <code class="docutils literal notranslate"><span class="pre">kubeconfig.controlPlaneUrl</span></code>)</p>
+<ul>
+<li><p>the Kubernetes API server URL, e.g. <code class="docutils literal notranslate"><span class="pre">https://kubernetes.default.svc</span></code>.</p></li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Namespace</span></code> (<code class="docutils literal notranslate"><span class="pre">kubeconfig.namespace</span></code>)</p>
+<ul>
+<li><p>the namespace to watch.</p></li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Credential</span> <span class="pre">ID</span></code> (<code class="docutils literal notranslate"><span class="pre">kubeconfig.credentialId</span></code>)</p>
+<ul>
+<li><p>the ID of an access-token credential in the group’s <em>Credentials</em> section, used as the OAuth token to
+authenticate to the Kubernetes API server. See <a class="reference internal" href="auth.html#auth"><span class="std std-ref">Authentication and Access Control</span></a> for credential management.</p></li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Trust</span> <span class="pre">certificates</span></code> (<code class="docutils literal notranslate"><span class="pre">kubeconfig.trustCerts</span></code>)</p>
+<ul>
+<li><p>trust the Kubernetes API server’s certificate (skip TLS verification).</p></li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Priority</span></code> (<code class="docutils literal notranslate"><span class="pre">priority</span></code>) and <code class="docutils literal notranslate"><span class="pre">Load</span> <span class="pre">balancing</span> <span class="pre">weight</span></code> (<code class="docutils literal notranslate"><span class="pre">loadBalancingWeight</span></code>)</p>
+<ul>
+<li><p>the Envoy locality priority and load balancing weight applied to the endpoints this watcher resolves.</p></li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Region</span></code> / <code class="docutils literal notranslate"><span class="pre">Zone</span></code> / <code class="docutils literal notranslate"><span class="pre">Sub</span> <span class="pre">zone</span></code> (<code class="docutils literal notranslate"><span class="pre">locality.region</span></code> / <code class="docutils literal notranslate"><span class="pre">locality.zone</span></code> / <code class="docutils literal notranslate"><span class="pre">locality.subZone</span></code>)</p>
+<ul>
+<li><p>the optional locality assigned to every endpoint this watcher resolves.</p></li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Distinct</span> <span class="pre">endpoint</span></code> (<code class="docutils literal notranslate"><span class="pre">watcher.distinctEndpoint</span></code>)</p>
+<ul>
+<li><p>when enabled, endpoints that share the same host and port are collapsed into a single endpoint. This is
+useful in NodePort mode, where multiple Pods on the same node resolve to the same <code class="docutils literal notranslate"><span class="pre">nodeIP:nodePort</span></code>.</p></li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Metadata</span> <span class="pre">mapping</span></code> (<code class="docutils literal notranslate"><span class="pre">watcher.metadataMapping</span></code>)</p>
+<ul>
+<li><p>copies a Kubernetes Pod or Node label/annotation into the metadata of the generated endpoint. Each mapping
+has a <code class="docutils literal notranslate"><span class="pre">resourceType</span></code> (<code class="docutils literal notranslate"><span class="pre">POD</span></code> or <code class="docutils literal notranslate"><span class="pre">NODE</span></code>), an <code class="docutils literal notranslate"><span class="pre">entryType</span></code> (<code class="docutils literal notranslate"><span class="pre">LABEL</span></code> or <code class="docutils literal notranslate"><span class="pre">ANNOTATION</span></code>), exactly one
+of <code class="docutils literal notranslate"><span class="pre">sourceKey</span></code> (a single key, e.g. <code class="docutils literal notranslate"><span class="pre">topology.kubernetes.io/zone</span></code>) or <code class="docutils literal notranslate"><span class="pre">sourceKeyPrefix</span></code> (every key
+with the given prefix), an optional <code class="docutils literal notranslate"><span class="pre">metadataNamespace</span></code> (the Envoy <code class="docutils literal notranslate"><span class="pre">filter_metadata</span></code> namespace,
+<code class="docutils literal notranslate"><span class="pre">envoy.lb</span></code> by default) and an optional <code class="docutils literal notranslate"><span class="pre">metadataKey</span></code> (the destination key, defaulting to
+<code class="docutils literal notranslate"><span class="pre">sourceKey</span></code>).</p></li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Additional</span> <span class="pre">properties</span></code> (<code class="docutils literal notranslate"><span class="pre">watcher.additionalProperties</span></code>)</p>
+<ul>
+<li><p>free-form key/value pairs passed to a custom node-IP extractor plugin, if one is installed on the server.
+They are ignored otherwise.</p></li>
+</ul>
+</li>
+</ul>
+<p>Beyond its watchers, the aggregator itself has an optional <code class="docutils literal notranslate"><span class="pre">policy</span></code> — an Envoy
+<code class="docutils literal notranslate"><span class="pre">ClusterLoadAssignment.Policy</span></code> applied to the whole generated assignment.</p>
+</div>
+</div>
+<div class="section" id="access-control">
+<h2>Access control<a class="headerlink" href="#access-control" title="Permalink to this headline">¶</a></h2>
+<p>Access to a group is governed by the <code class="docutils literal notranslate"><span class="pre">ADMIN</span></code>, <code class="docutils literal notranslate"><span class="pre">WRITE</span></code> and <code class="docutils literal notranslate"><span class="pre">READ</span></code> repository roles of its backing
+repository. Mutations require <code class="docutils literal notranslate"><span class="pre">WRITE</span></code>; reads require <code class="docutils literal notranslate"><span class="pre">READ</span></code>, except Endpoints, which are readable without
+it.</p>
+<p>An application identity — together with its access token or mTLS client certificate — is created in the
+Application identities menu. To give it access to a group, register it under that group’s <em>Permissions</em>
+section, in <em>Application IDs</em>, with the desired role; <em>Permissions</em> grants roles to individual users the same
+way. See <a class="reference internal" href="auth.html#auth"><span class="std std-ref">Authentication and Access Control</span></a> for the underlying authentication and access-control model.</p>
+<p>The <em>Credentials</em> section is unrelated to granting clients access. It holds the credentials the group uses
+itself: to <a class="reference internal" href="mirroring.html#mirroring"><span class="std std-ref">mirror</span></a> its backing repository — with an SSH key, a password or an access token —
+and to authenticate to a Kubernetes control plane, which requires an access token (the <em>Credential ID</em> a
+watcher references).</p>
+</div>
+<div class="section" id="serving-resources-to-clients">
+<h2>Serving resources to clients<a class="headerlink" href="#serving-resources-to-clients" title="Permalink to this headline">¶</a></h2>
+<p>The gRPC discovery services (LDS, RDS, CDS, EDS and ADS) are served on the same server port as the REST API
+and follow the server’s TLS configuration. An authenticated application identity is
+served the union of every group it has <code class="docutils literal notranslate"><span class="pre">READ</span></code> access to, and resources are addressed as
+<code class="docutils literal notranslate"><span class="pre">groups/{group}/{type}/{id}</span></code>.</p>
+<div class="admonition tip">
+<p class="admonition-title">Tip</p>
+<p>Run the xDS control plane with <a class="reference internal" href="auth.html#auth"><span class="std std-ref">authentication</span></a> enabled and authenticate every xDS client, so
+that each client is served only the groups it is authorized for. Prefer an mTLS client certificate; an
+application access token (as an HTTP <code class="docutils literal notranslate"><span class="pre">Authorization:</span> <span class="pre">Bearer</span></code> header) is also supported.</p>
+</div>
+<div class="section" id="connecting-envoy">
+<h3>Connecting Envoy<a class="headerlink" href="#connecting-envoy" title="Permalink to this headline">¶</a></h3>
+<p>Point Envoy’s dynamic resources at Central Dogma’s ADS endpoint with a bootstrap configuration like the
+following. It defines a cluster for the Central Dogma server (speaking HTTP/2) and configures LDS, CDS and ADS
+to use it:</p>
+<div class="highlight-yaml notranslate"><div class="highlight hljs"><pre class="yaml">node:
+  id: my-envoy
+  cluster: my-service
+
+dynamic_resources:
+  ads_config:
+    api_type: GRPC
+    transport_api_version: V3
+    grpc_services:
+      - envoy_grpc:
+          cluster_name: centraldogma
+        # For token-based auth, attach the access token as gRPC metadata:
+        # initial_metadata:
+        #   - key: authorization
+        #     value: &quot;Bearer &lt;token&gt;&quot;
+  lds_config:
+    ads: {}
+    resource_api_version: V3
+  cds_config:
+    ads: {}
+    resource_api_version: V3
+
+static_resources:
+  clusters:
+    - name: centraldogma
+      type: STRICT_DNS
+      typed_extension_protocol_options:
+        envoy.extensions.upstreams.http.v3.HttpProtocolOptions:
+          &quot;@type&quot;: type.googleapis.com/envoy.extensions.upstreams.http.v3.HttpProtocolOptions
+          explicit_http_config:
+            http2_protocol_options: {}
+      load_assignment:
+        cluster_name: centraldogma
+        endpoints:
+          - lb_endpoints:
+              - endpoint:
+                  address:
+                    socket_address:
+                      address: 127.0.0.1
+                      port_value: 36462</pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Add a TLS <code class="docutils literal notranslate"><span class="pre">transport_socket</span></code> to the <code class="docutils literal notranslate"><span class="pre">centraldogma</span></code> cluster when the server uses TLS. This is also where
+the client certificate is configured for the recommended mTLS authentication.</p>
+</div>
+</div>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+        <a href="auth.html" class="btn btn-neutral float-right" title="Authentication and Access Control" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="mirroring.html" class="btn btn-neutral float-left" title="Better configuration change workflow with Git-to-CD mirroring" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &#169; Copyright 2017-2026, LINE Corporation.
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+  
+  <a href="https://github.com/line/centraldogma" class="github-corner" aria-label="View source on GitHub">
+    <svg width="80" height="80" viewBox="0 0 250 250" aria-hidden="true">
+      <path d="M0,0 L115,115 L130,115 L142,142 L250,250 L250,0 Z" fill="#1e2834"></path>
+      <path class="octo-arm" d="M128.3,109.0 C113.8,99.7 119.0,89.6 119.0,89.6 C122.0,82.7 120.5,78.6 120.5,78.6 C119.2,72.0 123.4,76.3 123.4,76.3 C127.3,80.9 125.5,87.3 125.5,87.3 C122.9,97.6 130.6,101.9 134.4,103.2" fill="#ffffff" style="transform-origin: 130px 106px;"></path>
+      <path class="octo-body" d="M115.0,115.0 C114.9,115.1 118.7,116.5 119.8,115.4 L133.7,101.6 C136.9,99.2 139.9,98.4 142.2,98.6 C133.8,88.0 127.5,74.4 143.8,58.0 C148.5,53.4 154.0,51.2 159.7,51.0 C160.3,49.4 163.2,43.6 171.4,40.1 C171.4,40.1 176.1,42.5 178.8,56.2 C183.1,58.6 187.2,61.8 190.9,65.4 C194.5,69.0 197.7,73.2 200.1,77.6 C213.8,80.2 216.3,84.9 216.3,84.9 C212.7,93.1 206.9,96.0 205.4,96.6 C205.1,102.4 203.0,107.8 198.3,112.5 C181.9,128.9 168.3,122.5 157.7,114.1 C157.9,116.9 156.7,120.9 152.7,124.9 L141.0,136.5 C139.8,137.7 141.6,141.9 141.8,141.8 Z" fill="#ffffff"></path>
+    </svg>
+  </a>
+  <script type="text/javascript" src="_static/add_badges.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.15.6/highlight.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.15.6/languages/gradle.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.15.6/languages/protobuf.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.15.6/languages/thrift.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.15.6/languages/yaml.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlightjs-line-numbers.js/2.7.0/highlightjs-line-numbers.min.js"></script>
+  <script>
+    document.querySelectorAll('div.hljs > pre').forEach(function(block) {
+      hljs.highlightBlock(block);
+      hljs.lineNumbersBlock(block);
+    });
+  </script>
+   
+
+
+</body>
+</html>
