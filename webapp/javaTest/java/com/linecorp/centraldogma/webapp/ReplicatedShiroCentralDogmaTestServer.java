@@ -37,25 +37,25 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
 import com.linecorp.armeria.client.WebClient;
-import com.linecorp.armeria.common.util.UnmodifiableFuture;
 import com.linecorp.armeria.common.SessionProtocol;
+import com.linecorp.armeria.common.util.UnmodifiableFuture;
 import com.linecorp.centraldogma.client.armeria.ArmeriaCentralDogmaBuilder;
-import com.linecorp.centraldogma.common.Change;
-import com.linecorp.centraldogma.server.CentralDogma;
-import com.linecorp.centraldogma.server.CentralDogmaBuilder;
-import com.linecorp.centraldogma.server.ZooKeeperReplicationConfig;
 import com.linecorp.centraldogma.common.Author;
+import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.server.CentralDogma;
+import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.server.CentralDogmaConfig;
+import com.linecorp.centraldogma.server.ZooKeeperReplicationConfig;
 import com.linecorp.centraldogma.server.ZooKeeperServerConfig;
+import com.linecorp.centraldogma.server.auth.shiro.ShiroAuthProviderFactory;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.StandaloneCommandExecutor;
 import com.linecorp.centraldogma.server.internal.replication.ZooKeeperCommandExecutor;
 import com.linecorp.centraldogma.server.plugin.Plugin;
 import com.linecorp.centraldogma.server.plugin.PluginContext;
 import com.linecorp.centraldogma.server.plugin.PluginTarget;
-import com.linecorp.centraldogma.server.auth.shiro.ShiroAuthProviderFactory;
 
 /**
  * A {@link ShiroCentralDogmaTestServer} variant that runs three replicas in one JVM, on ports 36462 to
@@ -74,6 +74,10 @@ final class ReplicatedShiroCentralDogmaTestServer {
             2, new ZooKeeperServerConfig("127.0.0.1", 36469, 36470, 36471, null, null),
             3, new ZooKeeperServerConfig("127.0.0.1", 36472, 36473, 36474, null, null));
 
+    /**
+     * Starts the cluster and keeps it running until the JVM exits.
+     */
+    @SuppressWarnings("UncommentedMain")
     public static void main(String[] args) throws IOException {
         final CentralDogma server1 = newServer(1, PORT1);
         final CentralDogma server2 = newServer(2, PORT2, injector);
