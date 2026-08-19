@@ -72,6 +72,11 @@ final class CachingRepository implements Repository {
     }
 
     @Override
+    public int cacheGeneration() {
+        return repo.cacheGeneration();
+    }
+
+    @Override
     public org.eclipse.jgit.lib.Repository jGitRepository() {
         return repo.jGitRepository();
     }

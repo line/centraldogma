@@ -151,6 +151,7 @@ const RecoverRepositoryForm = () => {
   const [repo, setRepo] = useState<Option | null>(null);
   const [source, setSource] = useState<SourceOption | null>(null);
   const [fromRevision, setFromRevision] = useState(2);
+  const [toRevision, setToRevision] = useState(2);
   // Inline feedback, so the outcome stays visible even after the transient toast is gone.
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [lastResult, setLastResult] = useState<RecoveryResult | null>(null);
@@ -175,7 +176,8 @@ const RecoverRepositoryForm = () => {
     host: replica.host,
   }));
 
-  const complete = project != null && repo != null && source != null && fromRevision >= 2;
+  const complete =
+    project != null && repo != null && source != null && fromRevision >= 2 && toRevision >= fromRevision;
 
   // Neither outcome means the cluster converged: the replicas other than the source apply the recovery
   // when they replay it. So the verification script belongs to both.
@@ -200,6 +202,7 @@ const RecoverRepositoryForm = () => {
         projectName: project.value,
         repoName: repo.value,
         fromRevision,
+        toRevision,
         sourceServerId: source.value,
       }).unwrap();
       setLastResult({
@@ -210,7 +213,7 @@ const RecoverRepositoryForm = () => {
       });
       dispatch(
         newNotification(
-          response.status === 'COMPLETED' ? 'Recovery originated' : 'Recovery requested',
+          response.status === 'RECOVERING' ? 'Recovery originated' : 'Recovery requested',
           `Confirm every replica reports the source's head commit with the script below before making ` +
             `${project.value}/${repo.value} writable.`,
           'success',
@@ -255,10 +258,10 @@ const RecoverRepositoryForm = () => {
         Recover a repository from a source replica
       </Heading>
       <Text fontSize="sm" color="gray.500" mb="4">
-        Designates one replica&apos;s repository as the source of truth: every other replica resets to just
-        before the start revision and replays the source&apos;s commits up to its head. The repository must be
-        read-only first and stays read-only afterwards, until you make it writable on the Repository Status
-        page.
+        Designates one replica&apos;s repository as the source of truth: every replica, the source included,
+        resets to just before the from revision and replays the source&apos;s commits through the to revision,
+        which becomes the new head everywhere. The repository must be read-only first and stays read-only
+        afterwards, until you make it writable on the Repository Status page.
       </Text>
       {/* The fields wrap on a narrow viewport, so the action lives on its own row and never ends up
           floating in the middle of a wrapped one. */}
@@ -311,7 +314,7 @@ const RecoverRepositoryForm = () => {
           />
         </FormControl>
         <FormControl maxW="2xs">
-          <FormLabel>Start revision</FormLabel>
+          <FormLabel>From revision</FormLabel>
           <NumberInput
             min={2}
             value={fromRevision}
@@ -323,7 +326,22 @@ const RecoverRepositoryForm = () => {
               <NumberDecrementStepper />
             </NumberInputStepper>
           </NumberInput>
-          <FormHelperText>Replayed through the source head.</FormHelperText>
+          <FormHelperText>First revision replayed from the source.</FormHelperText>
+        </FormControl>
+        <FormControl maxW="2xs">
+          <FormLabel>To revision</FormLabel>
+          <NumberInput
+            min={2}
+            value={toRevision}
+            onChange={(_, value) => setToRevision(Number.isNaN(value) ? 0 : value)}
+          >
+            <NumberInputField name="recovery-to-revision" />
+            <NumberInputStepper>
+              <NumberIncrementStepper />
+              <NumberDecrementStepper />
+            </NumberInputStepper>
+          </NumberInput>
+          <FormHelperText>Becomes the new head on every replica.</FormHelperText>
         </FormControl>
       </Flex>
       <Alert status="info" borderRadius="md" fontSize="sm" mt="4">
@@ -339,10 +357,10 @@ const RecoverRepositoryForm = () => {
       {lastResult && (
         <Alert status="success" borderRadius="md" fontSize="sm" mt="4">
           <AlertIcon />
-          {lastResult.response.status === 'COMPLETED'
+          {lastResult.response.status === 'RECOVERING'
             ? `Server ${lastResult.sourceServerId} originated the recovery of ` +
               `${lastResult.projectName}/${lastResult.repoName} at revision ` +
-              `${lastResult.response.headRevision}. The other replicas apply it asynchronously when they ` +
+              `${lastResult.response.toRevision}. The other replicas apply it asynchronously when they ` +
               'replay it, so the cluster has not converged yet.'
             : `Server ${lastResult.sourceServerId} was asked to originate the recovery of ` +
               `${lastResult.projectName}/${lastResult.repoName} asynchronously (best effort); a failure ` +
@@ -384,6 +402,7 @@ const RecoverRepositoryForm = () => {
           projectName={project.value}
           repoName={repo.value}
           fromRevision={fromRevision}
+          toRevision={toRevision}
           sourceServerId={source.value}
           sourceHost={source.host}
           onConfirm={handleConfirm}

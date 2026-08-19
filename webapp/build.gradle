@@ -78,6 +78,14 @@ tasks.register('runTestReplicatedShiroServer', JavaExec) {
     mainClass = "com.linecorp.centraldogma.webapp.ReplicatedShiroCentralDogmaTestServer"
 }
 
+tasks.register('runTestDivergedShiroServer', JavaExec) {
+    group = "Execution"
+    description = "Run the replicated server with a diverged repository"
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = "com.linecorp.centraldogma.webapp.ReplicatedShiroCentralDogmaTestServer"
+    environment 'CD_DIVERGE', '1'
+}
+
 if (!rootProject.hasProperty('noLint')) {
     tasks.register('eslint', NpmTask) {
         dependsOn(tasks.named('npmInstall'))

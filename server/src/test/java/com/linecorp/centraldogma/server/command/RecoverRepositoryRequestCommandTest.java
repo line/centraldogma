@@ -29,7 +29,8 @@ class RecoverRepositoryRequestCommandTest {
     @Test
     void testJsonConversion() {
         assertJsonConversion(
-                new RecoverRepositoryRequestCommand(1234L, Author.SYSTEM, "foo", "bar", 2, new Revision(3)),
+                new RecoverRepositoryRequestCommand(1234L, Author.SYSTEM, "foo", "bar", 2,
+                                                    new Revision(3), new Revision(5)),
                 Command.class,
                 '{' +
                 "  \"type\": \"RECOVER_REPOSITORY_REQUEST\"," +
@@ -41,7 +42,8 @@ class RecoverRepositoryRequestCommandTest {
                 "  \"projectName\": \"foo\"," +
                 "  \"repositoryName\": \"bar\"," +
                 "  \"sourceServerId\": 2," +
-                "  \"fromRevision\": 3" +
+                "  \"fromRevision\": 3," +
+                "  \"toRevision\": 5" +
                 '}');
     }
 }

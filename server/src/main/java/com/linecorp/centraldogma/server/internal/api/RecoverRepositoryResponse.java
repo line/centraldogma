@@ -26,16 +26,18 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects;
 
+import com.linecorp.centraldogma.common.Revision;
+
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public final class RecoverRepositoryResponse {
 
     private final RecoveryStatus status;
     @Nullable
-    private final Integer headRevision;
+    private final Revision toRevision;
 
-    public RecoverRepositoryResponse(RecoveryStatus status, @Nullable Integer headRevision) {
+    public RecoverRepositoryResponse(RecoveryStatus status, @Nullable Revision toRevision) {
         this.status = requireNonNull(status, "status");
-        this.headRevision = headRevision;
+        this.toRevision = toRevision;
     }
 
     @JsonProperty("status")
@@ -48,9 +50,9 @@ public final class RecoverRepositoryResponse {
      * the recovery, or {@code null} if the recovery was only requested.
      */
     @Nullable
-    @JsonProperty("headRevision")
-    public Integer headRevision() {
-        return headRevision;
+    @JsonProperty("toRevision")
+    public Revision toRevision() {
+        return toRevision;
     }
 
     @Override
@@ -62,19 +64,19 @@ public final class RecoverRepositoryResponse {
             return false;
         }
         final RecoverRepositoryResponse that = (RecoverRepositoryResponse) o;
-        return status == that.status && Objects.equals(headRevision, that.headRevision);
+        return status == that.status && Objects.equals(toRevision, that.toRevision);
     }
 
     @Override
     public int hashCode() {
-        return status.hashCode() * 31 + Objects.hashCode(headRevision);
+        return status.hashCode() * 31 + Objects.hashCode(toRevision);
     }
 
     @Override
     public String toString() {
         return MoreObjects.toStringHelper(this)
                           .add("status", status)
-                          .add("headRevision", headRevision)
+                          .add("toRevision", toRevision)
                           .toString();
     }
 }

@@ -16,6 +16,7 @@
 
 package com.linecorp.centraldogma.server.command;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
 
 import java.util.List;
@@ -36,13 +37,14 @@ import com.linecorp.centraldogma.common.Revision;
  * source replica (the single source of truth) and applied identically on every replica, itself included: a
  * replica already converged with {@link #commits()} is left untouched, and every other one resets its git
  * repository and commit-id database to {@link #resetToRevision()} and replays {@link #commits()} up to
- * {@link #headRevision()}. Because the replayed commits carry the original author, timestamp and
+ * {@link #toRevision()}. Because the replayed commits carry the original author, timestamp and
  * self-contained changes, a replay reproduces the source's commit ids; each one is verified against
- * {@link ReplayCommit#expectedCommitId()}, and a mismatch aborts the recovery and rolls the replica back.
+ * {@link ReplayCommit#expectedCommitId()}, and a mismatch aborts the recovery, leaving that replica with
+ * a partial history until it is recovered again.
  *
- * <p>The convergence check is by content, not by replica: the source is normally the replica that is
- * already converged, but a commit that lands on it between the payload build and the apply (a force push,
- * which read-only does not block) makes the source replay over itself too, discarding that commit.
+ * <p>The convergence check is by content, not by replica, so the source replays over itself whenever it
+ * holds commits the payload does not: a {@link #toRevision()} below its head discards them by design, and
+ * so does a force push that lands between the payload build and the apply.
  *
  * <p>This is a {@link RepositoryCommand} so that it is scoped to a single repository (lock scope and
  * read-only failure blast radius) and is not rejected while the repository/project is read-only.
@@ -51,7 +53,7 @@ public final class RecoverRepositoryCommand extends RepositoryCommand<Revision> 
 
     private final int sourceServerId;
     private final Revision resetToRevision;
-    private final Revision headRevision;
+    private final Revision toRevision;
     private final List<ReplayCommit> commits;
 
     @JsonCreator
@@ -61,13 +63,14 @@ public final class RecoverRepositoryCommand extends RepositoryCommand<Revision> 
                              @JsonProperty("repositoryName") String repositoryName,
                              @JsonProperty("sourceServerId") int sourceServerId,
                              @JsonProperty("resetToRevision") Revision resetToRevision,
-                             @JsonProperty("headRevision") Revision headRevision,
+                             @JsonProperty("toRevision") Revision toRevision,
                              @JsonProperty("commits") Iterable<ReplayCommit> commits) {
         super(CommandType.RECOVER_REPOSITORY, timestamp, author, projectName, repositoryName);
         this.sourceServerId = sourceServerId;
         this.resetToRevision = requireNonNull(resetToRevision, "resetToRevision");
-        this.headRevision = requireNonNull(headRevision, "headRevision");
+        this.toRevision = requireNonNull(toRevision, "toRevision");
         this.commits = ImmutableList.copyOf(requireNonNull(commits, "commits"));
+        checkArgument(!this.commits.isEmpty(), "commits is empty");
     }
 
     /**
@@ -90,11 +93,12 @@ public final class RecoverRepositoryCommand extends RepositoryCommand<Revision> 
     }
 
     /**
-     * Returns the head {@link Revision} of the source repository, which is also the result of this command.
+     * Returns the last {@link Revision} to replay, which every replica converges to. It need not be the
+     * source's head: the source's own commits above it are discarded too.
      */
     @JsonProperty
-    public Revision headRevision() {
-        return headRevision;
+    public Revision toRevision() {
+        return toRevision;
     }
 
     /**
@@ -117,13 +121,13 @@ public final class RecoverRepositoryCommand extends RepositoryCommand<Revision> 
         return super.equals(that) &&
                sourceServerId == that.sourceServerId &&
                resetToRevision.equals(that.resetToRevision) &&
-               headRevision.equals(that.headRevision) &&
+               toRevision.equals(that.toRevision) &&
                commits.equals(that.commits);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(sourceServerId, resetToRevision, headRevision, commits) * 31 + super.hashCode();
+        return Objects.hash(sourceServerId, resetToRevision, toRevision, commits) * 31 + super.hashCode();
     }
 
     @Override
@@ -131,7 +135,7 @@ public final class RecoverRepositoryCommand extends RepositoryCommand<Revision> 
         return super.toStringHelper()
                     .add("sourceServerId", sourceServerId)
                     .add("resetToRevision", resetToRevision)
-                    .add("headRevision", headRevision)
+                    .add("toRevision", toRevision)
                     .add("commits", commits.size());
     }
 }

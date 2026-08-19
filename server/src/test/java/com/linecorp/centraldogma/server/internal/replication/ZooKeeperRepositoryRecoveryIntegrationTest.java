@@ -121,17 +121,17 @@ class ZooKeeperRepositoryRecoveryIntegrationTest {
 
         // POST the recovery to the source replica itself; it builds the payload and originates directly.
         final AggregatedHttpResponse response =
-                recover(adminClientOf(SOURCE_SERVER_ID), new RecoverRepositoryRequest(3, SOURCE_SERVER_ID));
+                recover(adminClientOf(SOURCE_SERVER_ID), new RecoverRepositoryRequest(3, 3, SOURCE_SERVER_ID));
         assertThat(response.status()).isEqualTo(HttpStatus.OK);
-        assertThat(response.contentUtf8()).contains("\"COMPLETED\"");
-        assertThat(response.contentUtf8()).contains("\"headRevision\":3");
+        assertThat(response.contentUtf8()).contains("\"RECOVERING\"");
+        assertThat(response.contentUtf8()).contains("\"toRevision\":3");
 
         // Recovery is idempotent: running it again converges to the same head and changes nothing.
         final AggregatedHttpResponse second =
-                recover(adminClientOf(SOURCE_SERVER_ID), new RecoverRepositoryRequest(3, SOURCE_SERVER_ID));
+                recover(adminClientOf(SOURCE_SERVER_ID), new RecoverRepositoryRequest(3, 3, SOURCE_SERVER_ID));
         assertThat(second.status()).isEqualTo(HttpStatus.OK);
-        assertThat(second.contentUtf8()).contains("\"COMPLETED\"");
-        assertThat(second.contentUtf8()).contains("\"headRevision\":3");
+        assertThat(second.contentUtf8()).contains("\"RECOVERING\"");
+        assertThat(second.contentUtf8()).contains("\"toRevision\":3");
 
         assertClusterConvergedAndUsable();
     }
@@ -142,7 +142,8 @@ class ZooKeeperRepositoryRecoveryIntegrationTest {
 
         // The source head is r3, so replaying from r99 is impossible; the direct path surfaces it as 400.
         final AggregatedHttpResponse response =
-                recover(adminClientOf(SOURCE_SERVER_ID), new RecoverRepositoryRequest(99, SOURCE_SERVER_ID));
+                recover(adminClientOf(SOURCE_SERVER_ID), new RecoverRepositoryRequest(99, 99,
+                                                                                      SOURCE_SERVER_ID));
         assertThat(response.status()).isEqualTo(HttpStatus.BAD_REQUEST);
         assertThat(response.contentUtf8()).contains("fromRevision");
     }
@@ -178,7 +179,8 @@ class ZooKeeperRepositoryRecoveryIntegrationTest {
         // POST the recovery to the diverged, non-source replica; it asks the source over the replication
         // log and the source reacts by originating the actual recovery command.
         final AggregatedHttpResponse response =
-                recover(adminClientOf(DIVERGED_SERVER_ID), new RecoverRepositoryRequest(2, SOURCE_SERVER_ID));
+                recover(adminClientOf(DIVERGED_SERVER_ID), new RecoverRepositoryRequest(2, 3,
+                                                                                        SOURCE_SERVER_ID));
         assertThat(response.status()).isEqualTo(HttpStatus.OK);
         assertThat(response.contentUtf8()).contains("\"REQUESTED\"");
 
@@ -198,7 +200,7 @@ class ZooKeeperRepositoryRecoveryIntegrationTest {
         // The repository is writable; recovery must be rejected so that no concurrent push can race the
         // payload build.
         final AggregatedHttpResponse response =
-                recover(adminClientOf(SOURCE_SERVER_ID), new RecoverRepositoryRequest(2, SOURCE_SERVER_ID));
+                recover(adminClientOf(SOURCE_SERVER_ID), new RecoverRepositoryRequest(2, 3, SOURCE_SERVER_ID));
         assertThat(response.status()).isEqualTo(HttpStatus.CONFLICT);
         assertThat(response.contentUtf8()).contains("read-only");
     }
@@ -208,7 +210,7 @@ class ZooKeeperRepositoryRecoveryIntegrationTest {
         driveRepoIntoDivergedReadOnly();
 
         final AggregatedHttpResponse response =
-                recover(adminClientOf(SOURCE_SERVER_ID), new RecoverRepositoryRequest(2, 42));
+                recover(adminClientOf(SOURCE_SERVER_ID), new RecoverRepositoryRequest(2, 3, 42));
         assertThat(response.status()).isEqualTo(HttpStatus.BAD_REQUEST);
         assertThat(response.contentUtf8()).contains("sourceServerId");
     }
@@ -223,7 +225,7 @@ class ZooKeeperRepositoryRecoveryIntegrationTest {
                         .post("/api/v1/projects/{project}/repos/{repo}/recover")
                         .pathParam("project", testProject)
                         .pathParam("repo", "dogma")
-                        .contentJson(new RecoverRepositoryRequest(2, SOURCE_SERVER_ID))
+                        .contentJson(new RecoverRepositoryRequest(2, 3, SOURCE_SERVER_ID))
                         .execute();
         assertThat(response.status()).isEqualTo(HttpStatus.FORBIDDEN);
         assertThat(response.contentUtf8()).contains("internal repository");
@@ -276,7 +278,7 @@ class ZooKeeperRepositoryRecoveryIntegrationTest {
         for (int serverId = 1; serverId <= 3; serverId++) {
             final int id = serverId;
             await().ignoreExceptions().untilAsserted(() -> {
-                assertThat(headRevisionOn(id).major()).isEqualTo(3);
+                assertThat(toRevisionOn(id).major()).isEqualTo(3);
                 assertThat(jsonValueOn(id, "a")).isEqualTo(2);
                 assertThat(headCommitIdOn(id)).isEqualTo(headCommitIdOn(SOURCE_SERVER_ID));
             });
@@ -305,7 +307,7 @@ class ZooKeeperRepositoryRecoveryIntegrationTest {
         for (int serverId = 1; serverId <= 3; serverId++) {
             final int id = serverId;
             await().ignoreExceptions().untilAsserted(() -> {
-                assertThat(headRevisionOn(id).major()).isEqualTo(4);
+                assertThat(toRevisionOn(id).major()).isEqualTo(4);
                 assertThat(jsonValueOn(id, "a")).isEqualTo(4);
             });
         }
@@ -344,17 +346,17 @@ class ZooKeeperRepositoryRecoveryIntegrationTest {
         driveRepoIntoDivergedReadOnly();
 
         // Same head revision on both replicas...
-        assertThat(headRevisionOn(DIVERGED_SERVER_ID)).isEqualTo(headRevisionOn(SOURCE_SERVER_ID));
+        assertThat(toRevisionOn(DIVERGED_SERVER_ID)).isEqualTo(toRevisionOn(SOURCE_SERVER_ID));
         // ...but a different commit, which is exactly what makes the revision alone useless for
         // verifying a recovery.
         assertThat(headCommitIdOn(DIVERGED_SERVER_ID)).isNotEqualTo(headCommitIdOn(SOURCE_SERVER_ID));
 
-        recover(adminClientOf(SOURCE_SERVER_ID), new RecoverRepositoryRequest(3, SOURCE_SERVER_ID));
+        recover(adminClientOf(SOURCE_SERVER_ID), new RecoverRepositoryRequest(3, 3, SOURCE_SERVER_ID));
         await().ignoreExceptions().untilAsserted(() -> assertThat(headCommitIdOn(DIVERGED_SERVER_ID))
                 .isEqualTo(headCommitIdOn(SOURCE_SERVER_ID)));
     }
 
-    private Revision headRevisionOn(int serverId) {
+    private Revision toRevisionOn(int serverId) {
         return replica.serverById(serverId).client()
                       .forRepo(testProject, TEST_REPO)
                       .normalize(Revision.HEAD)

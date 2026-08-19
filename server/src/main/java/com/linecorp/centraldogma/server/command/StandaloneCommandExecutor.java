@@ -247,7 +247,7 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
 
         if (command instanceof RecoverRepositoryRequestCommand) {
             // Applied as a no-op on every replica; the source replica reacts to it in the ZooKeeper layer.
-            return (CompletableFuture<T>) CompletableFuture.completedFuture(null);
+            return CompletableFuture.completedFuture(null);
         }
 
         if (command instanceof RecoverRepositoryCommand) {
@@ -443,21 +443,18 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
     }
 
     private CompletableFuture<Revision> recoverRepository(RecoverRepositoryCommand c) {
-        // The recovery is a pure function of its payload: the manager no-ops when the repository is already
-        // converged (the source, or a healthy replica), otherwise it resets to c.resetToRevision() and
-        // replays c.commits(). Every replica therefore reaches the same state and returns the same head
-        // revision, which is what the replication log compares.
-        //
-        // The read-only precondition is deliberately not re-checked here. It is stored under a different
-        // execution path (the whole server) than this command (the repository), so an operator making the
-        // repository writable again races the replay: replicas would disagree on the check, and the replica
-        // that failed it would skip this log entry for good and stay diverged. The precondition is enforced
-        // once, where it is a decision rather than a race: on the replica that originates the recovery.
+        // Not on repositoryWorker: a recovery holds the repository's write lock for the whole replay, and
+        // that pool is the whole server's. A recovery is rare enough to be worth a thread of its own.
+        final String repoPath = c.projectName() + '/' + c.repositoryName();
         return CompletableFuture.supplyAsync(() -> {
             projectManager.get(c.projectName()).repos()
                           .recoverRepository(c.repositoryName(), c.resetToRevision(), c.commits());
-            return c.headRevision();
-        }, repositoryWorker);
+            return c.toRevision();
+        }, task -> {
+            final Thread thread = new Thread(task, "recovery-" + repoPath);
+            thread.setDaemon(true);
+            thread.start();
+        });
     }
 
     private CompletableFuture<Void> rewrapAllKeys() {

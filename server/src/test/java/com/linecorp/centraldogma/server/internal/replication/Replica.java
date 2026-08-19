@@ -17,6 +17,7 @@ package com.linecorp.centraldogma.server.internal.replication;
 
 import static com.google.common.base.Preconditions.checkState;
 import static org.awaitility.Awaitility.await;
+import static org.mockito.Mockito.mock;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -37,6 +38,7 @@ import com.linecorp.centraldogma.server.ZooKeeperServerConfig;
 import com.linecorp.centraldogma.server.command.AbstractCommandExecutor;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.ExecutionContext;
+import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 
 import io.micrometer.core.instrument.MeterRegistry;
 
@@ -81,7 +83,8 @@ final class Replica {
             protected <T> CompletableFuture<T> doExecute(ExecutionContext ctx, Command<T> command) {
                 return (CompletableFuture<T>) delegate.apply(command);
             }
-        }, meterRegistry, null, null, null, null, null, null);
+        }, meterRegistry, null, new RecoveryPayloadBuilder(mock(ProjectManager.class)),
+                null, null, null, null);
         commandExecutor.setLockTimeoutMillis(10000);
 
         startFuture = start ? commandExecutor.start() : null;

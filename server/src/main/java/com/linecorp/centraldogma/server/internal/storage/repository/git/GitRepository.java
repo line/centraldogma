@@ -34,7 +34,6 @@ import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executor;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
@@ -89,6 +88,7 @@ import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.RevisionNotFoundException;
 import com.linecorp.centraldogma.common.RevisionRange;
 import com.linecorp.centraldogma.common.ShuttingDownException;
+import com.linecorp.centraldogma.internal.HistoryConstants;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.Json5;
 import com.linecorp.centraldogma.internal.Util;
@@ -171,7 +171,6 @@ class GitRepository implements Repository {
     @VisibleForTesting
     final CommitWatchers commitWatchers = new CommitWatchers();
     private final AtomicReference<Supplier<CentralDogmaException>> closePending = new AtomicReference<>();
-    private final AtomicBoolean closeScheduled = new AtomicBoolean();
     private final CompletableFuture<Void> closeFuture = new CompletableFuture<>();
     private final List<RepositoryListener> listeners = new CopyOnWriteArrayList<>();
 
@@ -183,6 +182,7 @@ class GitRepository implements Repository {
      * The current head revision. Initialized by the constructor and updated by commit().
      */
     private volatile Revision headRevision;
+    private volatile int cacheGeneration;
 
     /**
      * Creates a new Git repository.
@@ -235,8 +235,7 @@ class GitRepository implements Repository {
      */
     void close(Supplier<CentralDogmaException> failureCauseSupplier) {
         requireNonNull(failureCauseSupplier, "failureCauseSupplier");
-        closePending.compareAndSet(null, failureCauseSupplier);
-        if (closeScheduled.compareAndSet(false, true)) {
+        if (closePending.compareAndSet(null, failureCauseSupplier)) {
             repositoryWorker.execute(() -> {
                 rwLock.writeLock().lock();
                 try {
@@ -253,42 +252,6 @@ class GitRepository implements Repository {
         }
 
         closeFuture.join();
-    }
-
-    /**
-     * Closes this repository on the calling thread instead of dispatching to the repository worker. A
-     * recovery runs on a repository-worker thread, so {@link #close(Supplier)} would make it wait for a task
-     * queued back to the same pool, which deadlocks once every worker is busy.
-     */
-    void closeInline(Supplier<CentralDogmaException> failureCauseSupplier) {
-        requireNonNull(failureCauseSupplier, "failureCauseSupplier");
-        closePending.compareAndSet(null, failureCauseSupplier);
-        if (closeScheduled.compareAndSet(false, true)) {
-            rwLock.writeLock().lock();
-            try {
-                closeRepository(commitIdDatabase, jGitRepository);
-            } finally {
-                try {
-                    rwLock.writeLock().unlock();
-                } finally {
-                    commitWatchers.close(closePending.get());
-                    closeFuture.complete(null);
-                }
-            }
-        } else {
-            closeFuture.join();
-        }
-    }
-
-    /**
-     * Marks this repository as closed so that a new or lock-blocked read fails fast with the given cause,
-     * without releasing the underlying resources yet. {@link #close(Supplier)} must still be called
-     * afterwards. Unlike {@link #close(Supplier)}, this never blocks, so it is safe to call while holding
-     * the write lock.
-     */
-    void markClosePending(Supplier<CentralDogmaException> failureCauseSupplier) {
-        requireNonNull(failureCauseSupplier, "failureCauseSupplier");
-        closePending.compareAndSet(null, failureCauseSupplier);
     }
 
     static void closeRepository(@Nullable CommitIdDatabase commitIdDatabase,
@@ -528,14 +491,19 @@ class GitRepository implements Repository {
     public CompletableFuture<List<Commit>> history(
             Revision from, Revision to, String pathPattern, int maxCommits) {
 
+        final int cappedMaxCommits = Math.min(maxCommits, MAX_MAX_COMMITS);
         final ServiceRequestContext ctx = context();
         return CompletableFuture.supplyAsync(() -> {
-            failFastIfTimedOut(this, logger, ctx, "history", from, to, pathPattern, maxCommits);
-            return blockingHistory(from, to, pathPattern, maxCommits);
+            failFastIfTimedOut(this, logger, ctx, "history", from, to, pathPattern, cappedMaxCommits);
+            return blockingHistory(from, to, pathPattern, cappedMaxCommits);
         }, repositoryWorker);
     }
 
-    @VisibleForTesting
+    /**
+     * Returns up to {@code maxCommits} commits of {@code from..to}. Unlike {@link #history(Revision,
+     * Revision, String, int)}, {@code maxCommits} is taken as given rather than capped at
+     * {@value HistoryConstants#MAX_MAX_COMMITS}, so the caller decides how many it needs.
+     */
     List<Commit> blockingHistory(Revision from, Revision to, String pathPattern, int maxCommits) {
         requireNonNull(pathPattern, "pathPattern");
         requireNonNull(from, "from");
@@ -543,8 +511,6 @@ class GitRepository implements Repository {
         if (maxCommits <= 0) {
             throw new IllegalArgumentException("maxCommits: " + maxCommits + " (expected: > 0)");
         }
-
-        maxCommits = Math.min(maxCommits, MAX_MAX_COMMITS);
 
         final RevisionRange range = normalizeNow(from, to);
         final RevisionRange descendingRange = range.toDescending();
@@ -965,9 +931,9 @@ class GitRepository implements Repository {
     }
 
     /**
-     * Commits on the calling thread instead of dispatching to the repository worker. A recovery replays
-     * its commits from a repository-worker thread while it holds the write lock of the repository it is
-     * replacing, so blocking on a task queued back to that same pool would deadlock it.
+     * Commits on the calling thread instead of dispatching to the repository worker. A recovery replays its
+     * commits while holding this repository's write lock, and readers parked on that lock consume the
+     * worker pool, so blocking on a task queued back to it would deadlock.
      */
     CommitResult blockingCommit(Revision baseRevision, long commitTimeMillis, Author author, String summary,
                                 String detail, Markup markup, Iterable<Change<?>> changes) {
@@ -1185,32 +1151,7 @@ class GitRepository implements Repository {
         return future;
     }
 
-    private void recursiveWatch(String pathPattern, WatchListener listener) {
-        requireNonNull(pathPattern, "pathPattern");
-        CompletableFuture.runAsync(() -> {
-            final Revision headRevision = this.headRevision;
-            // Attach the listener to continuously listen for the changes.
-            commitWatchers.add(headRevision, pathPattern, null, listener);
-            listener.onUpdate(headRevision, null);
-        }, repositoryWorker);
-    }
-
-    @Override
-    public <T> CompletableFuture<T> execute(CacheableCall<T> cacheableCall) {
-        // This is executed only when the CachingRepository is not enabled.
-        requireNonNull(cacheableCall, "cacheableCall");
-        final ServiceRequestContext ctx = context();
-
-        return CompletableFuture.supplyAsync(() -> {
-            failFastIfTimedOut(this, logger, ctx, "execute", cacheableCall);
-            return cacheableCall.execute();
-        }, repositoryWorker).thenCompose(Function.identity());
-    }
-
-    @Override
-    public void addListener(RepositoryListener listener) {
-        listeners.add(listener);
-
+    private void watch(RepositoryListener listener) {
         final String pathPattern = listener.pathPattern();
         recursiveWatch(pathPattern, (newRevision, cause) -> {
             if (shouldStopListening()) {
@@ -1238,6 +1179,42 @@ class GitRepository implements Repository {
         });
     }
 
+    private void recursiveWatch(String pathPattern, WatchListener listener) {
+        requireNonNull(pathPattern, "pathPattern");
+        CompletableFuture.runAsync(() -> {
+            final Revision headRevision = this.headRevision;
+            // Attach the listener to continuously listen for the changes.
+            commitWatchers.add(headRevision, pathPattern, null, listener);
+            listener.onUpdate(headRevision, null);
+        }, repositoryWorker);
+    }
+
+    @Override
+    public <T> CompletableFuture<T> execute(CacheableCall<T> cacheableCall) {
+        // This is executed only when the CachingRepository is not enabled.
+        requireNonNull(cacheableCall, "cacheableCall");
+        final ServiceRequestContext ctx = context();
+
+        return CompletableFuture.supplyAsync(() -> {
+            failFastIfTimedOut(this, logger, ctx, "execute", cacheableCall);
+            return cacheableCall.execute();
+        }, repositoryWorker).thenCompose(Function.identity());
+    }
+
+    @Override
+    public void addListener(RepositoryListener listener) {
+        listeners.add(listener);
+        watch(listener);
+    }
+
+    /**
+     * Puts back the listener watches that {@link CommitWatchers#close(Supplier)} removed. The listeners
+     * themselves are kept across a close, so they are not added again.
+     */
+    void rewatchListeners() {
+        listeners.forEach(this::watch);
+    }
+
     private boolean shouldStopListening() {
         return closePending.get() != null;
     }
@@ -1260,6 +1237,19 @@ class GitRepository implements Repository {
 
     Revision cachedHeadRevision() {
         return headRevision;
+    }
+
+    @Override
+    public int cacheGeneration() {
+        return cacheGeneration;
+    }
+
+    /**
+     * Records that the history was rewritten in place, so that nothing cached against the previous
+     * generation can be served again. Called under the write lock, which is where a rewrite happens.
+     */
+    void nextCacheGeneration() {
+        cacheGeneration++;
     }
 
     void setHeadRevision(Revision headRevision) {

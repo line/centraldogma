@@ -150,7 +150,6 @@ public final class ZooKeeperCommandExecutor
     @Nullable
     private final String zone;
 
-    @Nullable
     private final RecoveryPayloadBuilder recoveryPayloadBuilder;
 
     // Failing to acquire a lock is a critical problem, so we wait as much as we can.
@@ -384,14 +383,14 @@ public final class ZooKeeperCommandExecutor
                                     File dataDir, CommandExecutor delegate,
                                     MeterRegistry meterRegistry,
                                     @Nullable String zone,
-                                    @Nullable RecoveryPayloadBuilder recoveryPayloadBuilder,
+                                    RecoveryPayloadBuilder recoveryPayloadBuilder,
                                     @Nullable Consumer<CommandExecutor> onTakeLeadership,
                                     @Nullable Consumer<CommandExecutor> onReleaseLeadership,
                                     @Nullable Consumer<CommandExecutor> onTakeZoneLeadership,
                                     @Nullable Consumer<CommandExecutor> onReleaseZoneLeadership) {
         super(onTakeLeadership, onReleaseLeadership, onTakeZoneLeadership, onReleaseZoneLeadership);
 
-        this.recoveryPayloadBuilder = recoveryPayloadBuilder;
+        this.recoveryPayloadBuilder = requireNonNull(recoveryPayloadBuilder, "recoveryPayloadBuilder");
         this.cfg = requireNonNull(cfg, "cfg");
         requireNonNull(dataDir, "dataDir");
         revisionFile = new File(dataDir.getAbsolutePath() + File.separatorChar + "last_revision");
@@ -944,43 +943,36 @@ public final class ZooKeeperCommandExecutor
         if (command.sourceServerId() != replicaId()) {
             return;
         }
-        final RecoveryPayloadBuilder recoveryPayloadBuilder = this.recoveryPayloadBuilder;
-        if (recoveryPayloadBuilder == null) {
-            logger.error("Cannot originate a recovery for {}/{}; no {} is configured.",
-                         command.projectName(), command.repositoryName(),
-                         RecoveryPayloadBuilder.class.getSimpleName());
-            return;
-        }
         final ExecutorService recoveryOriginatorExecutor = this.recoveryOriginatorExecutor;
         if (recoveryOriginatorExecutor == null) {
             logger.warn("Cannot originate a recovery for {}/{}; the replica is stopping.",
                         command.projectName(), command.repositoryName());
             return;
         }
-        final String repoName = command.projectName() + '/' + command.repositoryName();
         recoveryOriginatorExecutor.execute(() -> {
+            final String repoPath = command.projectName() + '/' + command.repositoryName();
             final Command<Revision> recoverCommand;
             try {
                 recoverCommand = recoveryPayloadBuilder.build(command);
             } catch (Throwable t) {
                 logger.error("Failed to build the recovery payload of {}; recovery is not originated.",
-                             repoName, t);
+                             repoPath, t);
                 return;
             }
-            logger.info("Originating a recovery of {} as the source replica: {}", repoName, recoverCommand);
+            logger.info("Originating a recovery of {} as the source replica: {}", repoPath, recoverCommand);
             try {
                 execute(recoverCommand).handle((revision, cause) -> {
                     if (cause != null) {
-                        logger.error("Failed to originate a recovery of {}.", repoName, cause);
+                        logger.error("Failed to originate a recovery of {}.", repoPath, cause);
                     } else {
-                        logger.info("Successfully originated a recovery of {}. head: {}", repoName,
+                        logger.info("Successfully originated a recovery of {}. head: {}", repoPath,
                                     revision);
                     }
                     return null;
                 });
             } catch (Throwable t) {
                 // execute() throws synchronously when the executor is stopping or the server is read-only.
-                logger.error("Failed to originate a recovery of {}.", repoName, t);
+                logger.error("Failed to originate a recovery of {}.", repoPath, t);
             }
         });
     }

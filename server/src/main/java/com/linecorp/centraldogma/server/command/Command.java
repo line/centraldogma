@@ -530,20 +530,20 @@ public interface Command<T> {
 
     /**
      * Returns a new {@link Command} which recovers a diverged repository from a source replica by resetting
-     * to {@code resetToRevision} and replaying {@code commits} up to {@code headRevision}. See
+     * to {@code resetToRevision} and replaying {@code commits} up to {@code toRevision}. See
      * {@link RecoverRepositoryCommand}.
      */
     static Command<Revision> recoverRepository(Author author, String projectName, String repositoryName,
                                                int sourceServerId, Revision resetToRevision,
-                                               Revision headRevision, Iterable<ReplayCommit> commits) {
+                                               Revision toRevision, Iterable<ReplayCommit> commits) {
         requireNonNull(author, "author");
         requireNonNull(projectName, "projectName");
         requireNonNull(repositoryName, "repositoryName");
         requireNonNull(resetToRevision, "resetToRevision");
-        requireNonNull(headRevision, "headRevision");
+        requireNonNull(toRevision, "toRevision");
         requireNonNull(commits, "commits");
         return new RecoverRepositoryCommand(null, author, projectName, repositoryName, sourceServerId,
-                                            resetToRevision, headRevision, commits);
+                                            resetToRevision, toRevision, commits);
     }
 
     /**
@@ -551,13 +551,15 @@ public interface Command<T> {
      * {@link RecoverRepositoryRequestCommand}.
      */
     static Command<Void> recoverRepositoryRequest(Author author, String projectName, String repositoryName,
-                                                  int sourceServerId, Revision fromRevision) {
+                                                  int sourceServerId, Revision fromRevision,
+                                                  Revision toRevision) {
         requireNonNull(author, "author");
         requireNonNull(projectName, "projectName");
         requireNonNull(repositoryName, "repositoryName");
         requireNonNull(fromRevision, "fromRevision");
+        requireNonNull(toRevision, "toRevision");
         return new RecoverRepositoryRequestCommand(null, author, projectName, repositoryName,
-                                                   sourceServerId, fromRevision);
+                                                   sourceServerId, fromRevision, toRevision);
     }
 
     /**

@@ -110,7 +110,7 @@ describe('buildVerificationScript', () => {
     expect(script).not.toContain('-sfk');
     // A revision alone cannot detect a divergence, so the script must compare the commit ID.
     expect(script).toContain('commitId');
-    expect(script).not.toContain('.headRevision');
+    expect(script).not.toContain('.revision');
   });
 
   // A token is required, so an unauthenticated curl answers 401 with a body that has no commitId. Printing
@@ -217,17 +217,20 @@ describe('RecoverRepositoryForm', () => {
       projectName: 'foo',
       repoName: 'bar',
       fromRevision: 2,
+      toRevision: 2,
       sourceServerId: 2,
     });
   });
 
-  it('passes the edited start revision to the recovery', async () => {
+  it('passes the edited revision range to the recovery', async () => {
     renderForm();
     await fillForm();
 
-    const revisionInput = screen.getByRole('spinbutton');
-    await userEvent.clear(revisionInput);
-    await userEvent.type(revisionInput, '17');
+    const [fromInput, toInput] = screen.getAllByRole('spinbutton');
+    await userEvent.clear(fromInput);
+    await userEvent.type(fromInput, '17');
+    await userEvent.clear(toInput);
+    await userEvent.type(toInput, '19');
 
     await userEvent.click(recoverButton());
     const confirmInput = screen.getByPlaceholderText('foo/bar');
@@ -235,7 +238,7 @@ describe('RecoverRepositoryForm', () => {
     await userEvent.click(modalRecoverButton());
 
     expect(recoverTrigger).toHaveBeenCalledWith(
-      expect.objectContaining({ fromRevision: 17, sourceServerId: 2 }),
+      expect.objectContaining({ fromRevision: 17, toRevision: 19, sourceServerId: 2 }),
     );
   });
 
@@ -255,10 +258,10 @@ describe('RecoverRepositoryForm', () => {
     expect(screen.getByPlaceholderText('foo/bar')).toBeInTheDocument();
   });
 
-  it('does not claim convergence on the COMPLETED path, and still offers the script', async () => {
+  it('does not claim convergence on the RECOVERING path, and still offers the script', async () => {
     renderForm();
     recoverTrigger.mockReturnValue({
-      unwrap: () => Promise.resolve({ status: 'COMPLETED', headRevision: 3 }),
+      unwrap: () => Promise.resolve({ status: 'RECOVERING', toRevision: 3 }),
     });
     await fillForm();
     await userEvent.click(recoverButton());
@@ -266,7 +269,7 @@ describe('RecoverRepositoryForm', () => {
     await userEvent.type(confirmInput, 'foo/bar');
     await userEvent.click(modalRecoverButton());
 
-    // COMPLETED only means the source originated the recovery; the others apply it asynchronously.
+    // RECOVERING only means the source originated the recovery; the others apply it asynchronously.
     expect(await screen.findByText(/has not converged yet/)).toBeInTheDocument();
     // The verification script must be offered on this path too.
     const script = (await screen.findByTestId('recovery-verification-script')).textContent ?? '';

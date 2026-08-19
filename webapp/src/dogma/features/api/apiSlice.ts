@@ -499,12 +499,18 @@ export const apiSlice = createApi({
     }),
     recoverRepository: builder.mutation<
       RecoverRepositoryResponse,
-      { projectName: string; repoName: string; fromRevision: number; sourceServerId: number }
+      {
+        projectName: string;
+        repoName: string;
+        fromRevision: number;
+        toRevision: number;
+        sourceServerId: number;
+      }
     >({
-      query: ({ projectName, repoName, fromRevision, sourceServerId }) => ({
+      query: ({ projectName, repoName, fromRevision, toRevision, sourceServerId }) => ({
         url: `/api/v1/projects/${projectName}/repos/${repoName}/recover`,
         method: 'POST',
-        body: { fromRevision, sourceServerId },
+        body: { fromRevision, toRevision, sourceServerId },
       }),
       // Recovery rewrites the repository history on the other replicas.
       invalidatesTags: ['Repo'],

@@ -93,22 +93,14 @@ public class RepositoryManagerWrapper implements RepositoryManager {
     @Override
     public boolean recoverRepository(String repositoryName, Revision resetToRevision,
                                      List<ReplayCommit> commits) {
-        if (!delegate.recoverRepository(repositoryName, resetToRevision, commits)) {
-            // Already converged, so the delegate kept its Repository instance and this wrapper must keep
-            // its own: rebuilding it would throw away every cache entry keyed on the current instance.
-            return false;
-        }
-        repos.replace(repositoryName, repoWrapper.apply(delegate.get(repositoryName)));
-        final BiConsumer<String, Repository> callback = postMigrationCallback;
-        if (callback != null) {
-            callback.accept(repositoryName, repos.get(repositoryName));
-        }
-        return true;
+        // A recovery rewrites the repository in place, so the wrapped instance stays valid.
+        return delegate.recoverRepository(repositoryName, resetToRevision, commits);
     }
 
     @Override
-    public List<ReplayCommit> buildRecoveryPayload(String repositoryName, Revision fromRevision) {
-        return delegate.buildRecoveryPayload(repositoryName, fromRevision);
+    public List<ReplayCommit> buildRecoveryPayload(String repositoryName, Revision fromRevision,
+                                                   Revision toRevision) {
+        return delegate.buildRecoveryPayload(repositoryName, fromRevision, toRevision);
     }
 
     @Override

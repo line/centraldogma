@@ -27,54 +27,75 @@ import java.net.UnknownHostException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
+import java.util.concurrent.CompletionStage;
 
 import org.apache.shiro.config.Ini;
+import org.jspecify.annotations.Nullable;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
 import com.linecorp.armeria.client.WebClient;
+import com.linecorp.armeria.common.util.UnmodifiableFuture;
 import com.linecorp.armeria.common.SessionProtocol;
 import com.linecorp.centraldogma.client.armeria.ArmeriaCentralDogmaBuilder;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.server.CentralDogma;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.server.ZooKeeperReplicationConfig;
+import com.linecorp.centraldogma.common.Author;
+import com.linecorp.centraldogma.common.Markup;
+import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.server.CentralDogmaConfig;
 import com.linecorp.centraldogma.server.ZooKeeperServerConfig;
+import com.linecorp.centraldogma.server.command.Command;
+import com.linecorp.centraldogma.server.command.StandaloneCommandExecutor;
+import com.linecorp.centraldogma.server.internal.replication.ZooKeeperCommandExecutor;
+import com.linecorp.centraldogma.server.plugin.Plugin;
+import com.linecorp.centraldogma.server.plugin.PluginContext;
+import com.linecorp.centraldogma.server.plugin.PluginTarget;
 import com.linecorp.centraldogma.server.auth.shiro.ShiroAuthProviderFactory;
 
 /**
- * A {@link ShiroCentralDogmaTestServer} variant that runs a two-replica ZooKeeper cluster in one JVM
- * (server 1 on port 36462, server 2 on port 36463), so that replication-only features (e.g. repository
- * recovery, including its request-to-the-source path) can be exercised from the web UI during
- * development.
+ * A {@link ShiroCentralDogmaTestServer} variant that runs three replicas in one JVM, on ports 36462 to
+ * 36464. With {@code CD_DIVERGE} set, it also leaves {@code foo/diverged} diverged and read-only.
  */
 final class ReplicatedShiroCentralDogmaTestServer {
 
+    private static final String DIVERGE_ENV = "CD_DIVERGE";
+
     private static final int PORT1 = 36462;
     private static final int PORT2 = 36463;
+    private static final int PORT3 = 36464;
 
     private static final Map<Integer, ZooKeeperServerConfig> SERVERS = ImmutableMap.of(
             1, new ZooKeeperServerConfig("127.0.0.1", 36466, 36467, 36468, null, null),
-            2, new ZooKeeperServerConfig("127.0.0.1", 36469, 36470, 36471, null, null));
+            2, new ZooKeeperServerConfig("127.0.0.1", 36469, 36470, 36471, null, null),
+            3, new ZooKeeperServerConfig("127.0.0.1", 36472, 36473, 36474, null, null));
 
-    @SuppressWarnings("UncommentedMain")
     public static void main(String[] args) throws IOException {
         final CentralDogma server1 = newServer(1, PORT1);
-        final CentralDogma server2 = newServer(2, PORT2);
-        // A two-node quorum needs both peers; start them concurrently.
+        final CentralDogma server2 = newServer(2, PORT2, injector);
+        final CentralDogma server3 = newServer(3, PORT3);
+        // The quorum needs its peers, so start them concurrently.
         final var start1 = server1.start();
         final var start2 = server2.start();
+        final var start3 = server3.start();
         start1.join();
         start2.join();
-        scaffold();
+        start3.join();
+        scaffold(System.getenv(DIVERGE_ENV) != null);
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             server1.close();
             server2.close();
+            server3.close();
         }));
     }
 
-    private static CentralDogma newServer(int serverId, int port) throws IOException {
+    private static final DivergenceInjector injector = new DivergenceInjector();
+
+    private static CentralDogma newServer(int serverId, int port, Plugin... plugins) throws IOException {
         final Path rootDir = Files.createTempDirectory("dogma-replicated-test-" + serverId);
         return new CentralDogmaBuilder(rootDir.toFile())
                 .port(port, SessionProtocol.HTTP)
@@ -90,10 +111,11 @@ final class ReplicatedShiroCentralDogmaTestServer {
                 }))
                 .replication(new ZooKeeperReplicationConfig(
                         serverId, SERVERS, "test-secret-for-replication-0123456789abcdef"))
+                .plugins(plugins)
                 .build();
     }
 
-    private static void scaffold() throws UnknownHostException, JsonProcessingException {
+    private static void scaffold(boolean diverge) throws UnknownHostException, JsonProcessingException {
         final String token = getAccessToken(WebClient.of("http://127.0.0.1:" + PORT1), USERNAME, PASSWORD,
                                             "appId", true);
         final com.linecorp.centraldogma.client.CentralDogma client = new ArmeriaCentralDogmaBuilder()
@@ -110,6 +132,77 @@ final class ReplicatedShiroCentralDogmaTestServer {
               .commit("update a.json", Change.ofJsonUpsert("/a.json", "{ \"a\": 2 }"))
               .push()
               .join();
+
+        if (diverge) {
+            diverge(client);
+        }
+    }
+
+    /**
+     * Leaves foo/diverged in the state a recovery repairs: replica 2 holds content the others never saw,
+     * so its replay of the next push fails and the repository turns read-only cluster-wide.
+     */
+    private static void diverge(com.linecorp.centraldogma.client.CentralDogma client) {
+        client.createRepository("foo", "diverged").join();
+        client.forRepo("foo", "diverged")
+              .commit("seed", Change.ofJsonUpsert("/a.json", "{ \"a\": 1 }"))
+              .push()
+              .join();
+
+        // Applied on replica 2 alone, bypassing the replication log.
+        injector.inject(Command.push(Author.DEFAULT, "foo", "diverged", Revision.HEAD,
+                                     "diverged on replica 2", "", Markup.PLAINTEXT,
+                                     ImmutableList.of(Change.ofJsonUpsert("/a.json", "{ \"a\": 3 }"))));
+
+        // Replica 2 cannot replay this one on top of what it applied locally.
+        client.forRepo("foo", "diverged")
+              .commit("update on replica 1", Change.ofJsonUpsert("/a.json", "{ \"a\": 2 }"))
+              .push()
+              .join();
+    }
+
+    /**
+     * Applies a command on this replica's local storage only, so it diverges from the rest of the cluster.
+     */
+    private static final class DivergenceInjector implements Plugin {
+
+        @Nullable
+        private volatile StandaloneCommandExecutor localExecutor;
+
+        void inject(Command<?> command) {
+            final StandaloneCommandExecutor executor = localExecutor;
+            if (executor == null) {
+                throw new IllegalStateException("the injector is not started yet");
+            }
+            executor.execute(command).join();
+        }
+
+        @Override
+        public boolean isEnabled(CentralDogmaConfig config) {
+            return true;
+        }
+
+        @Override
+        public PluginTarget target(CentralDogmaConfig config) {
+            return PluginTarget.ALL_REPLICAS;
+        }
+
+        @Override
+        public CompletionStage<Void> start(PluginContext context) {
+            localExecutor = (StandaloneCommandExecutor)
+                    ((ZooKeeperCommandExecutor) context.commandExecutor()).unwrap();
+            return UnmodifiableFuture.completedFuture(null);
+        }
+
+        @Override
+        public CompletionStage<Void> stop(PluginContext context) {
+            return UnmodifiableFuture.completedFuture(null);
+        }
+
+        @Override
+        public Class<?> configType() {
+            return getClass();
+        }
     }
 
     private ReplicatedShiroCentralDogmaTestServer() {}

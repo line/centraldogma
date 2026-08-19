@@ -45,31 +45,32 @@ public final class RecoveryPayloadBuilder {
 
     /**
      * Builds a {@link RecoverRepositoryCommand} that carries the commits of
-     * {@code request.fromRevision()..HEAD} of the local repository, so that every other replica can
-     * converge to the local history by replaying them.
+     * {@code request.fromRevision()..request.toRevision()} of the local repository, so that every replica
+     * can converge to that history by replaying them.
      */
     public Command<Revision> build(RecoverRepositoryRequestCommand request) {
         requireNonNull(request, "request");
         return build(request.author(), request.projectName(), request.repositoryName(),
-                     request.sourceServerId(), request.fromRevision());
+                     request.sourceServerId(), request.fromRevision(), request.toRevision());
     }
 
     /**
-     * Builds a {@link RecoverRepositoryCommand} that carries the commits of {@code fromRevision..HEAD} of
-     * the local repository. The reset revision and the head revision are derived here, so that a recovery
-     * originated directly by the source replica and one originated in reaction to a request are built by
-     * the same rules.
+     * Builds a {@link RecoverRepositoryCommand} that carries the commits of
+     * {@code fromRevision..toRevision} of the local repository. The reset revision is derived here, so that
+     * a recovery originated directly by the source replica and one originated in reaction to a request are
+     * built by the same rules.
      */
     public Command<Revision> build(Author author, String projectName, String repositoryName,
-                                   int sourceServerId, Revision fromRevision) {
+                                   int sourceServerId, Revision fromRevision, Revision toRevision) {
         requireNonNull(author, "author");
         requireNonNull(projectName, "projectName");
         requireNonNull(repositoryName, "repositoryName");
         requireNonNull(fromRevision, "fromRevision");
+        requireNonNull(toRevision, "toRevision");
         final List<ReplayCommit> commits =
-                projectManager.get(projectName).repos().buildRecoveryPayload(repositoryName, fromRevision);
-        final Revision headRevision = commits.get(commits.size() - 1).revision();
+                projectManager.get(projectName).repos()
+                              .buildRecoveryPayload(repositoryName, fromRevision, toRevision);
         return Command.recoverRepository(author, projectName, repositoryName, sourceServerId,
-                                         fromRevision.backward(1), headRevision, commits);
+                                         fromRevision.backward(1), toRevision, commits);
     }
 }

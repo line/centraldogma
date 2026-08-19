@@ -59,7 +59,7 @@ class RecoverRepositoryCommandTest {
                 "  \"repositoryName\": \"bar\"," +
                 "  \"sourceServerId\": 2," +
                 "  \"resetToRevision\": 2," +
-                "  \"headRevision\": 4," +
+                "  \"toRevision\": 4," +
                 "  \"commits\": [{" +
                 "    \"revision\": 3," +
                 "    \"timestampMillis\": 5678," +

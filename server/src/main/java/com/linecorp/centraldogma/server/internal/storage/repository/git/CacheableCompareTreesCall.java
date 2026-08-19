@@ -48,7 +48,7 @@ final class CacheableCompareTreesCall extends AbstractCacheableCall<List<DiffEnt
 
         this.treeA = treeA;
         this.treeB = treeB;
-        hashCode = Objects.hash(treeA, treeB) * 31 + System.identityHashCode(repo);
+        hashCode = Objects.hash(treeA, treeB) * 31 + repoHashCode();
     }
 
     @Override

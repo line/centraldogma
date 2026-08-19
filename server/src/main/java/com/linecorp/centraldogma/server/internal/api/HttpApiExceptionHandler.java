@@ -56,6 +56,7 @@ import com.linecorp.centraldogma.common.ReadOnlyException;
 import com.linecorp.centraldogma.common.RedundantChangeException;
 import com.linecorp.centraldogma.common.RepositoryExistsException;
 import com.linecorp.centraldogma.common.RepositoryNotFoundException;
+import com.linecorp.centraldogma.common.RepositoryRecoveryException;
 import com.linecorp.centraldogma.common.RevisionNotFoundException;
 import com.linecorp.centraldogma.common.ShuttingDownException;
 import com.linecorp.centraldogma.common.TemplateProcessingException;
@@ -125,6 +126,8 @@ public final class HttpApiExceptionHandler implements ServerErrorHandler {
                     (ctx, cause) -> newResponse(ctx, HttpStatus.BAD_REQUEST, cause))
                .put(ReadOnlyException.class,
                     (ctx, cause) -> newResponse(ctx, HttpStatus.SERVICE_UNAVAILABLE, cause))
+               .put(RepositoryRecoveryException.class,
+                    (ctx, cause) -> newResponse(ctx, HttpStatus.CONFLICT, cause))
                .put(MirrorException.class,
                     (ctx, cause) -> newResponse(ctx, HttpStatus.INTERNAL_SERVER_ERROR, cause))
                .put(MirrorAccessException.class,

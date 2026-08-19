@@ -322,7 +322,7 @@ class RepositoryServiceV1Test {
         final AggregatedHttpResponse userRes =
                 userClient.blocking().prepare()
                           .post(REPOS_PREFIX + '/' + repoName + "/recover")
-                          .contentJson(new RecoverRepositoryRequest(2, 1))
+                          .contentJson(new RecoverRepositoryRequest(2, 2, 1))
                           .execute();
         assertThat(userRes.status()).isEqualTo(HttpStatus.FORBIDDEN);
 
@@ -330,7 +330,7 @@ class RepositoryServiceV1Test {
         final AggregatedHttpResponse adminRes =
                 systemAdminClient.blocking().prepare()
                                  .post(REPOS_PREFIX + '/' + repoName + "/recover")
-                                 .contentJson(new RecoverRepositoryRequest(2, 1))
+                                 .contentJson(new RecoverRepositoryRequest(2, 2, 1))
                                  .execute();
         assertThat(adminRes.status()).isEqualTo(HttpStatus.BAD_REQUEST);
         assertThat(adminRes.contentUtf8()).contains("replicated");

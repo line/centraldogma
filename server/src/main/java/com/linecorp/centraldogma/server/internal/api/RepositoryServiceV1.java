@@ -319,24 +319,11 @@ public class RepositoryServiceV1 extends AbstractService {
     /**
      * POST /projects/{projectName}/repos/{repoName}/recover
      *
-     * <p>Recovers the repository from a diverged state, using the repository of the replica whose server ID
-     * is {@code sourceServerId} as the single source of truth: every other replica resets its repository to
-     * just before {@code fromRevision} and replays the source's commits up to the source's head, so all
-     * replicas converge to identical commit IDs.
+     * <p>Rewrites the repository on every replica with {@code fromRevision..toRevision} of the replica whose
+     * server ID is {@code sourceServerId}. {@code toRevision} becomes the new head and commits after it are
+     * discarded cluster-wide. Replicated (ZooKeeper) mode only, and the repository must be read-only first.
      *
-     * <p>Replicated (ZooKeeper) mode only. The repository must be read-only before recovery so that no new
-     * commit can be originated while the recovery is in flight (the precondition is re-verified when the
-     * command is applied), and it stays read-only afterwards. Note that a force-push races recovery
-     * deliberately — it bypasses read-only, so a force-pushed commit that lands between the payload build
-     * and the apply is discarded by the replay, on the source replica too.
-     *
-     * <p>Neither result means the cluster has converged: the replicas other than the source apply the
-     * recovery when they replay it from the replication log. {@code COMPLETED} means the source replica
-     * originated the recovery; {@code REQUESTED} means the source replica was asked to originate it over
-     * the replication log, best-effort — a failure is only reported in the source replica's log. The
-     * administrator confirms convergence with {@code GET .../head} on every replica before making the
-     * repository writable again. Recovery should not run during a rolling upgrade: a replica that does not
-     * know the recovery commands yet skips them and turns read-only.
+     * <p>Neither result means the cluster converged; confirm with {@code GET .../head} on every replica.
      */
     @Post("/projects/{projectName}/repos/{repoName}/recover")
     @Consumes("application/json")
@@ -352,27 +339,29 @@ public class RepositoryServiceV1 extends AbstractService {
         final String repoName = repository.name();
         final int sourceServerId = request.sourceServerId();
         final Revision fromRevision = new Revision(request.fromRevision());
+        final Revision toRevision = new Revision(request.toRevision());
         ctx.setRequestTimeoutMillis(Long.MAX_VALUE); // Disable the request timeout for recovery.
 
         if (zkExecutor.replicaId() == sourceServerId) {
             // This replica is the source of truth; build the payload from the local storage and originate
             // the recovery command directly.
-            logger.info("Originating a recovery of {}/{} from revision {} as the source replica.",
-                        projectName, repoName, fromRevision);
+            logger.info("Originating a recovery of {}/{} from {} to {} as the source replica.",
+                        projectName, repoName, fromRevision, toRevision);
             return CompletableFuture
                     .supplyAsync(() -> recoveryPayloadBuilder.build(author, projectName, repoName,
-                                                                    sourceServerId, fromRevision),
+                                                                    sourceServerId, fromRevision,
+                                                                    toRevision),
                                  ctx.blockingTaskExecutor())
                     .thenCompose(this::execute)
-                    .thenApply(headRevision -> new RecoverRepositoryResponse(
-                            RecoveryStatus.COMPLETED, headRevision.major()));
+                    .thenApply(unused -> new RecoverRepositoryResponse(
+                            RecoveryStatus.RECOVERING, toRevision));
         }
 
         // Ask the source replica to originate the recovery via the replication log.
-        logger.info("Requesting a recovery of {}/{} from revision {} to the source replica {}.",
-                    projectName, repoName, fromRevision, sourceServerId);
+        logger.info("Requesting a recovery of {}/{} from {} to {} to the source replica {}.",
+                    projectName, repoName, fromRevision, toRevision, sourceServerId);
         return execute(Command.recoverRepositoryRequest(author, projectName, repoName, sourceServerId,
-                                                        fromRevision))
+                                                        fromRevision, toRevision))
                 .thenApply(unused -> new RecoverRepositoryResponse(RecoveryStatus.REQUESTED, null));
     }
 

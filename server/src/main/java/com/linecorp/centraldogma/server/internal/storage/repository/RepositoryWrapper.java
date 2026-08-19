@@ -67,6 +67,11 @@ public class RepositoryWrapper implements Repository {
     }
 
     @Override
+    public int cacheGeneration() {
+        return unwrap().cacheGeneration();
+    }
+
+    @Override
     public org.eclipse.jgit.lib.Repository jGitRepository() {
         return unwrap().jGitRepository();
     }

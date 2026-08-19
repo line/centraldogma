@@ -40,6 +40,7 @@ interface RecoveryConfirmModalProps {
   projectName: string;
   repoName: string;
   fromRevision: number;
+  toRevision: number;
   sourceServerId: number;
   sourceHost: string;
   onConfirm: () => void;
@@ -53,6 +54,7 @@ export const RecoveryConfirmModal = ({
   projectName,
   repoName,
   fromRevision,
+  toRevision,
   sourceServerId,
   sourceHost,
   onConfirm,
@@ -89,9 +91,10 @@ export const RecoveryConfirmModal = ({
               <Code fontWeight="bold" colorScheme="red">
                 {target}
               </Code>{' '}
-              on every replica other than the source (server {sourceServerId}, <Code>{sourceHost}</Code>): each
-              one is reset to revision {fromRevision - 1} and replays the source&apos;s commits up to its head.
-              The source keeps its own history. Each replica applies this when it replays the recovery, so the
+              on every replica, using server {sourceServerId} (<Code>{sourceHost}</Code>) as the source: each
+              one is reset to revision {fromRevision - 1} and replays the source&apos;s commits {fromRevision}
+              through {toRevision}, which becomes the new head. Commits after {toRevision} are discarded on
+              every replica, the source included. Each replica applies this when it replays the recovery, so the
               cluster converges asynchronously.
             </Text>
             <Alert status="warning" borderRadius="md" fontSize="sm">

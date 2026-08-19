@@ -39,6 +39,7 @@ public final class RecoverRepositoryRequestCommand extends RepositoryCommand<Voi
 
     private final int sourceServerId;
     private final Revision fromRevision;
+    private final Revision toRevision;
 
     @JsonCreator
     RecoverRepositoryRequestCommand(@JsonProperty("timestamp") @Nullable Long timestamp,
@@ -46,10 +47,12 @@ public final class RecoverRepositoryRequestCommand extends RepositoryCommand<Voi
                                     @JsonProperty("projectName") String projectName,
                                     @JsonProperty("repositoryName") String repositoryName,
                                     @JsonProperty("sourceServerId") int sourceServerId,
-                                    @JsonProperty("fromRevision") Revision fromRevision) {
+                                    @JsonProperty("fromRevision") Revision fromRevision,
+                                    @JsonProperty("toRevision") Revision toRevision) {
         super(CommandType.RECOVER_REPOSITORY_REQUEST, timestamp, author, projectName, repositoryName);
         this.sourceServerId = sourceServerId;
         this.fromRevision = requireNonNull(fromRevision, "fromRevision");
+        this.toRevision = requireNonNull(toRevision, "toRevision");
     }
 
     /**
@@ -61,11 +64,19 @@ public final class RecoverRepositoryRequestCommand extends RepositoryCommand<Voi
     }
 
     /**
-     * Returns the first {@link Revision} to replay. Recovery replays {@code fromRevision..sourceHead}.
+     * Returns the first {@link Revision} to replay. Recovery replays {@code fromRevision..toRevision}.
      */
     @JsonProperty
     public Revision fromRevision() {
         return fromRevision;
+    }
+
+    /**
+     * Returns the last {@link Revision} to replay, which every replica converges to.
+     */
+    @JsonProperty
+    public Revision toRevision() {
+        return toRevision;
     }
 
     @Override
@@ -79,18 +90,20 @@ public final class RecoverRepositoryRequestCommand extends RepositoryCommand<Voi
         final RecoverRepositoryRequestCommand that = (RecoverRepositoryRequestCommand) obj;
         return super.equals(that) &&
                sourceServerId == that.sourceServerId &&
-               fromRevision.equals(that.fromRevision);
+               fromRevision.equals(that.fromRevision) &&
+               toRevision.equals(that.toRevision);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(sourceServerId, fromRevision) * 31 + super.hashCode();
+        return Objects.hash(sourceServerId, fromRevision, toRevision) * 31 + super.hashCode();
     }
 
     @Override
     ToStringHelper toStringHelper() {
         return super.toStringHelper()
                     .add("sourceServerId", sourceServerId)
-                    .add("fromRevision", fromRevision);
+                    .add("fromRevision", fromRevision)
+                    .add("toRevision", toRevision);
     }
 }

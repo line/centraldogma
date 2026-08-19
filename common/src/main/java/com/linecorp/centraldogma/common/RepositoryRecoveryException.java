@@ -13,17 +13,21 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
+package com.linecorp.centraldogma.common;
 
-export interface ReplicaInfo {
-  serverId: number;
-  host: string;
-  // Whether this replica served the request.
-  current: boolean;
-}
+/**
+ * A {@link CentralDogmaException} raised when a watch cannot be answered because a recovery rewrote the
+ * repository: the revision it waits for belongs to a history that no longer exists, so it has to watch
+ * again.
+ */
+public class RepositoryRecoveryException extends CentralDogmaException {
 
-export interface RecoverRepositoryResponse {
-  // RECOVERING when the request landed on the source replica and the recovery already ran;
-  // REQUESTED when the source replica was asked to originate it asynchronously.
-  status: 'RECOVERING' | 'REQUESTED';
-  toRevision?: number;
+    private static final long serialVersionUID = 6273683417359536108L;
+
+    /**
+     * Creates a new instance.
+     */
+    public RepositoryRecoveryException(String message) {
+        super(message);
+    }
 }

@@ -291,6 +291,8 @@ public class CentralDogma implements AutoCloseable {
     @Nullable
     private volatile ProjectManager pm;
     @Nullable
+    private volatile RecoveryPayloadBuilder recoveryPayloadBuilder;
+    @Nullable
     private volatile Server server;
     @Nullable
     private ExecutorService repositoryWorker;
@@ -489,6 +491,9 @@ public class CentralDogma implements AutoCloseable {
             pm = new DefaultProjectManager(cfg.dataDir(), repositoryWorker, purgeWorker,
                                            meterRegistry, cfg.repositoryCacheSpec(), encryptionStorageManager,
                                            trustedHostKeys);
+
+            // Before the command executor and the annotated services, which both take it.
+            recoveryPayloadBuilder = new RecoveryPayloadBuilder(pm);
 
             logger.info("Started the project manager: {}", pm);
 
@@ -964,7 +969,7 @@ public class CentralDogma implements AutoCloseable {
                                               sessionManager, encryptionStorageManager,
                         /* onTakeLeadership */ null, /* onReleaseLeadership */ null,
                         /* onTakeZoneLeadership */ null, /* onReleaseZoneLeadership */ null),
-                meterRegistry, zone, new RecoveryPayloadBuilder(pm),
+                meterRegistry, zone, recoveryPayloadBuilder,
                 onTakeLeadership, onReleaseLeadership,
                 onTakeZoneLeadership, onReleaseZoneLeadership);
     }
@@ -1029,8 +1034,7 @@ public class CentralDogma implements AutoCloseable {
                 .annotatedService(new ServerStatusService(executor, statusManager, repoStatusManager))
                 .annotatedService(new ProjectServiceV1(projectApiManager, executor, repoStatusManager))
                 .annotatedService(new RepositoryServiceV1(executor, mds, encryptionStorageManager,
-                                                          repoStatusManager,
-                                                          new RecoveryPayloadBuilder(pm)))
+                                                          repoStatusManager, recoveryPayloadBuilder))
                 .annotatedService(new CredentialServiceV1(projectApiManager, executor))
                 .annotatedService(new VariableServiceV1(pm, executor));
         if (LOGBACK_ENABLED) {
@@ -1264,6 +1268,7 @@ public class CentralDogma implements AutoCloseable {
         this.executor = null;
         this.encryptionStorageManager = null;
         this.pm = null;
+        recoveryPayloadBuilder = null;
         this.repositoryWorker = null;
         this.sessionManager = null;
         this.mirrorRunner = null;

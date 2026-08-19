@@ -25,20 +25,30 @@ import com.google.common.base.MoreObjects;
 public final class RecoverRepositoryRequest {
 
     private final int fromRevision;
+    private final int toRevision;
     private final int sourceServerId;
 
     @JsonCreator
     public RecoverRepositoryRequest(@JsonProperty("fromRevision") int fromRevision,
+                                    @JsonProperty("toRevision") int toRevision,
                                     @JsonProperty("sourceServerId") int sourceServerId) {
         checkArgument(fromRevision >= 2, "fromRevision: %s (expected: >= 2)", fromRevision);
+        checkArgument(toRevision >= fromRevision,
+                      "toRevision: %s (expected: >= fromRevision %s)", toRevision, fromRevision);
         checkArgument(sourceServerId > 0, "sourceServerId: %s (expected: > 0)", sourceServerId);
         this.fromRevision = fromRevision;
+        this.toRevision = toRevision;
         this.sourceServerId = sourceServerId;
     }
 
     @JsonProperty("fromRevision")
     public int fromRevision() {
         return fromRevision;
+    }
+
+    @JsonProperty("toRevision")
+    public int toRevision() {
+        return toRevision;
     }
 
     @JsonProperty("sourceServerId")
@@ -55,18 +65,20 @@ public final class RecoverRepositoryRequest {
             return false;
         }
         final RecoverRepositoryRequest that = (RecoverRepositoryRequest) o;
-        return fromRevision == that.fromRevision && sourceServerId == that.sourceServerId;
+        return fromRevision == that.fromRevision && toRevision == that.toRevision &&
+               sourceServerId == that.sourceServerId;
     }
 
     @Override
     public int hashCode() {
-        return fromRevision * 31 + sourceServerId;
+        return (fromRevision * 31 + toRevision) * 31 + sourceServerId;
     }
 
     @Override
     public String toString() {
         return MoreObjects.toStringHelper(this)
                           .add("fromRevision", fromRevision)
+                          .add("toRevision", toRevision)
                           .add("sourceServerId", sourceServerId)
                           .toString();
     }
