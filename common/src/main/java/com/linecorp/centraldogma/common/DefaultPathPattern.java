@@ -16,7 +16,9 @@
 package com.linecorp.centraldogma.common;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static java.util.Objects.requireNonNull;
 
+import java.util.Arrays;
 import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -44,12 +46,20 @@ final class DefaultPathPattern implements PathPattern {
         this.patterns = patterns.stream()
                                 .peek(DefaultPathPattern::validatePathPattern)
                                 .filter(pattern -> !pattern.isEmpty())
-                                .map(pattern -> {
-                                    if (pattern.charAt(0) != '/') {
-                                        return "/**/" + pattern;
-                                    }
-                                    return pattern;
-                                }).collect(Collectors.joining(","));
+                                .map(DefaultPathPattern::normalizePattern)
+                                .collect(Collectors.joining(","));
+    }
+
+    DefaultPathPattern(PathPattern... verifiedPatterns) {
+        requireNonNull(verifiedPatterns, "verifiedPatterns");
+        patterns = Arrays.stream(verifiedPatterns)
+                         .map(PathPattern::patternString)
+                         .collect(Collectors.joining(","));
+    }
+
+    DefaultPathPattern(String pattern) {
+        validatePathPattern(pattern);
+        patterns = normalizePattern(pattern);
     }
 
     private DefaultPathPattern(String patterns, String encoded) {
@@ -97,6 +107,13 @@ final class DefaultPathPattern implements PathPattern {
     private static String validatePathPattern(String pattern) {
         checkArgument(PATH_PATTERN_PATTERN.matcher(pattern).matches(),
                       "pattern: %s (expected: %s)", pattern, PATH_PATTERN_PATTERN);
+        return pattern;
+    }
+
+    private static String normalizePattern(String pattern) {
+        if (pattern.charAt(0) != '/') {
+            return "/**/" + pattern;
+        }
         return pattern;
     }
 
