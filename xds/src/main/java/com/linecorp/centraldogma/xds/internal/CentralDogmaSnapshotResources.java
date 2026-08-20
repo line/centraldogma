@@ -18,13 +18,16 @@ package com.linecorp.centraldogma.xds.internal;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Stream;
 
 import org.jspecify.annotations.Nullable;
 
 import com.google.common.collect.ImmutableMap;
+import com.google.common.hash.Hasher;
 import com.google.common.hash.Hashing;
 import com.google.protobuf.Message;
 
@@ -90,22 +93,23 @@ final class CentralDogmaSnapshotResources<T extends Message> extends SnapshotRes
                 return versionedResource.version();
             }
 
-            final List<VersionedResource<T>> collected = resourceNames.stream().sorted().distinct()
-                                                                      .map(versionedResources::get)
-                                                                      .filter(Objects::nonNull)
-                                                                      .collect(toImmutableList());
+            final List<String> collected = resourceNames.stream().sorted().distinct()
+                                                        .map(versionedResources::get)
+                                                        .filter(Objects::nonNull)
+                                                        .map(VersionedResource::version)
+                                                        .collect(toImmutableList());
             if (collected.isEmpty()) {
                 // There is no resource with the given names.
                 return "";
             }
             if (collected.size() == 1) {
-                return collected.get(0).version();
+                return collected.get(0);
             }
             if (collected.size() == versionedResources.size()) {
                 return allResourceVersion();
             }
 
-            return Hashing.sha256().hashInt(collected.hashCode()).toString();
+            return hashVersions(collected.stream());
         };
     }
 
@@ -120,15 +124,21 @@ final class CentralDogmaSnapshotResources<T extends Message> extends SnapshotRes
         if (allResourceVersion != null) {
             return allResourceVersion;
         }
-        // Hash the resources in a canonical order. `versionedResources` is built from
-        // HashMap iteration, whose order is not guaranteed to be stable across snapshot
-        // rebuilds even when the resource set is unchanged.
-        final List<VersionedResource<T>> sorted =
+        return allResourceVersion = hashVersions(
                 versionedResources.entrySet().stream()
                                   .sorted(Map.Entry.comparingByKey())
-                                  .map(Map.Entry::getValue)
-                                  .collect(toImmutableList());
-        return allResourceVersion = Hashing.sha256().hashInt(sorted.hashCode()).toString();
+                                  .map(entry -> entry.getValue().version()));
+    }
+
+    /**
+     * Hashes the given per-resource versions into a single version. The caller is responsible for supplying the
+     * versions in a canonical (resource-name-sorted) order so the result is deterministic.
+     */
+    private static String hashVersions(Stream<String> versions) {
+        final Hasher hasher = Hashing.sha256().newHasher();
+        // The NUL separator keeps the concatenation unambiguous regardless of the individual version lengths.
+        versions.forEach(version -> hasher.putString(version, StandardCharsets.UTF_8).putByte((byte) 0));
+        return hasher.hash().toString();
     }
 
     @Override
