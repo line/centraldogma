@@ -18,19 +18,21 @@ package com.linecorp.centraldogma.server.internal.api.sysadmin;
 
 import static java.util.Objects.requireNonNull;
 
+import java.util.Objects;
+
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects;
 
 /**
  * A replica of the cluster, from the static replication configuration.
  */
-public final class ReplicaInfo {
+final class ReplicaInfo {
 
     private final int serverId;
     private final String host;
     private final boolean current;
 
-    public ReplicaInfo(int serverId, String host, boolean current) {
+    ReplicaInfo(int serverId, String host, boolean current) {
         this.serverId = serverId;
         this.host = requireNonNull(host, "host");
         this.current = current;
@@ -40,7 +42,7 @@ public final class ReplicaInfo {
      * Returns the ZooKeeper server ID of the replica.
      */
     @JsonProperty("serverId")
-    public int serverId() {
+    int serverId() {
         return serverId;
     }
 
@@ -48,7 +50,7 @@ public final class ReplicaInfo {
      * Returns the host name of the replica.
      */
     @JsonProperty("host")
-    public String host() {
+    String host() {
         return host;
     }
 
@@ -56,7 +58,7 @@ public final class ReplicaInfo {
      * Returns whether this replica is the one that served the request.
      */
     @JsonProperty("current")
-    public boolean current() {
+    boolean current() {
         return current;
     }
 
@@ -74,7 +76,7 @@ public final class ReplicaInfo {
 
     @Override
     public int hashCode() {
-        return (serverId * 31 + host.hashCode()) * 31 + Boolean.hashCode(current);
+        return Objects.hash(serverId, host, current);
     }
 
     @Override

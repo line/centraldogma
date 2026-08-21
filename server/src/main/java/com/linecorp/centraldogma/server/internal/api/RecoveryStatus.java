@@ -19,7 +19,7 @@ package com.linecorp.centraldogma.server.internal.api;
 /**
  * The outcome of a repository recovery request.
  */
-public enum RecoveryStatus {
+enum RecoveryStatus {
     /**
      * The request landed on the source replica, which originated the recovery. The other replicas apply
      * it when they replay it from the replication log, so this does not mean the cluster has converged.

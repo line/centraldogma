@@ -99,7 +99,7 @@ final class RepositoryRecovery {
                 final String actualTreeId = treeIdOf(repo, commitIdDatabase.get(revision));
                 if (!expectedTreeId.equals(actualTreeId)) {
                     throw new StorageException(
-                            "tree id mismatch while recovering '" + repoPath + "' at " + revision +
+                            "tree ID mismatch while recovering '" + repoPath + "' at " + revision +
                             " (expected: " + expectedTreeId + ", actual: " + actualTreeId +
                             "). Revisions up to " + resetToRevision + " may have diverged, or the content " +
                             "is not reproducible byte-identically (e.g. written by a content " +
@@ -147,7 +147,7 @@ final class RepositoryRecovery {
      * Returns whether the repository already holds the commits to replay, which makes recovery idempotent.
      * Every revision in the range is compared, not only the head: a tree names the content of one revision
      * and nothing before it, so a head that matches says nothing about the revisions under it - unlike a
-     * commit id, which hashes its parent transitively.
+     * commit ID, which hashes its parent transitively.
      */
     private static boolean isConverged(String repoPath, GitRepository repo,
                                        CommitIdDatabase commitIdDatabase, List<ReplayCommit> commits) {

@@ -88,7 +88,6 @@ import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.RevisionNotFoundException;
 import com.linecorp.centraldogma.common.RevisionRange;
 import com.linecorp.centraldogma.common.ShuttingDownException;
-import com.linecorp.centraldogma.internal.HistoryConstants;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.Json5;
 import com.linecorp.centraldogma.internal.Util;
@@ -508,7 +507,7 @@ class GitRepository implements Repository {
     /**
      * Returns up to {@code maxCommits} commits of {@code from..to}. Unlike {@link #history(Revision,
      * Revision, String, int)}, {@code maxCommits} is taken as given rather than capped at
-     * {@value HistoryConstants#MAX_MAX_COMMITS}, so the caller decides how many it needs.
+     * {@value Repository#MAX_MAX_COMMITS}, so the caller decides how many it needs.
      */
     List<Commit> blockingHistory(Revision from, Revision to, String pathPattern, int maxCommits) {
         requireNonNull(pathPattern, "pathPattern");

@@ -41,9 +41,9 @@ import com.linecorp.centraldogma.common.Revision;
  * {@link #toRevision()}. Because the changes are self-contained, a replay reproduces the source's content;
  * the tree of each replayed commit is verified against {@link ReplayCommit#expectedTreeId()}, and a
  * mismatch aborts the recovery, leaving that replica with a partial history until it is recovered again.
- * The commit id is deliberately not what is verified: it covers the parent and the timestamp too, and a
+ * The commit ID is deliberately not what is verified: it covers the parent and the timestamp too, and a
  * metadata repository writes its early commits locally on each replica, so replicas holding identical
- * content still report different commit ids.
+ * content still report different commit IDs.
  *
  * <p>The convergence check is by content, not by replica, so the source replays over itself whenever it
  * holds commits the payload does not: a {@link #toRevision()} below its head discards them by design, and

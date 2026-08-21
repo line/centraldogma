@@ -102,7 +102,7 @@ class RecoverRepositoryTest {
         final GitRepository source = (GitRepository) mgr.create(REPO, Author.SYSTEM);
         pushMixedRevisions(source);
 
-        // Capture the source-of-truth head and per-revision commit ids, then build the replay payload
+        // Capture the source-of-truth head and per-revision commit IDs, then build the replay payload
         // through the production path.
         final Revision sourceHead = source.normalizeNow(Revision.HEAD); // r5
         final String sourceHeadId = commitId(source, sourceHead);
@@ -117,7 +117,7 @@ class RecoverRepositoryTest {
         assertThat(source.normalizeNow(Revision.HEAD)).isEqualTo(new Revision(6));
 
         // Recover: reset to r2 and replay r3..r5 (a multi-file commit, a JSON commit and a removal)
-        // -> converge back to the exact source commit ids, dropping r6.
+        // -> converge back to the exact source commit IDs, dropping r6.
         mgr.recoverRepository(REPO, new Revision(2), payload);
 
         final GitRepository recovered = (GitRepository) mgr.get(REPO);
@@ -305,7 +305,7 @@ class RecoverRepositoryTest {
         repo.commit(new Revision(5), 6000L, Author.SYSTEM, "diverged", "", Markup.PLAINTEXT,
                     ImmutableList.of(Change.ofTextUpsert("/g.txt", "diverged")), false).join();
 
-        // Corrupt the expected tree id of the last replayed commit so the apply detects divergence.
+        // Corrupt the expected tree ID of the last replayed commit so the apply detects divergence.
         final ReplayCommit last = payload.get(payload.size() - 1);
         payload.set(payload.size() - 1, new ReplayCommit(
                 last.revision(), last.timestampMillis(), last.author(), last.summary(), last.detail(),

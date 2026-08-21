@@ -29,19 +29,19 @@ import com.google.common.base.MoreObjects;
 import com.linecorp.centraldogma.common.Revision;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
-public final class RecoverRepositoryResponse {
+final class RecoverRepositoryResponse {
 
     private final RecoveryStatus status;
     @Nullable
     private final Revision toRevision;
 
-    public RecoverRepositoryResponse(RecoveryStatus status, @Nullable Revision toRevision) {
+    RecoverRepositoryResponse(RecoveryStatus status, @Nullable Revision toRevision) {
         this.status = requireNonNull(status, "status");
         this.toRevision = toRevision;
     }
 
     @JsonProperty("status")
-    public RecoveryStatus status() {
+    RecoveryStatus status() {
         return status;
     }
 
@@ -52,7 +52,7 @@ public final class RecoverRepositoryResponse {
      */
     @Nullable
     @JsonProperty("toRevision")
-    public Revision toRevision() {
+    Revision toRevision() {
         return toRevision;
     }
 
@@ -70,7 +70,7 @@ public final class RecoverRepositoryResponse {
 
     @Override
     public int hashCode() {
-        return status.hashCode() * 31 + Objects.hashCode(toRevision);
+        return Objects.hash(status, toRevision);
     }
 
     @Override

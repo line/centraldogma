@@ -18,6 +18,8 @@ package com.linecorp.centraldogma.server.storage.repository;
 
 import static java.util.Objects.requireNonNull;
 
+import java.util.Objects;
+
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects;
 
@@ -68,6 +70,24 @@ public final class RepositoryHead {
     @JsonProperty("treeId")
     public String treeId() {
         return treeId;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (!(o instanceof RepositoryHead)) {
+            return false;
+        }
+        final RepositoryHead that = (RepositoryHead) o;
+        return revision.equals(that.revision) && commitId.equals(that.commitId) &&
+               treeId.equals(that.treeId);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(revision, commitId, treeId);
     }
 
     @Override

@@ -18,6 +18,8 @@ package com.linecorp.centraldogma.server.internal.api;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import java.util.Objects;
+
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -78,7 +80,7 @@ public final class RecoverRepositoryRequest {
 
     @Override
     public int hashCode() {
-        return (fromRevision * 31 + toRevision) * 31 + sourceServerId;
+        return Objects.hash(fromRevision, toRevision, sourceServerId);
     }
 
     @Override

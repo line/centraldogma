@@ -52,7 +52,7 @@ public final class RecoveryPayloadBuilder {
      * {@code request.fromRevision()..request.toRevision()} of the local repository, so that every replica
      * can converge to that history by replaying them.
      */
-    public Command<Revision> build(RecoverRepositoryRequestCommand request) {
+    Command<Revision> build(RecoverRepositoryRequestCommand request) {
         requireNonNull(request, "request");
         return build(request.author(), request.projectName(), request.repositoryName(),
                      request.sourceServerId(), request.fromRevision(), request.toRevision());
