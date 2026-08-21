@@ -84,6 +84,21 @@ public interface Repository {
     org.eclipse.jgit.lib.Repository jGitRepository();
 
     /**
+     * Returns the head of this repository: its head {@link Revision} together with the ID of the commit
+     * that revision points at, read as one so the two always describe the same commit. Blocks while a
+     * recovery rewrites the repository, then returns the new head.
+     */
+    RepositoryHead head();
+
+    /**
+     * Returns the generation of this repository's cached results. It changes whenever the history is
+     * rewritten in place - today only a recovery does that - because the same revision may then hold
+     * different content, which makes everything derived from an earlier generation wrong. Appending a
+     * commit does not change it. Cache keys must include this value; nothing else should depend on it.
+     */
+    int cacheGeneration();
+
+    /**
      * Returns the parent {@link Project} of this {@link Repository}.
      */
     Project parent();

@@ -171,6 +171,7 @@ import com.linecorp.centraldogma.server.internal.mirror.DefaultMirrorAccessContr
 import com.linecorp.centraldogma.server.internal.mirror.DefaultMirroringServicePlugin;
 import com.linecorp.centraldogma.server.internal.mirror.MirrorAccessControl;
 import com.linecorp.centraldogma.server.internal.mirror.MirrorRunner;
+import com.linecorp.centraldogma.server.internal.replication.RecoveryPayloadBuilder;
 import com.linecorp.centraldogma.server.internal.replication.ZooKeeperCommandExecutor;
 import com.linecorp.centraldogma.server.internal.storage.project.DefaultProjectManager;
 import com.linecorp.centraldogma.server.internal.storage.project.ProjectApiManager;
@@ -289,6 +290,8 @@ public class CentralDogma implements AutoCloseable {
     private volatile EncryptionStorageManager encryptionStorageManager;
     @Nullable
     private volatile ProjectManager pm;
+    @Nullable
+    private volatile RecoveryPayloadBuilder recoveryPayloadBuilder;
     @Nullable
     private volatile Server server;
     @Nullable
@@ -488,6 +491,8 @@ public class CentralDogma implements AutoCloseable {
             pm = new DefaultProjectManager(cfg.dataDir(), repositoryWorker, purgeWorker,
                                            meterRegistry, cfg.repositoryCacheSpec(), encryptionStorageManager,
                                            trustedHostKeys);
+
+            recoveryPayloadBuilder = new RecoveryPayloadBuilder(pm);
 
             logger.info("Started the project manager: {}", pm);
 
@@ -963,7 +968,7 @@ public class CentralDogma implements AutoCloseable {
                                               sessionManager, encryptionStorageManager,
                         /* onTakeLeadership */ null, /* onReleaseLeadership */ null,
                         /* onTakeZoneLeadership */ null, /* onReleaseZoneLeadership */ null),
-                meterRegistry, zone,
+                meterRegistry, zone, recoveryPayloadBuilder,
                 onTakeLeadership, onReleaseLeadership,
                 onTakeZoneLeadership, onReleaseZoneLeadership);
     }
@@ -1028,7 +1033,7 @@ public class CentralDogma implements AutoCloseable {
                 .annotatedService(new ServerStatusService(executor, statusManager, repoStatusManager))
                 .annotatedService(new ProjectServiceV1(projectApiManager, executor, repoStatusManager))
                 .annotatedService(new RepositoryServiceV1(executor, mds, encryptionStorageManager,
-                                                          repoStatusManager))
+                                                          repoStatusManager, recoveryPayloadBuilder))
                 .annotatedService(new CredentialServiceV1(projectApiManager, executor))
                 .annotatedService(new VariableServiceV1(pm, executor));
         if (LOGBACK_ENABLED) {
@@ -1262,6 +1267,7 @@ public class CentralDogma implements AutoCloseable {
         this.executor = null;
         this.encryptionStorageManager = null;
         this.pm = null;
+        recoveryPayloadBuilder = null;
         this.repositoryWorker = null;
         this.sessionManager = null;
         this.mirrorRunner = null;

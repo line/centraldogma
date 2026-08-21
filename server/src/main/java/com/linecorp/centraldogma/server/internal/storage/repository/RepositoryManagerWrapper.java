@@ -23,6 +23,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -35,7 +36,9 @@ import org.jspecify.annotations.Nullable;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.CentralDogmaException;
 import com.linecorp.centraldogma.common.RepositoryNotFoundException;
+import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.Util;
+import com.linecorp.centraldogma.server.command.ReplayCommit;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 import com.linecorp.centraldogma.server.storage.repository.RepositoryManager;
@@ -85,6 +88,18 @@ public class RepositoryManagerWrapper implements RepositoryManager {
         if (callback != null) {
             callback.accept(repositoryName, repos.get(repositoryName));
         }
+    }
+
+    @Override
+    public boolean recoverRepository(String repositoryName, Revision resetToRevision,
+                                     List<ReplayCommit> commits) {
+        return delegate.recoverRepository(repositoryName, resetToRevision, commits);
+    }
+
+    @Override
+    public List<ReplayCommit> buildRecoveryPayload(String repositoryName, Revision fromRevision,
+                                                   Revision toRevision) {
+        return delegate.buildRecoveryPayload(repositoryName, fromRevision, toRevision);
     }
 
     @Override

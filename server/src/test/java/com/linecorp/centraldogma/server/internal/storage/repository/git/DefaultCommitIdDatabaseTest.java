@@ -68,6 +68,37 @@ class DefaultCommitIdDatabaseTest {
     }
 
     @Test
+    void truncateTo() {
+        final ObjectId[] commitIds = new ObjectId[11];
+        for (int i = 1; i <= 10; i++) {
+            commitIds[i] = randomCommitId();
+            db.put(new Revision(i), commitIds[i]);
+        }
+
+        db.truncateTo(new Revision(4));
+        assertThat(db.headRevision()).isEqualTo(new Revision(4));
+        assertThat(db.get(new Revision(4))).isEqualTo(commitIds[4]);
+        assertThatThrownBy(() -> db.get(new Revision(5))).isInstanceOf(RevisionNotFoundException.class);
+
+        // The head is derived from the file length, so a reopened database must agree.
+        db.close();
+        db = new DefaultCommitIdDatabase(tempDir);
+        assertThat(db.headRevision()).isEqualTo(new Revision(4));
+        assertThat(db.get(new Revision(4))).isEqualTo(commitIds[4]);
+
+        // Appending resumes from the truncated head.
+        final ObjectId newCommitId = randomCommitId();
+        db.put(new Revision(5), newCommitId);
+        assertThat(db.get(new Revision(5))).isEqualTo(newCommitId);
+
+        assertThatThrownBy(() -> db.truncateTo(new Revision(6)))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> db.truncateTo(Revision.HEAD))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("absolute revision");
+    }
+
+    @Test
     void simpleAccess() {
         final int numCommits = 10;
         final ObjectId[] expectedCommitIds = new ObjectId[numCommits + 1];

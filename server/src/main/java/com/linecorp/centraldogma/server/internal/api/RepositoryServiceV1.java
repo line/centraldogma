@@ -41,6 +41,7 @@ import com.linecorp.armeria.common.logging.RequestOnlyLog;
 import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.armeria.common.util.UnmodifiableFuture;
 import com.linecorp.armeria.server.ServiceRequestContext;
+import com.linecorp.armeria.server.annotation.Blocking;
 import com.linecorp.armeria.server.annotation.Consumes;
 import com.linecorp.armeria.server.annotation.Delete;
 import com.linecorp.armeria.server.annotation.Get;
@@ -66,6 +67,8 @@ import com.linecorp.centraldogma.server.internal.api.auth.RequiresSystemAdminist
 import com.linecorp.centraldogma.server.internal.api.converter.CreateApiResponseConverter;
 import com.linecorp.centraldogma.server.internal.management.RepoStatusManager;
 import com.linecorp.centraldogma.server.internal.management.RepositoryState;
+import com.linecorp.centraldogma.server.internal.replication.RecoveryPayloadBuilder;
+import com.linecorp.centraldogma.server.internal.replication.ZooKeeperCommandExecutor;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
 import com.linecorp.centraldogma.server.metadata.User;
 import com.linecorp.centraldogma.server.storage.encryption.EncryptionStorageManager;
@@ -73,6 +76,7 @@ import com.linecorp.centraldogma.server.storage.encryption.WrappedDekDetails;
 import com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
+import com.linecorp.centraldogma.server.storage.repository.RepositoryHead;
 
 import io.micrometer.core.instrument.Tag;
 
@@ -87,14 +91,17 @@ public class RepositoryServiceV1 extends AbstractService {
     private final MetadataService mds;
     private final EncryptionStorageManager encryptionStorageManager;
     private final RepoStatusManager repoStatusManager;
+    private final RecoveryPayloadBuilder recoveryPayloadBuilder;
 
     public RepositoryServiceV1(CommandExecutor executor, MetadataService mds,
                                EncryptionStorageManager encryptionStorageManager,
-                               RepoStatusManager repoStatusManager) {
+                               RepoStatusManager repoStatusManager,
+                               RecoveryPayloadBuilder recoveryPayloadBuilder) {
         super(executor);
         this.repoStatusManager = repoStatusManager;
         this.mds = requireNonNull(mds, "mds");
         this.encryptionStorageManager = requireNonNull(encryptionStorageManager, "encryptionStorageManager");
+        this.recoveryPayloadBuilder = requireNonNull(recoveryPayloadBuilder, "recoveryPayloadBuilder");
     }
 
     /**
@@ -292,6 +299,111 @@ public class RepositoryServiceV1 extends AbstractService {
         final ReplicationStatus newStatus = statusRequest.status();
         return updateRepositoryStatus(author, project, repository, newStatus)
                 .thenApply(state -> newRepositoryDto(repository, newStatus));
+    }
+
+    /**
+     * GET /projects/{projectName}/repos/{repoName}/head
+     *
+     * <p>Returns the head of the repository <em>on the replica that served the request</em>: its revision,
+     * commit ID and tree ID. Diverged replicas report the same revision, so a matching revision proves
+     * nothing, and so does a matching commit ID fail to appear between replicas of a metadata repository,
+     * which wrote their early commits locally. The tree ID is the fingerprint of the content alone, so it
+     * is what an administrator compares to confirm a recovery converged before making the repository
+     * writable again.
+     *
+     * <p>A system administrator calls this while the repository is read-only, so no commit moves the head
+     * between the replicas being compared.
+     */
+    @Get("/projects/{projectName}/repos/{repoName}/head")
+    @RequiresSystemAdministrator
+    @Blocking
+    public RepositoryHead head(Repository repository) {
+        return repository.head();
+    }
+
+    /**
+     * POST /projects/{projectName}/repos/{repoName}/recover
+     *
+     * <p>Rewrites the repository on every replica with {@code fromRevision..toRevision} of the replica whose
+     * server ID is {@code sourceServerId}. {@code toRevision} becomes the new head and commits after it are
+     * discarded cluster-wide. Replicated (ZooKeeper) mode only, and the repository must be read-only first.
+     *
+     * <p>Neither result means the cluster converged; confirm with {@code GET .../head} on every replica.
+     */
+    @Post("/projects/{projectName}/repos/{repoName}/recover")
+    @Consumes("application/json")
+    @RequiresSystemAdministrator
+    public CompletableFuture<RecoverRepositoryResponse> recover(ServiceRequestContext ctx,
+                                                                Project project,
+                                                                Repository repository,
+                                                                Author author,
+                                                                RecoverRepositoryRequest request) {
+        final ZooKeeperCommandExecutor zkExecutor = validateRecoveryPrerequisites(ctx, project, repository,
+                                                                                  request);
+        final String projectName = project.name();
+        final String repoName = repository.name();
+        final int sourceServerId = request.sourceServerId();
+        final Revision fromRevision = new Revision(request.fromRevision());
+        final Revision toRevision = new Revision(request.toRevision());
+        ctx.setRequestTimeoutMillis(Long.MAX_VALUE); // Disable the request timeout for recovery.
+
+        if (zkExecutor.replicaId() == sourceServerId) {
+            // This replica is the source of truth; build the payload from the local storage and originate
+            // the recovery command directly.
+            logger.info("Originating a recovery of {}/{} from {} to {} as the source replica.",
+                        projectName, repoName, fromRevision, toRevision);
+            return CompletableFuture
+                    .supplyAsync(() -> recoveryPayloadBuilder.build(author, projectName, repoName,
+                                                                    sourceServerId, fromRevision,
+                                                                    toRevision),
+                                 ctx.blockingTaskExecutor())
+                    .thenCompose(this::execute)
+                    .thenApply(unused -> new RecoverRepositoryResponse(
+                            RecoveryStatus.RECOVERING, toRevision));
+        }
+
+        // Ask the source replica to originate the recovery via the replication log.
+        logger.info("Requesting a recovery of {}/{} from {} to {} to the source replica {}.",
+                    projectName, repoName, fromRevision, toRevision, sourceServerId);
+        return execute(Command.recoverRepositoryRequest(author, projectName, repoName, sourceServerId,
+                                                        fromRevision, toRevision))
+                .thenApply(unused -> new RecoverRepositoryResponse(RecoveryStatus.REQUESTED, null));
+    }
+
+    private ZooKeeperCommandExecutor validateRecoveryPrerequisites(ServiceRequestContext ctx, Project project,
+                                                                   Repository repository,
+                                                                   RecoverRepositoryRequest request) {
+        if (InternalProjectInitializer.INTERNAL_PROJECT_DOGMA.equals(project.name())) {
+            // The internal project has no repository status to make read-only, so the precondition below is
+            // unreachable for it.
+            return HttpApiUtil.throwResponse(
+                    ctx, HttpStatus.FORBIDDEN,
+                    "Cannot recover a repository of the internal project: %s/%s",
+                    project.name(), repository.name());
+        }
+        if (!(executor() instanceof ZooKeeperCommandExecutor)) {
+            throw new IllegalArgumentException(
+                    "Repository recovery is only supported in replicated (ZooKeeper) mode.");
+        }
+        if (repository.isEncrypted()) {
+            throw new IllegalArgumentException(
+                    "Recovery is not supported for an encrypted repository: " +
+                    project.name() + '/' + repository.name());
+        }
+        final ZooKeeperCommandExecutor zkExecutor = (ZooKeeperCommandExecutor) executor();
+        if (!zkExecutor.replicationConfig().servers().containsKey(request.sourceServerId())) {
+            throw new IllegalArgumentException(
+                    "sourceServerId: " + request.sourceServerId() + " (expected: one of " +
+                    zkExecutor.replicationConfig().servers().keySet() + ')');
+        }
+        if (getReplicationStatus(repository) != ReplicationStatus.READ_ONLY) {
+            return HttpApiUtil.throwResponse(
+                    ctx, HttpStatus.CONFLICT,
+                    "The repository must be read-only before recovery so that no new commit can be " +
+                    "originated while the recovery is in flight: %s/%s. Change the status to READ_ONLY " +
+                    "first.", project.name(), repository.name());
+        }
+        return zkExecutor;
     }
 
     /**
