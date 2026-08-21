@@ -23,6 +23,8 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects;
 
+import com.linecorp.centraldogma.server.command.RecoverRepositoryCommand;
+
 @JsonIgnoreProperties(ignoreUnknown = true)
 public final class RecoverRepositoryRequest {
 
@@ -37,6 +39,9 @@ public final class RecoverRepositoryRequest {
         checkArgument(fromRevision >= 2, "fromRevision: %s (expected: >= 2)", fromRevision);
         checkArgument(toRevision >= fromRevision,
                       "toRevision: %s (expected: >= fromRevision %s)", toRevision, fromRevision);
+        checkArgument(toRevision - fromRevision + 1 <= RecoverRepositoryCommand.MAX_RECOVERY_COMMITS,
+                      "%s..%s spans too many revisions (maximum: %s). Narrow the range.",
+                      fromRevision, toRevision, RecoverRepositoryCommand.MAX_RECOVERY_COMMITS);
         checkArgument(sourceServerId > 0, "sourceServerId: %s (expected: > 0)", sourceServerId);
         this.fromRevision = fromRevision;
         this.toRevision = toRevision;

@@ -55,6 +55,12 @@ import com.linecorp.centraldogma.common.Revision;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public final class RecoverRepositoryCommand extends RepositoryCommand<Revision> {
 
+    /**
+     * The most revisions a single recovery may replay. Every replica materializes the payload in memory,
+     * so an unbounded one exhausts the cluster; a real recovery spans a handful of revisions.
+     */
+    public static final int MAX_RECOVERY_COMMITS = 100;
+
     private final int sourceServerId;
     private final Revision resetToRevision;
     private final Revision toRevision;

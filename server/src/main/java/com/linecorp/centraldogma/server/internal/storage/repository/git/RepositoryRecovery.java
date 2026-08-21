@@ -31,7 +31,6 @@ import org.eclipse.jgit.revwalk.RevWalk;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 
 import com.linecorp.centraldogma.common.Change;
@@ -39,6 +38,7 @@ import com.linecorp.centraldogma.common.Commit;
 import com.linecorp.centraldogma.common.RepositoryRecoveryException;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.server.command.CommitResult;
+import com.linecorp.centraldogma.server.command.RecoverRepositoryCommand;
 import com.linecorp.centraldogma.server.command.ReplayCommit;
 import com.linecorp.centraldogma.server.storage.StorageException;
 import com.linecorp.centraldogma.server.storage.repository.DiffResultType;
@@ -50,10 +50,6 @@ import com.linecorp.centraldogma.server.storage.repository.Repository;
 final class RepositoryRecovery {
 
     private static final Logger logger = LoggerFactory.getLogger(RepositoryRecovery.class);
-
-    // Every replica materializes the payload in memory, so an unbounded one exhausts the cluster.
-    @VisibleForTesting
-    static final int MAX_RECOVERY_COMMITS = 100;
 
     private final GitRepositoryManager manager;
 
@@ -277,12 +273,12 @@ final class RepositoryRecovery {
         return commits.build();
     }
 
-    @VisibleForTesting
-    static void checkCommitCount(String name, int commitCount) {
-        if (commitCount > MAX_RECOVERY_COMMITS) {
+    private static void checkCommitCount(String name, int commitCount) {
+        if (commitCount > RecoverRepositoryCommand.MAX_RECOVERY_COMMITS) {
             throw new IllegalArgumentException(
                     "the recovery of " + name + " spans too many revisions: " + commitCount +
-                    " (maximum: " + MAX_RECOVERY_COMMITS + "). Narrow the range.");
+                    " (maximum: " + RecoverRepositoryCommand.MAX_RECOVERY_COMMITS +
+                    "). Narrow the range.");
         }
     }
 }

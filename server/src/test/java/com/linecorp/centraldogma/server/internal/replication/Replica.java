@@ -84,7 +84,9 @@ final class Replica {
             protected <T> CompletableFuture<T> doExecute(ExecutionContext ctx, Command<T> command) {
                 return (CompletableFuture<T>) delegate.apply(command);
             }
-        }, meterRegistry, null, new RecoveryPayloadBuilder(mock(ProjectManager.class), mock(RepoStatusManager.class)),
+        }, meterRegistry, null,
+                new RecoveryPayloadBuilder(mock(ProjectManager.class),
+                                           mock(RepoStatusManager.class)),
                 null, null, null, null);
         commandExecutor.setLockTimeoutMillis(10000);
 

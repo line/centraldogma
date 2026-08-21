@@ -46,8 +46,9 @@ public final class RecoverRepositoryResponse {
     }
 
     /**
-     * Returns the source replica's head revision, which every other replica converges to once it replays
-     * the recovery, or {@code null} if the recovery was only requested.
+     * Returns the revision every replica converges to once it replays the recovery, or {@code null} if the
+     * recovery was only requested. It is the {@code toRevision} of the request, which need not be the
+     * source replica's head.
      */
     @Nullable
     @JsonProperty("toRevision")

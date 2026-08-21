@@ -53,6 +53,7 @@ import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.RepositoryRecoveryException;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.RevisionNotFoundException;
+import com.linecorp.centraldogma.server.command.RecoverRepositoryCommand;
 import com.linecorp.centraldogma.server.command.ReplayCommit;
 import com.linecorp.centraldogma.server.storage.StorageException;
 import com.linecorp.centraldogma.server.storage.encryption.NoopEncryptionStorageManager;
@@ -307,11 +308,22 @@ class RecoverRepositoryTest {
      */
     @Test
     void rejectsTooManyRevisions() {
-        RepositoryRecovery.checkCommitCount("foo/bar", RepositoryRecovery.MAX_RECOVERY_COMMITS);
-        assertThatThrownBy(() -> RepositoryRecovery.checkCommitCount(
-                "foo/bar", RepositoryRecovery.MAX_RECOVERY_COMMITS + 1))
+        final GitRepositoryManager mgr = newRepositoryManager();
+        final GitRepository repo = (GitRepository) mgr.create(REPO, Author.SYSTEM);
+        final int cap = RecoverRepositoryCommand.MAX_RECOVERY_COMMITS;
+        for (int i = 1; i <= cap + 1; i++) {
+            repo.commit(new Revision(i), 1000L + i, Author.SYSTEM, "r" + i, "", Markup.PLAINTEXT,
+                        ImmutableList.of(Change.ofTextUpsert("/f.txt", "v" + i)), false).join();
+        }
+        final Revision head = repo.normalizeNow(Revision.HEAD); // r102 for a cap of 100
+
+        // The whole range is one revision above the cap; the payload is refused rather than built.
+        assertThatThrownBy(() -> mgr.buildRecoveryPayload(REPO, new Revision(2), head))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("too many revisions");
+
+        // Exactly at the cap is accepted.
+        assertThat(mgr.buildRecoveryPayload(REPO, new Revision(3), head)).hasSize(cap);
     }
 
     @Test
