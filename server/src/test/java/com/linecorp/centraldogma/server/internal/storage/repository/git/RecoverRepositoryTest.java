@@ -334,10 +334,6 @@ class RecoverRepositoryTest {
     }
 
     /**
-     * Pushes r2..r5 covering the change shapes recovery must replay byte-identically: a text upsert (r2),
-     * a multi-file commit (r3), a JSON upsert (r4) and a removal (r5).
-     */
-    /**
      * A tree names the content of one revision and nothing before it, so a replica whose head happens to
      * match must still be repaired when an earlier revision does not.
      */
@@ -369,6 +365,10 @@ class RecoverRepositoryTest {
                 .isEqualTo(source.getOrNull(new Revision(2), "/a.json").join().contentAsText());
     }
 
+    /**
+     * Pushes r2..r5 covering the change shapes recovery must replay byte-identically: a text upsert (r2),
+     * a multi-file commit (r3), a JSON upsert (r4) and a removal (r5).
+     */
     private static void pushMixedRevisions(GitRepository repo) {
         repo.commit(new Revision(1), 2000L, Author.SYSTEM, "add f", "detail2", Markup.PLAINTEXT,
                     ImmutableList.of(Change.ofTextUpsert("/f.txt", "v2")), false).join();

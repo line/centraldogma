@@ -464,14 +464,6 @@ class ZooKeeperRepositoryRecoveryIntegrationTest {
     private static final class FaultInjector implements Plugin {
 
         private StandaloneCommandExecutor commandExecutor;
-        private CommandExecutor zkCommandExecutor;
-
-        /**
-         * Originates the command through the fault-injected replica's replicated executor.
-         */
-        <T> T zkExecute(Command<T> command) {
-            return zkCommandExecutor.execute(command).join();
-        }
 
         /**
          * Applies the command directly on the fault-injected replica's local storage, bypassing the
@@ -505,7 +497,7 @@ class ZooKeeperRepositoryRecoveryIntegrationTest {
 
         @Override
         public CompletionStage<Void> start(PluginContext context) {
-            zkCommandExecutor = context.commandExecutor();
+            final CommandExecutor zkCommandExecutor = context.commandExecutor();
             commandExecutor =
                     (StandaloneCommandExecutor) ((ZooKeeperCommandExecutor) zkCommandExecutor).unwrap();
             return UnmodifiableFuture.completedFuture(null);
