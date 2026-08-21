@@ -369,6 +369,39 @@ class RecoverRepositoryTest {
      * Pushes r2..r5 covering the change shapes recovery must replay byte-identically: a text upsert (r2),
      * a multi-file commit (r3), a JSON upsert (r4) and a removal (r5).
      */
+    /**
+     * A replica that lags behind the replayed range must not hand an intermediate revision to a watcher:
+     * the recovery holds the write lock across the whole replay, and the failure delivered once it ends is
+     * what tells a client to watch again.
+     */
+    @Test
+    void doesNotNotifyWatchersWhileReplaying() throws Exception {
+        final GitRepositoryManager sourceMgr = newRepositoryManager(new File(tempDir.toFile(), "source2"));
+        final GitRepository source = (GitRepository) sourceMgr.create(REPO, Author.SYSTEM);
+        pushMixedRevisions(source); // head == r5
+        final List<ReplayCommit> payload = sourceMgr.buildRecoveryPayload(REPO, new Revision(3),
+                                                                          new Revision(5));
+
+        // The replica holds the shared base but stops at r3, so r4 and r5 are newer than anything it has.
+        final GitRepositoryManager replicaMgr = newRepositoryManager(new File(tempDir.toFile(), "replica2"));
+        final GitRepository replica = (GitRepository) replicaMgr.create(REPO, Author.SYSTEM);
+        replica.commit(new Revision(1), 2000L, Author.SYSTEM, "add f", "detail2", Markup.PLAINTEXT,
+                       ImmutableList.of(Change.ofTextUpsert("/f.txt", "v2")), false).join();
+        replica.commit(new Revision(2), 3000L, Author.SYSTEM, "add g and h", "detail3", Markup.PLAINTEXT,
+                       ImmutableList.of(Change.ofTextUpsert("/g.txt", "g"),
+                                        Change.ofTextUpsert("/h.txt", "h")), false).join();
+        assertThat(replica.normalizeNow(Revision.HEAD)).isEqualTo(new Revision(3));
+
+        final CompletableFuture<Revision> watch = replica.watch(new Revision(3), "/**", false);
+        assertThat(watch).isNotDone();
+
+        assertThat(replicaMgr.recoverRepository(REPO, new Revision(2), payload)).isTrue();
+
+        // Not r4 or r5, which the replay produced: the watcher is failed instead.
+        assertThatThrownBy(() -> watch.get(30, TimeUnit.SECONDS))
+                .hasCauseInstanceOf(RepositoryRecoveryException.class);
+    }
+
     private static void pushMixedRevisions(GitRepository repo) {
         repo.commit(new Revision(1), 2000L, Author.SYSTEM, "add f", "detail2", Markup.PLAINTEXT,
                     ImmutableList.of(Change.ofTextUpsert("/f.txt", "v2")), false).join();

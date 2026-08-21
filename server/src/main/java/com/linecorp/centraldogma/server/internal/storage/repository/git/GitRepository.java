@@ -937,15 +937,16 @@ class GitRepository implements Repository {
     }
 
     /**
-     * Commits on the calling thread instead of dispatching to the repository worker. A recovery replays its
-     * commits while holding this repository's write lock, and readers parked on that lock consume the
-     * worker pool, so blocking on a task queued back to it would deadlock.
+     * Commits on the calling thread instead of dispatching to the repository worker, and without notifying
+     * watchers. A recovery replays its commits while holding this repository's write lock, and readers
+     * parked on that lock consume the worker pool, so blocking on a task queued back to it would deadlock.
+     * Waking a watcher has the same effect, and would hand it a half-replayed history.
      */
     CommitResult blockingCommit(Revision baseRevision, long commitTimeMillis, Author author, String summary,
                                 String detail, Markup markup, Iterable<Change<?>> changes) {
         final CommitExecutor commitExecutor =
                 new CommitExecutor(this, commitTimeMillis, author, summary, detail, markup, false);
-        return commitExecutor.execute(baseRevision, normBaseRevision -> changes);
+        return commitExecutor.execute(baseRevision, normBaseRevision -> changes, false);
     }
 
     /**
