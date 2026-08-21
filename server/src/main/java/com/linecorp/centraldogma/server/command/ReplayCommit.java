@@ -23,7 +23,6 @@ import java.util.Objects;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableList;
@@ -39,7 +38,6 @@ import com.linecorp.centraldogma.common.Revision;
  * the source's content - and thus the source's tree - when it is applied on top of the previous revision.
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
-@JsonInclude(JsonInclude.Include.NON_NULL)
 public final class ReplayCommit {
 
     private final Revision revision;
