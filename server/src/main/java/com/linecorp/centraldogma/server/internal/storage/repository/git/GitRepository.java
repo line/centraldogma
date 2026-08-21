@@ -626,30 +626,52 @@ class GitRepository implements Repository {
                                                           DiffResultType diffResultType) {
         final ServiceRequestContext ctx = context();
         return CompletableFuture.supplyAsync(() -> {
-            requireNonNull(from, "from");
-            requireNonNull(to, "to");
-            requireNonNull(pathPattern, "pathPattern");
-
             failFastIfTimedOut(this, logger, ctx, "diff", from, to, pathPattern);
-
-            final RevisionRange range = normalizeNow(from, to).toAscending();
-            readLock();
-            try (RevWalk rw = newRevWalk()) {
-                final RevTree treeA = rw.parseTree(commitIdDatabase.get(range.from()));
-                final RevTree treeB = rw.parseTree(commitIdDatabase.get(range.to()));
-
-                // Compare the two Git trees.
-                // Note that we do not cache here because CachingRepository caches the final result already.
-                return toChangeMap(blockingCompareTreesUncached(
-                        treeA, treeB, pathPatternFilterOrTreeFilter(pathPattern)), diffResultType);
-            } catch (StorageException e) {
-                throw e;
-            } catch (Exception e) {
-                throw new StorageException("failed to parse two trees: range=" + range, e);
-            } finally {
-                readUnlock();
-            }
+            return blockingDiff(from, to, pathPattern, diffResultType);
         }, repositoryWorker);
+    }
+
+    /**
+     * Diffs on the calling thread instead of dispatching to the repository worker, so that a caller which
+     * already holds this repository's read lock does not queue a task back to the pool it may be running on.
+     */
+    Map<String, Change<?>> blockingDiff(Revision from, Revision to, String pathPattern,
+                                        DiffResultType diffResultType) {
+        requireNonNull(from, "from");
+        requireNonNull(to, "to");
+        requireNonNull(pathPattern, "pathPattern");
+
+        final RevisionRange range = normalizeNow(from, to).toAscending();
+        readLock();
+        try (RevWalk rw = newRevWalk()) {
+            final RevTree treeA = rw.parseTree(commitIdDatabase.get(range.from()));
+            final RevTree treeB = rw.parseTree(commitIdDatabase.get(range.to()));
+
+            // Compare the two Git trees.
+            // Note that we do not cache here because CachingRepository caches the final result already.
+            return toChangeMap(blockingCompareTreesUncached(
+                    treeA, treeB, pathPatternFilterOrTreeFilter(pathPattern)), diffResultType);
+        } catch (StorageException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new StorageException("failed to parse two trees: range=" + range, e);
+        } finally {
+            readUnlock();
+        }
+    }
+
+    /**
+     * Runs the specified {@code supplier} under this repository's read lock, so that everything it reads
+     * describes one history. A recovery rewrites the history in place, so a build that reads the history,
+     * the diffs and the tree IDs under separate locks can splice two of them together.
+     */
+    <T> T readLocked(Supplier<T> supplier) {
+        readLock();
+        try {
+            return supplier.get();
+        } finally {
+            readUnlock();
+        }
     }
 
     private static TreeFilter pathPatternFilterOrTreeFilter(@Nullable String pathPattern) {

@@ -241,6 +241,13 @@ final class RepositoryRecovery {
         requireNonNull(toRevision, "toRevision");
         final String repoPath = manager.projectRepositoryName(repositoryName);
         final GitRepository repo = fileRepository(repositoryName);
+        // One snapshot: the history, every diff and every tree ID come from the same state, and a recovery
+        // rewriting this repository waits rather than splicing two histories into one payload.
+        return repo.readLocked(() -> buildPayload(repo, repoPath, fromRevision, toRevision));
+    }
+
+    private static List<ReplayCommit> buildPayload(GitRepository repo, String repoPath,
+                                                   Revision fromRevision, Revision toRevision) {
         final CommitIdDatabase commitIdDatabase = repo.commitIdDatabase();
         final Revision headRevision = repo.normalizeNow(Revision.HEAD);
         checkReplayRange(repoPath, fromRevision, toRevision, headRevision);
@@ -264,8 +271,8 @@ final class RepositoryRecovery {
             final Revision revision = new Revision(i);
             final Commit commit = history.get(i - from);
             final Map<String, Change<?>> changes =
-                    repo.diff(revision.backward(1), revision, Repository.ALL_PATH,
-                              DiffResultType.PATCH_TO_TEXT_UPSERT).join();
+                    repo.blockingDiff(revision.backward(1), revision, Repository.ALL_PATH,
+                                      DiffResultType.PATCH_TO_TEXT_UPSERT);
             commits.add(new ReplayCommit(revision, commit.when(), commit.author(), commit.summary(),
                                          commit.detail(), commit.markup(), changes.values(),
                                          treeIdOf(repo, commitIdDatabase.get(revision))));

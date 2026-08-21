@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ForkJoinPool;
@@ -45,6 +46,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.io.Files;
 import com.google.common.util.concurrent.MoreExecutors;
+import com.google.common.util.concurrent.Uninterruptibles;
 
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
@@ -162,6 +164,48 @@ class RecoverRepositoryTest {
      * if any step hops back onto the pool. The other tests here cannot catch this - they pass a
      * ForkJoinPool, whose join() spawns a compensation thread and papers over the self-dependency.
      */
+    /**
+     * The payload is built from a request thread, not from the repository worker, so a build that queues
+     * diffs back to that pool waits for a thread it may never get.
+     */
+    @Test
+    void buildingThePayloadNeverWaitsOnTheRepositoryWorkerPool() throws Exception {
+        final ExecutorService repositoryWorker = Executors.newFixedThreadPool(1);
+        try {
+            final Project project = mock(Project.class);
+            lenient().when(project.name()).thenReturn("test_project");
+            final GitRepositoryManager mgr = new GitRepositoryManager(
+                    project, tempDir.toFile(), repositoryWorker, MoreExecutors.directExecutor(), null,
+                    NoopEncryptionStorageManager.INSTANCE);
+            final GitRepository repo = (GitRepository) mgr.create(REPO, Author.SYSTEM);
+            pushMixedRevisions(repo);
+
+            // Occupy the only repository-worker thread for longer than the assertion below waits.
+            final CountDownLatch occupied = new CountDownLatch(1);
+            final CountDownLatch release = new CountDownLatch(1);
+            repositoryWorker.execute(() -> {
+                occupied.countDown();
+                Uninterruptibles.awaitUninterruptibly(release);
+            });
+            assertThat(occupied.await(30, TimeUnit.SECONDS)).isTrue();
+
+            try {
+                final ExecutorService requestThread = Executors.newSingleThreadExecutor();
+                try {
+                    final Future<List<ReplayCommit>> payload = requestThread.submit(
+                            () -> mgr.buildRecoveryPayload(REPO, new Revision(3), new Revision(5)));
+                    assertThat(payload.get(30, TimeUnit.SECONDS)).hasSize(3);
+                } finally {
+                    requestThread.shutdownNow();
+                }
+            } finally {
+                release.countDown();
+            }
+        } finally {
+            repositoryWorker.shutdownNow();
+        }
+    }
+
     @Test
     void recoveryNeverWaitsOnTheRepositoryWorkerPool() throws Exception {
         final ExecutorService repositoryWorker = Executors.newFixedThreadPool(1);
