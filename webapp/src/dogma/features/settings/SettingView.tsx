@@ -20,7 +20,6 @@ import Link from 'next/link';
 import { Breadcrumbs } from 'dogma/common/components/Breadcrumbs';
 import { useRouter } from 'next/router';
 import { useAppSelector } from 'dogma/hooks';
-import { useGetReplicasQuery } from 'dogma/features/api/apiSlice';
 import { GrSystem } from 'react-icons/gr';
 
 interface SettingsViewProps {
@@ -28,12 +27,7 @@ interface SettingsViewProps {
   children: ReactNode;
 }
 
-type TabName =
-  | 'Mirror Access Control'
-  | 'Application Identities'
-  | 'Server Status'
-  | 'Repository Status'
-  | 'Repository Recovery';
+type TabName = 'Mirror Access Control' | 'Application Identities' | 'Server Status' | 'Repository Status';
 
 export interface TapInfo {
   name: TabName;
@@ -41,20 +35,15 @@ export interface TapInfo {
   admin: boolean;
 }
 
-// 'Repository Recovery' must stay last: it is hidden in standalone mode, and the Tabs index is
-// computed over this whole array, so hiding a non-trailing entry would misalign the tab highlight.
 const TABS: TapInfo[] = [
   { name: 'Application Identities', path: 'app-identities', admin: false },
   { name: 'Mirror Access Control', path: 'mirror-access', admin: true },
   { name: 'Server Status', path: 'server-status', admin: true },
   { name: 'Repository Status', path: 'repo-status', admin: true },
-  { name: 'Repository Recovery', path: 'recovery', admin: true },
 ];
 
 const SettingView = ({ currentTab, children }: SettingsViewProps) => {
   const { user } = useAppSelector((state) => state.auth);
-  // Repository recovery exists only in replicated (ZooKeeper) mode, where the replica list is non-empty.
-  const { data: replicas } = useGetReplicasQuery(undefined, { skip: !user?.systemAdmin });
   const tabIndex = TABS.findIndex((tab) => tab.name === currentTab);
   const router = useRouter();
 
@@ -75,9 +64,6 @@ const SettingView = ({ currentTab, children }: SettingsViewProps) => {
         <TabList>
           {TABS.map((tab) => {
             if (tab.admin && !user?.systemAdmin) {
-              return null;
-            }
-            if (tab.path === 'recovery' && (!replicas || replicas.length === 0)) {
               return null;
             }
             let link = `/app/settings`;
