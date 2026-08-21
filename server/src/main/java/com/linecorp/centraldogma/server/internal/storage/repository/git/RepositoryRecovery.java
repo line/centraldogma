@@ -15,6 +15,7 @@
  */
 package com.linecorp.centraldogma.server.internal.storage.repository.git;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.linecorp.centraldogma.server.internal.storage.repository.git.GitRepository.R_HEADS_MASTER;
 import static com.linecorp.centraldogma.server.internal.storage.repository.git.GitRepository.newRevWalk;
 import static java.util.Objects.requireNonNull;
@@ -25,6 +26,7 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import org.eclipse.jgit.lib.ObjectId;
+import org.eclipse.jgit.lib.ObjectReader;
 import org.eclipse.jgit.lib.RefUpdate;
 import org.eclipse.jgit.lib.RefUpdate.Result;
 import org.eclipse.jgit.revwalk.RevWalk;
@@ -62,6 +64,7 @@ final class RepositoryRecovery {
         requireNonNull(repositoryName, "repositoryName");
         requireNonNull(resetToRevision, "resetToRevision");
         requireNonNull(commits, "commits");
+        checkArgument(!commits.isEmpty(), "commits is empty (expected: the revisions to replay)");
         final String repoPath = manager.projectRepositoryName(repositoryName);
         logger.info("Starting to recover the repository '{}' (reset to {}, replay {} commits).",
                     repoPath, resetToRevision, commits.size());
@@ -203,7 +206,8 @@ final class RepositoryRecovery {
      * locally on each replica, so replicas holding identical content still report different commit IDs.
      */
     private static String treeIdOf(GitRepository repo, ObjectId commitId) {
-        try (RevWalk revWalk = newRevWalk(repo.jGitRepository().newObjectReader())) {
+        try (ObjectReader reader = repo.jGitRepository().newObjectReader();
+             RevWalk revWalk = newRevWalk(reader)) {
             return revWalk.parseCommit(commitId).getTree().getId().name();
         } catch (IOException e) {
             throw new StorageException("failed to read the tree of " + commitId.name(), e);
@@ -212,7 +216,8 @@ final class RepositoryRecovery {
 
     private static void rewindTo(GitRepository repo, ObjectId commitId, Revision revision) {
         final org.eclipse.jgit.lib.Repository jGitRepository = repo.jGitRepository();
-        try (RevWalk revWalk = newRevWalk(jGitRepository.newObjectReader())) {
+        try (ObjectReader reader = jGitRepository.newObjectReader();
+             RevWalk revWalk = newRevWalk(reader)) {
             final RefUpdate refUpdate = jGitRepository.updateRef(R_HEADS_MASTER);
             refUpdate.setNewObjectId(commitId);
             refUpdate.setForceUpdate(true);

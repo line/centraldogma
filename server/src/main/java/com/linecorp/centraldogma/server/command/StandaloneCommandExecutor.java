@@ -19,6 +19,8 @@ import static java.util.Objects.requireNonNull;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -41,6 +43,8 @@ import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 import com.linecorp.centraldogma.server.storage.repository.RepositoryManager;
 
+import io.netty.util.concurrent.DefaultThreadFactory;
+
 /**
  * A {@link CommandExecutor} implementation which performs operations on the local storage.
  */
@@ -50,6 +54,10 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
 
     private final ProjectManager projectManager;
     private final Executor repositoryWorker;
+    // A recovery holds the repository's write lock for the whole replay, so it never runs on
+    // repositoryWorker, which is the whole server's. One thread also serializes concurrent recoveries.
+    private final ExecutorService recoveryWorker =
+            Executors.newSingleThreadExecutor(new DefaultThreadFactory("recovery-worker", true));
     @Nullable
     private final SessionManager sessionManager;
     private final EncryptionStorageManager encryptionStorageManager;
@@ -108,6 +116,7 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
 
     @Override
     protected void doStop(@Nullable Runnable onReleaseLeadership, @Nullable Runnable onReleaseZoneLeadership) {
+        recoveryWorker.shutdownNow();
         if (onReleaseLeadership != null) {
             onReleaseLeadership.run();
         }
@@ -445,16 +454,11 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
     private CompletableFuture<Revision> recoverRepository(RecoverRepositoryCommand c) {
         // Not on repositoryWorker: a recovery holds the repository's write lock for the whole replay, and
         // that pool is the whole server's. A recovery is rare enough to be worth a thread of its own.
-        final String repoPath = c.projectName() + '/' + c.repositoryName();
         return CompletableFuture.supplyAsync(() -> {
             projectManager.get(c.projectName()).repos()
                           .recoverRepository(c.repositoryName(), c.resetToRevision(), c.commits());
             return c.toRevision();
-        }, task -> {
-            final Thread thread = new Thread(task, "recovery-" + repoPath);
-            thread.setDaemon(true);
-            thread.start();
-        });
+        }, recoveryWorker);
     }
 
     private CompletableFuture<Void> rewrapAllKeys() {
