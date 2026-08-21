@@ -81,6 +81,7 @@ public class DefaultProject implements Project {
 
     @Nullable
     private volatile Revision lastMetadataRevision;
+    private volatile int lastMetadataCacheGeneration;
     @Nullable
     private volatile ProjectMetadata projectMetadata;
 
@@ -245,6 +246,7 @@ public class DefaultProject implements Project {
                                      Change.ofJsonUpsert(METADATA_JSON, Jackson.valueToTree(metadata)))
                              .join();
             lastMetadataRevision = result.revision();
+            lastMetadataCacheGeneration = dogmaRepo.cacheGeneration();
             projectMetadata = metadata;
         }
     }
@@ -257,6 +259,7 @@ public class DefaultProject implements Project {
         final ProjectMetadata projectMetadata = Jackson.treeToValue(metadata.content(),
                                                                     ProjectMetadata.class);
         lastMetadataRevision = metadata.revision();
+        lastMetadataCacheGeneration = repos.get(REPO_DOGMA).cacheGeneration();
         this.projectMetadata = projectMetadata;
         return projectMetadata;
     }
@@ -277,7 +280,12 @@ public class DefaultProject implements Project {
             final Revision lastRevision = entry.revision();
             final Revision lastMetadataRevision = this.lastMetadataRevision;
             assert lastMetadataRevision != null;
-            if (lastRevision.compareTo(lastMetadataRevision) <= 0) {
+            // A recovery rewrites the history in place, so the same revision may now hold different
+            // content and revisions stop growing. The cache generation is what distinguishes a rewrite
+            // from an old delivery.
+            final int cacheGeneration = dogmaRepo.cacheGeneration();
+            if (cacheGeneration == lastMetadataCacheGeneration &&
+                lastRevision.compareTo(lastMetadataRevision) <= 0) {
                 // An old data.
                 return;
             }
@@ -286,6 +294,7 @@ public class DefaultProject implements Project {
                 final ProjectMetadata projectMetadata = Jackson.treeToValue(entry.content(),
                                                                             ProjectMetadata.class);
                 this.lastMetadataRevision = lastRevision;
+                lastMetadataCacheGeneration = cacheGeneration;
                 this.projectMetadata = projectMetadata;
             } catch (JsonParseException | JsonMappingException e) {
                 logger.warn("Invalid {} file in {}/{}", METADATA_JSON, name, REPO_DOGMA, e);
