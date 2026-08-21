@@ -430,8 +430,13 @@ class ZooKeeperRepositoryRecoveryIntegrationTest {
         driveRepoIntoDivergedReadOnly();
 
         final JsonNode head = headOf(SOURCE_SERVER_ID, TEST_REPO);
-        assertThat(head.fieldNames()).toIterable().containsExactlyInAnyOrder("revision", "commitId",
-                                                                            "treeId");
+        assertThat(head.fieldNames()).toIterable().containsExactlyInAnyOrder("serverId", "revision",
+                                                                            "commitId", "treeId");
+        // Behind a load balancer, two heads can come from the same replica; the server ID is what makes
+        // "every replica agrees" verifiable.
+        assertThat(head.get("serverId").asInt()).isEqualTo(SOURCE_SERVER_ID);
+        assertThat(headOf(DIVERGED_SERVER_ID, TEST_REPO).get("serverId").asInt())
+                .isEqualTo(DIVERGED_SERVER_ID);
 
         // Same head revision on both replicas...
         assertThat(toRevisionOn(DIVERGED_SERVER_ID)).isEqualTo(toRevisionOn(SOURCE_SERVER_ID));

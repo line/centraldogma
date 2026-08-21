@@ -76,7 +76,6 @@ import com.linecorp.centraldogma.server.storage.encryption.WrappedDekDetails;
 import com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
-import com.linecorp.centraldogma.server.storage.repository.RepositoryHead;
 
 import io.micrometer.core.instrument.Tag;
 
@@ -301,12 +300,12 @@ public class RepositoryServiceV1 extends AbstractService {
     /**
      * GET /projects/{projectName}/repos/{repoName}/head
      *
-     * <p>Returns the head of the repository <em>on the replica that served the request</em>: its revision,
-     * commit ID and tree ID. Diverged replicas report the same revision, so a matching revision proves
-     * nothing, and so does a matching commit ID fail to appear between replicas of a metadata repository,
-     * which wrote their early commits locally. The tree ID is the fingerprint of the content alone, so it
-     * is what an administrator compares to confirm a recovery converged before making the repository
-     * writable again.
+     * <p>Returns the head of the repository <em>on the replica that served the request</em>: that
+     * replica's server ID, and the head's revision, commit ID and tree ID. Diverged replicas report the
+     * same revision, so a matching revision proves nothing, and so does a matching commit ID fail to
+     * appear between replicas of a metadata repository, which wrote their early commits locally. The tree
+     * ID is the fingerprint of the content alone, so it is what an administrator compares to confirm a
+     * recovery converged before making the repository writable again.
      *
      * <p>A system administrator calls this while the repository is read-only, so no commit moves the head
      * between the replicas being compared.
@@ -314,8 +313,11 @@ public class RepositoryServiceV1 extends AbstractService {
     @Get("/projects/{projectName}/repos/{repoName}/head")
     @RequiresSystemAdministrator
     @Blocking
-    public RepositoryHead head(Repository repository) {
-        return repository.head();
+    public RepositoryHeadResponse head(Repository repository) {
+        final Integer serverId =
+                executor() instanceof ZooKeeperCommandExecutor ?
+                ((ZooKeeperCommandExecutor) executor()).replicaId() : null;
+        return new RepositoryHeadResponse(serverId, repository.head());
     }
 
     /**
