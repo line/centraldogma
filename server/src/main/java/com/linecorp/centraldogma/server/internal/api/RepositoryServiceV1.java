@@ -304,10 +304,12 @@ public class RepositoryServiceV1 extends AbstractService {
     /**
      * GET /projects/{projectName}/repos/{repoName}/head
      *
-     * <p>Returns the head of the repository <em>on the replica that served the request</em>, identified by
-     * both its revision and its commit ID. Diverged replicas may report the same revision, so a matching
-     * revision proves nothing; only the commit ID proves that they hold the same history. It is how an
-     * administrator confirms that a recovery converged before making the repository writable again.
+     * <p>Returns the head of the repository <em>on the replica that served the request</em>: its revision,
+     * commit ID and tree ID. Diverged replicas report the same revision, so a matching revision proves
+     * nothing, and so does a matching commit ID fail to appear between replicas of a metadata repository,
+     * which wrote their early commits locally. The tree ID is the fingerprint of the content alone, so it
+     * is what an administrator compares to confirm a recovery converged before making the repository
+     * writable again.
      */
     @Get("/projects/{projectName}/repos/{repoName}/head")
     @RequiresSystemAdministrator
@@ -368,13 +370,13 @@ public class RepositoryServiceV1 extends AbstractService {
     private ZooKeeperCommandExecutor validateRecoveryPrerequisites(ServiceRequestContext ctx, Project project,
                                                                    Repository repository,
                                                                    RecoverRepositoryRequest request) {
-        if (InternalProjectInitializer.INTERNAL_PROJECT_DOGMA.equals(project.name()) ||
-            Project.isInternalRepo(repository.name())) {
-            // Internal repository content is written by content transformers without text normalization,
-            // so a replay cannot reproduce it byte-identically.
+        if (InternalProjectInitializer.INTERNAL_PROJECT_DOGMA.equals(project.name())) {
+            // The internal project has no repository status to make read-only, so the precondition below is
+            // unreachable for it.
             return HttpApiUtil.throwResponse(
                     ctx, HttpStatus.FORBIDDEN,
-                    "Cannot recover an internal repository: %s/%s", project.name(), repository.name());
+                    "Cannot recover a repository of the internal project: %s/%s",
+                    project.name(), repository.name());
         }
         if (!(executor() instanceof ZooKeeperCommandExecutor)) {
             throw new IllegalArgumentException(

@@ -34,8 +34,8 @@ import com.linecorp.centraldogma.common.Revision;
 
 /**
  * A single commit replayed onto a diverged replica during a {@link RecoverRepositoryCommand}. It carries the
- * original commit metadata and a self-contained set of {@link Change}s so that every replica reconstructs an
- * identical commit (and thus an identical commit id) when it is applied on top of the previous revision.
+ * original commit metadata and a self-contained set of {@link Change}s so that every replica reconstructs
+ * the source's content - and thus the source's tree - when it is applied on top of the previous revision.
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public final class ReplayCommit {
@@ -47,7 +47,7 @@ public final class ReplayCommit {
     private final String detail;
     private final Markup markup;
     private final List<Change<?>> changes;
-    private final String expectedCommitId;
+    private final String expectedTreeId;
 
     /**
      * Creates a new instance.
@@ -60,7 +60,7 @@ public final class ReplayCommit {
                         @JsonProperty("detail") String detail,
                         @JsonProperty("markup") Markup markup,
                         @JsonProperty("changes") Iterable<Change<?>> changes,
-                        @JsonProperty("expectedCommitId") String expectedCommitId) {
+                        @JsonProperty("expectedTreeId") String expectedTreeId) {
         this.revision = requireNonNull(revision, "revision");
         this.timestampMillis = timestampMillis;
         this.author = requireNonNull(author, "author");
@@ -68,7 +68,7 @@ public final class ReplayCommit {
         this.detail = requireNonNull(detail, "detail");
         this.markup = requireNonNull(markup, "markup");
         this.changes = ImmutableList.copyOf(requireNonNull(changes, "changes"));
-        this.expectedCommitId = requireNonNull(expectedCommitId, "expectedCommitId");
+        this.expectedTreeId = requireNonNull(expectedTreeId, "expectedTreeId");
     }
 
     /**
@@ -128,13 +128,13 @@ public final class ReplayCommit {
     }
 
     /**
-     * Returns the commit id the replayed commit must produce. A replica that produces a different one
-     * aborts the recovery instead of writing a history that diverges from the source, so this is what
-     * makes a recovery verifiable rather than merely hopeful.
+     * Returns the id of the tree the replayed commit must produce - the fingerprint of the content at that
+     * revision. A replica that produces a different one aborts the recovery instead of writing content that
+     * diverges from the source, so this is what makes a recovery verifiable rather than merely hopeful.
      */
     @JsonProperty
-    public String expectedCommitId() {
-        return expectedCommitId;
+    public String expectedTreeId() {
+        return expectedTreeId;
     }
 
     @Override
@@ -153,13 +153,13 @@ public final class ReplayCommit {
                detail.equals(that.detail) &&
                markup == that.markup &&
                changes.equals(that.changes) &&
-               Objects.equals(expectedCommitId, that.expectedCommitId);
+               Objects.equals(expectedTreeId, that.expectedTreeId);
     }
 
     @Override
     public int hashCode() {
         return Objects.hash(revision, timestampMillis, author, summary, detail, markup, changes,
-                            expectedCommitId);
+                            expectedTreeId);
     }
 
     @Override
@@ -171,7 +171,7 @@ public final class ReplayCommit {
                           .add("summary", summary)
                           .add("markup", markup)
                           .add("changes", changes.size())
-                          .add("expectedCommitId", expectedCommitId)
+                          .add("expectedTreeId", expectedTreeId)
                           .toString();
     }
 }

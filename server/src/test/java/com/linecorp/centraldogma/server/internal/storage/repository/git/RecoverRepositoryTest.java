@@ -22,6 +22,7 @@ import static org.awaitility.Awaitility.await;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 
+import java.io.File;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -248,7 +249,7 @@ class RecoverRepositoryTest {
     }
 
     @Test
-    void leavesThePartialHistoryReadableWhenACommitIdDoesNotMatch() {
+    void leavesThePartialHistoryReadableWhenATreeIdDoesNotMatch() {
         final GitRepositoryManager mgr = newRepositoryManager();
         final GitRepository repo = (GitRepository) mgr.create(REPO, Author.SYSTEM);
         pushMixedRevisions(repo);
@@ -259,7 +260,7 @@ class RecoverRepositoryTest {
         repo.commit(new Revision(5), 6000L, Author.SYSTEM, "diverged", "", Markup.PLAINTEXT,
                     ImmutableList.of(Change.ofTextUpsert("/g.txt", "diverged")), false).join();
 
-        // Corrupt the expected commit id of the last replayed commit so the apply detects divergence.
+        // Corrupt the expected tree id of the last replayed commit so the apply detects divergence.
         final ReplayCommit last = payload.get(payload.size() - 1);
         payload.set(payload.size() - 1, new ReplayCommit(
                 last.revision(), last.timestampMillis(), last.author(), last.summary(), last.detail(),
@@ -336,6 +337,38 @@ class RecoverRepositoryTest {
      * Pushes r2..r5 covering the change shapes recovery must replay byte-identically: a text upsert (r2),
      * a multi-file commit (r3), a JSON upsert (r4) and a removal (r5).
      */
+    /**
+     * A tree names the content of one revision and nothing before it, so a replica whose head happens to
+     * match must still be repaired when an earlier revision does not.
+     */
+    @Test
+    void recoversWhenOnlyTheHeadTreeMatches() {
+        final GitRepositoryManager sourceMgr = newRepositoryManager(new File(tempDir.toFile(), "source"));
+        final GitRepository source = (GitRepository) sourceMgr.create(REPO, Author.SYSTEM);
+        source.commit(new Revision(1), 2000L, Author.SYSTEM, "a=1", "", Markup.PLAINTEXT,
+                      ImmutableList.of(Change.ofJsonUpsert("/a.json", "{ \"a\": 1 }")), false).join();
+        source.commit(new Revision(2), 3000L, Author.SYSTEM, "a=2", "", Markup.PLAINTEXT,
+                      ImmutableList.of(Change.ofJsonUpsert("/a.json", "{ \"a\": 2 }")), false).join();
+        final List<ReplayCommit> payload = sourceMgr.buildRecoveryPayload(REPO, new Revision(2),
+                                                                         new Revision(3));
+
+        // The replica holds the wrong content at r2 and the source's content at r3, so its head tree
+        // matches the source's while its history does not.
+        final GitRepositoryManager replicaMgr = newRepositoryManager(new File(tempDir.toFile(), "replica"));
+        final GitRepository replica = (GitRepository) replicaMgr.create(REPO, Author.SYSTEM);
+        replica.commit(new Revision(1), 2000L, Author.SYSTEM, "a=99", "", Markup.PLAINTEXT,
+                       ImmutableList.of(Change.ofJsonUpsert("/a.json", "{ \"a\": 99 }")), false).join();
+        replica.commit(new Revision(2), 3000L, Author.SYSTEM, "a=2", "", Markup.PLAINTEXT,
+                       ImmutableList.of(Change.ofJsonUpsert("/a.json", "{ \"a\": 2 }")), false).join();
+        assertThat(replica.getOrNull(new Revision(3), "/a.json").join().contentAsText())
+                .isEqualTo(source.getOrNull(new Revision(3), "/a.json").join().contentAsText());
+
+        assertThat(replicaMgr.recoverRepository(REPO, new Revision(1), payload)).isTrue();
+
+        assertThat(replica.getOrNull(new Revision(2), "/a.json").join().contentAsText())
+                .isEqualTo(source.getOrNull(new Revision(2), "/a.json").join().contentAsText());
+    }
+
     private static void pushMixedRevisions(GitRepository repo) {
         repo.commit(new Revision(1), 2000L, Author.SYSTEM, "add f", "detail2", Markup.PLAINTEXT,
                     ImmutableList.of(Change.ofTextUpsert("/f.txt", "v2")), false).join();

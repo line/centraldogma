@@ -78,7 +78,7 @@ class RecoverRepositoryCommandTest {
                 "      \"type\": \"REMOVE\"," +
                 "      \"path\": \"/old.txt\"" +
                 "    }]," +
-                "    \"expectedCommitId\": \"1111111111111111111111111111111111111111\"" +
+                "    \"expectedTreeId\": \"1111111111111111111111111111111111111111\"" +
                 "  }, {" +
                 "    \"revision\": 4," +
                 "    \"timestampMillis\": 6789," +
@@ -94,7 +94,7 @@ class RecoverRepositoryCommandTest {
                 "      \"path\": \"/memo.txt\"," +
                 "      \"content\": \"v4\"" +
                 "    }]," +
-                "    \"expectedCommitId\": \"0123456789012345678901234567890123456789\"" +
+                "    \"expectedTreeId\": \"0123456789012345678901234567890123456789\"" +
                 "  }]" +
                 '}');
     }

@@ -492,7 +492,6 @@ public class CentralDogma implements AutoCloseable {
                                            meterRegistry, cfg.repositoryCacheSpec(), encryptionStorageManager,
                                            trustedHostKeys);
 
-            // Before the command executor and the annotated services, which both take it.
             recoveryPayloadBuilder = new RecoveryPayloadBuilder(pm);
 
             logger.info("Started the project manager: {}", pm);

@@ -17,32 +17,47 @@
 import {
   Alert,
   AlertIcon,
+  Badge,
   Box,
   Button,
+  ButtonGroup,
   Code,
   Flex,
   FormControl,
   FormHelperText,
   FormLabel,
   Heading,
+  Icon,
   NumberDecrementStepper,
   NumberIncrementStepper,
   NumberInput,
   NumberInputField,
   NumberInputStepper,
+  Spacer,
+  Table,
+  TableContainer,
+  Tbody,
+  Td,
   Text,
+  Th,
+  Thead,
+  Tr,
   useClipboard,
   useColorMode,
   useDisclosure,
 } from '@chakra-ui/react';
+import { ChakraLink } from 'dogma/common/components/ChakraLink';
+import { MdOpenInNew } from 'react-icons/md';
 import { OptionBase, Select } from 'chakra-react-select';
+import { format } from 'date-fns';
 import Prism from 'prismjs';
 import 'prismjs/components/prism-bash';
 import 'prismjs/themes/prism.css';
-import { useEffect, useState } from 'react';
+import { ReactNode, useEffect, useState } from 'react';
 import {
   useGetProjectsQuery,
   useGetReplicasQuery,
+  useGetHistoryQuery,
   useGetReposQuery,
   useRecoverRepositoryMutation,
 } from 'dogma/features/api/apiSlice';
@@ -69,6 +84,8 @@ interface RecoveryResult {
   projectName: string;
   repoName: string;
   sourceServerId: number;
+  // The revision asked for, which the REQUESTED response does not echo back.
+  toRevision: number;
   response: RecoverRepositoryResponse;
 }
 
@@ -96,60 +113,125 @@ export function conciseErrorMessage(error: unknown): string {
  * only reported in the source replica's log, so this is how an administrator confirms convergence before
  * making the repository writable again.
  *
- * <p>It compares the head *commit ID*, not the revision: diverged replicas of the same repository always
- * report the same revision, so a revision alone can never tell them apart.
+ * <p>It compares the head *tree ID*, not the revision and not the commit ID: diverged replicas always
+ * report the same revision, and replicas of a metadata repository report different commit IDs even when
+ * their content is identical, because they wrote their early commits locally.
  *
  * <p>Over HTTPS each curl adds {@code -k}: it reaches a replica by its own host name, which a
  * certificate issued for the load balancer's name does not cover.
  */
 export function buildVerificationScript(result: RecoveryResult, replicas: ReplicaInfo[]): string {
-  const { projectName, repoName, sourceServerId } = result;
+  const { projectName, repoName, sourceServerId, toRevision } = result;
   const origin = process.env.NEXT_PUBLIC_HOST || window.location.origin;
   const url = new URL(origin);
   const https = url.protocol === 'https:';
   // The roster carries no port, so every address is seeded from the URL this page was served on and the
-  // operator corrects the rest. When that collapses two replicas onto one address, the script would poll the
+  // operator corrects the rest. When that collapses two replicas onto one address, the check would poll the
   // same server twice and report a convergence it never checked, so say so rather than let it read as a pass.
   const port = url.port || (https ? '443' : '36462');
-  const entries = replicas.map((replica) => `${replica.serverId}=${replica.host}:${port}`);
   const collided = new Set(replicas.map((replica) => replica.host)).size < replicas.length;
+  // One call per replica, spelled out: a loop over a variable would poll the whole list as a single address
+  // in zsh, which does not split an unquoted expansion into words. The dogma CLI has no command for this -
+  // its commit type carries no commit ID - so the head endpoint is called directly.
   return [
     "CD_TOKEN='<paste a system administrator token>'",
-    `# Address of each replica, as serverId=host:port. Server ${sourceServerId} is the source.`,
+    `TO_REVISION=${toRevision}  # the new head this recovery asked for`,
+    // Both are reset here so that re-running this in the same shell - which is how an operator waits for
+    // the replicas to converge - does not compare against the previous run's leftovers.
+    "SEEN=''",
+    "SOURCE_TREE=''",
+    '',
+    `# Every replica of ${projectName}/${repoName} must report "reset ok" and the same treeId, which is`,
+    '# the fingerprint of the content alone. The revision proves nothing - a diverged replica reports the',
+    '# same revision as the source - and neither does the commitId, which differs between replicas of a',
+    '# metadata repository even when their content is identical.',
+    '# REQUEST FAILED is not a pass either: that replica was never reached, and a failed recovery is',
+    `# logged only on the source (server ${sourceServerId}).`,
+    'head_of() {',
+    '  case " $SEEN " in',
+    '    *" $2 "*)',
+    '      printf "server %s  %s  DUPLICATE ADDRESS - fix its port and re-run\\n" "$1" "$2"',
+    '      return ;;',
+    '  esac',
+    '  SEEN="$SEEN $2"',
+    `  head=$(curl -sf${https ? 'k' : ''} -m 10 -H "Authorization: Bearer $CD_TOKEN" \\`,
+    `    "${url.protocol}//$2/api/v1/projects/${projectName}/repos/${repoName}/head" | tr -d " ")`,
+    '  # -f prints nothing when the request is rejected, and the pipe hides the exit status of curl.',
+    '  if [ -z "$head" ]; then',
+    '    printf "server %s  %s  REQUEST FAILED\\n" "$1" "$2"',
+    '    return',
+    '  fi',
+    '  case "$head" in',
+    '    *"\\"revision\\":$TO_REVISION,"*) reset="reset ok" ;;',
+    '    *) reset="NOT r$TO_REVISION" ;;',
+    '  esac',
+    '  tree=${head##*\'"treeId":"\'}',
+    "  tree=${tree%%'\"'*}",
+    '  [ -n "$SOURCE_TREE" ] || SOURCE_TREE=$tree',
+    '  if [ "$tree" = "$SOURCE_TREE" ]; then',
+    '    same="same tree"',
+    '  else',
+    '    same="DIFFERENT TREE"',
+    '  fi',
+    '  printf "server %s  %s  %-9s %-14s %s\\n" "$1" "$2" "$reset" "$same" "$head"',
+    '}',
     ...(collided
       ? [
-          '# WARNING: replicas share a host, so they were all given the same port and some entries below',
-          '# now point at the SAME server. Give each its own port first, or this check will poll one',
-          '# replica twice and wrongly look converged.',
+          '# WARNING: replicas share a host, so they were all given the same port and some lines below now',
+          '#          point at the SAME server. Give each its own port first, or this polls one replica',
+          '#          twice and wrongly looks converged.',
         ]
       : ['# The roster carries no port, so the ports are a guess. Correct any that differs.']),
-    `REPLICAS='${entries.join(' ')}'`,
-    '',
-    `# Every replica of ${projectName}/${repoName} must report the same head commit ID as the source.`,
-    '# The revision proves nothing: diverged replicas report the same revision.',
-    'for replica in $REPLICAS; do',
-    '  id="${replica%%=*}"; addr="${replica#*=}"',
-    `  commit=$(curl -sf${https ? 'k' : ''} -m 10 -H "Authorization: Bearer $CD_TOKEN" \\`,
-    `    "${url.protocol}//$addr/api/v1/projects/${projectName}/repos/${repoName}/head" \\`,
-    "    | jq -r '.commitId // empty')",
-    '  echo "server $id  $addr  ${commit:-REQUEST FAILED}"',
-    'done',
-    "dupes=$(printf '%s\\n' $REPLICAS | cut -d= -f2 | sort | uniq -d)",
-    '[ -z "$dupes" ] || echo "WARNING: polled twice, so this proves nothing: $dupes"',
-    '',
-    '# Converged only if every line shows the same commit ID. REQUEST FAILED is not a pass: that replica',
-    `# was not reached. A failed recovery is reported only in the log of the source (server ${sourceServerId}).`,
+    ...[...replicas]
+      .sort((a, b) => Number(b.serverId === sourceServerId) - Number(a.serverId === sourceServerId))
+      .map(
+        (replica) =>
+          `head_of ${replica.serverId} ${replica.host}:${port}` +
+          (replica.serverId === sourceServerId ? '  # source, polled first' : ''),
+      ),
   ].join('\n');
 }
 
+const StepNumber = ({ children }: { children: ReactNode }) => (
+  <Flex
+    align="center"
+    justify="center"
+    flexShrink={0}
+    minW="6"
+    h="6"
+    borderRadius="full"
+    bg="blue.500"
+    color="white"
+    fontSize="sm"
+    fontWeight="bold"
+  >
+    {children}
+  </Flex>
+);
+
 const RecoverRepositoryForm = () => {
   const { colorMode } = useColorMode();
+  const replayedRowBg = colorMode === 'light' ? 'blue.50' : 'blue.900';
+  const linkColor = colorMode === 'light' ? 'blue.600' : 'blue.300';
+  // Green, as on the status badge that the operator is being sent to flip.
+  const writableColor = colorMode === 'light' ? 'green.600' : 'green.300';
   const { isOpen, onOpen, onClose } = useDisclosure();
   const dispatch = useAppDispatch();
 
   const [project, setProject] = useState<Option | null>(null);
   const [repo, setRepo] = useState<Option | null>(null);
   const [source, setSource] = useState<SourceOption | null>(null);
+  const { data: history, isFetching: historyFetching } = useGetHistoryQuery(
+    {
+      projectName: project?.value ?? '',
+      repoName: repo?.value ?? '',
+      revision: 'head',
+      filePath: '/**',
+      to: 1,
+      maxCommits: 10,
+    },
+    { skip: project == null || repo == null },
+  );
   const [fromRevision, setFromRevision] = useState(2);
   const [toRevision, setToRevision] = useState(2);
   // Inline feedback, so the outcome stays visible even after the transient toast is gone.
@@ -165,19 +247,28 @@ const RecoverRepositoryForm = () => {
   const [recoverRepository, { isLoading: submitting }] = useRecoverRepositoryMutation();
 
   const projectOptions: Option[] = projects.map((p: ProjectDto) => ({ value: p.name, label: p.name }));
-  const repoOptions: Option[] = repos
-    // Internal repositories cannot be recovered: their content is written by content transformers
-    // without text normalization, so a replay cannot reproduce it byte-identically.
-    .filter((r: RepoDto) => r.name !== 'meta' && r.name !== 'dogma')
-    .map((r: RepoDto) => ({ value: r.name, label: r.name }));
+  const repoOptions: Option[] = repos.map((r: RepoDto) => ({ value: r.name, label: r.name }));
+  const selectedRepo = repos.find((r: RepoDto) => r.name === repo?.value);
   const sourceOptions: SourceOption[] = replicas.map((replica: ReplicaInfo) => ({
     value: replica.serverId,
     label: `Server ${replica.serverId} — ${replica.host}${replica.current ? ' (this server)' : ''}`,
     host: replica.host,
   }));
 
+  const readOnly = selectedRepo?.status === 'READ_ONLY';
+  const rangeError =
+    fromRevision < 2
+      ? 'From revision must be at least 2: revision 1 creates the repository and carries no change.'
+      : toRevision < fromRevision
+        ? 'To revision must be at or after From revision.'
+        : null;
   const complete =
-    project != null && repo != null && source != null && fromRevision >= 2 && toRevision >= fromRevision;
+    project != null &&
+    repo != null &&
+    source != null &&
+    readOnly &&
+    fromRevision >= 2 &&
+    toRevision >= fromRevision;
 
   // Neither outcome means the cluster converged: the replicas other than the source apply the recovery
   // when they replay it. So the verification script belongs to both.
@@ -187,9 +278,7 @@ const RecoverRepositoryForm = () => {
   useEffect(() => setClipboardValue(verificationScript), [verificationScript, setClipboardValue]);
 
   const handleOpen = () => {
-    // Clear the previous attempt's feedback so a stale banner cannot describe a different target.
     setErrorMessage(null);
-    setLastResult(null);
     onOpen();
   };
 
@@ -209,12 +298,13 @@ const RecoverRepositoryForm = () => {
         projectName: project.value,
         repoName: repo.value,
         sourceServerId: source.value,
+        toRevision,
         response,
       });
       dispatch(
         newNotification(
           response.status === 'RECOVERING' ? 'Recovery originated' : 'Recovery requested',
-          `Confirm every replica reports the source's head commit with the script below before making ` +
+          `Confirm every replica reports the source's head tree with the script below before making ` +
             `${project.value}/${repo.value} writable.`,
           'success',
         ),
@@ -258,10 +348,7 @@ const RecoverRepositoryForm = () => {
         Recover a repository from a source replica
       </Heading>
       <Text fontSize="sm" color="gray.500" mb="4">
-        Designates one replica&apos;s repository as the source of truth: every replica, the source included,
-        resets to just before the from revision and replays the source&apos;s commits through the to revision,
-        which becomes the new head everywhere. The repository must be read-only first and stays read-only
-        afterwards, until you make it writable on the Repository Status page.
+        Makes every replica, the source included, match the source&apos;s history.
       </Text>
       {/* The fields wrap on a narrow viewport, so the action lives on its own row and never ends up
           floating in the middle of a wrapped one. */}
@@ -276,6 +363,8 @@ const RecoverRepositoryForm = () => {
             onChange={(option: Option | null) => {
               setProject(option);
               setRepo(null);
+              setFromRevision(2);
+              setToRevision(2);
             }}
             isLoading={projectsLoading}
             isClearable
@@ -291,7 +380,11 @@ const RecoverRepositoryForm = () => {
             name="recovery-repo"
             options={repoOptions}
             value={repo}
-            onChange={(option: Option | null) => setRepo(option)}
+            onChange={(option: Option | null) => {
+              setRepo(option);
+              setFromRevision(2);
+              setToRevision(2);
+            }}
             isLoading={reposFetching}
             isDisabled={!project}
             isClearable
@@ -299,6 +392,7 @@ const RecoverRepositoryForm = () => {
             placeholder="Select repository..."
             chakraStyles={controlStyles}
           />
+          <FormHelperText>Encrypted repositories cannot be recovered.</FormHelperText>
         </FormControl>
         <FormControl maxW="sm">
           <FormLabel>Source server (kept as-is)</FormLabel>
@@ -313,7 +407,7 @@ const RecoverRepositoryForm = () => {
             chakraStyles={controlStyles}
           />
         </FormControl>
-        <FormControl maxW="2xs">
+        <FormControl maxW="xs">
           <FormLabel>From revision</FormLabel>
           <NumberInput
             min={2}
@@ -328,7 +422,7 @@ const RecoverRepositoryForm = () => {
           </NumberInput>
           <FormHelperText>First revision replayed from the source.</FormHelperText>
         </FormControl>
-        <FormControl maxW="2xs">
+        <FormControl maxW="xs">
           <FormLabel>To revision</FormLabel>
           <NumberInput
             min={2}
@@ -341,40 +435,111 @@ const RecoverRepositoryForm = () => {
               <NumberDecrementStepper />
             </NumberInputStepper>
           </NumberInput>
-          <FormHelperText>Becomes the new head on every replica.</FormHelperText>
+          <FormHelperText>Last one replayed; becomes the new head everywhere.</FormHelperText>
         </FormControl>
       </Flex>
-      <Alert status="info" borderRadius="md" fontSize="sm" mt="4">
-        <AlertIcon />
-        The repository must be read-only before recovery, so no new commit can be written while it runs.
-        Encrypted and internal repositories are not supported.
-      </Alert>
-      <Flex mt="4">
+      {selectedRepo && (
+        <Box mt="4">
+          <Flex align="center" gap={2} mb="2">
+            <Text fontSize="sm" fontWeight="semibold">
+              {project?.value}/{selectedRepo.name}
+            </Text>
+            <Badge colorScheme={selectedRepo.status === 'READ_ONLY' ? 'orange' : 'green'}>
+              {selectedRepo.status}
+            </Badge>
+          </Flex>
+          <TableContainer>
+            <Table size="sm" variant="simple">
+              <Thead>
+                <Tr>
+                  <Th isNumeric>Revision</Th>
+                  <Th>Summary</Th>
+                  <Th>Author</Th>
+                  <Th>Pushed at</Th>
+                  <Th>Range</Th>
+                </Tr>
+              </Thead>
+              <Tbody>
+                {(history ?? []).map((commit) => {
+                  const replayed = commit.revision >= fromRevision && commit.revision <= toRevision;
+                  return (
+                    <Tr key={commit.revision} bg={replayed ? replayedRowBg : undefined}>
+                      <Td isNumeric fontFamily="mono">
+                        {commit.revision}
+                      </Td>
+                      <Td>{commit.commitMessage.summary}</Td>
+                      <Td>{commit.author.name}</Td>
+                      <Td fontFamily="mono" whiteSpace="nowrap">
+                        {format(new Date(commit.pushedAt), 'yyyy-MM-dd HH:mm:ss')}
+                      </Td>
+                      <Td>
+                        <ButtonGroup size="xs" isAttached variant="outline">
+                          <Button onClick={() => setFromRevision(commit.revision)}>From</Button>
+                          <Button onClick={() => setToRevision(commit.revision)}>To</Button>
+                        </ButtonGroup>
+                      </Td>
+                    </Tr>
+                  );
+                })}
+              </Tbody>
+            </Table>
+          </TableContainer>
+          <Text fontSize="xs" color="gray.500" mt="1">
+            {historyFetching
+              ? 'Loading the recent revisions…'
+              : 'The ten most recent revisions; the highlighted ones are replayed.'}
+          </Text>
+        </Box>
+      )}
+      <Flex mt="4" gap="3" align="center" wrap="wrap">
         <Button colorScheme="red" onClick={handleOpen} isDisabled={!complete}>
           Recover
         </Button>
+        {rangeError && (
+          <Alert status="warning" borderRadius="md" fontSize="sm" py="2" w="auto">
+            <AlertIcon />
+            <Text>Recover is disabled: {rangeError}</Text>
+          </Alert>
+        )}
+        {selectedRepo && selectedRepo.status !== 'READ_ONLY' && (
+          <Alert status="warning" borderRadius="md" fontSize="sm" py="2" w="auto">
+            <AlertIcon />
+            <Text>
+              Recover is disabled while this repository is writable. Make it read-only on the{' '}
+              <ChakraLink
+                href="/app/settings/repo-status"
+                isExternal
+                color={linkColor}
+                fontWeight="semibold"
+                textDecoration="underline"
+              >
+                Repository Status
+                <Icon as={MdOpenInNew} boxSize={3} ml="1" verticalAlign="baseline" />
+              </ChakraLink>{' '}
+              page.
+            </Text>
+          </Alert>
+        )}
       </Flex>
       {lastResult && (
-        <Alert status="success" borderRadius="md" fontSize="sm" mt="4">
-          <AlertIcon />
-          {lastResult.response.status === 'RECOVERING'
-            ? `Server ${lastResult.sourceServerId} originated the recovery of ` +
-              `${lastResult.projectName}/${lastResult.repoName} at revision ` +
-              `${lastResult.response.toRevision}. The other replicas apply it asynchronously when they ` +
-              'replay it, so the cluster has not converged yet.'
-            : `Server ${lastResult.sourceServerId} was asked to originate the recovery of ` +
-              `${lastResult.projectName}/${lastResult.repoName} asynchronously (best effort); a failure ` +
-              "is only reported in that replica's log."}{' '}
-          Confirm every replica reports the source&apos;s head commit with the script below, then make the
-          repository writable on the Repository Status page.
-        </Alert>
-      )}
-      {lastResult && (
-        <Box mt="2">
-          <Flex justify="space-between" align="center" mb="1">
-            <Text fontSize="sm" fontWeight="bold">
-              Check the head commit of every replica:
+        <Box mt="4" borderWidth="1px" borderRadius="md" p="4">
+          <Alert status="success" borderRadius="md" fontSize="sm" mb="4">
+            <AlertIcon />
+            {lastResult.response.status === 'RECOVERING'
+              ? `Server ${lastResult.sourceServerId} originated the recovery of ` +
+                `${lastResult.projectName}/${lastResult.repoName} at revision ` +
+                `${lastResult.toRevision}. The other replicas apply it asynchronously when they ` +
+                'replay it, so the cluster has not converged yet.'
+              : `Server ${lastResult.sourceServerId} was asked to originate the recovery of ` +
+                `${lastResult.projectName}/${lastResult.repoName} asynchronously (best effort); a failure ` +
+                "is only reported in that replica's log."}
+          </Alert>
+          <Flex align="center" gap="2" mb="2">
+            <StepNumber>1</StepNumber>
+            <Text fontSize="md" fontWeight="bold">
+              Confirm the reset landed on every replica
             </Text>
+            <Spacer />
             <Button size="xs" onClick={onCopy}>
               {hasCopied ? 'Copied' : 'Copy'}
             </Button>
@@ -393,6 +558,27 @@ const RecoverRepositoryForm = () => {
               __html: Prism.highlight(verificationScript, Prism.languages.bash, 'bash'),
             }}
           />
+          <Flex align="center" gap="2" mt="4">
+            <StepNumber>2</StepNumber>
+            <Text fontSize="md" fontWeight="bold">
+              Only once they all match, make {lastResult.projectName}/{lastResult.repoName}{' '}
+              <Text as="span" color={writableColor}>
+                writable
+              </Text>{' '}
+              again on the{' '}
+              <ChakraLink
+                href="/app/settings/repo-status"
+                isExternal
+                color={linkColor}
+                fontWeight="bold"
+                textDecoration="underline"
+              >
+                Repository Status
+                <Icon as={MdOpenInNew} boxSize={3} ml="1" verticalAlign="baseline" />
+              </ChakraLink>{' '}
+              page
+            </Text>
+          </Flex>
         </Box>
       )}
       {complete && (

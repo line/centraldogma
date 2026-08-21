@@ -61,6 +61,8 @@ import com.linecorp.centraldogma.server.management.ServerStatus;
 import com.linecorp.centraldogma.server.plugin.Plugin;
 import com.linecorp.centraldogma.server.plugin.PluginContext;
 import com.linecorp.centraldogma.server.plugin.PluginTarget;
+import com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer;
+import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.testing.internal.CentralDogmaReplicationExtension;
 
 /**
@@ -216,19 +218,57 @@ class ZooKeeperRepositoryRecoveryIntegrationTest {
     }
 
     @Test
-    void recoverRejectedForInternalRepository() {
-        // Internal repository content is written by content transformers, so it cannot be reproduced
-        // byte-identically by a replay.
+    void recoverRejectedForTheInternalProject() {
+        // Its repository status cannot be made read-only, so the recovery precondition is unreachable.
         final AggregatedHttpResponse response =
                 adminClientOf(SOURCE_SERVER_ID)
                         .prepare()
                         .post("/api/v1/projects/{project}/repos/{repo}/recover")
-                        .pathParam("project", testProject)
-                        .pathParam("repo", "dogma")
+                        .pathParam("project", InternalProjectInitializer.INTERNAL_PROJECT_DOGMA)
+                        .pathParam("repo", Project.REPO_DOGMA)
                         .contentJson(new RecoverRepositoryRequest(2, 3, SOURCE_SERVER_ID))
                         .execute();
         assertThat(response.status()).isEqualTo(HttpStatus.FORBIDDEN);
-        assertThat(response.contentUtf8()).contains("internal repository");
+        assertThat(response.contentUtf8()).contains("internal project");
+    }
+
+    /**
+     * A metadata repository writes its early commits locally on each replica, so its replicas never held
+     * the same commit IDs even while holding identical content. Recovery is therefore verified by tree ID,
+     * and this pins that a metadata repository can be recovered at all.
+     */
+    @Test
+    void recoverInternalRepository() {
+        final BlockingWebClient admin = adminClientOf(SOURCE_SERVER_ID);
+        // A status on the dogma repository is the project-wide one, so this freezes the whole project.
+        final AggregatedHttpResponse readOnly =
+                admin.prepare()
+                     .put("/api/v1/projects/{project}/repos/{repo}/status")
+                     .pathParam("project", testProject)
+                     .pathParam("repo", Project.REPO_DOGMA)
+                     .contentJson(new UpdateRepositoryStatusRequest(ReplicationStatus.READ_ONLY))
+                     .execute();
+        assertThat(readOnly.status()).isEqualTo(HttpStatus.OK);
+
+        final Revision head = headOn(SOURCE_SERVER_ID, Project.REPO_DOGMA);
+        assertThat(head.major()).isGreaterThan(1);
+        final AggregatedHttpResponse response =
+                admin.prepare()
+                     .post("/api/v1/projects/{project}/repos/{repo}/recover")
+                     .pathParam("project", testProject)
+                     .pathParam("repo", Project.REPO_DOGMA)
+                     .contentJson(new RecoverRepositoryRequest(head.major(), head.major(), SOURCE_SERVER_ID))
+                     .execute();
+        assertThat(response.status()).isEqualTo(HttpStatus.OK);
+
+        for (int serverId = 1; serverId <= 3; serverId++) {
+            final int id = serverId;
+            await().ignoreExceptions().untilAsserted(() -> {
+                assertThat(headOn(id, Project.REPO_DOGMA)).isEqualTo(head);
+                assertThat(headTreeIdOn(id, Project.REPO_DOGMA))
+                        .isEqualTo(headTreeIdOn(SOURCE_SERVER_ID, Project.REPO_DOGMA));
+            });
+        }
     }
 
     /**
@@ -329,27 +369,49 @@ class ZooKeeperRepositoryRecoveryIntegrationTest {
      * holds a different commit at the same revision, so this is the only value that distinguishes them.
      */
     private String headCommitIdOn(int serverId) {
+        return headCommitIdOn(serverId, TEST_REPO);
+    }
+
+    private String headCommitIdOn(int serverId, String repoName) {
+        return headOf(serverId, repoName).get("commitId").asText();
+    }
+
+    private String headTreeIdOn(int serverId, String repoName) {
+        return headOf(serverId, repoName).get("treeId").asText();
+    }
+
+    private Revision headOn(int serverId, String repoName) {
+        return new Revision(headOf(serverId, repoName).get("revision").asInt());
+    }
+
+    private JsonNode headOf(int serverId, String repoName) {
         final ResponseEntity<JsonNode> response =
                 adminClientOf(serverId)
                         .prepare()
                         .get("/api/v1/projects/{project}/repos/{repo}/head")
                         .pathParam("project", testProject)
-                        .pathParam("repo", TEST_REPO)
+                        .pathParam("repo", repoName)
                         .asJson(JsonNode.class)
                         .execute();
         assertThat(response.status()).isEqualTo(HttpStatus.OK);
-        return response.content().get("commitId").asText();
+        return response.content();
     }
 
     @Test
     void headEndpointDistinguishesADivergedReplica() {
         driveRepoIntoDivergedReadOnly();
 
+        final JsonNode head = headOf(SOURCE_SERVER_ID, TEST_REPO);
+        assertThat(head.fieldNames()).toIterable().containsExactlyInAnyOrder("revision", "commitId",
+                                                                            "treeId");
+
         // Same head revision on both replicas...
         assertThat(toRevisionOn(DIVERGED_SERVER_ID)).isEqualTo(toRevisionOn(SOURCE_SERVER_ID));
-        // ...but a different commit, which is exactly what makes the revision alone useless for
-        // verifying a recovery.
+        // ...but different content, which is exactly what makes the revision alone useless for verifying a
+        // recovery.
         assertThat(headCommitIdOn(DIVERGED_SERVER_ID)).isNotEqualTo(headCommitIdOn(SOURCE_SERVER_ID));
+        assertThat(headTreeIdOn(DIVERGED_SERVER_ID, TEST_REPO))
+                .isNotEqualTo(headTreeIdOn(SOURCE_SERVER_ID, TEST_REPO));
 
         recover(adminClientOf(SOURCE_SERVER_ID), new RecoverRepositoryRequest(3, 3, SOURCE_SERVER_ID));
         await().ignoreExceptions().untilAsserted(() -> assertThat(headCommitIdOn(DIVERGED_SERVER_ID))

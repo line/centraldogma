@@ -37,10 +37,12 @@ import com.linecorp.centraldogma.common.Revision;
  * source replica (the single source of truth) and applied identically on every replica, itself included: a
  * replica already converged with {@link #commits()} is left untouched, and every other one resets its git
  * repository and commit-id database to {@link #resetToRevision()} and replays {@link #commits()} up to
- * {@link #toRevision()}. Because the replayed commits carry the original author, timestamp and
- * self-contained changes, a replay reproduces the source's commit ids; each one is verified against
- * {@link ReplayCommit#expectedCommitId()}, and a mismatch aborts the recovery, leaving that replica with
- * a partial history until it is recovered again.
+ * {@link #toRevision()}. Because the changes are self-contained, a replay reproduces the source's content;
+ * the tree of each replayed commit is verified against {@link ReplayCommit#expectedTreeId()}, and a
+ * mismatch aborts the recovery, leaving that replica with a partial history until it is recovered again.
+ * The commit id is deliberately not what is verified: it covers the parent and the timestamp too, and a
+ * metadata repository writes its early commits locally on each replica, so replicas holding identical
+ * content still report different commit ids.
  *
  * <p>The convergence check is by content, not by replica, so the source replays over itself whenever it
  * holds commits the payload does not: a {@link #toRevision()} below its head discards them by design, and

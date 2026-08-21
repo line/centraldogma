@@ -293,7 +293,13 @@ class GitRepository implements Repository {
             // A recovery force-moves master and rebuilds the commit-id database of the directory this
             // instance is open on, so the pair is only coherent under the read lock.
             final Revision headRevision = this.headRevision;
-            return new RepositoryHead(headRevision, commitIdDatabase.get(headRevision).name());
+            final ObjectId commitId = commitIdDatabase.get(headRevision);
+            try (RevWalk revWalk = newRevWalk()) {
+                return new RepositoryHead(headRevision, commitId.name(),
+                                          revWalk.parseCommit(commitId).getTree().getId().name());
+            } catch (IOException e) {
+                throw new StorageException("failed to read the tree of " + commitId.name(), e);
+            }
         } finally {
             readUnlock();
         }
@@ -972,33 +978,6 @@ class GitRepository implements Repository {
                 break;
             default:
                 throw new StorageException("unexpected refUpdate state: " + res);
-        }
-    }
-
-    /**
-     * Force-updates {@code ref} to {@code commitId}, allowing a non-fast-forward (backward) move. Used by
-     * repository recovery to reset {@code refs/heads/master} to an earlier revision.
-     */
-    static void doForceRefUpdate(org.eclipse.jgit.lib.Repository jGitRepository, RevWalk revWalk,
-                                 String ref, ObjectId commitId) throws IOException {
-        if (ref.startsWith(Constants.R_TAGS)) {
-            throw new StorageException("Using a tag is not allowed. ref: " + ref);
-        }
-
-        final RefUpdate refUpdate = jGitRepository.updateRef(ref);
-        refUpdate.setNewObjectId(commitId);
-        refUpdate.setForceUpdate(true);
-
-        final Result res = refUpdate.update(revWalk);
-        switch (res) {
-            case NEW:
-            case FAST_FORWARD:
-            case FORCED:
-            case NO_CHANGE:
-                // Expected
-                break;
-            default:
-                throw new StorageException("unexpected forced refUpdate state: " + res);
         }
     }
 

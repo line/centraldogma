@@ -25,6 +25,8 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import org.eclipse.jgit.lib.ObjectId;
+import org.eclipse.jgit.lib.RefUpdate;
+import org.eclipse.jgit.lib.RefUpdate.Result;
 import org.eclipse.jgit.revwalk.RevWalk;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -92,12 +94,12 @@ final class RepositoryRecovery {
                     throw new StorageException("unexpected replayed revision: " + result.revision() +
                                                " (expected: " + revision + ')');
                 }
-                final String expectedCommitId = commit.expectedCommitId();
-                final String actualCommitId = commitIdDatabase.get(revision).name();
-                if (!expectedCommitId.equals(actualCommitId)) {
+                final String expectedTreeId = commit.expectedTreeId();
+                final String actualTreeId = treeIdOf(repo, commitIdDatabase.get(revision));
+                if (!expectedTreeId.equals(actualTreeId)) {
                     throw new StorageException(
-                            "commit id mismatch while recovering '" + repoPath + "' at " + revision +
-                            " (expected: " + expectedCommitId + ", actual: " + actualCommitId +
+                            "tree id mismatch while recovering '" + repoPath + "' at " + revision +
+                            " (expected: " + expectedTreeId + ", actual: " + actualTreeId +
                             "). Revisions up to " + resetToRevision + " may have diverged, or the content " +
                             "is not reproducible byte-identically (e.g. written by a content " +
                             "transformer). The recovery stopped here, leaving a partial history.");
@@ -109,16 +111,15 @@ final class RepositoryRecovery {
             // recovers it again.
             logger.error("Failed to recover the repository '{}' (reset to {}). It holds a partial history " +
                          "and must be recovered again.", repoPath, resetToRevision, t);
-            throw new StorageException("failed to recover the repository '" + repoPath + "' (reset to " +
-                                       resetToRevision + ')', t);
+            throw new StorageException(
+                    "failed to recover the repository '" + repoPath + "' (reset to " + resetToRevision + ')',
+                    t);
         } finally {
             repo.writeUnLock();
-            // The watched revisions are gone whether or not the replay finished, so fail the watchers to
-            // make the clients ask again. That drops the listeners' watches too, and a listener has no
-            // client to ask for it, so watch again for them.
-            repo.commitWatchers.close(
-                    () -> new RepositoryRecoveryException(repoPath + " was rewritten by a recovery. " +
-                                                          "Watch again."));
+            // The watched revisions are gone whether or not the replay finished, so make the clients ask
+            // again. That drops the listeners' watches too, and a listener has no client to ask for it.
+            final String cause = repoPath + " was rewritten by a recovery. Watch again.";
+            repo.commitWatchers.close(() -> new RepositoryRecoveryException(cause));
             repo.rewatchListeners();
         }
 
@@ -129,7 +130,8 @@ final class RepositoryRecovery {
     }
 
     /**
-     * Returns the repository to recover. An encrypted one cannot reproduce the source's commit ids.
+     * Returns the repository to recover. An encrypted one holds its content under a per-replica key, so
+     * it cannot reproduce the source's trees.
      */
     private GitRepository fileRepository(String repositoryName) {
         final GitRepository repo = (GitRepository) manager.get(repositoryName);
@@ -142,6 +144,9 @@ final class RepositoryRecovery {
 
     /**
      * Returns whether the repository already holds the commits to replay, which makes recovery idempotent.
+     * Every revision in the range is compared, not only the head: a tree names the content of one revision
+     * and nothing before it, so a head that matches says nothing about the revisions under it - unlike a
+     * commit id, which hashes its parent transitively.
      */
     private static boolean isConverged(String repoPath, GitRepository repo,
                                        CommitIdDatabase commitIdDatabase, List<ReplayCommit> commits) {
@@ -150,13 +155,14 @@ final class RepositoryRecovery {
         if (!currentHead.equals(lastCommit.revision())) {
             return false;
         }
-        final ObjectId currentHeadCommitId = commitIdDatabase.get(currentHead);
-        final String expectedHeadCommitId = lastCommit.expectedCommitId();
-        if (currentHeadCommitId == null || !expectedHeadCommitId.equals(currentHeadCommitId.name())) {
-            return false;
+        for (ReplayCommit commit : commits) {
+            final ObjectId commitId = commitIdDatabase.get(commit.revision());
+            if (commitId == null || !commit.expectedTreeId().equals(treeIdOf(repo, commitId))) {
+                return false;
+            }
         }
-        logger.info("Repository '{}' is already converged at {} ({}); nothing to recover.",
-                    repoPath, currentHead, expectedHeadCommitId);
+        logger.info("Repository '{}' is already converged at {} (tree {}); nothing to recover.",
+                    repoPath, currentHead, lastCommit.expectedTreeId());
         return true;
     }
 
@@ -197,13 +203,37 @@ final class RepositoryRecovery {
     }
 
     /**
+     * Returns the ID of the tree a commit points at - the fingerprint of the content alone. A commit ID
+     * covers the parent and the timestamp as well, and a metadata repository writes its early commits
+     * locally on each replica, so replicas holding identical content still report different commit IDs.
+     */
+    private static String treeIdOf(GitRepository repo, ObjectId commitId) {
+        try (RevWalk revWalk = newRevWalk(repo.jGitRepository().newObjectReader())) {
+            return revWalk.parseCommit(commitId).getTree().getId().name();
+        } catch (IOException e) {
+            throw new StorageException("failed to read the tree of " + commitId.name(), e);
+        }
+    }
+
+    /**
      * Discards everything after {@code revision} in place, including whatever was cached from it.
      */
     private static void rewindTo(GitRepository repo, ObjectId commitId, Revision revision) {
         final org.eclipse.jgit.lib.Repository jGitRepository = repo.jGitRepository();
         try (RevWalk revWalk = newRevWalk(jGitRepository.newObjectReader())) {
-            // Drop every commit made after this one.
-            GitRepository.doForceRefUpdate(jGitRepository, revWalk, R_HEADS_MASTER, commitId);
+            final RefUpdate refUpdate = jGitRepository.updateRef(R_HEADS_MASTER);
+            refUpdate.setNewObjectId(commitId);
+            refUpdate.setForceUpdate(true);
+            final Result result = refUpdate.update(revWalk);
+            switch (result) {
+                case NEW:
+                case FAST_FORWARD:
+                case FORCED:
+                case NO_CHANGE:
+                    break;
+                default:
+                    throw new StorageException("unexpected forced refUpdate state: " + result);
+            }
         } catch (IOException e) {
             throw new StorageException("failed to move " + R_HEADS_MASTER + " back to " + commitId.name(), e);
         }
@@ -246,7 +276,7 @@ final class RepositoryRecovery {
                               DiffResultType.PATCH_TO_TEXT_UPSERT).join();
             commits.add(new ReplayCommit(revision, commit.when(), commit.author(), commit.summary(),
                                          commit.detail(), commit.markup(), changes.values(),
-                                         commitIdDatabase.get(revision).name()));
+                                         treeIdOf(repo, commitIdDatabase.get(revision))));
         }
         return commits.build();
     }

@@ -6,6 +6,7 @@ import RecoverRepositoryForm, {
   conciseErrorMessage,
 } from 'dogma/features/settings/recovery/RecoverRepositoryForm';
 import {
+  useGetHistoryQuery,
   useGetProjectsQuery,
   useGetReplicasQuery,
   useGetReposQuery,
@@ -14,6 +15,7 @@ import {
 
 jest.mock('dogma/features/api/apiSlice', () => ({
   ...jest.requireActual('dogma/features/api/apiSlice'),
+  useGetHistoryQuery: jest.fn(),
   useGetProjectsQuery: jest.fn(),
   useGetReposQuery: jest.fn(),
   useGetReplicasQuery: jest.fn(),
@@ -54,9 +56,23 @@ jest.mock('chakra-react-select', () => ({
 
 const recoverTrigger = jest.fn();
 
-const renderForm = () => {
+const renderForm = (repoStatus: 'READ_ONLY' | 'WRITABLE' = 'READ_ONLY') => {
   (useGetProjectsQuery as jest.Mock).mockReturnValue({ data: [{ name: 'foo' }], isLoading: false });
-  (useGetReposQuery as jest.Mock).mockReturnValue({ data: [{ name: 'bar' }], isFetching: false });
+  (useGetReposQuery as jest.Mock).mockReturnValue({
+    data: [{ name: 'bar', status: repoStatus }],
+    isFetching: false,
+  });
+  (useGetHistoryQuery as jest.Mock).mockReturnValue({
+    data: [
+      {
+        revision: 4,
+        author: { name: 'minwoox', email: 'minwoox@example.com' },
+        commitMessage: { summary: 'Update a.json', detail: '', markup: 'PLAINTEXT' },
+        pushedAt: '2026-08-19T05:00:00Z',
+      },
+    ],
+    isFetching: false,
+  });
   (useGetReplicasQuery as jest.Mock).mockReturnValue({
     data: [
       { serverId: 1, host: 'replica1.example.com', current: true },
@@ -82,6 +98,7 @@ describe('buildVerificationScript', () => {
     projectName: 'foo',
     repoName: 'bar',
     sourceServerId: 2,
+    toRevision: 4,
     response: { status: 'REQUESTED' as const },
   };
   const replicas = [
@@ -97,31 +114,42 @@ describe('buildVerificationScript', () => {
     process.env.NEXT_PUBLIC_HOST = 'https://dogma.example.com';
     const script = buildVerificationScript(result, replicas);
     // No explicit port: https defaults to 443.
-    expect(script).toContain("REPLICAS='1=replica1.example.com:443 2=replica2.example.com:443'");
+    expect(script).toContain('head_of 1 replica1.example.com:443');
+    expect(script).toContain('head_of 2 replica2.example.com:443  # source');
     expect(script).toContain('curl -sfk -m 10 -H "Authorization: Bearer $CD_TOKEN"');
-    expect(script).toContain('"https://$addr/api/v1/projects/foo/repos/bar/head"');
+    expect(script).toContain('"https://$2/api/v1/projects/foo/repos/bar/head"');
   });
 
   it('does not skip certificate verification over http', () => {
     process.env.NEXT_PUBLIC_HOST = 'http://dogma.example.com:36462';
     const script = buildVerificationScript(result, replicas);
-    expect(script).toContain("REPLICAS='1=replica1.example.com:36462 2=replica2.example.com:36462'");
+    expect(script).toContain('head_of 1 replica1.example.com:36462');
     expect(script).toContain('curl -sf -m 10 -H "Authorization: Bearer $CD_TOKEN"');
     expect(script).not.toContain('-sfk');
-    // A revision alone cannot detect a divergence, so the script must compare the commit ID.
-    expect(script).toContain('commitId');
+    // A revision alone cannot detect a divergence, so the script must compare the tree ID.
+    expect(script).toContain('treeId');
     expect(script).not.toContain('.revision');
+    // And the head must be checked against the revision the recovery asked for, not merely printed.
+    expect(script).toContain('TO_REVISION=4');
+    // Re-running in the same shell must not inherit the previous run's state.
+    expect(script).toContain("SEEN=''");
+    expect(script).toContain("SOURCE_TREE=''");
+    // The tree is compared, not merely printed: an operator must not have to eyeball 40 hex digits.
+    expect(script).toContain('SOURCE_TREE=$tree');
+    expect(script).toContain('same="DIFFERENT TREE"');
+    expect(script).toContain('*"\\"revision\\":$TO_REVISION,"*) reset="reset ok"');
   });
 
-  // A token is required, so an unauthenticated curl answers 401 with a body that has no commitId. Printing
-  // nothing there would read exactly like a converged replica, so the script must name the failure.
+  // A token is required, so an unauthenticated curl answers 401, which -f turns into no output at all.
+  // Printing nothing there would read exactly like a converged replica, so the script must name the
+  // failure.
   it('reports an unreachable replica instead of printing nothing', () => {
     process.env.NEXT_PUBLIC_HOST = 'http://dogma.example.com:36462';
     const script = buildVerificationScript(result, replicas);
     // -f makes curl exit non-zero (and print no body) on 4xx/5xx, and the fallback names it.
     expect(script).toContain('-sf');
-    expect(script).toContain('${commit:-REQUEST FAILED}');
-    expect(script).toContain('REQUEST FAILED is not a pass');
+    expect(script).toContain('REQUEST FAILED');
+    expect(script).toContain('REQUEST FAILED is not a pass either');
   });
 
   // The roster carries no port, so every address is seeded from the browser's. Two replicas behind one
@@ -134,18 +162,19 @@ describe('buildVerificationScript', () => {
     ];
     const script = buildVerificationScript(result, sameHost);
     expect(script).toContain('# WARNING: replicas share a host');
-    expect(script).toContain('wrongly look converged');
-    // And the script defends itself, in case the warning is skimmed past.
-    expect(script).toContain('sort | uniq -d');
-    expect(script).toContain('WARNING: polled twice, so this proves nothing');
+    expect(script).toContain('wrongly looks converged');
+    // And the script refuses to poll one address twice, in case the warning is skimmed past.
+    expect(script).toContain('DUPLICATE ADDRESS');
+    // The warning is the only guard left, so the colliding addresses must be visible under it.
+    expect(script).toContain('head_of 1 dogma.example.com:36462');
+    expect(script).toContain('head_of 2 dogma.example.com:36462  # source');
   });
 
   it('does not warn when every replica has its own address', () => {
     process.env.NEXT_PUBLIC_HOST = 'http://dogma.example.com:36462';
     const script = buildVerificationScript(result, replicas);
     expect(script).not.toContain('# WARNING: replicas share a host');
-    // The runtime guard is always emitted; it just stays silent when the addresses are distinct.
-    expect(script).toContain('sort | uniq -d');
+    expect(script).toContain('the ports are a guess');
   });
 
   // The placeholder is unquoted bash metacharacters, so an unquoted assignment is a syntax error the
@@ -222,6 +251,23 @@ describe('RecoverRepositoryForm', () => {
     });
   });
 
+  it('lists the recent revisions to pick the range from', async () => {
+    renderForm();
+    await fillForm();
+
+    expect(screen.getByText('Update a.json')).toBeInTheDocument();
+    expect(screen.getByText('4')).toBeInTheDocument();
+  });
+
+  // A recovery is rejected while the repository is writable, so say so before the operator tries.
+  it('blocks a recovery while the repository is writable, and says why', async () => {
+    renderForm('WRITABLE');
+    await fillForm();
+
+    expect(screen.getByText(/Make it read-only/)).toBeInTheDocument();
+    expect(recoverButton()).toBeDisabled();
+  });
+
   it('passes the edited revision range to the recovery', async () => {
     renderForm();
     await fillForm();
@@ -289,9 +335,9 @@ describe('RecoverRepositoryForm', () => {
     // the element's text rather than matching a single text node.
     const script = (await screen.findByTestId('recovery-verification-script')).textContent ?? '';
     expect(script).toContain("CD_TOKEN='<paste a system administrator token>'");
-    expect(script).toContain("REPLICAS='1=replica1.example.com:36462 2=replica2.example.com:36462'");
-    expect(script).toContain('"http://$addr/api/v1/projects/foo/repos/bar/head"');
-    expect(script).toContain('Server 2 is the source');
+    expect(script).toContain('head_of 1 replica1.example.com:36462');
+    expect(script).toContain('"http://$2/api/v1/projects/foo/repos/bar/head"');
+    expect(script).toContain('# source');
     expect(script).not.toContain('-sfk');
     expect(screen.getByRole('button', { name: /Copy/ })).toBeInTheDocument();
   });

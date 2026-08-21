@@ -18,7 +18,11 @@ import {
   Alert,
   AlertIcon,
   Button,
+  Box,
+  Badge,
   Code,
+  Flex,
+  Grid,
   FormControl,
   HStack,
   Input,
@@ -62,6 +66,7 @@ export const RecoveryConfirmModal = ({
   errorMessage,
 }: RecoveryConfirmModalProps): JSX.Element => {
   const target = `${projectName}/${repoName}`;
+  const single = fromRevision === toRevision;
 
   const [typed, setTyped] = useState('');
   const matched = typed === target;
@@ -79,36 +84,61 @@ export const RecoveryConfirmModal = ({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={handleClose} closeOnOverlayClick={!isLoading} closeOnEsc={!isLoading}>
+    <Modal
+      isOpen={isOpen}
+      onClose={handleClose}
+      closeOnOverlayClick={!isLoading}
+      closeOnEsc={!isLoading}
+      size="2xl"
+    >
       <ModalOverlay />
       <ModalContent>
-        <ModalHeader>Recover repository from a source replica</ModalHeader>
+        <ModalHeader fontSize="xl">Recover repository from a source replica</ModalHeader>
         <ModalCloseButton isDisabled={isLoading} />
         <ModalBody>
           <VStack align="stretch" spacing={3}>
-            <Text>
-              This rewrites{' '}
-              <Code fontWeight="bold" colorScheme="red">
-                {target}
-              </Code>{' '}
-              on every replica, using server {sourceServerId} (<Code>{sourceHost}</Code>) as the source: each
-              one is reset to revision {fromRevision - 1} and replays the source&apos;s commits {fromRevision}
-              through {toRevision}, which becomes the new head. Commits after {toRevision} are discarded on
-              every replica, the source included. Each replica applies this when it replays the recovery, so the
-              cluster converges asynchronously.
+            <Box borderWidth="1px" borderRadius="md" px={5} py={4}>
+              <Grid
+                templateColumns="max-content 1fr"
+                columnGap={6}
+                rowGap={3}
+                fontSize="md"
+                alignItems="center"
+              >
+                <Text fontWeight="semibold">Repository</Text>
+                <Text fontFamily="mono" fontWeight="bold">
+                  {target}
+                </Text>
+                <Text fontWeight="semibold">Source server</Text>
+                <Text fontFamily="mono">
+                  #{sourceServerId} ({sourceHost})
+                </Text>
+                <Text fontWeight="semibold">Replayed</Text>
+                <Flex align="center" gap={3}>
+                  <Text fontFamily="mono">
+                    {single ? `r${fromRevision}` : `r${fromRevision} - r${toRevision}`}
+                  </Text>
+                  <Badge colorScheme="blue" variant="subtle">
+                    {single ? '1 revision' : `${toRevision - fromRevision + 1} revisions`}
+                  </Badge>
+                </Flex>
+                <Text fontWeight="semibold">New head</Text>
+                <Text fontFamily="mono">{`r${toRevision}`}</Text>
+                <Text fontWeight="semibold">Discarded</Text>
+                <Text fontFamily="mono" fontWeight="semibold" color="red.500" _dark={{ color: 'red.300' }}>
+                  {`r${toRevision + 1} and above`}
+                </Text>
+              </Grid>
+            </Box>
+            <Text fontSize="sm" color="gray.500">
+              Applied on every replica, the source included.
             </Text>
-            <Alert status="warning" borderRadius="md" fontSize="sm">
-              <AlertIcon />
-              <Text>
-                Commits that exist only on a non-source replica are discarded. Make sure server {sourceServerId}{' '}
-                really holds the history you want to keep.
-              </Text>
-            </Alert>
             <Text>
               To confirm, type the full <Code>project/repository</Code> name below.
             </Text>
             <FormControl>
               <Input
+                size="lg"
                 value={typed}
                 onChange={(e) => setTyped(e.target.value)}
                 placeholder={target}

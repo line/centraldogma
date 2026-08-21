@@ -24,22 +24,26 @@ import com.google.common.base.MoreObjects;
 import com.linecorp.centraldogma.common.Revision;
 
 /**
- * The head of a repository on a single replica, identified by both its revision and its commit ID. The
- * two are read together so that they always describe the same commit. Replicas of the same repository may
- * report the same revision even when their histories have diverged, so only the commit ID proves that they
- * hold the same history.
+ * The head of a repository on a single replica: its revision, the commit the revision points at and the
+ * tree that commit holds. They are read together so that they always describe the same commit. Replicas of
+ * the same repository report the same revision even when their content has diverged, so the revision alone
+ * proves nothing; the tree ID is what tells them apart, because it is the fingerprint of the content
+ * alone. The commit ID additionally covers the parent and the timestamp, which differ between replicas of
+ * a metadata repository even when their content is identical.
  */
 public final class RepositoryHead {
 
     private final Revision revision;
     private final String commitId;
+    private final String treeId;
 
     /**
      * Creates a new instance.
      */
-    public RepositoryHead(Revision revision, String commitId) {
+    public RepositoryHead(Revision revision, String commitId, String treeId) {
         this.revision = requireNonNull(revision, "revision");
         this.commitId = requireNonNull(commitId, "commitId");
+        this.treeId = requireNonNull(treeId, "treeId");
     }
 
     /**
@@ -58,11 +62,20 @@ public final class RepositoryHead {
         return commitId;
     }
 
+    /**
+     * Returns the ID of the tree that commit holds, which is the fingerprint of the content alone.
+     */
+    @JsonProperty("treeId")
+    public String treeId() {
+        return treeId;
+    }
+
     @Override
     public String toString() {
         return MoreObjects.toStringHelper(this)
                           .add("revision", revision)
                           .add("commitId", commitId)
+                          .add("treeId", treeId)
                           .toString();
     }
 }
