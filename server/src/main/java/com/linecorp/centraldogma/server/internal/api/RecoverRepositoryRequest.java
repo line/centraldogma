@@ -19,9 +19,11 @@ package com.linecorp.centraldogma.server.internal.api;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects;
 
+@JsonIgnoreProperties(ignoreUnknown = true)
 public final class RecoverRepositoryRequest {
 
     private final int fromRevision;

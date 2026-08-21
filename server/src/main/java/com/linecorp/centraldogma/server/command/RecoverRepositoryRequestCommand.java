@@ -23,6 +23,7 @@ import java.util.Objects;
 import org.jspecify.annotations.Nullable;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects.ToStringHelper;
 
@@ -35,6 +36,7 @@ import com.linecorp.centraldogma.common.Revision;
  * applied as a no-op on every replica; the source replica reacts to it (off the replication-log replay
  * thread) by building and originating the actual {@link RecoverRepositoryCommand}.
  */
+@JsonIgnoreProperties(ignoreUnknown = true)
 public final class RecoverRepositoryRequestCommand extends RepositoryCommand<Void> {
 
     private final int sourceServerId;
@@ -58,7 +60,7 @@ public final class RecoverRepositoryRequestCommand extends RepositoryCommand<Voi
     /**
      * Returns the ZooKeeper server ID of the source replica that should originate the recovery.
      */
-    @JsonProperty
+    @JsonProperty("sourceServerId")
     public int sourceServerId() {
         return sourceServerId;
     }
@@ -66,7 +68,7 @@ public final class RecoverRepositoryRequestCommand extends RepositoryCommand<Voi
     /**
      * Returns the first {@link Revision} to replay. Recovery replays {@code fromRevision..toRevision}.
      */
-    @JsonProperty
+    @JsonProperty("fromRevision")
     public Revision fromRevision() {
         return fromRevision;
     }
@@ -74,7 +76,7 @@ public final class RecoverRepositoryRequestCommand extends RepositoryCommand<Voi
     /**
      * Returns the last {@link Revision} to replay, which every replica converges to.
      */
-    @JsonProperty
+    @JsonProperty("toRevision")
     public Revision toRevision() {
         return toRevision;
     }

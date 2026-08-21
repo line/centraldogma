@@ -25,6 +25,7 @@ import java.util.Objects;
 import org.jspecify.annotations.Nullable;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects.ToStringHelper;
 import com.google.common.collect.ImmutableList;
@@ -51,6 +52,7 @@ import com.linecorp.centraldogma.common.Revision;
  * <p>This is a {@link RepositoryCommand} so that it is scoped to a single repository (lock scope and
  * read-only failure blast radius) and is not rejected while the repository/project is read-only.
  */
+@JsonIgnoreProperties(ignoreUnknown = true)
 public final class RecoverRepositoryCommand extends RepositoryCommand<Revision> {
 
     private final int sourceServerId;
@@ -80,7 +82,7 @@ public final class RecoverRepositoryCommand extends RepositoryCommand<Revision> 
      * taken from. It records where a recovery came from; it is not consulted when the command is applied,
      * which decides by content (see the class javadoc).
      */
-    @JsonProperty
+    @JsonProperty("sourceServerId")
     public int sourceServerId() {
         return sourceServerId;
     }
@@ -89,7 +91,7 @@ public final class RecoverRepositoryCommand extends RepositoryCommand<Revision> 
      * Returns the {@link Revision} to which a replica resets its repository before replaying
      * {@link #commits()}.
      */
-    @JsonProperty
+    @JsonProperty("resetToRevision")
     public Revision resetToRevision() {
         return resetToRevision;
     }
@@ -98,7 +100,7 @@ public final class RecoverRepositoryCommand extends RepositoryCommand<Revision> 
      * Returns the last {@link Revision} to replay, which every replica converges to. It need not be the
      * source's head: the source's own commits above it are discarded too.
      */
-    @JsonProperty
+    @JsonProperty("toRevision")
     public Revision toRevision() {
         return toRevision;
     }
@@ -106,7 +108,7 @@ public final class RecoverRepositoryCommand extends RepositoryCommand<Revision> 
     /**
      * Returns the ordered {@link ReplayCommit}s to replay after resetting to {@link #resetToRevision()}.
      */
-    @JsonProperty
+    @JsonProperty("commits")
     public List<ReplayCommit> commits() {
         return commits;
     }

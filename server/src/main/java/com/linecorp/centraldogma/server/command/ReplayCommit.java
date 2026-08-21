@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Objects;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects;
@@ -37,6 +38,7 @@ import com.linecorp.centraldogma.common.Revision;
  * original commit metadata and a self-contained set of {@link Change}s so that every replica reconstructs
  * the source's content - and thus the source's tree - when it is applied on top of the previous revision.
  */
+@JsonIgnoreProperties(ignoreUnknown = true)
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public final class ReplayCommit {
 
@@ -74,7 +76,7 @@ public final class ReplayCommit {
     /**
      * Returns the {@link Revision} produced by this commit.
      */
-    @JsonProperty
+    @JsonProperty("revision")
     public Revision revision() {
         return revision;
     }
@@ -82,7 +84,7 @@ public final class ReplayCommit {
     /**
      * Returns the commit time in milliseconds.
      */
-    @JsonProperty
+    @JsonProperty("timestampMillis")
     public long timestampMillis() {
         return timestampMillis;
     }
@@ -90,7 +92,7 @@ public final class ReplayCommit {
     /**
      * Returns the {@link Author} of the commit.
      */
-    @JsonProperty
+    @JsonProperty("author")
     public Author author() {
         return author;
     }
@@ -98,7 +100,7 @@ public final class ReplayCommit {
     /**
      * Returns the human-readable summary of the commit.
      */
-    @JsonProperty
+    @JsonProperty("summary")
     public String summary() {
         return summary;
     }
@@ -106,7 +108,7 @@ public final class ReplayCommit {
     /**
      * Returns the human-readable detail of the commit.
      */
-    @JsonProperty
+    @JsonProperty("detail")
     public String detail() {
         return detail;
     }
@@ -114,7 +116,7 @@ public final class ReplayCommit {
     /**
      * Returns the {@link Markup} of the {@link #detail()}.
      */
-    @JsonProperty
+    @JsonProperty("markup")
     public Markup markup() {
         return markup;
     }
@@ -122,7 +124,7 @@ public final class ReplayCommit {
     /**
      * Returns the self-contained {@link Change}s of the commit.
      */
-    @JsonProperty
+    @JsonProperty("changes")
     public List<Change<?>> changes() {
         return changes;
     }
@@ -132,7 +134,7 @@ public final class ReplayCommit {
      * revision. A replica that produces a different one aborts the recovery instead of writing content that
      * diverges from the source, so this is what makes a recovery verifiable rather than merely hopeful.
      */
-    @JsonProperty
+    @JsonProperty("expectedTreeId")
     public String expectedTreeId() {
         return expectedTreeId;
     }
