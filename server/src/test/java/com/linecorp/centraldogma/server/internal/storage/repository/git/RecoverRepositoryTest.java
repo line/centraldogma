@@ -58,7 +58,9 @@ import com.linecorp.centraldogma.common.RevisionNotFoundException;
 import com.linecorp.centraldogma.server.command.RecoverRepositoryCommand;
 import com.linecorp.centraldogma.server.command.ReplayCommit;
 import com.linecorp.centraldogma.server.storage.StorageException;
+import com.linecorp.centraldogma.server.storage.encryption.EncryptionStorageManager;
 import com.linecorp.centraldogma.server.storage.encryption.NoopEncryptionStorageManager;
+import com.linecorp.centraldogma.server.storage.encryption.WrappedDekDetails;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.repository.RepositoryListener;
 
@@ -315,10 +317,12 @@ class RecoverRepositoryTest {
                 .isInstanceOf(StorageException.class);
 
         // The recovery gives up where it stood, and the repository keeps answering reads from the history
-        // it holds; an administrator recovers it again.
+        // it holds; an administrator recovers it again. Nothing is rolled back, so the head is exactly the
+        // revision the replay reached rather than the revision it reset to.
         final GitRepository afterFailure = (GitRepository) mgr.get(REPO);
         final Revision head = afterFailure.normalizeNow(Revision.HEAD);
-        assertThat(head).isLessThan(new Revision(6));
+        assertThat(head).isEqualTo(payload.get(payload.size() - 1).revision());
+        assertThat(head).isNotEqualTo(new Revision(2));
         assertThat(afterFailure.find(head, "/**", ImmutableMap.of()).join()).isNotEmpty();
     }
 
@@ -456,6 +460,37 @@ class RecoverRepositoryTest {
         // Not r4 or r5, which the replay produced: the watcher is failed instead.
         assertThatThrownBy(() -> watch.get(30, TimeUnit.SECONDS))
                 .hasCauseInstanceOf(RepositoryRecoveryException.class);
+    }
+
+    /**
+     * An encrypted repository holds its content under a per-replica key, so it cannot reproduce the
+     * source's trees, and its commit-id database cannot rewind at all.
+     */
+    @Test
+    void refusesAnEncryptedRepository() {
+        final Project project = mock(Project.class);
+        lenient().when(project.name()).thenReturn("test_project");
+        final File projectDir = new File(tempDir.toFile(), "encrypted");
+        final EncryptionStorageManager encryptionStorageManager = EncryptionStorageManager.of(
+                new File(tempDir.toFile(), "rocksdb").toPath(), false, "kekId");
+        final GitRepositoryManager mgr = new GitRepositoryManager(
+                project, projectDir, ForkJoinPool.commonPool(), MoreExecutors.directExecutor(), null,
+                encryptionStorageManager);
+        final String wdek = encryptionStorageManager.generateWdek().join();
+        encryptionStorageManager.storeWdek(
+                new WrappedDekDetails(wdek, 1, encryptionStorageManager.kekId(), "test_project", REPO));
+        mgr.create(REPO, 0, Author.SYSTEM, true);
+
+        assertThatThrownBy(() -> mgr.buildRecoveryPayload(REPO, new Revision(2), new Revision(2)))
+                .isInstanceOf(StorageException.class)
+                .hasMessageContaining("encrypted");
+        final ReplayCommit commit =
+                new ReplayCommit(new Revision(2), 1000L, Author.SYSTEM, "s", "d", Markup.PLAINTEXT,
+                                 ImmutableList.of(Change.ofTextUpsert("/a.txt", "a")),
+                                 "0000000000000000000000000000000000000000");
+        assertThatThrownBy(() -> mgr.recoverRepository(REPO, new Revision(1), ImmutableList.of(commit)))
+                .isInstanceOf(StorageException.class)
+                .hasMessageContaining("encrypted");
     }
 
     private static void pushMixedRevisions(GitRepository repo) {

@@ -244,6 +244,18 @@ class ZooKeeperRepositoryRecoveryIntegrationTest {
     @Test
     void recoverInternalRepository() {
         final BlockingWebClient admin = adminClientOf(SOURCE_SERVER_ID);
+
+        // Diverge the metadata repository itself: the diverged replica applies a commit locally that the
+        // rest of the cluster never sees, so its tree stops matching the source's.
+        faultInjector.injectFault(Command.push(
+                Author.DEFAULT, testProject, Project.REPO_DOGMA, Revision.HEAD,
+                "inject fault", "", Markup.PLAINTEXT,
+                ImmutableList.of(Change.ofJsonUpsert("/diverged.json", "{ \"diverged\": true }"))));
+        await().ignoreExceptions().untilAsserted(() -> assertThat(
+                headTreeIdOn(DIVERGED_SERVER_ID, Project.REPO_DOGMA))
+                .isNotEqualTo(headTreeIdOn(SOURCE_SERVER_ID, Project.REPO_DOGMA)));
+        final String divergedTreeBefore = headTreeIdOn(DIVERGED_SERVER_ID, Project.REPO_DOGMA);
+
         // A status on the dogma repository is the project-wide one, so this freezes the whole project.
         final AggregatedHttpResponse readOnly =
                 admin.prepare()
@@ -273,6 +285,12 @@ class ZooKeeperRepositoryRecoveryIntegrationTest {
                         .isEqualTo(headTreeIdOn(SOURCE_SERVER_ID, Project.REPO_DOGMA));
             });
         }
+        // The diverged replica really was rewritten, and its commit ID still differs from the source's:
+        // a metadata repository writes its early commits locally, which is why the tree is what is
+        // compared.
+        assertThat(headTreeIdOn(DIVERGED_SERVER_ID, Project.REPO_DOGMA)).isNotEqualTo(divergedTreeBefore);
+        assertThat(headCommitIdOn(DIVERGED_SERVER_ID, Project.REPO_DOGMA))
+                .isNotEqualTo(headCommitIdOn(SOURCE_SERVER_ID, Project.REPO_DOGMA));
     }
 
     /**
