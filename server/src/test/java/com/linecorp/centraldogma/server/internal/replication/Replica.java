@@ -38,6 +38,7 @@ import com.linecorp.centraldogma.server.ZooKeeperServerConfig;
 import com.linecorp.centraldogma.server.command.AbstractCommandExecutor;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.ExecutionContext;
+import com.linecorp.centraldogma.server.internal.management.RepoStatusManager;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 
 import io.micrometer.core.instrument.MeterRegistry;
@@ -83,7 +84,7 @@ final class Replica {
             protected <T> CompletableFuture<T> doExecute(ExecutionContext ctx, Command<T> command) {
                 return (CompletableFuture<T>) delegate.apply(command);
             }
-        }, meterRegistry, null, new RecoveryPayloadBuilder(mock(ProjectManager.class)),
+        }, meterRegistry, null, new RecoveryPayloadBuilder(mock(ProjectManager.class), mock(RepoStatusManager.class)),
                 null, null, null, null);
         commandExecutor.setLockTimeoutMillis(10000);
 

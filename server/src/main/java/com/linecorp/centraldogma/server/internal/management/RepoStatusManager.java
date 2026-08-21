@@ -197,6 +197,17 @@ public final class RepoStatusManager {
         return projectName + '/' + repoName;
     }
 
+    /**
+     * Returns the {@link ReplicationStatus} of the specified repository. A status on {@link
+     * Project#REPO_META} is the project-scoped one, which {@link Project#REPO_DOGMA} carries.
+     */
+    public ReplicationStatus replicationStatus(String projectName, String repoName) {
+        if (Project.REPO_META.equals(repoName)) {
+            repoName = Project.REPO_DOGMA;
+        }
+        return getRepoStatus(projectName, repoName).status();
+    }
+
     public boolean isWritable(String projectName, String repoName) {
         if (!statusManager.serverStatus().writable()) {
             return false;

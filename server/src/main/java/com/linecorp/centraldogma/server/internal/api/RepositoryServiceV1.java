@@ -153,10 +153,7 @@ public class RepositoryServiceV1 extends AbstractService {
     }
 
     private ReplicationStatus getReplicationStatus(String projectName, String repoName) {
-        if (repoName.equals(Project.REPO_META)) {
-            repoName = Project.REPO_DOGMA;
-        }
-        return repoStatusManager.getRepoStatus(projectName, repoName).status();
+        return repoStatusManager.replicationStatus(projectName, repoName);
     }
 
     private static ImmutableList<RepositoryDto> removedRepositories(Project project) {

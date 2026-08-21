@@ -492,8 +492,6 @@ public class CentralDogma implements AutoCloseable {
                                            meterRegistry, cfg.repositoryCacheSpec(), encryptionStorageManager,
                                            trustedHostKeys);
 
-            recoveryPayloadBuilder = new RecoveryPayloadBuilder(pm);
-
             logger.info("Started the project manager: {}", pm);
 
             logger.info("Current settings:\n{}", cfg);
@@ -629,6 +627,7 @@ public class CentralDogma implements AutoCloseable {
 
         statusManager = new ServerStatusManager(cfg.dataDir());
         repoStatusManager = new RepoStatusManager(statusManager, pm, meterRegistry);
+        recoveryPayloadBuilder = new RecoveryPayloadBuilder(pm, repoStatusManager);
         logger.info("Startup mode: {}", statusManager.serverStatus());
         final CommandExecutor executor;
         final ReplicationMethod replicationMethod = cfg.replicationConfig().method();

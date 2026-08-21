@@ -21,11 +21,13 @@ import static java.util.Objects.requireNonNull;
 import java.util.List;
 
 import com.linecorp.centraldogma.common.Author;
+import com.linecorp.centraldogma.common.ReplicationStatus;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.RecoverRepositoryCommand;
 import com.linecorp.centraldogma.server.command.RecoverRepositoryRequestCommand;
 import com.linecorp.centraldogma.server.command.ReplayCommit;
+import com.linecorp.centraldogma.server.internal.management.RepoStatusManager;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 
 /**
@@ -35,12 +37,14 @@ import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 public final class RecoveryPayloadBuilder {
 
     private final ProjectManager projectManager;
+    private final RepoStatusManager repoStatusManager;
 
     /**
      * Creates a new instance.
      */
-    public RecoveryPayloadBuilder(ProjectManager projectManager) {
+    public RecoveryPayloadBuilder(ProjectManager projectManager, RepoStatusManager repoStatusManager) {
         this.projectManager = requireNonNull(projectManager, "projectManager");
+        this.repoStatusManager = requireNonNull(repoStatusManager, "repoStatusManager");
     }
 
     /**
@@ -67,6 +71,15 @@ public final class RecoveryPayloadBuilder {
         requireNonNull(repositoryName, "repositoryName");
         requireNonNull(fromRevision, "fromRevision");
         requireNonNull(toRevision, "toRevision");
+        // A request travels through the replication log, so an arbitrary amount of time can pass before the
+        // source builds the payload. Recover only what is still frozen: a repository made writable again has
+        // moved on, and rewriting it would discard the commits it took since.
+        final ReplicationStatus status = repoStatusManager.replicationStatus(projectName, repositoryName);
+        if (status != ReplicationStatus.READ_ONLY) {
+            throw new IllegalStateException(
+                    "cannot recover " + projectName + '/' + repositoryName + ": the repository is " +
+                    status + " (expected: " + ReplicationStatus.READ_ONLY + ')');
+        }
         final List<ReplayCommit> commits =
                 projectManager.get(projectName).repos()
                               .buildRecoveryPayload(repositoryName, fromRevision, toRevision);
