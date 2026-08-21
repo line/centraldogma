@@ -166,9 +166,6 @@ final class RepositoryRecovery {
         return true;
     }
 
-    /**
-     * Rejects a replica that never held the base the replayed commits are built on.
-     */
     private static void checkResetBase(String repoPath, Revision resetToRevision, Revision headRevision) {
         if (resetToRevision.major() > headRevision.major()) {
             throw new StorageException(
@@ -215,9 +212,6 @@ final class RepositoryRecovery {
         }
     }
 
-    /**
-     * Discards everything after {@code revision} in place, including whatever was cached from it.
-     */
     private static void rewindTo(GitRepository repo, ObjectId commitId, Revision revision) {
         final org.eclipse.jgit.lib.Repository jGitRepository = repo.jGitRepository();
         try (RevWalk revWalk = newRevWalk(jGitRepository.newObjectReader())) {

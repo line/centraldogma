@@ -89,7 +89,7 @@ public final class RepoStatusManager {
         crudRepository = new StandaloneCrudOperation<>(RepositoryState.class, pm);
 
         // read-only scope metrics
-        Gauge.builder("repository.read.only.count", this, RepoStatusManager::activeReadOnlyCount)
+        Gauge.builder("repository.read.only.count", this, RepoStatusManager::existingReadOnlyCount)
              .register(meterRegistry);
         readOnlyScopeGauge = MultiGauge.builder("repository.read.only").register(meterRegistry);
     }
@@ -167,7 +167,7 @@ public final class RepoStatusManager {
     public List<RepositoryState> readOnlyStatuses() {
         // Hide entries whose project/repository was removed; the preserved file restores it on unremove.
         return statusMap.values().stream()
-                        .filter(state -> isActive(state.projectName(), state.repoName()))
+                        .filter(state -> exists(state.projectName(), state.repoName()))
                         .collect(toImmutableList());
     }
 
@@ -195,11 +195,6 @@ public final class RepoStatusManager {
 
     private static String getKey(String projectName, String repoName) {
         return projectName + '/' + repoName;
-    }
-
-    private static boolean isStorageAbsent(Throwable cause) {
-        final Throwable peeled = Exceptions.peel(cause);
-        return peeled instanceof ProjectNotFoundException || peeled instanceof RepositoryNotFoundException;
     }
 
     public boolean isWritable(String projectName, String repoName) {
@@ -274,11 +269,11 @@ public final class RepoStatusManager {
         try {
             statesFuture = crudOperation().findAll(crudContext(projectName));
         } catch (RuntimeException e) {
-            return completedIfStatusStorageAbsent(e);
+            return failUnlessStatusStorageAbsent(e);
         }
         return statesFuture.handle((states, cause) -> {
             if (cause != null) {
-                return RepoStatusManager.<Void>completedIfStatusStorageAbsent(cause);
+                return RepoStatusManager.<Void>failUnlessStatusStorageAbsent(cause);
             }
             // Clean up each repository independently so a single failure does not skip the rest.
             CompletableFuture<Void> future = CompletableFuture.completedFuture(null);
@@ -295,13 +290,9 @@ public final class RepoStatusManager {
         }).thenCompose(Function.identity());
     }
 
-    /**
-     * Returns a future completed with {@code null} if the cause only means that the internal status
-     * storage does not exist yet, so no status was ever replicated; a failed future otherwise. The
-     * lookup may fail either synchronously or through the returned future, so both are funnelled here.
-     */
-    private static <T> CompletableFuture<T> completedIfStatusStorageAbsent(Throwable cause) {
-        if (isStorageAbsent(cause)) {
+    private static <T> CompletableFuture<T> failUnlessStatusStorageAbsent(Throwable cause) {
+        final Throwable peeled = Exceptions.peel(cause);
+        if (peeled instanceof ProjectNotFoundException || peeled instanceof RepositoryNotFoundException) {
             return CompletableFuture.completedFuture(null);
         }
         return CompletableFutures.exceptionallyCompletedFuture(cause);
@@ -316,13 +307,13 @@ public final class RepoStatusManager {
     /**
      * Re-registers the {@code repository.read.only} gauge. Invoked by the repository listener on
      * status changes and by the command executor when a repository/project is removed, restored or
-     * purged (which change {@link #isActive} without touching the status files).
+     * purged (which change {@link #exists} without touching the status files).
      */
     public synchronized void refreshReadOnlyMetrics() {
         try {
             readOnlyScopeGauge.register(
                     statusMap.values().stream()
-                             .filter(state -> isActive(state.projectName(), state.repoName()))
+                             .filter(state -> exists(state.projectName(), state.repoName()))
                              .<MultiGauge.Row<?>>map(state -> MultiGauge.Row.of(
                                      Tags.of("project", state.projectName(),
                                              "repo", state.repoName()),
@@ -335,17 +326,13 @@ public final class RepoStatusManager {
         }
     }
 
-    private double activeReadOnlyCount() {
+    private double existingReadOnlyCount() {
         return statusMap.values().stream()
-                        .filter(state -> isActive(state.projectName(), state.repoName()))
+                        .filter(state -> exists(state.projectName(), state.repoName()))
                         .count();
     }
 
-    /**
-     * Returns {@code true} if the project and repository of a read-only entry still exist, i.e. they
-     * have not been soft-removed or purged.
-     */
-    private boolean isActive(String projectName, String repoName) {
+    private boolean exists(String projectName, String repoName) {
         try {
             if (!pm.exists(projectName)) {
                 return false;
@@ -356,7 +343,7 @@ public final class RepoStatusManager {
             }
             return pm.get(projectName).repos().exists(repoName);
         } catch (CentralDogmaException e) {
-            // The project/repository was removed concurrently; treat it as inactive.
+            // The project/repository was removed concurrently; treat it as removed.
             return false;
         }
     }
