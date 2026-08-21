@@ -31,6 +31,7 @@ import org.eclipse.jgit.revwalk.RevWalk;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 
 import com.linecorp.centraldogma.common.Change;
@@ -51,6 +52,7 @@ final class RepositoryRecovery {
     private static final Logger logger = LoggerFactory.getLogger(RepositoryRecovery.class);
 
     // Every replica materializes the payload in memory, so an unbounded one exhausts the cluster.
+    @VisibleForTesting
     static final int MAX_RECOVERY_COMMITS = 100;
 
     private final GitRepositoryManager manager;
@@ -157,7 +159,7 @@ final class RepositoryRecovery {
         }
         for (ReplayCommit commit : commits) {
             final ObjectId commitId = commitIdDatabase.get(commit.revision());
-            if (commitId == null || !commit.expectedTreeId().equals(treeIdOf(repo, commitId))) {
+            if (!commit.expectedTreeId().equals(treeIdOf(repo, commitId))) {
                 return false;
             }
         }
@@ -275,6 +277,7 @@ final class RepositoryRecovery {
         return commits.build();
     }
 
+    @VisibleForTesting
     static void checkCommitCount(String name, int commitCount) {
         if (commitCount > MAX_RECOVERY_COMMITS) {
             throw new IllegalArgumentException(

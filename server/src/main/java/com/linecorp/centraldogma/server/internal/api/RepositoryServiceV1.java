@@ -310,6 +310,9 @@ public class RepositoryServiceV1 extends AbstractService {
      * which wrote their early commits locally. The tree ID is the fingerprint of the content alone, so it
      * is what an administrator compares to confirm a recovery converged before making the repository
      * writable again.
+     *
+     * <p>A system administrator calls this while the repository is read-only, so no commit moves the head
+     * between the replicas being compared.
      */
     @Get("/projects/{projectName}/repos/{repoName}/head")
     @RequiresSystemAdministrator

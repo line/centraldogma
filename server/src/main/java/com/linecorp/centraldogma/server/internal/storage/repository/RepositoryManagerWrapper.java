@@ -93,7 +93,6 @@ public class RepositoryManagerWrapper implements RepositoryManager {
     @Override
     public boolean recoverRepository(String repositoryName, Revision resetToRevision,
                                      List<ReplayCommit> commits) {
-        // A recovery rewrites the repository in place, so the wrapped instance stays valid.
         return delegate.recoverRepository(repositoryName, resetToRevision, commits);
     }
 
