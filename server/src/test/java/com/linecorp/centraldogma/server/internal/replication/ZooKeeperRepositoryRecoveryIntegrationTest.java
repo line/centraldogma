@@ -17,9 +17,12 @@
 package com.linecorp.centraldogma.server.internal.replication;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.awaitility.Awaitility.await;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -44,6 +47,7 @@ import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.ReplicationStatus;
+import com.linecorp.centraldogma.common.RepositoryRecoveryException;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.jsonpatch.JsonPatchOperation;
 import com.linecorp.centraldogma.internal.api.v1.RepositoryDto;
@@ -279,6 +283,30 @@ class ZooKeeperRepositoryRecoveryIntegrationTest {
      * <p>Source history: r1 (creation), r2 {@code {"a": 1}}, r3 {@code {"a": 2}}. Diverged replica:
      * r1, r2 and a local r3 {@code {"a": 3}}; the legitimate r3 was skipped.
      */
+    /**
+     * A recovery rewrites the revisions a client is watching, so the watch is failed rather than answered.
+     * The client has to recognise it to know that watching again - rather than retrying the same revision -
+     * is what makes sense.
+     */
+    @Test
+    void watchFailsWithRepositoryRecoveryExceptionOnTheClient() {
+        driveRepoIntoDivergedReadOnly();
+
+        final CentralDogma divergedClient = replica.serverById(DIVERGED_SERVER_ID).client();
+        final CompletableFuture<Entry<JsonNode>> watch =
+                divergedClient.forRepo(testProject, TEST_REPO)
+                              .watch(Query.ofJson("/a.json"))
+                              .start();
+
+        final AggregatedHttpResponse response =
+                recover(adminClientOf(SOURCE_SERVER_ID), new RecoverRepositoryRequest(2, 3,
+                                                                                      SOURCE_SERVER_ID));
+        assertThat(response.status()).isEqualTo(HttpStatus.OK);
+
+        assertThatThrownBy(() -> watch.get(30, TimeUnit.SECONDS))
+                .hasCauseInstanceOf(RepositoryRecoveryException.class);
+    }
+
     private void driveRepoIntoDivergedReadOnly() {
         final CentralDogmaRepository repo = client0.forRepo(testProject, TEST_REPO);
         repo.commit("seed", Change.ofJsonUpsert("/a.json", "{ \"a\": 1 }")).push().join();
