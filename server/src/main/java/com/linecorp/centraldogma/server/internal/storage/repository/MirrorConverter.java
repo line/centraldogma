@@ -16,6 +16,8 @@
  */
 package com.linecorp.centraldogma.server.internal.storage.repository;
 
+import static com.linecorp.centraldogma.internal.CredentialUtil.validateCredentialName;
+
 import java.net.URI;
 import java.util.List;
 import java.util.Map;
@@ -60,6 +62,10 @@ public final class MirrorConverter {
 
     static Mirror convertToMirror(MirrorConfig mirrorConfig, Project parent, Credential credential,
                                   Map<String, List<String>> trustedHostKeys) {
+        // Defense-in-depth: ensure the mirror only references a credential that belongs to its own
+        // repository or its project.
+        validateCredentialName(parent.name(), mirrorConfig.localRepo(), mirrorConfig.credentialName());
+
         final MirrorContext mirrorContext = new MirrorContext(
                 mirrorConfig.id(), mirrorConfig.enabled(), mirrorConfig.cronSchedule(),
                 mirrorConfig.direction(),

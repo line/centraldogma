@@ -32,19 +32,15 @@ import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 
 import org.jspecify.annotations.Nullable;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
-import com.google.common.collect.Streams;
 
 import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpResponse;
@@ -109,8 +105,6 @@ public class ContentServiceV1 extends AbstractService {
 
     static final AttributeKey<Boolean> IS_WATCH_REQUEST =
             AttributeKey.valueOf(ContentServiceV1.class, "IS_WATCH_REQUEST");
-
-    private static final String MIRROR_LOCAL_REPO = "localRepo";
 
     private final WatchService watchService;
     private final MeterRegistry meterRegistry;
@@ -586,40 +580,21 @@ public class ContentServiceV1 extends AbstractService {
 
     public static void checkMetaRepoPush(String repoName, Iterable<Change<?>> changes) {
         if (Project.REPO_DOGMA.equals(repoName) || Project.REPO_META.equals(repoName)) {
-            final boolean hasChangesOtherThanMetaRepoFiles =
-                    Streams.stream(changes).anyMatch(change -> !(METADATA_JSON.equals(change.path()) ||
-                                                                 isMirrorOrCredentialFile(change.path())));
-            if (hasChangesOtherThanMetaRepoFiles) {
+            for (Change<?> change : changes) {
+                final String path = change.path();
+                if (METADATA_JSON.equals(path)) {
+                    continue;
+                }
+                // Mirror and credential files must be managed via the dedicated mirroring and credential
+                // REST APIs, which validate the input (e.g. the credential scope). Writing them directly
+                // with the push API bypasses that validation, so it is not allowed.
+                if (isMirrorOrCredentialFile(path)) {
+                    throw new InvalidPushException(
+                            "Mirror and credential files cannot be modified via the push API. Use the " +
+                            "mirroring or credential REST API instead. (path: " + path + ')');
+                }
                 throw new InvalidPushException(
                         "The " + repoName + " repository is reserved for internal usage.");
-            }
-
-            // TODO(ikhoon): Disallow creating a mirror with the commit API. Mirroring REST API should be used
-            //               to validate the input.
-            final Optional<String> notAllowedLocalRepo =
-                    Streams.stream(changes)
-                           .filter(change -> isMirrorOrCredentialFile(change.path()))
-                           .filter(change -> change.content() != null)
-                           .map(change -> {
-                               final Object content = change.content();
-                               if (content instanceof JsonNode) {
-                                   final JsonNode node = (JsonNode) content;
-                                   if (!node.isObject()) {
-                                       return null;
-                                   }
-                                   final JsonNode localRepoNode = node.get(MIRROR_LOCAL_REPO);
-                                   if (localRepoNode != null) {
-                                       final String localRepo = localRepoNode.textValue();
-                                       if (Project.isInternalRepo(localRepo)) {
-                                           return localRepo;
-                                       }
-                                   }
-                               }
-                               return null;
-                           }).filter(Objects::nonNull).findFirst();
-            if (notAllowedLocalRepo.isPresent()) {
-                throw new InvalidPushException("invalid " + MIRROR_LOCAL_REPO + ": " +
-                                               notAllowedLocalRepo.get());
             }
         }
     }

@@ -15,7 +15,6 @@
  */
 package com.linecorp.centraldogma.client.armeria;
 
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.net.UnknownHostException;
@@ -27,7 +26,6 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.InvalidPushException;
-import com.linecorp.centraldogma.common.PushResult;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
@@ -56,16 +54,36 @@ class ArmeriaCentralDogmaTest {
     }
 
     @Test
-    void pushMirrorsJsonFileToMetaRepository() throws UnknownHostException {
+    void pushMirrorsJsonFileToMetaRepositoryShouldFail() throws UnknownHostException {
         final CentralDogma client = new ArmeriaCentralDogmaBuilder()
                 .host(dogma.serverAddress().getHostString(), dogma.serverAddress().getPort())
                 .build();
 
-        final PushResult result = client.forRepo("foo", Project.REPO_DOGMA)
-                                        .commit("summary",
-                                                Change.ofJsonUpsert("/repos/foo/mirrors/foo.json", "{}"))
-                                        .push()
-                                        .join();
-        assertThat(result.revision().major()).isPositive();
+        // Mirror and credential files cannot be created or modified via the push API; they must be
+        // managed through the dedicated mirroring/credential REST API.
+        assertThatThrownBy(() -> client.forRepo("foo", Project.REPO_DOGMA)
+                                       .commit("summary",
+                                               Change.ofJsonUpsert("/repos/foo/mirrors/foo.json", "{}"))
+                                       .push()
+                                       .join())
+                .isInstanceOf(CompletionException.class)
+                .hasCauseInstanceOf(InvalidPushException.class);
+    }
+
+    @Test
+    void pushCredentialJsonFileToMetaRepositoryShouldFail() throws UnknownHostException {
+        final CentralDogma client = new ArmeriaCentralDogmaBuilder()
+                .host(dogma.serverAddress().getHostString(), dogma.serverAddress().getPort())
+                .build();
+
+        // Both project-level and repository-level credential files are rejected by the push API.
+        assertThatThrownBy(() -> client.forRepo("foo", Project.REPO_DOGMA)
+                                       .commit("summary",
+                                               Change.ofJsonUpsert("/credentials/foo.json", "{}"),
+                                               Change.ofJsonUpsert("/repos/foo/credentials/bar.json", "{}"))
+                                       .push()
+                                       .join())
+                .isInstanceOf(CompletionException.class)
+                .hasCauseInstanceOf(InvalidPushException.class);
     }
 }
