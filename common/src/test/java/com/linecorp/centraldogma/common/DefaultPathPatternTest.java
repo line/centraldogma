@@ -47,6 +47,24 @@ class DefaultPathPatternTest {
     }
 
     @Test
+    void endsWith() {
+        assertThat(PathPattern.endsWith("json").patternString()).isEqualTo("/**/*.json");
+        assertThat(PathPattern.endsWith(".json").patternString()).isEqualTo("/**/*.json");
+    }
+
+    @Test
+    void startsWith() {
+        assertThat(PathPattern.startsWith("/foo/bar").patternString()).isEqualTo("/foo/bar/**");
+        assertThat(PathPattern.startsWith("/foo/bar/").patternString()).isEqualTo("/foo/bar/**");
+    }
+
+    @Test
+    void under() {
+        assertThat(PathPattern.under("/foo/bar").patternString())
+                .isEqualTo(PathPattern.startsWith("/foo/bar").patternString());
+    }
+
+    @Test
     void testEncodePathPattern() {
         assertThat(encodePathPattern("/")).isEqualTo("/");
         assertThat(encodePathPattern(" ")).isEqualTo("%20");

@@ -63,6 +63,42 @@ public interface PathPattern {
     }
 
     /**
+     * Creates a path pattern that matches the files whose extension is the specified {@code suffix}.
+     * A leading dot in {@code suffix} is optional and is added automatically if missing.
+     * For example, {@code PathPattern.endsWith("json")} matches all JSON files at any depth,
+     * which is equivalent to <code>PathPattern.of("/&#42;&#42;/*.json")</code>.
+     */
+    static PathPattern endsWith(String suffix) {
+        requireNonNull(suffix, "suffix");
+        if (suffix.startsWith(".")) {
+            return of("/**/*" + suffix);
+        }
+        return of("/**/*." + suffix);
+    }
+
+    /**
+     * Creates a path pattern that matches the files under the specified {@code prefix} directory.
+     * For example, {@code PathPattern.startsWith("/foo/bar")} matches all files under
+     * the directory {@code /foo/bar}, which is equivalent to
+     * <code>PathPattern.of("/foo/bar/&#42;&#42;")</code>.
+     */
+    static PathPattern startsWith(String prefix) {
+        requireNonNull(prefix, "prefix");
+        if (prefix.endsWith("/")) {
+            return of(prefix + "**");
+        }
+        return of(prefix + "/**");
+    }
+
+    /**
+     * Creates a path pattern that matches the files under the specified {@code directory}.
+     * This is an alias of {@link #startsWith(String)}.
+     */
+    static PathPattern under(String directory) {
+        return startsWith(directory);
+    }
+
+    /**
      * Returns the path pattern that concatenates the {@code patterns} using ','.
      */
     String patternString();
