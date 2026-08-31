@@ -58,6 +58,8 @@ includeWithFlags ':javadoc',                             'java', 'publish', 'no_
 
 // Site generation project
 includeWithFlags ':site'
+// The Docusaurus site that will replace ':site'.
+includeWithFlags ':site-new'
 
 // Distribution
 includeWithFlags ':dist', 'java'
