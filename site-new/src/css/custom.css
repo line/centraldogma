@@ -1,0 +1,33 @@
+/* Infima variable overrides. See https://docusaurus.io/docs/styling-layout */
+
+:root {
+  /* Infima leaves this transparent in light mode, so the page borrows whatever the
+     user agent paints behind it - dark text on a dark backdrop. Paint it explicitly. */
+  --ifm-background-color: #ffffff;
+  --ifm-color-primary: #1e6fd9;
+  --ifm-color-primary-dark: #1b64c3;
+  --ifm-color-primary-darker: #195eb8;
+  --ifm-color-primary-darkest: #154d98;
+  --ifm-color-primary-light: #337ddd;
+  --ifm-color-primary-lighter: #3f84df;
+  --ifm-color-primary-lightest: #6299e6;
+  --ifm-code-font-size: 95%;
+  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.1);
+}
+
+[data-theme='dark'] {
+  /* Must be restated: the :root value above would otherwise win by load order. */
+  --ifm-background-color: #1b1b1d;
+  --ifm-color-primary: #6ba7ec;
+  --ifm-color-primary-dark: #4e96e8;
+  --ifm-color-primary-darker: #3f8de6;
+  --ifm-color-primary-darkest: #1a73dd;
+  --ifm-color-primary-light: #88b8f0;
+  --ifm-color-primary-lighter: #97c1f2;
+  --ifm-color-primary-lightest: #c3dbf7;
+  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.3);
+}
+
+.navbar__logo img {
+  object-fit: contain;
+}

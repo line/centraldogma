@@ -1,0 +1,55 @@
+plugins {
+    id 'base'
+    alias(libs.plugins.node.gradle)
+}
+
+node {
+    version = '22.14.0'
+    npmVersion = '10.9.2'
+    download = true
+    npmInstallCommand = "install"
+}
+
+// Note that we didn't make `clean` depend on `npmClean`,
+// because otherwise `clean` will trigger `npmInstall`.
+tasks.clean.delete(project.file("${project.projectDir}/.docusaurus"))
+tasks.clean.delete(project.file("${project.projectDir}/build"))
+tasks.clean.delete(project.file("${project.projectDir}/node_modules/.cache"))
+
+tasks.register('develop', NpmTask) {
+    dependsOn tasks.npmInstall
+    args = ['run', 'start']
+}
+
+tasks.register('eslint', NpmTask) {
+    dependsOn tasks.npmInstall
+    args = ['run', 'lint']
+    inputs.dir('src')
+    inputs.file('.eslintrc.js')
+    inputs.file('package.json')
+    inputs.file('package-lock.json')
+}
+
+// 'siteLint' could run separately regardless of '-PnoLint' option
+tasks.register('siteLint') {
+    dependsOn tasks.eslint
+}
+
+// Note that this task is not triggered by the 'build' task
+// because it takes long to build a site.
+tasks.register('site', NpmTask) {
+    dependsOn tasks.npmInstall
+    if (!rootProject.hasProperty('noLint')) {
+        dependsOn tasks.siteLint
+    }
+    args = ['run', 'build']
+    inputs.dir('src')
+    inputs.dir('static')
+    inputs.file('docusaurus.config.ts')
+    inputs.file('sidebars.ts')
+    inputs.file('package.json')
+    inputs.file('package-lock.json')
+    inputs.file('tsconfig.json')
+    outputs.dir('.docusaurus')
+    outputs.dir('build')
+}
