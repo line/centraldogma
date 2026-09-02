@@ -47,21 +47,26 @@ class DefaultPathPatternTest {
     }
 
     @Test
-    void endsWith() {
-        assertThat(PathPattern.endsWith("json").patternString()).isEqualTo("/**/*.json");
-        assertThat(PathPattern.endsWith(".json").patternString()).isEqualTo("/**/*.json");
+    void ofExtension() {
+        assertThat(PathPattern.ofExtension("json").patternString()).isEqualTo("/**/*.json");
+        assertThat(PathPattern.ofExtension(".json").patternString()).isEqualTo("/**/*.json");
     }
 
     @Test
     void startsWith() {
-        assertThat(PathPattern.startsWith("/foo/bar").patternString()).isEqualTo("/foo/bar/**");
-        assertThat(PathPattern.startsWith("/foo/bar/").patternString()).isEqualTo("/foo/bar/**");
+        assertThat(PathPattern.startsWith("/foo/bar").patternString()).isEqualTo("/foo/bar**");
+        // A leading slash is added automatically so the prefix is anchored at the root.
+        assertThat(PathPattern.startsWith("foo/bar").patternString()).isEqualTo("/foo/bar**");
+        // The match is not restricted to complete path segments.
+        assertThat(PathPattern.startsWith("/foo/ba").patternString()).isEqualTo("/foo/ba**");
     }
 
     @Test
     void under() {
-        assertThat(PathPattern.under("/foo/bar").patternString())
-                .isEqualTo(PathPattern.startsWith("/foo/bar").patternString());
+        assertThat(PathPattern.under("/foo/bar").patternString()).isEqualTo("/foo/bar/**");
+        assertThat(PathPattern.under("/foo/bar/").patternString()).isEqualTo("/foo/bar/**");
+        // A leading slash is added automatically so the directory is anchored at the root.
+        assertThat(PathPattern.under("foo/bar").patternString()).isEqualTo("/foo/bar/**");
     }
 
     @Test

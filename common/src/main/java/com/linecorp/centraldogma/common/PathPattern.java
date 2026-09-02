@@ -63,39 +63,53 @@ public interface PathPattern {
     }
 
     /**
-     * Creates a path pattern that matches the files whose extension is the specified {@code suffix}.
-     * A leading dot in {@code suffix} is optional and is added automatically if missing.
-     * For example, {@code PathPattern.endsWith("json")} matches all JSON files at any depth,
+     * Creates a path pattern that matches the files whose extension is the specified {@code extension}.
+     * A leading dot in {@code extension} is optional and is added automatically if missing.
+     * For example, {@code PathPattern.ofExtension("json")} matches all JSON files at any depth,
      * which is equivalent to <code>PathPattern.of("/&#42;&#42;/*.json")</code>.
      */
-    static PathPattern endsWith(String suffix) {
-        requireNonNull(suffix, "suffix");
-        if (suffix.startsWith(".")) {
-            return of("/**/*" + suffix);
+    static PathPattern ofExtension(String extension) {
+        requireNonNull(extension, "extension");
+        if (extension.startsWith(".")) {
+            return of("/**/*" + extension);
         }
-        return of("/**/*." + suffix);
+        return of("/**/*." + extension);
     }
 
     /**
-     * Creates a path pattern that matches the files under the specified {@code prefix} directory.
-     * For example, {@code PathPattern.startsWith("/foo/bar")} matches all files under
-     * the directory {@code /foo/bar}, which is equivalent to
-     * <code>PathPattern.of("/foo/bar/&#42;&#42;")</code>.
+     * Creates a path pattern that matches the files whose path starts with the specified {@code prefix}.
+     * The {@code prefix} is anchored at the root, so a leading slash is added automatically if missing.
+     * The match is not restricted to complete path segments; for example,
+     * {@code PathPattern.startsWith("/foo/ba")} matches both {@code /foo/bar/a.txt} and {@code /foo/baz.txt},
+     * which is equivalent to <code>PathPattern.of("/foo/ba&#42;&#42;")</code>.
+     * Use {@link #under(String)} to match only the files under a directory.
      */
     static PathPattern startsWith(String prefix) {
         requireNonNull(prefix, "prefix");
-        if (prefix.endsWith("/")) {
+        if (prefix.startsWith("/")) {
             return of(prefix + "**");
         }
-        return of(prefix + "/**");
+        return of('/' + prefix + "**");
     }
 
     /**
      * Creates a path pattern that matches the files under the specified {@code directory}.
-     * This is an alias of {@link #startsWith(String)}.
+     * The {@code directory} is anchored at the root, so a leading slash is added automatically if missing,
+     * and a trailing slash is optional. Unlike {@link #startsWith(String)}, the match is restricted to
+     * complete path segments; for example, {@code PathPattern.under("/foo/bar")} matches {@code /foo/bar/a.txt}
+     * but not {@code /foo/bar-baz.txt}, which is equivalent to
+     * <code>PathPattern.of("/foo/bar/&#42;&#42;")</code>.
      */
     static PathPattern under(String directory) {
-        return startsWith(directory);
+        requireNonNull(directory, "directory");
+        String dir = directory;
+        if (!dir.startsWith("/")) {
+            dir = '/' + dir;
+        }
+        if (dir.endsWith("/")) {
+            return of(dir + "**");
+        }
+        return of(dir + "/**");
     }
 
     /**
