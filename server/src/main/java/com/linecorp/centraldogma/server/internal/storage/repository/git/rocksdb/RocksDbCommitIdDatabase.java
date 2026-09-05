@@ -78,6 +78,12 @@ public final class RocksDbCommitIdDatabase implements CommitIdDatabase {
     }
 
     @Override
+    public void truncateTo(Revision revision) {
+        // A recovery never runs on an encrypted repository, so nothing rewinds this database.
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
     public void rebuild(Repository gitRepo) {
         throw new UnsupportedOperationException();
     }

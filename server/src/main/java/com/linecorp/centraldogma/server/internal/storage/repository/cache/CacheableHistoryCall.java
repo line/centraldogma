@@ -46,7 +46,7 @@ final class CacheableHistoryCall extends AbstractCacheableCall<List<Commit>> {
         this.pathPattern = requireNonNull(pathPattern, "pathPattern");
         this.maxCommits = maxCommits;
 
-        hashCode = (Objects.hash(from, to, pathPattern) * 31 + maxCommits) * 31 + System.identityHashCode(repo);
+        hashCode = (Objects.hash(from, to, pathPattern) * 31 + maxCommits) * 31 + repoHashCode();
 
         assert !from.isRelative();
         assert !to.isRelative();

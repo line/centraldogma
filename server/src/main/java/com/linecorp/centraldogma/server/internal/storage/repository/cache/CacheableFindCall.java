@@ -45,7 +45,7 @@ final class CacheableFindCall extends AbstractCacheableCall<Map<String, Entry<?>
         this.pathPattern = requireNonNull(pathPattern, "pathPattern");
         this.options = requireNonNull(options, "options");
 
-        hashCode = Objects.hash(pathPattern, options) * 31 + System.identityHashCode(repo);
+        hashCode = Objects.hash(pathPattern, options) * 31 + repoHashCode();
 
         assert !revision.isRelative();
     }

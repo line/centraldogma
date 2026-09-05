@@ -52,7 +52,7 @@ final class CacheableFindLatestRevCall extends AbstractCacheableCall<Revision> {
         this.errorOnEntryNotFound = errorOnEntryNotFound;
 
         hashCode = Objects.hash(lastKnownRevision, headRevision, pathPattern, errorOnEntryNotFound) +
-                   System.identityHashCode(repo);
+                   repoHashCode();
 
         assert !lastKnownRevision.isRelative();
     }

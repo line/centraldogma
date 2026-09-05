@@ -49,6 +49,8 @@ public enum CommandType {
     UPDATE_SERVER_STATUS(Void.class),
     UPDATE_PROJECT_STATUS(Void.class),
     UPDATE_REPOSITORY_STATUS(Void.class),
+    RECOVER_REPOSITORY(Revision.class),
+    RECOVER_REPOSITORY_REQUEST(Void.class),
     // The result type of FORCE_PUSH is Object because it can be any type.
     FORCE_PUSH(Object.class);
 

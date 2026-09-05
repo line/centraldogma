@@ -89,6 +89,7 @@ final class ReplicationLogContext {
                           .add("replayRevision", replayRevision)
                           .add("meta", meta)
                           .add("log", log)
+                          // Keep the whole payload: it is what a lost entry is recovered from.
                           .add("bytes", bytes == null ? null : Base64.getEncoder().encodeToString(bytes))
                           .toString();
     }

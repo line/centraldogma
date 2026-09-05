@@ -30,5 +30,10 @@ public interface CommitIdDatabase extends AutoCloseable {
 
     void put(Revision revision, ObjectId commitId);
 
+    /**
+     * Drops every revision above the specified one, which becomes the head revision.
+     */
+    void truncateTo(Revision revision);
+
     void rebuild(Repository gitRepo);
 }

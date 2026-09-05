@@ -73,6 +73,7 @@ import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.api.v1.PushResultDto;
 import com.linecorp.centraldogma.internal.api.v1.RepositoryDto;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
+import com.linecorp.centraldogma.server.command.RecoverRepositoryCommand;
 import com.linecorp.centraldogma.server.credential.CreateCredentialRequest;
 import com.linecorp.centraldogma.server.internal.admin.auth.SessionUtil;
 import com.linecorp.centraldogma.server.internal.api.MetadataApiService.IdAndProjectRole;
@@ -311,6 +312,41 @@ class RepositoryServiceV1Test {
 
         final ResponseEntity<PushResultDto> credential = createCredential();
         assertThat(credential.status()).isSameAs(HttpStatus.CREATED);
+    }
+
+    @Test
+    void recoverRepository_gating() {
+        final String repoName = "recoverRepo";
+        assertThat(createRepository(systemAdminClient, repoName).status()).isEqualTo(HttpStatus.CREATED);
+
+        // A non-admin user cannot start a recovery.
+        final AggregatedHttpResponse userRes =
+                userClient.blocking().prepare()
+                          .post(REPOS_PREFIX + '/' + repoName + "/recover")
+                          .contentJson(new RecoverRepositoryRequest(2, 2, 1))
+                          .execute();
+        assertThat(userRes.status()).isEqualTo(HttpStatus.FORBIDDEN);
+
+        // Recovery is rejected in standalone (non-replicated) mode.
+        final AggregatedHttpResponse adminRes =
+                systemAdminClient.blocking().prepare()
+                                 .post(REPOS_PREFIX + '/' + repoName + "/recover")
+                                 .contentJson(new RecoverRepositoryRequest(2, 2, 1))
+                                 .execute();
+        assertThat(adminRes.status()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(adminRes.contentUtf8()).contains("replicated");
+
+        // A range wider than the cap is refused by the request itself, so a recovery forwarded to the
+        // source replica cannot be accepted with 200 only to die in that replica's log.
+        final AggregatedHttpResponse tooWide =
+                systemAdminClient.blocking().prepare()
+                                 .post(REPOS_PREFIX + '/' + repoName + "/recover")
+                                 .content(MediaType.JSON, "{\"fromRevision\": 2, \"toRevision\": " +
+                                                          (2 + RecoverRepositoryCommand.MAX_RECOVERY_COMMITS) +
+                                                          ", \"sourceServerId\": 1}")
+                                 .execute();
+        assertThat(tooWide.status()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(tooWide.contentUtf8()).contains("too many revisions");
     }
 
     private static ResponseEntity<RepositoryDto> updateStatus(ReplicationStatus status, String repoName) {

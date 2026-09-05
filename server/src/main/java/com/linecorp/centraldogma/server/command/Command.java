@@ -68,6 +68,8 @@ import com.linecorp.centraldogma.server.storage.repository.Repository;
         @Type(value = UpdateProjectStatusCommand.class, name = "UPDATE_PROJECT_STATUS"),
         @Type(value = UpdateRepositoryStatusCommand.class, name = "UPDATE_REPOSITORY_STATUS"),
         @Type(value = ForcePushCommand.class, name = "FORCE_PUSH_COMMAND"),
+        @Type(value = RecoverRepositoryCommand.class, name = "RECOVER_REPOSITORY"),
+        @Type(value = RecoverRepositoryRequestCommand.class, name = "RECOVER_REPOSITORY_REQUEST"),
 })
 public interface Command<T> {
 
@@ -524,6 +526,40 @@ public interface Command<T> {
                       "(expected: CREATE_PROJECT, CREATE_REPOSITORY, NORMALIZING_PUSH, TRANSFORM or PUSH)",
                       delegate);
         return new ForcePushCommand<>(delegate);
+    }
+
+    /**
+     * Returns a new {@link Command} which recovers a diverged repository from a source replica by resetting
+     * to {@code resetToRevision} and replaying {@code commits} up to {@code toRevision}. See
+     * {@link RecoverRepositoryCommand}.
+     */
+    static Command<Revision> recoverRepository(Author author, String projectName, String repositoryName,
+                                               int sourceServerId, Revision resetToRevision,
+                                               Revision toRevision, Iterable<ReplayCommit> commits) {
+        requireNonNull(author, "author");
+        requireNonNull(projectName, "projectName");
+        requireNonNull(repositoryName, "repositoryName");
+        requireNonNull(resetToRevision, "resetToRevision");
+        requireNonNull(toRevision, "toRevision");
+        requireNonNull(commits, "commits");
+        return new RecoverRepositoryCommand(null, author, projectName, repositoryName, sourceServerId,
+                                            resetToRevision, toRevision, commits);
+    }
+
+    /**
+     * Returns a new {@link Command} which asks the source replica to originate a recovery. See
+     * {@link RecoverRepositoryRequestCommand}.
+     */
+    static Command<Void> recoverRepositoryRequest(Author author, String projectName, String repositoryName,
+                                                  int sourceServerId, Revision fromRevision,
+                                                  Revision toRevision) {
+        requireNonNull(author, "author");
+        requireNonNull(projectName, "projectName");
+        requireNonNull(repositoryName, "repositoryName");
+        requireNonNull(fromRevision, "fromRevision");
+        requireNonNull(toRevision, "toRevision");
+        return new RecoverRepositoryRequestCommand(null, author, projectName, repositoryName,
+                                                   sourceServerId, fromRevision, toRevision);
     }
 
     /**

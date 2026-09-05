@@ -41,7 +41,7 @@ final class CacheableObjectLoaderCall extends AbstractCacheableCall<ObjectLoader
         super(repo);
         this.delegate = delegate;
         this.objectId = objectId;
-        hashCode = objectId.hashCode() * 31 + System.identityHashCode(repo);
+        hashCode = objectId.hashCode() * 31 + repoHashCode();
     }
 
     @Override

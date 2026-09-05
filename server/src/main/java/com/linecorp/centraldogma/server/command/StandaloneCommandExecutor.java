@@ -19,6 +19,8 @@ import static java.util.Objects.requireNonNull;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -28,6 +30,7 @@ import org.slf4j.LoggerFactory;
 
 import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.centraldogma.common.ReadOnlyException;
+import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.server.auth.Session;
 import com.linecorp.centraldogma.server.auth.SessionManager;
 import com.linecorp.centraldogma.server.internal.management.RepoStatusManager;
@@ -40,6 +43,8 @@ import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 import com.linecorp.centraldogma.server.storage.repository.RepositoryManager;
 
+import io.netty.util.concurrent.DefaultThreadFactory;
+
 /**
  * A {@link CommandExecutor} implementation which performs operations on the local storage.
  */
@@ -49,6 +54,10 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
 
     private final ProjectManager projectManager;
     private final Executor repositoryWorker;
+    // A recovery holds the repository's write lock for the whole replay, so it never runs on
+    // repositoryWorker, which is the whole server's. One thread also serializes concurrent recoveries.
+    private final ExecutorService recoveryWorker =
+            Executors.newSingleThreadExecutor(new DefaultThreadFactory("recovery-worker", true));
     @Nullable
     private final SessionManager sessionManager;
     private final EncryptionStorageManager encryptionStorageManager;
@@ -107,6 +116,7 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
 
     @Override
     protected void doStop(@Nullable Runnable onReleaseLeadership, @Nullable Runnable onReleaseZoneLeadership) {
+        recoveryWorker.shutdownNow();
         if (onReleaseLeadership != null) {
             onReleaseLeadership.run();
         }
@@ -244,6 +254,15 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
             return doExecute0(ctx, ((ForcePushCommand<T>) command).delegate());
         }
 
+        if (command instanceof RecoverRepositoryRequestCommand) {
+            // Applied as a no-op on every replica; the source replica reacts to it in the ZooKeeper layer.
+            return CompletableFuture.completedFuture(null);
+        }
+
+        if (command instanceof RecoverRepositoryCommand) {
+            return (CompletableFuture<T>) recoverRepository((RecoverRepositoryCommand) command);
+        }
+
         throw new UnsupportedOperationException(command.toString());
     }
 
@@ -280,21 +299,34 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
         return CompletableFuture.supplyAsync(() -> {
             projectManager.remove(c.projectName());
             return null;
-        }, repositoryWorker);
+        }, repositoryWorker).thenRun(repoStatusManager::refreshReadOnlyMetrics);
     }
 
     private CompletableFuture<Void> unremoveProject(UnremoveProjectCommand c) {
         return CompletableFuture.supplyAsync(() -> {
             projectManager.unremove(c.projectName());
             return null;
-        }, repositoryWorker);
+        }, repositoryWorker).thenRun(repoStatusManager::refreshReadOnlyMetrics);
     }
 
     private CompletableFuture<Void> purgeProject(PurgeProjectCommand c) {
         return CompletableFuture.supplyAsync(() -> {
             projectManager.markForPurge(c.projectName());
             return null;
-        }, repositoryWorker);
+        }, repositoryWorker).thenCompose(unused -> {
+            if (projectManager.exists(c.projectName())) {
+                // markForPurge() was a no-op because the project was not in the removed state;
+                // keep its status so read-only enforcement is not silently defeated.
+                return CompletableFuture.<Void>completedFuture(null);
+            }
+            // Best-effort cleanup: a failure here must not fail the already-applied purge command.
+            return repoStatusManager.removeProjectStatus(c.projectName(), c.author())
+                                    .exceptionally(cause -> {
+                                        logger.warn("Failed to remove the status of the purged project: {}",
+                                                    c.projectName(), cause);
+                                        return null;
+                                    });
+        });
     }
 
     // Repository operations
@@ -331,21 +363,35 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
         return CompletableFuture.supplyAsync(() -> {
             projectManager.get(c.projectName()).repos().remove(c.repositoryName());
             return null;
-        }, repositoryWorker);
+        }, repositoryWorker).thenRun(repoStatusManager::refreshReadOnlyMetrics);
     }
 
     private CompletableFuture<Void> unremoveRepository(UnremoveRepositoryCommand c) {
         return CompletableFuture.supplyAsync(() -> {
             projectManager.get(c.projectName()).repos().unremove(c.repositoryName());
             return null;
-        }, repositoryWorker);
+        }, repositoryWorker).thenRun(repoStatusManager::refreshReadOnlyMetrics);
     }
 
     private CompletableFuture<Void> purgeRepository(PurgeRepositoryCommand c) {
         return CompletableFuture.supplyAsync(() -> {
             projectManager.get(c.projectName()).repos().markForPurge(c.repositoryName());
             return null;
-        }, repositoryWorker);
+        }, repositoryWorker).thenCompose(unused -> {
+            if (projectManager.exists(c.projectName()) &&
+                projectManager.get(c.projectName()).repos().exists(c.repositoryName())) {
+                // markForPurge() was a no-op because the repository was not in the removed state;
+                // keep its status so read-only enforcement is not silently defeated.
+                return CompletableFuture.<Void>completedFuture(null);
+            }
+            // Best-effort cleanup: a failure here must not fail the already-applied purge command.
+            return repoStatusManager.removeRepoStatus(c.projectName(), c.repositoryName(), c.author())
+                                    .exceptionally(cause -> {
+                                        logger.warn("Failed to remove the status of the purged repository:" +
+                                                    " {}/{}", c.projectName(), c.repositoryName(), cause);
+                                        return null;
+                                    });
+        });
     }
 
     private CompletableFuture<Void> migrateToEncryptedRepository(MigrateToEncryptedRepositoryCommand c) {
@@ -403,6 +449,16 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
 
     private Repository repo(RepositoryCommand<?> c) {
         return projectManager.get(c.projectName()).repos().get(c.repositoryName());
+    }
+
+    private CompletableFuture<Revision> recoverRepository(RecoverRepositoryCommand c) {
+        // Not on repositoryWorker: a recovery holds the repository's write lock for the whole replay, and
+        // that pool is the whole server's. A recovery is rare enough to be worth a thread of its own.
+        return CompletableFuture.supplyAsync(() -> {
+            projectManager.get(c.projectName()).repos()
+                          .recoverRepository(c.repositoryName(), c.resetToRevision(), c.commits());
+            return c.toRevision();
+        }, recoveryWorker);
     }
 
     private CompletableFuture<Void> rewrapAllKeys() {

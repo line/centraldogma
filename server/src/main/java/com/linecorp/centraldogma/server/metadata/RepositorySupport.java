@@ -171,7 +171,7 @@ final class RepositorySupport<T> {
             this.path = path;
             this.entryClass = entryClass;
 
-            hashCode = Objects.hash(revision, path, entryClass) * 31 + System.identityHashCode(repo);
+            hashCode = Objects.hash(revision, path, entryClass) * 31 + repoHashCode();
             assert !revision.isRelative();
         }
 
