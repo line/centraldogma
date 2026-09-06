@@ -53,6 +53,18 @@ class DefaultPathPatternTest {
     }
 
     @Test
+    void ofExtensionRejectsNonAlphanumeric() {
+        assertThatThrownBy(() -> PathPattern.ofExtension("/foo/bar"))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> PathPattern.ofExtension("json.gz"))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> PathPattern.ofExtension(""))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> PathPattern.ofExtension("."))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
     void startsWith() {
         assertThat(PathPattern.startsWith("/foo/bar").patternString()).isEqualTo("/foo/bar**");
         // A leading slash is added automatically so the prefix is anchored at the root.
@@ -62,11 +74,23 @@ class DefaultPathPatternTest {
     }
 
     @Test
+    void startsWithRejectsWildcard() {
+        assertThatThrownBy(() -> PathPattern.startsWith("/foo/*"))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
     void under() {
         assertThat(PathPattern.under("/foo/bar").patternString()).isEqualTo("/foo/bar/**");
         assertThat(PathPattern.under("/foo/bar/").patternString()).isEqualTo("/foo/bar/**");
         // A leading slash is added automatically so the directory is anchored at the root.
         assertThat(PathPattern.under("foo/bar").patternString()).isEqualTo("/foo/bar/**");
+    }
+
+    @Test
+    void underRejectsWildcard() {
+        assertThatThrownBy(() -> PathPattern.under("/a/**"))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test

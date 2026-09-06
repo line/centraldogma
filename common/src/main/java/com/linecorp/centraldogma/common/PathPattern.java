@@ -15,9 +15,12 @@
  */
 package com.linecorp.centraldogma.common;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.linecorp.centraldogma.common.DefaultPathPattern.ALL;
 import static com.linecorp.centraldogma.common.DefaultPathPattern.allPattern;
 import static java.util.Objects.requireNonNull;
+
+import java.util.regex.Pattern;
 
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Streams;
@@ -35,6 +38,11 @@ import com.google.common.collect.Streams;
  * </ul>
  */
 public interface PathPattern {
+
+    /**
+     * The pattern that a file extension must match; only alphanumeric characters are allowed.
+     */
+    Pattern EXTENSION_PATTERN = Pattern.compile("^[a-zA-Z0-9]+$");
 
     /**
      * Returns the path pattern that represents all files.
@@ -65,15 +73,17 @@ public interface PathPattern {
     /**
      * Creates a path pattern that matches the files whose extension is the specified {@code extension}.
      * A leading dot in {@code extension} is optional and is added automatically if missing.
+     * The {@code extension} must consist of alphanumeric characters only.
      * For example, {@code PathPattern.ofExtension("json")} matches all JSON files at any depth,
      * which is equivalent to <code>PathPattern.of("/&#42;&#42;/*.json")</code>.
      */
     static PathPattern ofExtension(String extension) {
         requireNonNull(extension, "extension");
-        if (extension.startsWith(".")) {
-            return of("/**/*" + extension);
-        }
-        return of("/**/*." + extension);
+        final String normalized = extension.startsWith(".") ? extension.substring(1) : extension;
+        checkArgument(EXTENSION_PATTERN.matcher(normalized).matches(),
+                      "extension: %s (expected: an alphanumeric extension such as \"json\" or \".json\")",
+                      extension);
+        return of("/**/*." + normalized);
     }
 
     /**
@@ -82,14 +92,14 @@ public interface PathPattern {
      * The match is not restricted to complete path segments; for example,
      * {@code PathPattern.startsWith("/foo/ba")} matches both {@code /foo/bar/a.txt} and {@code /foo/baz.txt},
      * which is equivalent to <code>PathPattern.of("/foo/ba&#42;&#42;")</code>.
+     * The {@code prefix} must not contain a wildcard character ({@code '*'}).
      * Use {@link #under(String)} to match only the files under a directory.
      */
     static PathPattern startsWith(String prefix) {
         requireNonNull(prefix, "prefix");
-        if (prefix.startsWith("/")) {
-            return of(prefix + "**");
-        }
-        return of('/' + prefix + "**");
+        checkArgument(prefix.indexOf('*') < 0, "prefix: %s (must not contain '*')", prefix);
+        final String normalized = prefix.startsWith("/") ? prefix : '/' + prefix;
+        return of(normalized + "**");
     }
 
     /**
@@ -99,9 +109,11 @@ public interface PathPattern {
      * complete path segments; for example, {@code PathPattern.under("/foo/bar")} matches {@code /foo/bar/a.txt}
      * but not {@code /foo/bar-baz.txt}, which is equivalent to
      * <code>PathPattern.of("/foo/bar/&#42;&#42;")</code>.
+     * The {@code directory} must not contain a wildcard character ({@code '*'}).
      */
     static PathPattern under(String directory) {
         requireNonNull(directory, "directory");
+        checkArgument(directory.indexOf('*') < 0, "directory: %s (must not contain '*')", directory);
         String dir = directory;
         if (!dir.startsWith("/")) {
             dir = '/' + dir;
