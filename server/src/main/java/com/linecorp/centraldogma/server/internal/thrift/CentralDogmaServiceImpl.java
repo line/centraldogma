@@ -315,7 +315,7 @@ public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
         final List<com.linecorp.centraldogma.common.Change<?>> convertedChanges =
                 convert(changes, Converter::convert);
         try {
-            checkMetaRepoPush(repositoryName, convertedChanges);
+            checkMetaRepoPush(null, repositoryName, convertedChanges);
         } catch (Exception e) {
             resultHandler.onError(e);
             return;

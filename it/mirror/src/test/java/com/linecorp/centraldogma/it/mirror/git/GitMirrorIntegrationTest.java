@@ -66,9 +66,9 @@ import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Commit;
 import com.linecorp.centraldogma.common.Entry;
-import com.linecorp.centraldogma.common.InvalidPushException;
 import com.linecorp.centraldogma.common.MirrorException;
 import com.linecorp.centraldogma.common.PathPattern;
+import com.linecorp.centraldogma.common.PushResult;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.api.v1.MirrorRequest;
@@ -551,16 +551,13 @@ class GitMirrorIntegrationTest {
 
     @CsvSource({ "meta", "dogma" })
     @ParameterizedTest
-    void cannotPushMirrorFileViaPushApi(String localRepo) {
-        // Mirror files cannot be created or modified via the push API; the dedicated mirroring REST API
-        // must be used instead.
-        assertThatThrownBy(() -> client.forRepo(projName, Project.REPO_DOGMA)
-                                       .commit("Add a mirror",
-                                               Change.ofJsonUpsert(
-                                                       "/repos/" + localRepo + "/mirrors/foo.json", "{}"))
-                                       .push().join())
-                .hasCauseInstanceOf(InvalidPushException.class)
-                .hasMessageContaining("Mirror and credential files cannot be modified via the push API");
+    void systemAdminCanPushMirrorFileViaPushApi(String localRepo) {
+        final PushResult result =
+                client.forRepo(projName, Project.REPO_DOGMA)
+                      .commit("Add a mirror",
+                              Change.ofJsonUpsert("/repos/" + localRepo + "/mirrors/foo.json", "{}"))
+                      .push().join();
+        assertThat(result.revision().major()).isPositive();
     }
 
     @Test

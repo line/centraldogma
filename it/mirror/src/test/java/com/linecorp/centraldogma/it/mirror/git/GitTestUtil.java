@@ -35,9 +35,10 @@ public final class GitTestUtil {
 
     /**
      * Commits the given mirror or credential {@code changes} directly to the meta repository of
-     * {@code projectName}, bypassing the push API. Mirror and credential files can no longer be written
-     * through the push API (see {@code ContentServiceV1.checkMetaRepoPush}), so tests that need to inject
-     * such files (e.g. legacy or otherwise invalid configurations) commit them at the storage layer.
+     * {@code projectName}, bypassing the push API. Only a system administrator may write mirror and
+     * credential files through the push API (see {@code ContentServiceV1.checkMetaRepoPush}), so tests
+     * that need to inject such files (e.g. legacy or otherwise invalid configurations) commit them at the
+     * storage layer.
      */
     public static void commitToMetaRepo(CentralDogmaExtension dogma, String projectName,
                                         String summary, Change<?>... changes) {

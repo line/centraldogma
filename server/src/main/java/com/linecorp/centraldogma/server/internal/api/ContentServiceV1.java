@@ -76,6 +76,7 @@ import com.linecorp.centraldogma.internal.api.v1.RevertRequest;
 import com.linecorp.centraldogma.internal.api.v1.WatchResultDto;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
+import com.linecorp.centraldogma.server.internal.admin.auth.AuthUtil;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresRepositoryRole;
 import com.linecorp.centraldogma.server.internal.api.converter.ChangesRequestConverter;
 import com.linecorp.centraldogma.server.internal.api.converter.CommitMessageRequestConverter;
@@ -85,6 +86,7 @@ import com.linecorp.centraldogma.server.internal.api.converter.TemplateParamsCon
 import com.linecorp.centraldogma.server.internal.api.converter.WatchRequestConverter;
 import com.linecorp.centraldogma.server.internal.api.converter.WatchRequestConverter.WatchRequest;
 import com.linecorp.centraldogma.server.internal.api.variable.Templater;
+import com.linecorp.centraldogma.server.metadata.User;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 import com.linecorp.centraldogma.server.storage.repository.EntryTransformer;
@@ -207,10 +209,11 @@ public class ContentServiceV1 extends AbstractService {
     public CompletableFuture<PushResultDto> push(
             @Param @Default("-1") String revision,
             Repository repository,
-            Author author,
+            User user,
             CommitMessageDto commitMessage,
             @RequestConverter(ChangesRequestConverter.class) Iterable<Change<?>> changes) {
-        checkMetaRepoPush(repository.name(), changes);
+        final Author author = AuthUtil.getAuthor(user);
+        checkMetaRepoPush(user, repository.name(), changes);
         meterRegistry.counter("commits.push",
                               "project", repository.parent().name(),
                               "repository", repository.name())
@@ -578,21 +581,29 @@ public class ContentServiceV1 extends AbstractService {
         return repository.mergeFiles(rev, query).thenApply(DtoConverter::newMergedEntryDto);
     }
 
-    public static void checkMetaRepoPush(String repoName, Iterable<Change<?>> changes) {
+    public static void checkMetaRepoPush(@Nullable User user, String repoName, Iterable<Change<?>> changes) {
         if (Project.REPO_DOGMA.equals(repoName) || Project.REPO_META.equals(repoName)) {
+            final boolean isSystemAdmin = user != null && user.isSystemAdmin();
             for (Change<?> change : changes) {
                 final String path = change.path();
+                // Already checked in RequiresRepositoryRoleDecorator
                 if (METADATA_JSON.equals(path)) {
                     continue;
                 }
                 // Mirror and credential files must be managed via the dedicated mirroring and credential
                 // REST APIs, which validate the input (e.g. the credential scope). Writing them directly
-                // with the push API bypasses that validation, so it is not allowed.
+                // with the push API bypasses that validation, so it is allowed only for a system
+                // administrator, who is trusted to manage the internal repository directly.
                 if (isMirrorOrCredentialFile(path)) {
+                    if (isSystemAdmin) {
+                        continue;
+                    }
                     throw new InvalidPushException(
                             "Mirror and credential files cannot be modified via the push API. Use the " +
                             "mirroring or credential REST API instead. (path: " + path + ')');
                 }
+                // Any other file is reserved for internal usage and cannot be pushed via the API,
+                // even by a system administrator.
                 throw new InvalidPushException(
                         "The " + repoName + " repository is reserved for internal usage.");
             }
