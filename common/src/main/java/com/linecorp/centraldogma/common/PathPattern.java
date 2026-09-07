@@ -18,9 +18,8 @@ package com.linecorp.centraldogma.common;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.linecorp.centraldogma.common.DefaultPathPattern.ALL;
 import static com.linecorp.centraldogma.common.DefaultPathPattern.allPattern;
+import static com.linecorp.centraldogma.common.DefaultPathPattern.normalizeExtension;
 import static java.util.Objects.requireNonNull;
-
-import java.util.regex.Pattern;
 
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Streams;
@@ -38,11 +37,6 @@ import com.google.common.collect.Streams;
  * </ul>
  */
 public interface PathPattern {
-
-    /**
-     * The pattern that a file extension must match; only alphanumeric characters are allowed.
-     */
-    Pattern EXTENSION_PATTERN = Pattern.compile("^[a-zA-Z0-9]+$");
 
     /**
      * Returns the path pattern that represents all files.
@@ -79,11 +73,7 @@ public interface PathPattern {
      */
     static PathPattern ofExtension(String extension) {
         requireNonNull(extension, "extension");
-        final String normalized = extension.startsWith(".") ? extension.substring(1) : extension;
-        checkArgument(EXTENSION_PATTERN.matcher(normalized).matches(),
-                      "extension: %s (expected: an alphanumeric extension such as \"json\" or \".json\")",
-                      extension);
-        return of("/**/*." + normalized);
+        return of("/**/*." + normalizeExtension(extension));
     }
 
     /**
@@ -97,6 +87,7 @@ public interface PathPattern {
      */
     static PathPattern startsWith(String prefix) {
         requireNonNull(prefix, "prefix");
+        checkArgument(!prefix.isEmpty(), "prefix is empty.");
         checkArgument(prefix.indexOf('*') < 0, "prefix: %s (must not contain '*')", prefix);
         final String normalized = prefix.startsWith("/") ? prefix : '/' + prefix;
         return of(normalized + "**");
@@ -113,6 +104,7 @@ public interface PathPattern {
      */
     static PathPattern under(String directory) {
         requireNonNull(directory, "directory");
+        checkArgument(!directory.isEmpty(), "directory is empty.");
         checkArgument(directory.indexOf('*') < 0, "directory: %s (must not contain '*')", directory);
         String dir = directory;
         if (!dir.startsWith("/")) {

@@ -80,6 +80,12 @@ class DefaultPathPatternTest {
     }
 
     @Test
+    void startsWithRejectsEmpty() {
+        assertThatThrownBy(() -> PathPattern.startsWith(""))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
     void under() {
         assertThat(PathPattern.under("/foo/bar").patternString()).isEqualTo("/foo/bar/**");
         assertThat(PathPattern.under("/foo/bar/").patternString()).isEqualTo("/foo/bar/**");
@@ -90,6 +96,12 @@ class DefaultPathPatternTest {
     @Test
     void underRejectsWildcard() {
         assertThatThrownBy(() -> PathPattern.under("/a/**"))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void underRejectsEmpty() {
+        assertThatThrownBy(() -> PathPattern.under(""))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
