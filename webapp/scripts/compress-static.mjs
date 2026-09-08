@@ -47,27 +47,26 @@ async function* walk(dir) {
   const entries = await fs.readdir(dir, { withFileTypes: true });
   for (const entry of entries) {
     const fullPath = path.join(dir, entry.name);
-    let isDirectory = entry.isDirectory();
-    let isFile = entry.isFile();
-    // A symlink dirent reports neither isDirectory() nor isFile(); resolve it so linked asset dirs/files
-    // (possible in monorepo/CI layouts) are compressed instead of silently skipped.
-    if (entry.isSymbolicLink()) {
-      try {
-        const stats = await fs.stat(fullPath);
-        isDirectory = stats.isDirectory();
-        isFile = stats.isFile();
-      } catch {
-        // Dangling symlink: nothing to compress.
-        continue;
-      }
-    }
-    if (isDirectory) {
+    if (entry.isDirectory()) {
       if (SKIP_DIRECTORIES.has(entry.name)) {
         continue;
       }
       yield* walk(fullPath);
-    } else if (isFile) {
+    } else if (entry.isFile()) {
       yield fullPath;
+    } else if (entry.isSymbolicLink()) {
+      // Follow a symlink only when it resolves to a regular file, so linked assets (possible in monorepo/CI
+      // layouts) aren't silently skipped. Never recurse into a symlinked directory: a link pointing back to
+      // an ancestor forms a cycle that would re-traverse the tree until the filesystem's symlink limit is
+      // hit. Next.js export output doesn't nest linked directories, so skipping them is safe.
+      try {
+        const stats = await fs.stat(fullPath);
+        if (stats.isFile()) {
+          yield fullPath;
+        }
+      } catch {
+        // Dangling symlink: nothing to compress.
+      }
     }
   }
 }

@@ -92,4 +92,18 @@ describe('compress-static', () => {
     expect(await exists(`${target}.br`)).toBe(true);
     expect(await exists(`${link}.br`)).toBe(true);
   });
+
+  it('does not recurse into a symlinked directory cycle', async () => {
+    const file = path.join(dir, 'app.js');
+    await fs.writeFile(file, COMPRESSIBLE);
+    // A directory symlink pointing back to an ancestor forms a cycle. Recursing into it re-traverses the tree
+    // over and over (until the filesystem hits its symlink limit), re-compressing every file many times.
+    await fs.symlink(dir, path.join(dir, 'self'));
+
+    const { stdout } = await run(dir);
+
+    // The real file is compressed exactly once and the symlinked directory is never descended into.
+    expect(await exists(`${file}.br`)).toBe(true);
+    expect(stdout).toContain('Precompressed 1 files');
+  });
 });
