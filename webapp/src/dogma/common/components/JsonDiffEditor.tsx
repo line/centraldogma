@@ -13,10 +13,11 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
-import { DiffEditor, loader } from '@monaco-editor/react';
+import { DiffEditor } from '@monaco-editor/react';
 import { useColorMode } from '@chakra-ui/react';
 import { useEffect, useState } from 'react';
 import { Loading } from 'dogma/common/components/Loading';
+import { loadMonaco } from 'dogma/features/file/MonacoLoader';
 
 interface JsonDiffEditorProps {
   // The left-hand (baseline) document, e.g. the content before a change.
@@ -34,14 +35,15 @@ export const JsonDiffEditor = ({ original, modified, height = '60vh' }: JsonDiff
 
   useEffect(() => {
     let active = true;
-    (async () => {
-      const monaco = await import('monaco-editor');
-      loader.config({ monaco });
-      await loader.init();
-      if (active) {
-        setReady(true);
-      }
-    })();
+    loadMonaco()
+      .then(() => {
+        if (active) {
+          setReady(true);
+        }
+      })
+      .catch((err) => {
+        console.error('Failed to load local monaco-editor:', err);
+      });
     return () => {
       active = false;
     };
