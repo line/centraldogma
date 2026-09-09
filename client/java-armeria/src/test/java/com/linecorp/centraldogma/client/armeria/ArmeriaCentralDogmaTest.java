@@ -15,75 +15,92 @@
  */
 package com.linecorp.centraldogma.client.armeria;
 
+import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.PASSWORD;
+import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.PASSWORD2;
+import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.USERNAME;
+import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.USERNAME2;
+import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.getAccessToken;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.net.UnknownHostException;
 import java.util.concurrent.CompletionException;
 
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
+import com.linecorp.armeria.client.WebClient;
 import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.common.Change;
-import com.linecorp.centraldogma.common.InvalidPushException;
+import com.linecorp.centraldogma.common.PermissionException;
+import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.server.storage.project.Project;
+import com.linecorp.centraldogma.testing.internal.auth.TestAuthProviderFactory;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
 class ArmeriaCentralDogmaTest {
 
+    private static String regularUserAccessToken;
+
     @RegisterExtension
-    static CentralDogmaExtension dogma = new CentralDogmaExtension() {
+    static final CentralDogmaExtension dogma = new CentralDogmaExtension() {
+
         @Override
-        protected void scaffold(CentralDogma client) {
-            client.createProject("foo").join();
+        protected void configure(CentralDogmaBuilder builder) {
+            builder.authProviderFactory(new TestAuthProviderFactory());
+            builder.systemAdministrators(USERNAME);
+        }
+
+        @Override
+        protected String accessToken() {
+            return getAccessToken(WebClient.of("http://127.0.0.1:" + dogma.serverAddress().getPort()),
+                                  USERNAME, PASSWORD, true);
         }
     };
 
-    @Test
-    void pushFileToMetaRepositoryShouldFail() throws UnknownHostException {
-        final CentralDogma client = new ArmeriaCentralDogmaBuilder()
-                .host(dogma.serverAddress().getHostString(), dogma.serverAddress().getPort())
-                .build();
-
-        assertThatThrownBy(() -> client.forRepo("foo", Project.REPO_DOGMA)
-                                       .commit("summary", Change.ofJsonUpsert("/bar.json", "{ \"a\": \"b\" }"))
-                                       .push()
-                                       .join())
-                .isInstanceOf(CompletionException.class)
-                .hasCauseInstanceOf(InvalidPushException.class);
+    @BeforeAll
+    static void setUp() {
+        regularUserAccessToken = getAccessToken(dogma.httpClient(), USERNAME2, PASSWORD2,
+                                                "regularUser", false);
     }
 
     @Test
-    void pushMirrorsJsonFileToMetaRepositoryShouldFail() throws UnknownHostException {
-        final CentralDogma client = new ArmeriaCentralDogmaBuilder()
-                .host(dogma.serverAddress().getHostString(), dogma.serverAddress().getPort())
-                .build();
-
-        // Mirror and credential files cannot be created or modified via the push API; they must be
-        // managed through the dedicated mirroring/credential REST API.
-        assertThatThrownBy(() -> client.forRepo("foo", Project.REPO_DOGMA)
-                                       .commit("summary",
-                                               Change.ofJsonUpsert("/repos/foo/mirrors/foo.json", "{}"))
-                                       .push()
-                                       .join())
-                .isInstanceOf(CompletionException.class)
-                .hasCauseInstanceOf(InvalidPushException.class);
+    void regularUserCannotPushFileToMetaRepository() throws UnknownHostException {
+        assertRegularUserCannotPushToMetaRepository(
+                Change.ofJsonUpsert("/bar.json", "{ \"a\": \"b\" }"));
     }
 
     @Test
-    void pushCredentialJsonFileToMetaRepositoryShouldFail() throws UnknownHostException {
-        final CentralDogma client = new ArmeriaCentralDogmaBuilder()
-                .host(dogma.serverAddress().getHostString(), dogma.serverAddress().getPort())
-                .build();
+    void regularUserCannotPushMirrorsJsonFileToMetaRepository() throws UnknownHostException {
+        assertRegularUserCannotPushToMetaRepository(
+                Change.ofJsonUpsert("/repos/foo/mirrors/foo.json", "{}"));
+    }
 
-        // Both project-level and repository-level credential files are rejected by the push API.
+    @Test
+    void regularUserCannotPushCredentialJsonFilesToMetaRepository() throws UnknownHostException {
+        assertRegularUserCannotPushToMetaRepository(
+                Change.ofJsonUpsert("/credentials/foo.json", "{}"),
+                Change.ofJsonUpsert("/repos/foo/credentials/bar.json", "{}"));
+    }
+
+    private static void assertRegularUserCannotPushToMetaRepository(Change<?>... changes)
+            throws UnknownHostException {
+        final CentralDogma client = newRegularUserClient();
+
+        // The dogma repository is system-admin-only, so a regular user is rejected before its
+        // changes are evaluated.
         assertThatThrownBy(() -> client.forRepo("foo", Project.REPO_DOGMA)
-                                       .commit("summary",
-                                               Change.ofJsonUpsert("/credentials/foo.json", "{}"),
-                                               Change.ofJsonUpsert("/repos/foo/credentials/bar.json", "{}"))
+                                       .commit("summary", changes)
                                        .push()
                                        .join())
                 .isInstanceOf(CompletionException.class)
-                .hasCauseInstanceOf(InvalidPushException.class);
+                .hasCauseInstanceOf(PermissionException.class);
+    }
+
+    private static CentralDogma newRegularUserClient() throws UnknownHostException {
+        return new ArmeriaCentralDogmaBuilder()
+                .host(dogma.serverAddress().getHostString(), dogma.serverAddress().getPort())
+                .accessToken(regularUserAccessToken)
+                .build();
     }
 }
