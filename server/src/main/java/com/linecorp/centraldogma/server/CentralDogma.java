@@ -260,11 +260,10 @@ public class CentralDogma implements AutoCloseable {
 
     private static final int DEFAULT_MAX_FRAME_LENGTH = 1024 * 1024; // 1 MiB
 
-    // The largest pre-compressed web asset (e.g. the ~910 KiB Brotli-compressed Monaco TypeScript worker) is
-    // comfortably under 1 MiB, so we raise the FileService cache-entry limit above Armeria's 64 KiB default.
-    // Otherwise the heavy Monaco chunks and workers would exceed the default and be re-read from the classpath
-    // on every request instead of being served from the in-memory cache.
-    private static final int WEBAPP_MAX_CACHE_ENTRY_SIZE_BYTES = 1024 * 1024; // 1 MiB
+    // Keep enough room for its upstream growth while raising the FileService cache-entry limit above Armeria's
+    // 64 KiB default. Otherwise heavy Monaco chunks and workers would be re-read from the classpath on every
+    // request instead of being served from the in-memory cache.
+    static final int WEBAPP_MAX_CACHE_ENTRY_SIZE_BYTES = 2 * 1024 * 1024; // 2 MiB
 
     /**
      * Creates a new instance from the given configuration file.
