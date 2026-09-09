@@ -19,10 +19,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.net.JarURLConnection;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.jar.JarFile;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -37,17 +39,9 @@ class WebappCacheEntrySizeTest {
         final URL resourceRoot =
                 WebappCacheEntrySizeTest.class.getClassLoader().getResource(WEBAPP_RESOURCE_ROOT);
         assertThat(resourceRoot).as("webapp resource root").isNotNull();
-        assertThat(resourceRoot.getProtocol()).isEqualTo("file");
 
-        final Path root = Path.of(resourceRoot.toURI());
-        final List<String> oversizedAssets;
-        try (Stream<Path> paths = Files.walk(root)) {
-            oversizedAssets = paths.filter(Files::isRegularFile)
-                                   .filter(WebappCacheEntrySizeTest::isPrecompressedAsset)
-                                   .filter(path -> size(path) > CentralDogma.WEBAPP_MAX_CACHE_ENTRY_SIZE_BYTES)
-                                   .map(path -> root.relativize(path) + " (" + size(path) + " bytes)")
-                                   .collect(Collectors.toList());
-        }
+        final List<String> oversizedAssets =
+                findOversizedAssets(resourceRoot, CentralDogma.WEBAPP_MAX_CACHE_ENTRY_SIZE_BYTES);
 
         assertThat(oversizedAssets)
                 .as("pre-compressed webapp assets must fit in the %,d-byte FileService cache entry",
@@ -55,9 +49,58 @@ class WebappCacheEntrySizeTest {
                 .isEmpty();
     }
 
+    private static List<String> findOversizedAssets(URL resourceRoot, long maxSizeBytes) throws Exception {
+        if ("file".equals(resourceRoot.getProtocol())) {
+            return findOversizedAssets(Path.of(resourceRoot.toURI()), maxSizeBytes);
+        }
+        if ("jar".equals(resourceRoot.getProtocol())) {
+            return findOversizedAssetsInJar(resourceRoot, maxSizeBytes);
+        }
+        throw new IllegalArgumentException("unsupported webapp resource protocol: " + resourceRoot);
+    }
+
+    private static List<String> findOversizedAssets(Path root, long maxSizeBytes) throws IOException {
+        try (Stream<Path> paths = Files.walk(root)) {
+            return paths.filter(Files::isRegularFile)
+                        .filter(WebappCacheEntrySizeTest::isPrecompressedAsset)
+                        .filter(path -> size(path) > maxSizeBytes)
+                        .map(path -> root.relativize(path) + " (" + size(path) + " bytes)")
+                        .collect(Collectors.toList());
+        }
+    }
+
+    private static List<String> findOversizedAssetsInJar(URL resourceRoot, long maxSizeBytes)
+            throws IOException {
+        final JarURLConnection connection = (JarURLConnection) resourceRoot.openConnection();
+        connection.setUseCaches(false);
+        final String root = connection.getEntryName();
+        if (root == null) {
+            throw new IllegalArgumentException("webapp resource root is missing from URL: " + resourceRoot);
+        }
+
+        try (JarFile jar = connection.getJarFile()) {
+            final String resourcePrefix = root + '/';
+            return jar.stream()
+                      .filter(entry -> !entry.isDirectory())
+                      .filter(entry -> entry.getName().startsWith(resourcePrefix))
+                      .filter(entry -> isPrecompressedAsset(entry.getName()))
+                      .filter(entry -> entry.getSize() > maxSizeBytes)
+                      .map(entry -> formatAssetSize(entry.getName().substring(resourcePrefix.length()),
+                                                     entry.getSize()))
+                      .collect(Collectors.toList());
+        }
+    }
+
     private static boolean isPrecompressedAsset(Path path) {
-        final String name = path.getFileName().toString();
+        return isPrecompressedAsset(path.getFileName().toString());
+    }
+
+    private static boolean isPrecompressedAsset(String name) {
         return name.endsWith(".br") || name.endsWith(".gz");
+    }
+
+    private static String formatAssetSize(String path, long size) {
+        return path + " (" + size + " bytes)";
     }
 
     private static long size(Path path) {
