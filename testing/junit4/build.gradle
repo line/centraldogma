@@ -2,7 +2,3 @@ dependencies {
     api project(':testing:testing-common')
     api libs.junit4
 }
-
-tasks.withType(Test).configureEach {
-    failOnNoDiscoveredTests = false
-}
