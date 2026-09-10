@@ -48,6 +48,7 @@ import com.linecorp.centraldogma.server.mirror.MirrorAccessController;
 import com.linecorp.centraldogma.server.plugin.Plugin;
 import com.linecorp.centraldogma.server.plugin.PluginContext;
 import com.linecorp.centraldogma.server.plugin.PluginTarget;
+import com.linecorp.centraldogma.server.storage.encryption.EncryptionStorageManager;
 import com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 
@@ -155,10 +156,11 @@ final class PluginGroup {
                                   CommandExecutor commandExecutor, MeterRegistry meterRegistry,
                                   ScheduledExecutorService purgeWorker,
                                   InternalProjectInitializer internalProjectInitializer,
-                                  MirrorAccessController mirrorAccessController) {
+                                  MirrorAccessController mirrorAccessController,
+                                  EncryptionStorageManager encryptionStorageManager) {
         final PluginContext context = new PluginContext(config, projectManager, commandExecutor, meterRegistry,
                                                         purgeWorker, internalProjectInitializer,
-                                                        mirrorAccessController);
+                                                        mirrorAccessController, encryptionStorageManager);
         return startStop.start(context, context, true);
     }
 
@@ -169,10 +171,12 @@ final class PluginGroup {
                                  CommandExecutor commandExecutor, MeterRegistry meterRegistry,
                                  ScheduledExecutorService purgeWorker,
                                  InternalProjectInitializer internalProjectInitializer,
-                                 MirrorAccessController mirrorAccessController) {
+                                 MirrorAccessController mirrorAccessController,
+                                 EncryptionStorageManager encryptionStorageManager) {
         return startStop.stop(
                 new PluginContext(config, projectManager, commandExecutor, meterRegistry, purgeWorker,
-                                  internalProjectInitializer, mirrorAccessController));
+                                  internalProjectInitializer, mirrorAccessController,
+                                  encryptionStorageManager));
     }
 
     private class PluginGroupStartStop extends StartStopSupport<PluginContext, PluginContext, Void, Void> {
