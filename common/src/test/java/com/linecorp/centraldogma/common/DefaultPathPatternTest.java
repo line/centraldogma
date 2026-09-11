@@ -38,6 +38,11 @@ class DefaultPathPatternTest {
         pathPattern = PathPattern.of(ImmutableSet.of("/foo/*.json", "/*/foo.txt", "/**"));
         assertThat(pathPattern.patternString()).isEqualTo("/**");
         assertThat(pathPattern.encoded()).isEqualTo("/**");
+
+        pathPattern = PathPattern.of(PathPattern.of("*.json"),
+                                     PathPattern.startsWith("/foo/bar"));
+        assertThat(pathPattern.patternString()).isEqualTo("/**/*.json,/foo/bar/**");
+        assertThat(pathPattern.encoded()).isEqualTo("/**/*.json,/foo/bar/**");
     }
 
     @Test
