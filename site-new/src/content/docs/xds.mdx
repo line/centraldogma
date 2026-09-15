@@ -150,9 +150,10 @@ Each watcher exposes the following fields (the underlying YAML key is shown in p
   - the ID of an access-token credential in the group's _Credentials_ section, used as the OAuth token to
     authenticate to the Kubernetes API server. See [authentication](auth.mdx) for credential management.
 
-- `Trust certificates` (`kubeconfig.trustCerts`)
+- `Disable TLS verification` (`kubeconfig.trustCerts`)
 
-  - trust the Kubernetes API server's certificate (skip TLS verification).
+  - skips TLS certificate verification. Use this only in a controlled environment with a self-signed control plane.
+    An intercepted connection could expose the configured OAuth token and return falsified endpoint data.
 
 - `Priority` (`priority`) and `Load balancing weight` (`loadBalancingWeight`)
 

@@ -20,7 +20,7 @@
         "type": "integer",
         "title": "The priority of the client profile",
         "examples": [
-          "0", "-100", "100"
+          0, -100, 100
         ]
       },
       "hosts": {

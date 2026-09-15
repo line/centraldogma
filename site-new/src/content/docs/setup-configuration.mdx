@@ -310,7 +310,7 @@ example shows the configuration of the first replica in a 3-replica cluster:
         "weight": null
       }
     },
-    "secret": "JqJAkZ!oZ6MNx4rBpIH8M*yuVWXDULgR",
+    "secret": "CHANGE_ME",
     "additionalProperties": {},
     "timeoutMillis": null,
     "numWorkers": null,
@@ -319,6 +319,8 @@ example shows the configuration of the first replica in a 3-replica cluster:
   }
 }
 ```
+
+`CHANGE_ME` is intentionally invalid. Replace it with a unique secret before starting any replica.
 
 - `method` (string)
 
@@ -382,8 +384,9 @@ example shows the configuration of the first replica in a 3-replica cluster:
 
   - the secret string which is used for replicas to authenticate each other. The replicas in the same
     cluster must have the same secret. **This property is required** when ZooKeeper replication is enabled.
-    The secret must be at least 16 characters long. Use `openssl rand -hex 32` to generate a secure
-    random secret. You can secure this property by [hiding sensitive property values](#hiding-sensitive-property-values).
+    The secret must be at least 16 characters long. Generate a different random secret for each cluster with
+    `openssl rand -hex 32`. You can secure this property by
+    [hiding sensitive property values](#hiding-sensitive-property-values).
 
 - `allowInsecureSecret` (boolean)
 
@@ -578,6 +581,9 @@ properties that can be configured:
      ```shell
      ssh-keyscan <hostname> 2>/dev/null | ssh-keygen -lf - -E sha256
      ```
+
+     `ssh-keyscan` does not authenticate the key it retrieves. Before trusting the fingerprint, verify it
+     out of band against the fingerprint published by the Git host owner.
 
      Example:
 

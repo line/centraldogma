@@ -36,7 +36,7 @@ Or a YAML template file `/config.yaml`:
 ```yaml
 apiEndpoint: ${vars.api.url}
 timeout: ${vars.api.timeout}
-debugMode: ${vars.debug}
+debugMode: "${vars.debug}"
 ```
 
 With variables defined as:
@@ -59,7 +59,7 @@ And the YAML template produces:
 ```yaml
 apiEndpoint: https://api.example.com
 timeout: 30
-debugMode: false
+debugMode: "false"
 ```
 
 ## Variable Types
@@ -72,7 +72,8 @@ A **STRING** variable stores a text value as-is. When used in templates, the quo
 the template file format:
 
 - **JSON templates**: Variables must be quoted to maintain valid JSON syntax
-- **YAML templates**: Variables don't need quotes (YAML accepts unquoted strings)
+- **YAML templates**: Variables may be unquoted only when YAML cannot interpret the value as another type.
+  Quote values such as `false` to keep them as strings.
 
 Example variable:
 
@@ -112,7 +113,8 @@ name: user-service
 
 In JSON templates, quotes around `"${vars.serviceName}"` are required because Central Dogma validates the
 template file as valid JSON when storing it. Without quotes, `${vars.serviceName}` would be invalid JSON
-syntax. YAML templates don't have this restriction since YAML accepts unquoted strings.
+syntax. YAML templates accept unquoted values, but quote a STRING variable when YAML could interpret its value
+as another type.
 
 :::
 

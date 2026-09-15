@@ -103,7 +103,7 @@ the authentication to.
           "signing": null,
           "encryption": null
         },
-        "signatureAlgorithm": "http://www.w3.org/2000/09/xmldsig#rsa-sha1"
+        "signatureAlgorithm": "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"
       },
       "acs": {
         "endpoints": [
@@ -176,7 +176,8 @@ The following describes the meaning of SAML-specific properties.
   - `signatureAlgorithm` (string)
 
     - a name of the signature algorithm for signing and encryption.
-      If unspecified, `http://www.w3.org/2000/09/xmldsig#rsa-sha1` is used by default.
+      If unspecified, the legacy `http://www.w3.org/2000/09/xmldsig#rsa-sha1` algorithm is used by default.
+      Configure `http://www.w3.org/2001/04/xmldsig-more#rsa-sha256` for stronger signatures.
 
 - `acs`
 
@@ -278,7 +279,9 @@ configuration files under the `conf/` directory in the distribution.
 ## Access Control
 
 One way to configure the access control system for Central Dogma is to use the web UI.
-To open the web UI, you may access `http://{your-central-dogma-domain-or-ip}:36462` in your web browser.
+For remote access to an authenticated server, configure TLS and open
+`https://{your-central-dogma-domain-or-ip}:36462` in your web browser.
+Use HTTP only for localhost or local development.
 You may configure a project with HTTP APIs, but we recommend the web UI because it is easier and simpler.
 
 Everyone who is logged in is able to create a new project, and he or she would be an owner of the project.

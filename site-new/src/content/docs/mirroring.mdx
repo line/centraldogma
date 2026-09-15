@@ -77,6 +77,9 @@ Here is the properties of the mirroring task:
     - `git+https`
     - `git+ssh`
 
+  - Use `git+http` only for public repositories that require no authentication. Never send a password or access
+    token over `git+http`. Use `git+https` or `git+ssh` for authenticated repositories.
+
   - `repo`
 
     - the uri of the remote Git repository except the scheme.
@@ -132,6 +135,9 @@ The setup is similar to Git mirroring, with a few differences:
     - `dogma` - connects to a remote Central Dogma server via plain HTTP.
     - `dogma+https` - connects to a remote Central Dogma server via HTTPS.
 
+  - Use `dogma+https` outside localhost or local development. When an access token is configured, never send it
+    over `dogma`.
+
   - `repo`
 
     - the URI of the remote Central Dogma repository.
@@ -147,7 +153,8 @@ The setup is similar to Git mirroring, with a few differences:
 
 - `Credential`
 
-  - An access token credential must be used for authentication to the remote Central Dogma server.
+  - the optional ID of an access token credential for a remote Central Dogma server that requires authentication.
+    Use the credential only with `dogma+https`.
 
 - `Direction`
 

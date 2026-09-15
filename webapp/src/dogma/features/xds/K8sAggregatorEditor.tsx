@@ -579,12 +579,15 @@ const WatcherFields = ({
         <FormControl pt={6}>
           <Checkbox
             size="sm"
-            isReadOnly={readOnly}
+            isDisabled={readOnly}
             {...register(`localityLbEndpoints.${index}.watcher.kubeconfig.trustCerts`)}
           >
-            Trust certificates
+            Disable TLS verification
           </Checkbox>
-          <Help ml={6}>Skips TLS verification. Only for a self-signed control plane.</Help>
+          <Help ml={6}>
+            Skips TLS verification. Only for a self-signed control plane. An intercepted connection could expose
+            the OAuth token and return falsified data.
+          </Help>
         </FormControl>
       </SimpleGrid>
 

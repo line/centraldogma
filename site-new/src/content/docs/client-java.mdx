@@ -96,7 +96,7 @@ CompletableFuture<Entry<String>> future =
         dogma.getFile("myProj", "myRepo", Revision.HEAD, Query.ofText("/a.txt"));
 
 Entry<String> entry = future.join();
-assert entry.type() == EntryType.TEXT
+assert entry.type() == EntryType.TEXT;
 assert entry.content() instanceof String; // Text file's content type is String.
 System.err.println(entry.content());
 ```
@@ -531,7 +531,7 @@ the administrator.
 ## Using DNS-based lookup
 
 Central Dogma Java client always retrieves all the IP addresses of a host from the current system DNS server or
-the `/etc/host` file. Instead of specifying all the individual replica addresses in a client profile,
+the `/etc/hosts` file. Instead of specifying all the individual replica addresses in a client profile,
 consider specifying a single host name that's very unlikely to change in the client profile and add multiple
 `A` or `AAAA` DNS records to the host name:
 
@@ -572,14 +572,13 @@ client profile JAR again.
 ## Spring Boot integration
 
 If you are using [Spring Framework](https://spring.io/), you can inject `CentralDogma`
-client very easily. First, add `centraldogma-client-spring-boot3-starter` into your dependencies.
+client very easily. First, add the starter that matches your Spring Boot major version:
 
-:::tip
+- `centraldogma-client-spring-boot4-starter` requires Spring Boot 4 and Java 17 or later.
+- `centraldogma-client-spring-boot3-starter` requires Spring Boot 3 and Java 17 or later.
+- `centraldogma-client-spring-boot2-starter` supports Spring Boot 2 and Java 11 or later.
 
-Use the `centraldogma-client-spring-boot2-starter` dependency if you are using Spring Boot 2 or running your application with
-a Java version lower than 17.
-
-:::
+The examples below use `centraldogma-client-spring-boot3-starter`.
 
 Gradle:
 
