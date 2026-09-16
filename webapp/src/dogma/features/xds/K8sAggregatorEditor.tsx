@@ -582,11 +582,11 @@ const WatcherFields = ({
             isDisabled={readOnly}
             {...register(`localityLbEndpoints.${index}.watcher.kubeconfig.trustCerts`)}
           >
-            Disable TLS verification
+            Trust all certificates (skip verification)
           </Checkbox>
           <Help ml={6}>
-            Skips TLS verification. Only for a self-signed control plane. An intercepted connection could expose
-            the OAuth token and return falsified data.
+            Only for a self-signed control plane in a controlled environment. An intercepted connection could
+            expose the OAuth token and return falsified data.
           </Help>
         </FormControl>
       </SimpleGrid>

@@ -279,8 +279,10 @@ configuration files under the `conf/` directory in the distribution.
 ## Access Control
 
 One way to configure the access control system for Central Dogma is to use the web UI.
-For remote access to an authenticated server, configure TLS and open
-`https://{your-central-dogma-domain-or-ip}:36462` in your web browser.
+For remote access to an authenticated server, expose a public HTTPS endpoint on port 443. Either configure the
+server's [HTTPS listener](setup-configuration.mdx#configuring-tls) for port 443 or put a TLS reverse proxy on
+port 443 in front of the configured server port. Then open
+`https://{your-central-dogma-domain-or-ip}:443` in your web browser.
 Use HTTP only for localhost or local development.
 You may configure a project with HTTP APIs, but we recommend the web UI because it is easier and simpler.
 
