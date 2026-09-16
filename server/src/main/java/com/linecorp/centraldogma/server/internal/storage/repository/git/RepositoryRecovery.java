@@ -37,7 +37,6 @@ import com.google.common.collect.ImmutableList;
 
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Commit;
-import com.linecorp.centraldogma.common.RepositoryRecoveryException;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.server.command.CommitResult;
 import com.linecorp.centraldogma.server.command.RecoverRepositoryCommand;
@@ -52,7 +51,6 @@ import com.linecorp.centraldogma.server.storage.repository.Repository;
 final class RepositoryRecovery {
 
     private static final Logger logger = LoggerFactory.getLogger(RepositoryRecovery.class);
-
     private final GitRepositoryManager manager;
 
     RepositoryRecovery(GitRepositoryManager manager) {
@@ -64,23 +62,36 @@ final class RepositoryRecovery {
         requireNonNull(repositoryName, "repositoryName");
         requireNonNull(resetToRevision, "resetToRevision");
         requireNonNull(commits, "commits");
-        checkArgument(!commits.isEmpty(), "commits is empty (expected: the revisions to replay)");
+        checkRecoveryRange(resetToRevision, commits);
+        final Revision recoveryRevision = commits.get(commits.size() - 1).revision();
         final String repoPath = manager.projectRepositoryName(repositoryName);
-        logger.info("Starting to recover the repository '{}' (reset to {}, replay {} commits).",
-                    repoPath, resetToRevision, commits.size());
+        logger.info("Starting to recover the repository '{}' (reset to {}, replay {} commits, through {}).",
+                    repoPath, resetToRevision, commits.size(), recoveryRevision);
         final long startTime = System.nanoTime();
         final GitRepository repo = fileRepository(repositoryName);
         final CommitIdDatabase commitIdDatabase = repo.commitIdDatabase();
-        if (isConverged(repoPath, repo, commitIdDatabase, commits)) {
-            return false;
-        }
+        boolean recoveryStarted = false;
+        boolean recoverySucceeded = false;
 
-        checkResetBase(repoPath, resetToRevision, repo.normalizeNow(Revision.HEAD));
-        final ObjectId resetToCommitId = commitIdDatabase.get(resetToRevision);
-
-        // No read may observe the repository between the reset and the last replayed commit.
+        // No read may observe the repository between the reset and the final padding commit.
         repo.writeLock();
         try {
+            if (isConverged(repoPath, repo, commitIdDatabase, commits)) {
+                recoveryStarted = true;
+                repo.setLastRecoveryRevision(recoveryRevision);
+                recoverySucceeded = true;
+                return false;
+            }
+
+            final Revision currentHead = repo.normalizeNow(Revision.HEAD);
+            if (currentHead.compareTo(recoveryRevision) >= 0) {
+                throw new StorageException(
+                        "recovery revision " + recoveryRevision + " must be greater than the current head " +
+                        currentHead + " of " + repoPath);
+            }
+            checkResetBase(repoPath, resetToRevision, currentHead);
+            final ObjectId resetToCommitId = commitIdDatabase.get(resetToRevision);
+            recoveryStarted = true;
             rewindTo(repo, resetToCommitId, resetToRevision);
 
             // Replayed on this thread rather than through commit(), which queues to the fixed-size
@@ -90,7 +101,7 @@ final class RepositoryRecovery {
                 final Revision revision = commit.revision();
                 final CommitResult result = repo.blockingCommit(
                         revision.backward(1), commit.timestampMillis(), commit.author(), commit.summary(),
-                        commit.detail(), commit.markup(), commit.changes());
+                        commit.detail(), commit.markup(), commit.changes(), true);
                 if (!revision.equals(result.revision())) {
                     throw new StorageException("unexpected replayed revision: " + result.revision() +
                                                " (expected: " + revision + ')');
@@ -106,7 +117,18 @@ final class RepositoryRecovery {
                             "transformer). The recovery stopped here, leaving a partial history.");
                 }
             }
+
+            repo.setLastRecoveryRevision(recoveryRevision);
+            recoverySucceeded = true;
         } catch (Throwable t) {
+            if (!recoveryStarted) {
+                if (t instanceof RuntimeException) {
+                    throw (RuntimeException) t;
+                }
+                if (t instanceof Error) {
+                    throw (Error) t;
+                }
+            }
             // Deliberately not rolled back: an automatic repair is a second thing that can fail, and it
             // would leave a worse state than this one. The history stays readable, and an administrator
             // recovers it again.
@@ -117,11 +139,9 @@ final class RepositoryRecovery {
                     t);
         } finally {
             repo.writeUnLock();
-            // The watched revisions are gone whether or not the replay finished, so make the clients ask
-            // again. That drops the listeners' watches too, and a listener has no client to ask for it.
-            final String cause = repoPath + " was rewritten by a recovery. Watch again.";
-            repo.commitWatchers.close(() -> new RepositoryRecoveryException(cause));
-            repo.rewatchListeners();
+            if (recoverySucceeded) {
+                repo.commitWatchers.notifyRecovery(recoveryRevision);
+            }
         }
 
         logger.info("Recovered the repository '{}' to {} in {} seconds.",
@@ -145,9 +165,8 @@ final class RepositoryRecovery {
 
     /**
      * Returns whether the repository already holds the commits to replay, which makes recovery idempotent.
-     * Every revision in the range is compared, not only the head: a tree names the content of one revision
-     * and nothing before it, so a head that matches says nothing about the revisions under it - unlike a
-     * commit ID, which hashes its parent transitively.
+     * Every revision is compared, not only the head: a tree names the content of one revision and nothing
+     * before it, so a head that matches says nothing about the revisions under it.
      */
     private static boolean isConverged(String repoPath, GitRepository repo,
                                        CommitIdDatabase commitIdDatabase, List<ReplayCommit> commits) {
@@ -165,6 +184,24 @@ final class RepositoryRecovery {
         logger.info("Repository '{}' is already converged at {} (tree {}); nothing to recover.",
                     repoPath, currentHead, lastCommit.expectedTreeId());
         return true;
+    }
+
+    private static void checkRecoveryRange(Revision resetToRevision, List<ReplayCommit> commits) {
+        checkArgument(!commits.isEmpty(), "commits is empty (expected: the revisions to replay)");
+        checkArgument(commits.size() <= RecoverRepositoryCommand.MAX_RECOVERY_COMMITS,
+                      "commits: %s (expected: <= %s)", commits.size(),
+                      RecoverRepositoryCommand.MAX_RECOVERY_COMMITS);
+        checkArgument(!resetToRevision.isRelative() && resetToRevision.major() >= Revision.INIT.major(),
+                      "resetToRevision: %s (expected: an absolute revision >= %s)",
+                      resetToRevision, Revision.INIT);
+
+        for (int i = 0; i < commits.size(); i++) {
+            final ReplayCommit commit = requireNonNull(commits.get(i), "commits[" + i + ']');
+            final Revision expectedRevision = resetToRevision.forward(i + 1);
+            checkArgument(expectedRevision.equals(commit.revision()),
+                          "commits[%s].revision: %s (expected: %s)", i, commit.revision(),
+                          expectedRevision);
+        }
     }
 
     private static void checkResetBase(String repoPath, Revision resetToRevision, Revision headRevision) {
@@ -240,7 +277,7 @@ final class RepositoryRecovery {
     }
 
     List<ReplayCommit> buildRecoveryPayload(String repositoryName, Revision fromRevision,
-                                                  Revision toRevision) {
+                                             Revision toRevision) {
         requireNonNull(repositoryName, "repositoryName");
         requireNonNull(fromRevision, "fromRevision");
         requireNonNull(toRevision, "toRevision");
@@ -262,25 +299,28 @@ final class RepositoryRecovery {
         final int commitCount = to - from + 1;
         checkCommitCount(repoPath, commitCount);
 
-        // The whole range in one walk, and blockingHistory() takes the count as given.
-        final List<Commit> history =
-                repo.blockingHistory(fromRevision, toRevision, Repository.ALL_PATH, commitCount);
-        if (history.size() != commitCount) {
-            throw new StorageException("expected " + commitCount + " commits of " + repoPath + " in " +
-                                       fromRevision + ".." + toRevision + ", but got " + history.size());
-        }
-
         final ImmutableList.Builder<ReplayCommit> commits =
                 ImmutableList.builderWithExpectedSize(commitCount);
-        for (int i = from; i <= to; i++) {
-            final Revision revision = new Revision(i);
-            final Commit commit = history.get(i - from);
-            final Map<String, Change<?>> changes =
-                    repo.blockingDiff(revision.backward(1), revision, Repository.ALL_PATH,
-                                      DiffResultType.PATCH_TO_TEXT_UPSERT);
-            commits.add(new ReplayCommit(revision, commit.when(), commit.author(), commit.summary(),
+        try (ObjectReader reader = repo.jGitRepository().newObjectReader();
+             RevWalk revWalk = newRevWalk(reader)) {
+            for (int i = from; i <= to; i++) {
+                final Revision revision = new Revision(i);
+                final org.eclipse.jgit.revwalk.RevCommit revCommit =
+                        revWalk.parseCommit(commitIdDatabase.get(revision));
+                revWalk.parseBody(revCommit);
+                final Commit commit = GitRepository.toCommit(revCommit);
+                final Map<String, Change<?>> changes =
+                        repo.blockingDiff(revision.backward(1), revision, Repository.ALL_PATH,
+                                          DiffResultType.PATCH_TO_TEXT_UPSERT);
+                final ReplayCommit replayCommit =
+                        new ReplayCommit(revision, commit.when(), commit.author(), commit.summary(),
                                          commit.detail(), commit.markup(), changes.values(),
-                                         treeIdOf(repo, commitIdDatabase.get(revision))));
+                                         revCommit.getTree().getId().name());
+                commits.add(replayCommit);
+                revCommit.disposeBody();
+            }
+        } catch (IOException e) {
+            throw new StorageException("failed to build a recovery payload of " + repoPath, e);
         }
         return commits.build();
     }

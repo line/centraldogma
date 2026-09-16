@@ -72,6 +72,11 @@ public class RepositoryWrapper implements Repository {
     }
 
     @Override
+    public Revision lastRecoveryRevision() {
+        return unwrap().lastRecoveryRevision();
+    }
+
+    @Override
     public org.eclipse.jgit.lib.Repository jGitRepository() {
         return unwrap().jGitRepository();
     }

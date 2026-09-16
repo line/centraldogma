@@ -16,6 +16,7 @@
 
 package com.linecorp.centraldogma.server.command;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
 
 import java.util.Objects;
@@ -32,9 +33,9 @@ import com.linecorp.centraldogma.common.Revision;
 
 /**
  * A {@link Command} which asks the source replica to originate a {@link RecoverRepositoryCommand}. It is
- * originated by a non-source replica that received the recovery request (e.g. behind a load balancer) and is
- * applied as a no-op on every replica; the source replica reacts to it (off the replication-log replay
- * thread) by building and originating the actual {@link RecoverRepositoryCommand}.
+ * recorded by any replica that receives the recovery request and applied as a no-op on every replica; the
+ * source replica reacts to it asynchronously by building and originating the actual
+ * {@link RecoverRepositoryCommand}.
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public final class RecoverRepositoryRequestCommand extends RepositoryCommand<Void> {
@@ -42,6 +43,7 @@ public final class RecoverRepositoryRequestCommand extends RepositoryCommand<Voi
     private final int sourceServerId;
     private final Revision fromRevision;
     private final Revision toRevision;
+    private final int maxRevision;
 
     @JsonCreator
     RecoverRepositoryRequestCommand(@JsonProperty("timestamp") @Nullable Long timestamp,
@@ -50,11 +52,21 @@ public final class RecoverRepositoryRequestCommand extends RepositoryCommand<Voi
                                     @JsonProperty("repositoryName") String repositoryName,
                                     @JsonProperty("sourceServerId") int sourceServerId,
                                     @JsonProperty("fromRevision") Revision fromRevision,
-                                    @JsonProperty("toRevision") Revision toRevision) {
+                                    @JsonProperty("toRevision") Revision toRevision,
+                                    @JsonProperty(value = "maxRevision", required = true) int maxRevision) {
         super(CommandType.RECOVER_REPOSITORY_REQUEST, timestamp, author, projectName, repositoryName);
         this.sourceServerId = sourceServerId;
         this.fromRevision = requireNonNull(fromRevision, "fromRevision");
         this.toRevision = requireNonNull(toRevision, "toRevision");
+        checkArgument(maxRevision >= toRevision.major(),
+                      "maxRevision: %s (expected: >= toRevision %s)", maxRevision, toRevision);
+        checkArgument(maxRevision < Integer.MAX_VALUE,
+                      "maxRevision: %s (expected: < %s)", maxRevision, Integer.MAX_VALUE);
+        checkArgument((long) maxRevision - fromRevision.major() + 2 <=
+                      RecoverRepositoryCommand.MAX_RECOVERY_COMMITS,
+                      "recovery spans too many revisions (maximum: %s)",
+                      RecoverRepositoryCommand.MAX_RECOVERY_COMMITS);
+        this.maxRevision = maxRevision;
     }
 
     /**
@@ -74,11 +86,19 @@ public final class RecoverRepositoryRequestCommand extends RepositoryCommand<Voi
     }
 
     /**
-     * Returns the last {@link Revision} to replay, which every replica converges to.
+     * Returns the last source {@link Revision} to replay before compatibility padding.
      */
     @JsonProperty("toRevision")
     public Revision toRevision() {
         return toRevision;
+    }
+
+    /**
+     * Returns the greatest repository head observed across the replicas before the recovery started.
+     */
+    @JsonProperty("maxRevision")
+    public int maxRevision() {
+        return maxRevision;
     }
 
     @Override
@@ -93,12 +113,12 @@ public final class RecoverRepositoryRequestCommand extends RepositoryCommand<Voi
         return super.equals(that) &&
                sourceServerId == that.sourceServerId &&
                fromRevision.equals(that.fromRevision) &&
-               toRevision.equals(that.toRevision);
+               toRevision.equals(that.toRevision) && maxRevision == that.maxRevision;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(sourceServerId, fromRevision, toRevision) * 31 + super.hashCode();
+        return Objects.hash(sourceServerId, fromRevision, toRevision, maxRevision) * 31 + super.hashCode();
     }
 
     @Override
@@ -106,6 +126,7 @@ public final class RecoverRepositoryRequestCommand extends RepositoryCommand<Voi
         return super.toStringHelper()
                     .add("sourceServerId", sourceServerId)
                     .add("fromRevision", fromRevision)
-                    .add("toRevision", toRevision);
+                    .add("toRevision", toRevision)
+                    .add("maxRevision", maxRevision);
     }
 }

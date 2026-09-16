@@ -99,6 +99,11 @@ public interface Repository {
     int cacheGeneration();
 
     /**
+     * Returns the final revision of the last recovery applied to this repository.
+     */
+    Revision lastRecoveryRevision();
+
+    /**
      * Returns the parent {@link Project} of this {@link Repository}.
      */
     Project parent();

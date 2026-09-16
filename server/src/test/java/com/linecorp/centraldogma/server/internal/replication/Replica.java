@@ -17,7 +17,10 @@ package com.linecorp.centraldogma.server.internal.replication;
 
 import static com.google.common.base.Preconditions.checkState;
 import static org.awaitility.Awaitility.await;
+import static org.mockito.Answers.RETURNS_DEEP_STUBS;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -27,19 +30,22 @@ import java.nio.file.Files;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
 import org.apache.curator.test.InstanceSpec;
 import org.jspecify.annotations.Nullable;
 
 import com.linecorp.armeria.common.prometheus.PrometheusMeterRegistries;
+import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.ZooKeeperReplicationConfig;
 import com.linecorp.centraldogma.server.ZooKeeperServerConfig;
 import com.linecorp.centraldogma.server.command.AbstractCommandExecutor;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.ExecutionContext;
-import com.linecorp.centraldogma.server.internal.management.RepoStatusManager;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
+import com.linecorp.centraldogma.server.storage.repository.RepositoryHead;
 
 import io.micrometer.core.instrument.MeterRegistry;
 
@@ -51,15 +57,39 @@ final class Replica {
     private final CompletableFuture<Void> startFuture;
 
     Replica(InstanceSpec spec, Map<Integer, ZooKeeperServerConfig> servers,
-            Function<Command<?>, CompletableFuture<?>> delegate, boolean start) {
+            Function<Command<?>, CompletableFuture<?>> delegate, boolean start, int numWorkers)
+            throws Exception {
+        this(spec, servers, delegate, start, newRecoveryCommandFactory(), numWorkers);
+    }
+
+    private static RecoveryCommandFactory newRecoveryCommandFactory() {
+        final ProjectManager projectManager = mock(ProjectManager.class, RETURNS_DEEP_STUBS);
+        when(projectManager.get(anyString()).repos().get(anyString()).head())
+                .thenReturn(new RepositoryHead(Revision.INIT, "commit", "tree"));
+        return new RecoveryCommandFactory(projectManager);
+    }
+
+    Replica(InstanceSpec spec, Map<Integer, ZooKeeperServerConfig> servers,
+            Function<Command<?>, CompletableFuture<?>> delegate, boolean start,
+            RecoveryCommandFactory recoveryCommandFactory, int numWorkers) throws Exception {
         this.delegate = delegate;
 
         dataDir = spec.getDataDirectory();
         meterRegistry = PrometheusMeterRegistries.newRegistry();
 
         final int id = spec.getServerId();
-        final ZooKeeperReplicationConfig zkCfg = new ZooKeeperReplicationConfig(
-                id, servers, "test-secret-for-replication-0123456789abcdef");
+        final ZooKeeperReplicationConfig zkCfg = Jackson.treeToValue(
+                Jackson.valueToTree(Map.of(
+                        "method", "ZOOKEEPER",
+                        "serverId", id,
+                        "servers", servers,
+                        "secret", "test-secret-for-replication-0123456789abcdef",
+                        "additionalProperties", Map.of(),
+                        "timeoutMillis", 10000,
+                        "numWorkers", numWorkers,
+                        "maxLogCount", 1024,
+                        "minLogAgeMillis", TimeUnit.DAYS.toMillis(1))),
+                ZooKeeperReplicationConfig.class);
 
         commandExecutor = new ZooKeeperCommandExecutor(
                 zkCfg, dataDir, new AbstractCommandExecutor(null, null, null, null) {
@@ -84,9 +114,7 @@ final class Replica {
             protected <T> CompletableFuture<T> doExecute(ExecutionContext ctx, Command<T> command) {
                 return (CompletableFuture<T>) delegate.apply(command);
             }
-        }, meterRegistry, null,
-                new RecoveryPayloadBuilder(mock(ProjectManager.class),
-                                           mock(RepoStatusManager.class)),
+        }, meterRegistry, null, recoveryCommandFactory,
                 null, null, null, null);
         commandExecutor.setLockTimeoutMillis(10000);
 

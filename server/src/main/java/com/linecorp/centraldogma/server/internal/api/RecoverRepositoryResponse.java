@@ -20,24 +20,19 @@ import static java.util.Objects.requireNonNull;
 
 import java.util.Objects;
 
-import org.jspecify.annotations.Nullable;
-
-import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects;
 
 import com.linecorp.centraldogma.common.Revision;
 
-@JsonInclude(JsonInclude.Include.NON_NULL)
 final class RecoverRepositoryResponse {
 
     private final RecoveryStatus status;
-    @Nullable
-    private final Revision toRevision;
+    private final Revision recoveryRevision;
 
-    RecoverRepositoryResponse(RecoveryStatus status, @Nullable Revision toRevision) {
+    RecoverRepositoryResponse(RecoveryStatus status, Revision recoveryRevision) {
         this.status = requireNonNull(status, "status");
-        this.toRevision = toRevision;
+        this.recoveryRevision = requireNonNull(recoveryRevision, "recoveryRevision");
     }
 
     @JsonProperty("status")
@@ -46,14 +41,12 @@ final class RecoverRepositoryResponse {
     }
 
     /**
-     * Returns the revision every replica converges to once it replays the recovery, or {@code null} if the
-     * recovery was only requested. It is the {@code toRevision} of the request, which need not be the
-     * source replica's head.
+     * Returns the revision every replica converges to after replaying the recovery and compatibility
+     * padding.
      */
-    @Nullable
-    @JsonProperty("toRevision")
-    Revision toRevision() {
-        return toRevision;
+    @JsonProperty("recoveryRevision")
+    Revision recoveryRevision() {
+        return recoveryRevision;
     }
 
     @Override
@@ -65,19 +58,19 @@ final class RecoverRepositoryResponse {
             return false;
         }
         final RecoverRepositoryResponse that = (RecoverRepositoryResponse) o;
-        return status == that.status && Objects.equals(toRevision, that.toRevision);
+        return status == that.status && Objects.equals(recoveryRevision, that.recoveryRevision);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(status, toRevision);
+        return Objects.hash(status, recoveryRevision);
     }
 
     @Override
     public String toString() {
         return MoreObjects.toStringHelper(this)
                           .add("status", status)
-                          .add("toRevision", toRevision)
+                          .add("recoveryRevision", recoveryRevision)
                           .toString();
     }
 }

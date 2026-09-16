@@ -53,22 +53,22 @@ final class RepositoryHeadResponse {
 
     @Nullable
     @JsonProperty("serverId")
-    public Integer serverId() {
+    Integer serverId() {
         return serverId;
     }
 
     @JsonProperty("revision")
-    public Revision revision() {
+    Revision revision() {
         return revision;
     }
 
     @JsonProperty("commitId")
-    public String commitId() {
+    String commitId() {
         return commitId;
     }
 
     @JsonProperty("treeId")
-    public String treeId() {
+    String treeId() {
         return treeId;
     }
 

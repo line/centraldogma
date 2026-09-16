@@ -52,6 +52,7 @@ import org.eclipse.jgit.lib.ObjectReader;
 import org.eclipse.jgit.lib.PersonIdent;
 import org.eclipse.jgit.lib.RefUpdate;
 import org.eclipse.jgit.lib.RefUpdate.Result;
+import org.eclipse.jgit.lib.StoredConfig;
 import org.eclipse.jgit.revwalk.RevCommit;
 import org.eclipse.jgit.revwalk.RevTree;
 import org.eclipse.jgit.revwalk.RevWalk;
@@ -117,6 +118,8 @@ class GitRepository implements Repository {
     private static final Logger logger = LoggerFactory.getLogger(GitRepository.class);
 
     static final String R_HEADS_MASTER = Constants.R_HEADS + Constants.MASTER;
+    private static final String RECOVERY_CONFIG_SECTION = "centraldogma";
+    private static final String LAST_RECOVERY_REVISION_CONFIG_KEY = "lastRecoveryRevision";
 
     private static final Pattern CR = Pattern.compile("\r", Pattern.LITERAL);
 
@@ -182,6 +185,7 @@ class GitRepository implements Repository {
      */
     private volatile Revision headRevision;
     private volatile int cacheGeneration;
+    private volatile Revision lastRecoveryRevision;
 
     /**
      * Creates a new Git repository.
@@ -197,6 +201,7 @@ class GitRepository implements Repository {
         this.author = author;
         this.cache = cache;
         this.jGitRepository = jGitRepository;
+        lastRecoveryRevision = lastRecoveryRevisionOf(jGitRepository);
         isEncrypted = jGitRepository instanceof RocksDbRepository;
         this.commitIdDatabase = commitIdDatabase;
         new CommitExecutor(this, creationTimeMillis, author, "Create a new repository", "",
@@ -218,6 +223,7 @@ class GitRepository implements Repository {
         this.repositoryWorker = requireNonNull(repositoryWorker, "repositoryWorker");
         this.cache = cache;
         this.jGitRepository = requireNonNull(jGitRepository, "jGitRepository");
+        lastRecoveryRevision = lastRecoveryRevisionOf(jGitRepository);
         isEncrypted = jGitRepository instanceof RocksDbRepository;
         this.commitIdDatabase = requireNonNull(commitIdDatabase, "commitIdDatabase");
         this.headRevision = requireNonNull(headRevision, "headRevision");
@@ -601,7 +607,7 @@ class GitRepository implements Repository {
         }
     }
 
-    private static Commit toCommit(RevCommit revCommit) {
+    static Commit toCommit(RevCommit revCommit) {
         final Author author;
         final PersonIdent committerIdent = revCommit.getCommitterIdent();
         final long when;
@@ -965,8 +971,18 @@ class GitRepository implements Repository {
      */
     CommitResult blockingCommit(Revision baseRevision, long commitTimeMillis, Author author, String summary,
                                 String detail, Markup markup, Iterable<Change<?>> changes) {
+        return blockingCommit(baseRevision, commitTimeMillis, author, summary, detail, markup, changes, false);
+    }
+
+    /**
+     * Commits on the calling thread, optionally retaining an empty commit. Recovery uses empty commits as
+     * deterministic revision padding after replaying the source history.
+     */
+    CommitResult blockingCommit(Revision baseRevision, long commitTimeMillis, Author author, String summary,
+                                String detail, Markup markup, Iterable<Change<?>> changes,
+                                boolean allowEmptyCommit) {
         final CommitExecutor commitExecutor =
-                new CommitExecutor(this, commitTimeMillis, author, summary, detail, markup, false);
+                new CommitExecutor(this, commitTimeMillis, author, summary, detail, markup, allowEmptyCommit);
         return commitExecutor.execute(baseRevision, normBaseRevision -> changes, false);
     }
 
@@ -1132,6 +1148,10 @@ class GitRepository implements Repository {
             failFastIfTimedOut(this, logger, ctx, "watch", lastKnownRevision, pathPattern);
             readLock();
             try {
+                if (tryCompleteWatchAfterRecovery(normLastKnownRevision, pathPattern,
+                                                  errorOnEntryNotFound, future)) {
+                    return;
+                }
                 // If lastKnownRevision is outdated already and the recent changes match,
                 // there's no need to watch.
                 final Revision latestRevision = blockingFindLatestRevision(normLastKnownRevision, pathPattern,
@@ -1180,6 +1200,24 @@ class GitRepository implements Repository {
         });
     }
 
+    private boolean tryCompleteWatchAfterRecovery(Revision lastKnownRevision, String pathPattern,
+                                                  boolean errorOnEntryNotFound,
+                                                  CompletableFuture<Revision> future) {
+        final Revision currentHeadRevision = headRevision;
+        final Revision recoveryRevision = lastRecoveryRevision;
+        if (recoveryRevision.compareTo(currentHeadRevision) <= 0 &&
+            lastKnownRevision.compareTo(recoveryRevision) < 0) {
+            if (errorOnEntryNotFound &&
+                blockingFind(currentHeadRevision, pathPattern,
+                             FindOptions.FIND_ONE_WITHOUT_CONTENT).isEmpty()) {
+                throw new EntryNotFoundException(lastKnownRevision, pathPattern);
+            }
+            future.complete(currentHeadRevision);
+            return true;
+        }
+        return false;
+    }
+
     private void recursiveWatch(String pathPattern, WatchListener listener) {
         requireNonNull(pathPattern, "pathPattern");
         CompletableFuture.runAsync(() -> {
@@ -1206,14 +1244,6 @@ class GitRepository implements Repository {
     public void addListener(RepositoryListener listener) {
         listeners.add(listener);
         watch(listener);
-    }
-
-    /**
-     * Puts back the listener watches that {@link CommitWatchers#close(Supplier)} removed. The listeners
-     * themselves are kept across a close, so they are not added again.
-     */
-    void rewatchListeners() {
-        listeners.forEach(this::watch);
     }
 
     private boolean shouldStopListening() {
@@ -1243,6 +1273,33 @@ class GitRepository implements Repository {
     @Override
     public int cacheGeneration() {
         return cacheGeneration;
+    }
+
+    @Override
+    public Revision lastRecoveryRevision() {
+        return lastRecoveryRevision;
+    }
+
+    private static Revision lastRecoveryRevisionOf(org.eclipse.jgit.lib.Repository repository) {
+        return new Revision(repository.getConfig().getInt(
+                RECOVERY_CONFIG_SECTION, null, LAST_RECOVERY_REVISION_CONFIG_KEY,
+                Revision.INIT.major()));
+    }
+
+    void setLastRecoveryRevision(Revision revision) {
+        requireNonNull(revision, "revision");
+        if (revision.major() <= lastRecoveryRevision.major()) {
+            return;
+        }
+        final StoredConfig config = jGitRepository.getConfig();
+        config.setInt(RECOVERY_CONFIG_SECTION, null, LAST_RECOVERY_REVISION_CONFIG_KEY, revision.major());
+        try {
+            config.save();
+        } catch (IOException e) {
+            throw new StorageException("failed to persist the last recovery revision of " +
+                                       parent.name() + '/' + name, e);
+        }
+        lastRecoveryRevision = revision;
     }
 
     /**

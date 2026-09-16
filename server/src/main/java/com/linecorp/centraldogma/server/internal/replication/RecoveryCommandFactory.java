@@ -1,0 +1,114 @@
+/*
+ * Copyright 2026 LY Corporation
+ *
+ * LY Corporation licenses this file to you under the Apache License,
+ * version 2.0 (the "License"); you may not use this file except in compliance
+ * with the License. You may obtain a copy of the License at:
+ *
+ *   https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
+ */
+
+package com.linecorp.centraldogma.server.internal.replication;
+
+import static com.google.common.base.Preconditions.checkArgument;
+import static java.util.Objects.requireNonNull;
+
+import java.util.List;
+
+import com.google.common.collect.ImmutableList;
+
+import com.linecorp.centraldogma.common.Author;
+import com.linecorp.centraldogma.common.Markup;
+import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.server.command.Command;
+import com.linecorp.centraldogma.server.command.RecoverRepositoryCommand;
+import com.linecorp.centraldogma.server.command.RecoverRepositoryRequestCommand;
+import com.linecorp.centraldogma.server.command.ReplayCommit;
+import com.linecorp.centraldogma.server.storage.project.ProjectManager;
+import com.linecorp.centraldogma.server.storage.repository.RepositoryManager;
+
+/**
+ * Creates a self-contained {@link RecoverRepositoryCommand} from the local storage. Invoked only on the
+ * source replica of a recovery, whose repository is the single source of truth.
+ */
+public final class RecoveryCommandFactory {
+
+    private static final long PADDING_COMMIT_TIMESTAMP_MILLIS = 0;
+    private static final String PADDING_COMMIT_SUMMARY = "Recovery padding";
+
+    private final ProjectManager projectManager;
+
+    /**
+     * Creates a new instance.
+     */
+    public RecoveryCommandFactory(ProjectManager projectManager) {
+        this.projectManager = requireNonNull(projectManager, "projectManager");
+    }
+
+    Command<Revision> newCommand(RecoverRepositoryRequestCommand request) {
+        requireNonNull(request, "request");
+        return newCommand(request.author(), request.projectName(), request.repositoryName(),
+                          request.sourceServerId(), request.fromRevision(), request.toRevision(),
+                          request.maxRevision());
+    }
+
+    Command<Revision> newCommand(Author author, String projectName, String repositoryName,
+                                 int sourceServerId, Revision fromRevision, Revision toRevision,
+                                 int maxRevision) {
+        requireNonNull(author, "author");
+        requireNonNull(projectName, "projectName");
+        requireNonNull(repositoryName, "repositoryName");
+        requireNonNull(fromRevision, "fromRevision");
+        requireNonNull(toRevision, "toRevision");
+        checkArgument(maxRevision >= toRevision.major(),
+                      "maxRevision: %s (expected: >= toRevision %s)", maxRevision, toRevision);
+        checkArgument(maxRevision < Integer.MAX_VALUE,
+                      "maxRevision: %s (expected: < %s)", maxRevision, Integer.MAX_VALUE);
+        final RepositoryManager repositories = projectManager.get(projectName).repos();
+        final Revision sourceHead = repositories.get(repositoryName).head().revision();
+        if (sourceHead.compareTo(new Revision(maxRevision)) > 0) {
+            throw new IllegalStateException(
+                    "cannot recover " + projectName + '/' + repositoryName +
+                    ": source head " + sourceHead + " exceeds maxRevision " + maxRevision);
+        }
+        final long recoveryCommitCount = (long) maxRevision - fromRevision.major() + 2;
+        checkArgument(recoveryCommitCount <= RecoverRepositoryCommand.MAX_RECOVERY_COMMITS,
+                      "recovery spans too many revisions: %s (maximum: %s)", recoveryCommitCount,
+                      RecoverRepositoryCommand.MAX_RECOVERY_COMMITS);
+        final List<ReplayCommit> sourceCommits =
+                repositories.buildRecoveryPayload(repositoryName, fromRevision, toRevision);
+        final Revision recoveryRevision = new Revision(maxRevision + 1);
+        final ImmutableList.Builder<ReplayCommit> commits =
+                ImmutableList.builderWithExpectedSize((int) recoveryCommitCount);
+        commits.addAll(sourceCommits);
+
+        final String expectedTreeId = sourceCommits.get(sourceCommits.size() - 1).expectedTreeId();
+        for (Revision revision = toRevision.forward(1);; revision = revision.forward(1)) {
+            commits.add(new ReplayCommit(revision, PADDING_COMMIT_TIMESTAMP_MILLIS, Author.SYSTEM,
+                                         PADDING_COMMIT_SUMMARY, "", Markup.PLAINTEXT,
+                                         ImmutableList.of(), expectedTreeId));
+            if (revision.equals(recoveryRevision)) {
+                break;
+            }
+        }
+        return Command.recoverRepository(author, projectName, repositoryName, sourceServerId,
+                                         fromRevision.backward(1), recoveryRevision, commits.build());
+    }
+
+    void validateRecoveryRevision(RecoverRepositoryCommand command) {
+        final Revision currentHead = projectManager.get(command.projectName()).repos()
+                                                     .get(command.repositoryName()).head().revision();
+        if (currentHead.compareTo(command.toRevision()) >= 0) {
+            throw new IllegalArgumentException(
+                    "cannot publish recovery for " + command.projectName() + '/' + command.repositoryName() +
+                    ": source head " + currentHead + " is not before recovery revision " +
+                    command.toRevision());
+        }
+    }
+}

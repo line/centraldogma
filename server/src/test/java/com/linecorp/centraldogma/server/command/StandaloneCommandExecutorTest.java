@@ -40,6 +40,7 @@ import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.server.internal.command.DefaultExecutionContext;
 import com.linecorp.centraldogma.server.management.ServerStatus;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
+import com.linecorp.centraldogma.server.storage.repository.Repository;
 import com.linecorp.centraldogma.testing.internal.ProjectManagerExtension;
 
 class StandaloneCommandExecutorTest {
@@ -157,6 +158,40 @@ class StandaloneCommandExecutorTest {
             executor.execute(Command.updateServerStatus(ServerStatus.WRITABLE)).join();
         }
         assertThat(executor.isWritable()).isTrue();
+    }
+
+    @Test
+    void recoversAfterTheExecutorIsRestarted() {
+        final String projectName = "recovery_project";
+        final String repoName = "recovery_repo";
+        final StandaloneCommandExecutor executor = (StandaloneCommandExecutor) extension.executor();
+        executor.execute(Command.createProject(Author.SYSTEM, projectName)).join();
+        executor.execute(Command.createRepository(Author.SYSTEM, projectName, repoName)).join();
+
+        final Repository repo = extension.projectManager().get(projectName).repos().get(repoName);
+        repo.commit(Revision.INIT, 1000L, Author.SYSTEM, "r2", "", Markup.PLAINTEXT,
+                    List.of(Change.ofTextUpsert("/a.txt", "v2")), true).join();
+        repo.commit(new Revision(2), 2000L, Author.SYSTEM, "r3", "", Markup.PLAINTEXT,
+                    List.of(Change.ofTextUpsert("/a.txt", "v3")), true).join();
+        final List<ReplayCommit> commits =
+                extension.projectManager().get(projectName).repos()
+                         .buildRecoveryPayload(repoName, new Revision(2), new Revision(2));
+        final String expectedTreeId = commits.get(0).expectedTreeId();
+        final List<ReplayCommit> recoveryCommits = List.of(
+                commits.get(0),
+                new ReplayCommit(new Revision(3), 0, Author.SYSTEM, "Recovery padding", "",
+                                 Markup.PLAINTEXT, List.of(), expectedTreeId),
+                new ReplayCommit(new Revision(4), 0, Author.SYSTEM, "Recovery padding", "",
+                                 Markup.PLAINTEXT, List.of(), expectedTreeId));
+
+        executor.stop().join();
+        executor.start().join();
+
+        executor.execute(Command.recoverRepository(
+                Author.SYSTEM, projectName, repoName, 0, Revision.INIT, new Revision(4),
+                recoveryCommits)).join();
+        assertThat(repo.normalizeNow(Revision.HEAD)).isEqualTo(new Revision(4));
+        assertThat(repo.get(Revision.HEAD, "/a.txt").join().contentAsText()).isEqualTo("v2\n");
     }
 
     @Test

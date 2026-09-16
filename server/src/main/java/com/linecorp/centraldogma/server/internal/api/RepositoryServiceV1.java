@@ -67,7 +67,6 @@ import com.linecorp.centraldogma.server.internal.api.auth.RequiresSystemAdminist
 import com.linecorp.centraldogma.server.internal.api.converter.CreateApiResponseConverter;
 import com.linecorp.centraldogma.server.internal.management.RepoStatusManager;
 import com.linecorp.centraldogma.server.internal.management.RepositoryState;
-import com.linecorp.centraldogma.server.internal.replication.RecoveryPayloadBuilder;
 import com.linecorp.centraldogma.server.internal.replication.ZooKeeperCommandExecutor;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
 import com.linecorp.centraldogma.server.metadata.User;
@@ -90,17 +89,14 @@ public class RepositoryServiceV1 extends AbstractService {
     private final MetadataService mds;
     private final EncryptionStorageManager encryptionStorageManager;
     private final RepoStatusManager repoStatusManager;
-    private final RecoveryPayloadBuilder recoveryPayloadBuilder;
 
     public RepositoryServiceV1(CommandExecutor executor, MetadataService mds,
                                EncryptionStorageManager encryptionStorageManager,
-                               RepoStatusManager repoStatusManager,
-                               RecoveryPayloadBuilder recoveryPayloadBuilder) {
+                               RepoStatusManager repoStatusManager) {
         super(executor);
         this.repoStatusManager = repoStatusManager;
         this.mds = requireNonNull(mds, "mds");
         this.encryptionStorageManager = requireNonNull(encryptionStorageManager, "encryptionStorageManager");
-        this.recoveryPayloadBuilder = requireNonNull(recoveryPayloadBuilder, "recoveryPayloadBuilder");
     }
 
     /**
@@ -324,10 +320,12 @@ public class RepositoryServiceV1 extends AbstractService {
      * POST /projects/{projectName}/repos/{repoName}/recover
      *
      * <p>Rewrites the repository on every replica with {@code fromRevision..toRevision} of the replica whose
-     * server ID is {@code sourceServerId}. {@code toRevision} becomes the new head and commits after it are
-     * discarded cluster-wide. Replicated (ZooKeeper) mode only, and the repository must be read-only first.
+     * server ID is {@code sourceServerId}. {@code toRevision} is the last source commit; the repository is
+     * padded with empty commits through {@code maxRevision + 1}, which becomes the new head. Replicated
+     * (ZooKeeper) mode only, and the repository must be read-only first.
      *
-     * <p>Neither result means the cluster converged; confirm with {@code GET .../head} on every replica.
+     * <p>The response only means the request was recorded. Confirm convergence with {@code GET .../head}
+     * on every replica.
      */
     @Post("/projects/{projectName}/repos/{repoName}/recover")
     @Consumes("application/json")
@@ -337,36 +335,21 @@ public class RepositoryServiceV1 extends AbstractService {
                                                                 Repository repository,
                                                                 Author author,
                                                                 RecoverRepositoryRequest request) {
-        final ZooKeeperCommandExecutor zkExecutor = validateRecoveryPrerequisites(ctx, project, repository,
-                                                                                  request);
+        validateRecoveryPrerequisites(ctx, project, repository, request);
         final String projectName = project.name();
         final String repoName = repository.name();
         final int sourceServerId = request.sourceServerId();
         final Revision fromRevision = new Revision(request.fromRevision());
         final Revision toRevision = new Revision(request.toRevision());
-        ctx.setRequestTimeoutMillis(Long.MAX_VALUE); // Disable the request timeout for recovery.
+        final int maxRevision = request.maxRevision();
+        final Revision recoveryRevision = new Revision(maxRevision + 1);
 
-        if (zkExecutor.replicaId() == sourceServerId) {
-            // This replica is the source of truth; build the payload from the local storage and originate
-            // the recovery command directly.
-            logger.info("Originating a recovery of {}/{} from {} to {} as the source replica.",
-                        projectName, repoName, fromRevision, toRevision);
-            return CompletableFuture
-                    .supplyAsync(() -> recoveryPayloadBuilder.build(author, projectName, repoName,
-                                                                    sourceServerId, fromRevision,
-                                                                    toRevision),
-                                 ctx.blockingTaskExecutor())
-                    .thenCompose(this::execute)
-                    .thenApply(unused -> new RecoverRepositoryResponse(
-                            RecoveryStatus.RECOVERING, toRevision));
-        }
-
-        // Ask the source replica to originate the recovery via the replication log.
         logger.info("Requesting a recovery of {}/{} from {} to {} to the source replica {}.",
                     projectName, repoName, fromRevision, toRevision, sourceServerId);
         return execute(Command.recoverRepositoryRequest(author, projectName, repoName, sourceServerId,
-                                                        fromRevision, toRevision))
-                .thenApply(unused -> new RecoverRepositoryResponse(RecoveryStatus.REQUESTED, null));
+                                                        fromRevision, toRevision, maxRevision))
+                .thenApply(unused -> new RecoverRepositoryResponse(RecoveryStatus.REQUESTED,
+                                                                   recoveryRevision));
     }
 
     private ZooKeeperCommandExecutor validateRecoveryPrerequisites(ServiceRequestContext ctx, Project project,

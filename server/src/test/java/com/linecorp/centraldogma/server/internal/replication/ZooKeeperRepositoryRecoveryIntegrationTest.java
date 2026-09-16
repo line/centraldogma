@@ -17,7 +17,6 @@
 package com.linecorp.centraldogma.server.internal.replication;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.awaitility.Awaitility.await;
 
 import java.util.concurrent.CompletableFuture;
@@ -41,13 +40,14 @@ import com.linecorp.armeria.common.ResponseEntity;
 import com.linecorp.armeria.common.util.UnmodifiableFuture;
 import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.client.CentralDogmaRepository;
+import com.linecorp.centraldogma.client.Watcher;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.Markup;
+import com.linecorp.centraldogma.common.PathPattern;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.ReplicationStatus;
-import com.linecorp.centraldogma.common.RepositoryRecoveryException;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.jsonpatch.JsonPatchOperation;
 import com.linecorp.centraldogma.internal.api.v1.RepositoryDto;
@@ -125,33 +125,35 @@ class ZooKeeperRepositoryRecoveryIntegrationTest {
     void recoverDivergedReplicaViaSourceReplica() {
         driveRepoIntoDivergedReadOnly();
 
-        // POST the recovery to the source replica itself; it builds the payload and originates directly.
+        // Every recovery is first recorded as an asynchronous request, even on the source replica.
         final AggregatedHttpResponse response =
-                recover(adminClientOf(SOURCE_SERVER_ID), new RecoverRepositoryRequest(3, 3, SOURCE_SERVER_ID));
+                recover(adminClientOf(SOURCE_SERVER_ID), new RecoverRepositoryRequest(3, 3, 3,
+                                                                                      SOURCE_SERVER_ID));
         assertThat(response.status()).isEqualTo(HttpStatus.OK);
-        assertThat(response.contentUtf8()).contains("\"RECOVERING\"");
-        assertThat(response.contentUtf8()).contains("\"toRevision\":3");
-
-        // Recovery is idempotent: running it again converges to the same head and changes nothing.
-        final AggregatedHttpResponse second =
-                recover(adminClientOf(SOURCE_SERVER_ID), new RecoverRepositoryRequest(3, 3, SOURCE_SERVER_ID));
-        assertThat(second.status()).isEqualTo(HttpStatus.OK);
-        assertThat(second.contentUtf8()).contains("\"RECOVERING\"");
-        assertThat(second.contentUtf8()).contains("\"toRevision\":3");
+        assertThat(response.contentUtf8()).contains("\"REQUESTED\"");
+        assertThat(response.contentUtf8()).contains("\"recoveryRevision\":4");
 
         assertClusterConvergedAndUsable();
     }
 
     @Test
-    void recoverRejectedForOutOfRangeFromRevision() {
+    void failedAsyncRequestDoesNotBlockALaterRecovery() {
         driveRepoIntoDivergedReadOnly();
 
-        // The source head is r3, so replaying from r99 is impossible; the direct path surfaces it as 400.
-        final AggregatedHttpResponse response =
-                recover(adminClientOf(SOURCE_SERVER_ID), new RecoverRepositoryRequest(99, 99,
+        // The source head is r3, so this asynchronous request cannot build a payload.
+        final AggregatedHttpResponse invalidResponse =
+                recover(adminClientOf(SOURCE_SERVER_ID), new RecoverRepositoryRequest(99, 99, 99,
                                                                                       SOURCE_SERVER_ID));
-        assertThat(response.status()).isEqualTo(HttpStatus.BAD_REQUEST);
-        assertThat(response.contentUtf8()).contains("fromRevision");
+        assertThat(invalidResponse.status()).isEqualTo(HttpStatus.OK);
+        assertThat(invalidResponse.contentUtf8()).contains("\"REQUESTED\"");
+
+        final AggregatedHttpResponse validResponse =
+                recover(adminClientOf(SOURCE_SERVER_ID), new RecoverRepositoryRequest(2, 3, 3,
+                                                                                      SOURCE_SERVER_ID));
+        assertThat(validResponse.status()).isEqualTo(HttpStatus.OK);
+        assertThat(validResponse.contentUtf8()).contains("\"REQUESTED\"");
+
+        assertClusterConvergedAndUsable();
     }
 
     @Test
@@ -185,12 +187,29 @@ class ZooKeeperRepositoryRecoveryIntegrationTest {
         // POST the recovery to the diverged, non-source replica; it asks the source over the replication
         // log and the source reacts by originating the actual recovery command.
         final AggregatedHttpResponse response =
-                recover(adminClientOf(DIVERGED_SERVER_ID), new RecoverRepositoryRequest(2, 3,
+                recover(adminClientOf(DIVERGED_SERVER_ID), new RecoverRepositoryRequest(2, 3, 3,
                                                                                         SOURCE_SERVER_ID));
         assertThat(response.status()).isEqualTo(HttpStatus.OK);
         assertThat(response.contentUtf8()).contains("\"REQUESTED\"");
+        assertThat(response.contentUtf8()).contains("\"recoveryRevision\":4");
 
         assertClusterConvergedAndUsable();
+    }
+
+    @Test
+    void recordsRecoveryRequestWhenTheSourceReplicaIsOffline() {
+        driveRepoIntoDivergedReadOnly();
+
+        replica.serverById(SOURCE_SERVER_ID).dogma().stop().join();
+        try {
+            final AggregatedHttpResponse response =
+                    recover(adminClientOf(DIVERGED_SERVER_ID), new RecoverRepositoryRequest(2, 3, 3,
+                                                                                            SOURCE_SERVER_ID));
+            assertThat(response.status()).isEqualTo(HttpStatus.OK);
+            assertThat(response.contentUtf8()).contains("\"REQUESTED\"");
+        } finally {
+            replica.serverById(SOURCE_SERVER_ID).dogma().start().join();
+        }
     }
 
     /**
@@ -206,7 +225,8 @@ class ZooKeeperRepositoryRecoveryIntegrationTest {
         // The repository is writable; recovery must be rejected so that no concurrent push can race the
         // payload build.
         final AggregatedHttpResponse response =
-                recover(adminClientOf(SOURCE_SERVER_ID), new RecoverRepositoryRequest(2, 3, SOURCE_SERVER_ID));
+                recover(adminClientOf(SOURCE_SERVER_ID), new RecoverRepositoryRequest(2, 3, 3,
+                                                                                      SOURCE_SERVER_ID));
         assertThat(response.status()).isEqualTo(HttpStatus.CONFLICT);
         assertThat(response.contentUtf8()).contains("read-only");
     }
@@ -216,7 +236,7 @@ class ZooKeeperRepositoryRecoveryIntegrationTest {
         driveRepoIntoDivergedReadOnly();
 
         final AggregatedHttpResponse response =
-                recover(adminClientOf(SOURCE_SERVER_ID), new RecoverRepositoryRequest(2, 3, 42));
+                recover(adminClientOf(SOURCE_SERVER_ID), new RecoverRepositoryRequest(2, 3, 3, 42));
         assertThat(response.status()).isEqualTo(HttpStatus.BAD_REQUEST);
         assertThat(response.contentUtf8()).contains("sourceServerId");
     }
@@ -230,7 +250,7 @@ class ZooKeeperRepositoryRecoveryIntegrationTest {
                         .post("/api/v1/projects/{project}/repos/{repo}/recover")
                         .pathParam("project", InternalProjectInitializer.INTERNAL_PROJECT_DOGMA)
                         .pathParam("repo", Project.REPO_DOGMA)
-                        .contentJson(new RecoverRepositoryRequest(2, 3, SOURCE_SERVER_ID))
+                        .contentJson(new RecoverRepositoryRequest(2, 3, 3, SOURCE_SERVER_ID))
                         .execute();
         assertThat(response.status()).isEqualTo(HttpStatus.FORBIDDEN);
         assertThat(response.contentUtf8()).contains("internal project");
@@ -268,19 +288,26 @@ class ZooKeeperRepositoryRecoveryIntegrationTest {
 
         final Revision head = headOn(SOURCE_SERVER_ID, Project.REPO_DOGMA);
         assertThat(head.major()).isGreaterThan(1);
+        int maxRevision = head.major();
+        for (int serverId = 1; serverId <= 3; serverId++) {
+            maxRevision = Math.max(maxRevision, headOn(serverId, Project.REPO_DOGMA).major());
+        }
+        assertThat(maxRevision).isGreaterThan(head.major());
         final AggregatedHttpResponse response =
                 admin.prepare()
                      .post("/api/v1/projects/{project}/repos/{repo}/recover")
                      .pathParam("project", testProject)
                      .pathParam("repo", Project.REPO_DOGMA)
-                     .contentJson(new RecoverRepositoryRequest(head.major(), head.major(), SOURCE_SERVER_ID))
+                     .contentJson(new RecoverRepositoryRequest(head.major(), head.major(), maxRevision,
+                                                               SOURCE_SERVER_ID))
                      .execute();
         assertThat(response.status()).isEqualTo(HttpStatus.OK);
 
+        final Revision recoveryRevision = new Revision(maxRevision + 1);
         for (int serverId = 1; serverId <= 3; serverId++) {
             final int id = serverId;
             await().ignoreExceptions().untilAsserted(() -> {
-                assertThat(headOn(id, Project.REPO_DOGMA)).isEqualTo(head);
+                assertThat(headOn(id, Project.REPO_DOGMA)).isEqualTo(recoveryRevision);
                 assertThat(headTreeIdOn(id, Project.REPO_DOGMA))
                         .isEqualTo(headTreeIdOn(SOURCE_SERVER_ID, Project.REPO_DOGMA));
             });
@@ -293,6 +320,54 @@ class ZooKeeperRepositoryRecoveryIntegrationTest {
                 .isNotEqualTo(headCommitIdOn(SOURCE_SERVER_ID, Project.REPO_DOGMA));
     }
 
+    @Test
+    void rawWatchAndContinuousWatcherSurviveRecovery() throws Exception {
+        driveRepoIntoDivergedReadOnly();
+
+        final CentralDogma divergedClient = replica.serverById(DIVERGED_SERVER_ID).client();
+        final CentralDogmaRepository repository = divergedClient.forRepo(testProject, TEST_REPO);
+        final CompletableFuture<Entry<JsonNode>> rawWatch = repository.watch(Query.ofJson("/a.json"))
+                                                                       .start(new Revision(3));
+        final Watcher<Integer> continuousWatcher = repository.watcher(Query.ofJson("/a.json"))
+                                                               .map(value -> value.get("a").asInt())
+                                                               .start();
+        try {
+            await().untilAsserted(() -> assertThat(continuousWatcher.latest().revision())
+                    .isEqualTo(new Revision(3)));
+            assertThat(continuousWatcher.latest().value()).isEqualTo(3);
+
+            final AggregatedHttpResponse response =
+                    recover(adminClientOf(SOURCE_SERVER_ID), new RecoverRepositoryRequest(2, 3, 3,
+                                                                                          SOURCE_SERVER_ID));
+            assertThat(response.status()).isEqualTo(HttpStatus.OK);
+
+            final Entry<JsonNode> recovered = rawWatch.get(30, TimeUnit.SECONDS);
+            assertThat(recovered.revision()).isEqualTo(new Revision(4));
+            assertThat(recovered.content().get("a").asInt()).isEqualTo(2);
+            await().untilAsserted(() -> {
+                assertThat(continuousWatcher.latest().revision()).isEqualTo(new Revision(4));
+                assertThat(continuousWatcher.latest().value()).isEqualTo(2);
+            });
+
+            // An older client that was offline during recovery can resume from the pre-recovery cursor.
+            for (int serverId = 1; serverId <= 3; serverId++) {
+                final CentralDogmaRepository resumedRepository = replica.serverById(serverId).client()
+                                                                        .forRepo(testProject, TEST_REPO);
+                final Entry<JsonNode> resumedRaw = resumedRepository.watch(Query.ofJson("/a.json"))
+                                                                       .start(new Revision(3))
+                                                                       .get(30, TimeUnit.SECONDS);
+                assertThat(resumedRaw.revision()).isEqualTo(new Revision(4));
+                assertThat(resumedRaw.content().get("a").asInt()).isEqualTo(2);
+                final Revision resumedFiles = resumedRepository.watch(PathPattern.of("/a.json"))
+                                                                  .start(new Revision(3))
+                                                                  .get(30, TimeUnit.SECONDS);
+                assertThat(resumedFiles).isEqualTo(new Revision(4));
+            }
+        } finally {
+            continuousWatcher.close();
+        }
+    }
+
     /**
      * Produces the recovery scenario: the fault-injected replica applies an extra commit directly (not via
      * the replication log), so replaying the next replicated commit fails there and the repository goes
@@ -301,30 +376,6 @@ class ZooKeeperRepositoryRecoveryIntegrationTest {
      * <p>Source history: r1 (creation), r2 {@code {"a": 1}}, r3 {@code {"a": 2}}. Diverged replica:
      * r1, r2 and a local r3 {@code {"a": 3}}; the legitimate r3 was skipped.
      */
-    /**
-     * A recovery rewrites the revisions a client is watching, so the watch is failed rather than answered.
-     * The client has to recognise it to know that watching again - rather than retrying the same revision -
-     * is what makes sense.
-     */
-    @Test
-    void watchFailsWithRepositoryRecoveryExceptionOnTheClient() {
-        driveRepoIntoDivergedReadOnly();
-
-        final CentralDogma divergedClient = replica.serverById(DIVERGED_SERVER_ID).client();
-        final CompletableFuture<Entry<JsonNode>> watch =
-                divergedClient.forRepo(testProject, TEST_REPO)
-                              .watch(Query.ofJson("/a.json"))
-                              .start();
-
-        final AggregatedHttpResponse response =
-                recover(adminClientOf(SOURCE_SERVER_ID), new RecoverRepositoryRequest(2, 3,
-                                                                                      SOURCE_SERVER_ID));
-        assertThat(response.status()).isEqualTo(HttpStatus.OK);
-
-        assertThatThrownBy(() -> watch.get(30, TimeUnit.SECONDS))
-                .hasCauseInstanceOf(RepositoryRecoveryException.class);
-    }
-
     private void driveRepoIntoDivergedReadOnly() {
         final CentralDogmaRepository repo = client0.forRepo(testProject, TEST_REPO);
         repo.commit("seed", Change.ofJsonUpsert("/a.json", "{ \"a\": 1 }")).push().join();
@@ -359,14 +410,15 @@ class ZooKeeperRepositoryRecoveryIntegrationTest {
      * with no new read-only escalation.
      */
     private void assertClusterConvergedAndUsable() {
-        // Every replica converges to the source content at the source head. Two replicas of a diverged
-        // repository share the head revision, so the commit ID is what actually proves convergence.
+        // Every replica converges to the source tree at the source head. Two replicas of a diverged
+        // repository can share the head revision, so the tree ID is what proves content convergence.
         for (int serverId = 1; serverId <= 3; serverId++) {
             final int id = serverId;
             await().ignoreExceptions().untilAsserted(() -> {
-                assertThat(toRevisionOn(id).major()).isEqualTo(3);
+                assertThat(toRevisionOn(id).major()).isEqualTo(4);
                 assertThat(jsonValueOn(id, "a")).isEqualTo(2);
-                assertThat(headCommitIdOn(id)).isEqualTo(headCommitIdOn(SOURCE_SERVER_ID));
+                assertThat(headTreeIdOn(id, TEST_REPO))
+                        .isEqualTo(headTreeIdOn(SOURCE_SERVER_ID, TEST_REPO));
             });
         }
 
@@ -393,7 +445,7 @@ class ZooKeeperRepositoryRecoveryIntegrationTest {
         for (int serverId = 1; serverId <= 3; serverId++) {
             final int id = serverId;
             await().ignoreExceptions().untilAsserted(() -> {
-                assertThat(toRevisionOn(id).major()).isEqualTo(4);
+                assertThat(toRevisionOn(id).major()).isEqualTo(5);
                 assertThat(jsonValueOn(id, "a")).isEqualTo(4);
             });
         }
@@ -410,10 +462,6 @@ class ZooKeeperRepositoryRecoveryIntegrationTest {
                      .execute();
     }
 
-    /**
-     * Returns the head commit ID of the repository as reported by the given replica. A diverged replica
-     * holds a different commit at the same revision, so this is the only value that distinguishes them.
-     */
     private String headCommitIdOn(int serverId) {
         return headCommitIdOn(serverId, TEST_REPO);
     }
@@ -464,9 +512,10 @@ class ZooKeeperRepositoryRecoveryIntegrationTest {
         assertThat(headTreeIdOn(DIVERGED_SERVER_ID, TEST_REPO))
                 .isNotEqualTo(headTreeIdOn(SOURCE_SERVER_ID, TEST_REPO));
 
-        recover(adminClientOf(SOURCE_SERVER_ID), new RecoverRepositoryRequest(3, 3, SOURCE_SERVER_ID));
-        await().ignoreExceptions().untilAsserted(() -> assertThat(headCommitIdOn(DIVERGED_SERVER_ID))
-                .isEqualTo(headCommitIdOn(SOURCE_SERVER_ID)));
+        recover(adminClientOf(SOURCE_SERVER_ID), new RecoverRepositoryRequest(3, 3, 3, SOURCE_SERVER_ID));
+        await().ignoreExceptions().untilAsserted(() ->
+                assertThat(headTreeIdOn(DIVERGED_SERVER_ID, TEST_REPO))
+                        .isEqualTo(headTreeIdOn(SOURCE_SERVER_ID, TEST_REPO)));
     }
 
     private Revision toRevisionOn(int serverId) {

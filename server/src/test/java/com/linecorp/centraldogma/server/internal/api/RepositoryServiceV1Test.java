@@ -323,7 +323,7 @@ class RepositoryServiceV1Test {
         final AggregatedHttpResponse userRes =
                 userClient.blocking().prepare()
                           .post(REPOS_PREFIX + '/' + repoName + "/recover")
-                          .contentJson(new RecoverRepositoryRequest(2, 2, 1))
+                          .contentJson(new RecoverRepositoryRequest(2, 2, 2, 1))
                           .execute();
         assertThat(userRes.status()).isEqualTo(HttpStatus.FORBIDDEN);
 
@@ -331,10 +331,20 @@ class RepositoryServiceV1Test {
         final AggregatedHttpResponse adminRes =
                 systemAdminClient.blocking().prepare()
                                  .post(REPOS_PREFIX + '/' + repoName + "/recover")
-                                 .contentJson(new RecoverRepositoryRequest(2, 2, 1))
+                                 .contentJson(new RecoverRepositoryRequest(2, 2, 2, 1))
                                  .execute();
         assertThat(adminRes.status()).isEqualTo(HttpStatus.BAD_REQUEST);
         assertThat(adminRes.contentUtf8()).contains("replicated");
+
+        final AggregatedHttpResponse missingMaxRevision =
+                systemAdminClient.blocking().prepare()
+                                 .post(REPOS_PREFIX + '/' + repoName + "/recover")
+                                 .content(MediaType.JSON,
+                                          "{\"fromRevision\": 2, \"toRevision\": 2, " +
+                                          "\"sourceServerId\": 1}")
+                                 .execute();
+        assertThat(missingMaxRevision.status()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(missingMaxRevision.contentUtf8()).contains("maxRevision");
 
         // A range wider than the cap is refused by the request itself, so a recovery forwarded to the
         // source replica cannot be accepted with 200 only to die in that replica's log.
@@ -342,6 +352,8 @@ class RepositoryServiceV1Test {
                 systemAdminClient.blocking().prepare()
                                  .post(REPOS_PREFIX + '/' + repoName + "/recover")
                                  .content(MediaType.JSON, "{\"fromRevision\": 2, \"toRevision\": " +
+                                                          (2 + RecoverRepositoryCommand.MAX_RECOVERY_COMMITS) +
+                                                          ", \"maxRevision\": " +
                                                           (2 + RecoverRepositoryCommand.MAX_RECOVERY_COMMITS) +
                                                           ", \"sourceServerId\": 1}")
                                  .execute();

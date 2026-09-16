@@ -17,11 +17,13 @@
 package com.linecorp.centraldogma.server.command;
 
 import static com.linecorp.centraldogma.testing.internal.TestUtil.assertJsonConversion;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import org.junit.jupiter.api.Test;
 
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.internal.Jackson;
 
 class RecoverRepositoryRequestCommandTest {
 
@@ -30,7 +32,7 @@ class RecoverRepositoryRequestCommandTest {
     void testJsonConversion() {
         assertJsonConversion(
                 new RecoverRepositoryRequestCommand(1234L, Author.SYSTEM, "foo", "bar", 2,
-                                                    new Revision(3), new Revision(5)),
+                                                    new Revision(3), new Revision(5), 7),
                 Command.class,
                 '{' +
                 "  \"type\": \"RECOVER_REPOSITORY_REQUEST\"," +
@@ -43,7 +45,42 @@ class RecoverRepositoryRequestCommandTest {
                 "  \"repositoryName\": \"bar\"," +
                 "  \"sourceServerId\": 2," +
                 "  \"fromRevision\": 3," +
-                "  \"toRevision\": 5" +
+                "  \"toRevision\": 5," +
+                "  \"maxRevision\": 7" +
                 '}');
+    }
+
+    @Test
+    void rejectsMaxRevisionBelowTarget() {
+        assertThatThrownBy(() -> new RecoverRepositoryRequestCommand(
+                1234L, Author.SYSTEM, "foo", "bar", 2,
+                new Revision(3), new Revision(5), 4))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("maxRevision");
+    }
+
+    @Test
+    void rejectsJsonWithoutMaxRevision() {
+        assertThatThrownBy(() -> Jackson.readValue(
+                "{\"type\":\"RECOVER_REPOSITORY_REQUEST\",\"projectName\":\"foo\"," +
+                "\"repositoryName\":\"bar\",\"sourceServerId\":2," +
+                "\"fromRevision\":3,\"toRevision\":5}",
+                RecoverRepositoryRequestCommand.class))
+                .hasMessageContaining("maxRevision");
+    }
+
+    @Test
+    void validatesCombinedReplayAndPaddingRevisions() {
+        new RecoverRepositoryRequestCommand(
+                1234L, Author.SYSTEM, "foo", "bar", 2,
+                new Revision(3), new Revision(5),
+                3 + RecoverRepositoryCommand.MAX_RECOVERY_COMMITS - 2);
+
+        assertThatThrownBy(() -> new RecoverRepositoryRequestCommand(
+                1234L, Author.SYSTEM, "foo", "bar", 2,
+                new Revision(3), new Revision(5),
+                3 + RecoverRepositoryCommand.MAX_RECOVERY_COMMITS - 1))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("recovery");
     }
 }

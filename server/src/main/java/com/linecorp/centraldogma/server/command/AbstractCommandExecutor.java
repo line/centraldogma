@@ -141,7 +141,6 @@ public abstract class AbstractCommandExecutor implements CommandExecutor {
             // A replayed command is exempted; rejecting it would drop the log entry and diverge this replica.
             throw new ReadOnlyException("running in read-only mode. command: " + command);
         }
-
         try {
             return doExecute(ctx, command);
         } catch (Throwable t) {

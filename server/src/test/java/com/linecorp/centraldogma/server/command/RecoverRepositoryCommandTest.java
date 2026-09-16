@@ -17,6 +17,9 @@
 package com.linecorp.centraldogma.server.command;
 
 import static com.linecorp.centraldogma.testing.internal.TestUtil.assertJsonConversion;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+import java.util.Collections;
 
 import org.junit.jupiter.api.Test;
 
@@ -29,12 +32,51 @@ import com.linecorp.centraldogma.common.Revision;
 
 class RecoverRepositoryCommandTest {
 
+    @Test
+    void rejectsTooManyCommitsAtIngestion() {
+        final ReplayCommit commit =
+                new ReplayCommit(new Revision(2), 1234L, Author.SYSTEM, "summary", "", Markup.PLAINTEXT,
+                                 ImmutableList.of(Change.ofTextUpsert("/memo.txt", "v2")),
+                                 "0123456789012345678901234567890123456789");
+
+        assertThatThrownBy(() -> new RecoverRepositoryCommand(
+                1234L, Author.SYSTEM, "foo", "bar", 1,
+                Revision.INIT, new Revision(2),
+                Collections.nCopies(RecoverRepositoryCommand.MAX_RECOVERY_COMMITS + 1, commit)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("expected: <= " + RecoverRepositoryCommand.MAX_RECOVERY_COMMITS);
+    }
+
+    @Test
+    void rejectsACommandWhoseDeclaredRangeDoesNotMatchItsCommits() {
+        final ReplayCommit revision2 =
+                new ReplayCommit(new Revision(2), 1234L, Author.SYSTEM, "summary", "", Markup.PLAINTEXT,
+                                 ImmutableList.of(Change.ofTextUpsert("/memo.txt", "v2")),
+                                 "0123456789012345678901234567890123456789");
+
+        assertThatThrownBy(() -> new RecoverRepositoryCommand(
+                1234L, Author.SYSTEM, "foo", "bar", 1,
+                Revision.INIT, new Revision(100), ImmutableList.of(revision2)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("toRevision");
+        assertThatThrownBy(() -> new RecoverRepositoryCommand(
+                1234L, Author.SYSTEM, "foo", "bar", 1,
+                Revision.INIT, new Revision(2),
+                ImmutableList.of(new ReplayCommit(
+                        new Revision(3), 1234L, Author.SYSTEM, "summary", "", Markup.PLAINTEXT,
+                        ImmutableList.of(Change.ofTextUpsert("/memo.txt", "v3")),
+                        "0123456789012345678901234567890123456789"))))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("commits[0].revision");
+    }
+
     // The command crosses the replication log as JSON, so the wire format must stay stable.
     @Test
     void testJsonConversion() {
         assertJsonConversion(
                 new RecoverRepositoryCommand(
-                        1234L, Author.SYSTEM, "foo", "bar", 2, new Revision(2), new Revision(4),
+                        1234L, Author.SYSTEM, "foo", "bar", 2,
+                        new Revision(2), new Revision(4),
                         ImmutableList.of(
                                 new ReplayCommit(new Revision(3), 5678L,
                                                  new Author("Marge Simpson", "marge@simpsonsworld.com"),

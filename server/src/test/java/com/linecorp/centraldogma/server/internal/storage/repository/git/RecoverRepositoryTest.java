@@ -30,6 +30,7 @@ import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ForkJoinPool;
@@ -51,10 +52,12 @@ import com.google.common.util.concurrent.Uninterruptibles;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Entry;
+import com.linecorp.centraldogma.common.EntryNotFoundException;
 import com.linecorp.centraldogma.common.Markup;
-import com.linecorp.centraldogma.common.RepositoryRecoveryException;
+import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.Revision;
-import com.linecorp.centraldogma.common.RevisionNotFoundException;
+import com.linecorp.centraldogma.common.ShuttingDownException;
+import com.linecorp.centraldogma.server.command.CommitResult;
 import com.linecorp.centraldogma.server.command.RecoverRepositoryCommand;
 import com.linecorp.centraldogma.server.command.ReplayCommit;
 import com.linecorp.centraldogma.server.storage.StorageException;
@@ -91,81 +94,145 @@ class RecoverRepositoryTest {
 
         // The source (and any healthy replica) is already at the target -> recovery is a no-op and the
         // repository is left untouched.
-        mgr.recoverRepository(REPO, new Revision(2), payload);
+        assertThat(mgr.recoverRepository(REPO, new Revision(2), payload)).isFalse();
         assertThat(mgr.get(REPO)).isSameAs(repo);
         assertThat(repo.cacheGeneration()).isZero();
+        assertThat(repo.lastRecoveryRevision()).isEqualTo(new Revision(5));
+        assertThat(repo.jGitRepository().getConfig()
+                       .getInt("centraldogma", null, "lastRecoveryRevision", 0))
+                .isEqualTo(5);
         assertThat(repo.normalizeNow(Revision.HEAD)).isEqualTo(head);
         assertThat(commitId(repo, head)).isEqualTo(headId);
     }
 
     @Test
-    void resetsAndReplaysToConverge() {
-        final GitRepositoryManager mgr = newRepositoryManager();
-        final GitRepository source = (GitRepository) mgr.create(REPO, Author.SYSTEM);
-        pushMixedRevisions(source);
-
-        // Capture the source-of-truth head and per-revision commit IDs, then build the replay payload
-        // through the production path.
-        final Revision sourceHead = source.normalizeNow(Revision.HEAD); // r5
-        final String sourceHeadId = commitId(source, sourceHead);
-        final String sourceId3 = commitId(source, new Revision(3));
-        final String sourceId4 = commitId(source, new Revision(4));
-        final List<ReplayCommit> payload = mgr.buildRecoveryPayload(REPO, new Revision(3),
-                                                                                  new Revision(5));
-
-        // Diverge: push a 6th revision with different content so the repository is ahead of the payload.
-        source.commit(new Revision(5), 6000L, Author.SYSTEM, "diverged", "", Markup.PLAINTEXT,
-                      ImmutableList.of(Change.ofTextUpsert("/f.txt", "diverged")), false).join();
-        assertThat(source.normalizeNow(Revision.HEAD)).isEqualTo(new Revision(6));
-
-        // Recover: reset to r2 and replay r3..r5 (a multi-file commit, a JSON commit and a removal)
-        // -> converge back to the exact source commit IDs, dropping r6.
-        mgr.recoverRepository(REPO, new Revision(2), payload);
-
-        final GitRepository recovered = (GitRepository) mgr.get(REPO);
-        // Rewritten in place; the bumped count is what makes every cache entry from the old history
-        // unreachable.
-        assertThat(recovered).isSameAs(source);
-        assertThat(recovered.cacheGeneration()).isPositive();
-        assertThat(recovered.normalizeNow(Revision.HEAD)).isEqualTo(sourceHead); // r5, not r6
-        assertThat(commitId(recovered, new Revision(3))).isEqualTo(sourceId3);
-        assertThat(commitId(recovered, new Revision(4))).isEqualTo(sourceId4);
-        assertThat(commitId(recovered, sourceHead)).isEqualTo(sourceHeadId);
-        // The replayed content matches the source history: /f.txt was removed at r5 and /g.txt remains.
-        assertThat(recovered.getOrNull(sourceHead, "/f.txt").join()).isNull();
-        assertThat(recovered.getOrNull(sourceHead, "/g.txt").join().contentAsText()).isEqualTo("g\n");
-        // The diverged r6 no longer exists.
-        assertThatThrownBy(() -> recovered.commitIdDatabase().get(new Revision(6)))
-                .isInstanceOf(RevisionNotFoundException.class);
-    }
-
-    @Test
-    void rollsBackToTheToRevision() {
+    void padsRecoveryToTheNextRevisionAndContinuesAtTheFollowingRevision() throws Exception {
         final GitRepositoryManager mgr = newRepositoryManager();
         final GitRepository repo = (GitRepository) mgr.create(REPO, Author.SYSTEM);
         pushMixedRevisions(repo); // head == r5
-        final String id4 = commitId(repo, new Revision(4));
+        final String sourceTreeId = repo.head().treeId();
+        final List<ReplayCommit> payload = withPaddingThrough(
+                mgr.buildRecoveryPayload(REPO, new Revision(3), new Revision(5)), new Revision(7));
 
-        // A range that stops short of the head: r5 is discarded even on the replica the payload was
-        // built from, and r4 becomes the new head.
-        final List<ReplayCommit> payload = mgr.buildRecoveryPayload(REPO, new Revision(3),
-                                                                                  new Revision(4));
+        // The local r6 is discarded. The recovery must leave the repository at r7, so a client that last
+        // observed r6 never receives a lower revision after the rewrite.
+        repo.commit(new Revision(5), 6000L, Author.SYSTEM, "diverged", "", Markup.PLAINTEXT,
+                    ImmutableList.of(Change.ofTextUpsert("/g.txt", "diverged")), false).join();
+        assertThat(repo.normalizeNow(Revision.HEAD)).isEqualTo(new Revision(6));
+
         assertThat(mgr.recoverRepository(REPO, new Revision(2), payload)).isTrue();
 
-        final GitRepository recovered = (GitRepository) mgr.get(REPO);
-        assertThat(recovered.normalizeNow(Revision.HEAD)).isEqualTo(new Revision(4));
-        assertThat(commitId(recovered, new Revision(4))).isEqualTo(id4);
-        assertThatThrownBy(() -> recovered.commitIdDatabase().get(new Revision(5)))
-                .isInstanceOf(RevisionNotFoundException.class);
+        assertThat(repo.normalizeNow(Revision.HEAD)).isEqualTo(new Revision(7));
+        assertThat(repo.getOrNull(new Revision(7), "/f.txt").join()).isNull();
+        assertThat(repo.getOrNull(new Revision(7), "/g.txt").join().contentAsText()).isEqualTo("g\n");
+        assertThat(repo.head().treeId()).isEqualTo(sourceTreeId);
+        assertThat(repo.lastRecoveryRevision()).isEqualTo(new Revision(7));
+
+        // r6 and r7 have the same recovered tree, but a client that saw the discarded r6 must refresh.
+        assertThat(repo.watch(new Revision(6), "/**", false).get(30, TimeUnit.SECONDS))
+                .isEqualTo(new Revision(7));
+        final Entry<String> recoveredEntry =
+                repo.watch(new Revision(6), Query.ofText("/g.txt")).get(30, TimeUnit.SECONDS);
+        assertThat(recoveredEntry.revision()).isEqualTo(new Revision(7));
+        assertThat(recoveredEntry.content()).isEqualTo("g\n");
+        assertThatThrownBy(() -> repo.watch(new Revision(6), "/not-present.txt", true).join())
+                .hasCauseInstanceOf(EntryNotFoundException.class);
+
+        final CommitResult afterRecovery = repo.commit(
+                Revision.HEAD, 8000L, Author.SYSTEM, "after recovery", "", Markup.PLAINTEXT,
+                ImmutableList.of(Change.ofTextUpsert("/after-recovery.txt", "1")), false).join();
+        assertThat(afterRecovery.revision()).isEqualTo(new Revision(8));
+
+        mgr.close(ShuttingDownException::new);
+        final GitRepositoryManager reopened = newRepositoryManager(tempDir.toFile());
+        try {
+            final GitRepository reopenedRepo = (GitRepository) reopened.get(REPO);
+            assertThat(reopenedRepo.lastRecoveryRevision()).isEqualTo(new Revision(7));
+            assertThat(reopenedRepo.watch(new Revision(6), "/**", false).get(30, TimeUnit.SECONDS))
+                    .isEqualTo(new Revision(8));
+            final Entry<String> reopenedEntry =
+                    reopenedRepo.watch(new Revision(6), Query.ofText("/g.txt"))
+                                .get(30, TimeUnit.SECONDS);
+            assertThat(reopenedEntry.revision()).isEqualTo(new Revision(8));
+            assertThat(reopenedEntry.content()).isEqualTo("g\n");
+        } finally {
+            reopened.close(ShuttingDownException::new);
+        }
     }
 
-    /**
-     * A recovery is applied on a repository-worker thread, so it must never wait for another
-     * repository-worker task: the pool is fixed-size, and a read of the repository being recovered parks a
-     * worker on the write lock the recovery holds. Driving it through a one-thread pool deadlocks outright
-     * if any step hops back onto the pool. The other tests here cannot catch this - they pass a
-     * ForkJoinPool, whose join() spawns a compensation thread and papers over the self-dependency.
-     */
+    @Test
+    void rejectsRecoveryWhenLocalHeadIsNotBelowRecoveryRevision() {
+        final GitRepositoryManager mgr = newRepositoryManager();
+        final GitRepository repo = (GitRepository) mgr.create(REPO, Author.SYSTEM);
+        pushMixedRevisions(repo); // head == r5
+        final List<ReplayCommit> payload = withPaddingThrough(
+                mgr.buildRecoveryPayload(REPO, new Revision(3), new Revision(5)), new Revision(7));
+        repo.commit(new Revision(5), 6000L, Author.SYSTEM, "diverged", "", Markup.PLAINTEXT,
+                    ImmutableList.of(Change.ofTextUpsert("/g.txt", "diverged")), false).join();
+        repo.commit(new Revision(6), 7000L, Author.SYSTEM, "still diverged", "", Markup.PLAINTEXT,
+                    ImmutableList.of(Change.ofTextUpsert("/h.txt", "diverged")), false).join();
+
+        final String headCommitId = commitId(repo, new Revision(7));
+        final int cacheGeneration = repo.cacheGeneration();
+        assertThatThrownBy(
+                () -> mgr.recoverRepository(REPO, new Revision(2), payload))
+                .isInstanceOf(StorageException.class)
+                .hasMessageContaining("must be greater than the current head");
+
+        assertThat(repo.normalizeNow(Revision.HEAD)).isEqualTo(new Revision(7));
+        assertThat(commitId(repo, new Revision(7))).isEqualTo(headCommitId);
+        assertThat(repo.cacheGeneration()).isEqualTo(cacheGeneration);
+        assertThat(repo.lastRecoveryRevision()).isEqualTo(Revision.INIT);
+    }
+
+    @Test
+    void recognizesThePaddedHistoryOnRetry() {
+        final GitRepositoryManager mgr = newRepositoryManager();
+        final GitRepository repo = (GitRepository) mgr.create(REPO, Author.SYSTEM);
+        pushMixedRevisions(repo); // head == r5
+        final List<ReplayCommit> payload = withPaddingThrough(
+                mgr.buildRecoveryPayload(REPO, new Revision(3), new Revision(5)), new Revision(7));
+        repo.commit(new Revision(5), 6000L, Author.SYSTEM, "diverged", "", Markup.PLAINTEXT,
+                    ImmutableList.of(Change.ofTextUpsert("/g.txt", "diverged")), false).join();
+
+        assertThat(mgr.recoverRepository(REPO, new Revision(2), payload)).isTrue();
+        final String paddedRevision6Id = commitId(repo, new Revision(6));
+        final String paddedRevision7Id = commitId(repo, new Revision(7));
+        final int cacheGeneration = repo.cacheGeneration();
+
+        assertThat(mgr.recoverRepository(REPO, new Revision(2), payload)).isFalse();
+
+        assertThat(repo.normalizeNow(Revision.HEAD)).isEqualTo(new Revision(7));
+        assertThat(commitId(repo, new Revision(6))).isEqualTo(paddedRevision6Id);
+        assertThat(commitId(repo, new Revision(7))).isEqualTo(paddedRevision7Id);
+        assertThat(repo.cacheGeneration()).isEqualTo(cacheGeneration);
+        assertThat(repo.lastRecoveryRevision()).isEqualTo(new Revision(7));
+    }
+
+    @Test
+    void replaysPriorPaddingCommitsDuringALaterRecovery() {
+        final GitRepositoryManager mgr = newRepositoryManager();
+        final GitRepository repo = (GitRepository) mgr.create(REPO, Author.SYSTEM);
+        pushMixedRevisions(repo); // head == r5
+        final List<ReplayCommit> firstPayload = withPaddingThrough(
+                mgr.buildRecoveryPayload(REPO, new Revision(3), new Revision(5)), new Revision(7));
+        repo.commit(new Revision(5), 6000L, Author.SYSTEM, "diverged", "", Markup.PLAINTEXT,
+                    ImmutableList.of(Change.ofTextUpsert("/g.txt", "diverged")), false).join();
+        assertThat(mgr.recoverRepository(REPO, new Revision(2), firstPayload)).isTrue();
+
+        final String recoveredTreeId = repo.head().treeId();
+        final List<ReplayCommit> secondPayload = withPaddingThrough(
+                mgr.buildRecoveryPayload(REPO, new Revision(5), new Revision(7)), new Revision(9));
+        assertThat(secondPayload.get(1).changes()).isEmpty();
+        assertThat(secondPayload.get(2).changes()).isEmpty();
+        repo.commit(new Revision(7), 8000L, Author.SYSTEM, "diverged again", "", Markup.PLAINTEXT,
+                    ImmutableList.of(Change.ofTextUpsert("/g.txt", "diverged again")), false).join();
+
+        assertThat(mgr.recoverRepository(REPO, new Revision(4), secondPayload)).isTrue();
+        assertThat(repo.normalizeNow(Revision.HEAD)).isEqualTo(new Revision(9));
+        assertThat(repo.head().treeId()).isEqualTo(recoveredTreeId);
+    }
+
     /**
      * The payload is built from a request thread, not from the repository worker, so a build that queues
      * diffs back to that pool waits for a thread it may never get.
@@ -208,6 +275,7 @@ class RecoverRepositoryTest {
         }
     }
 
+    // A one-thread pool exposes any nested submission to repositoryWorker.
     @Test
     void recoveryNeverWaitsOnTheRepositoryWorkerPool() throws Exception {
         final ExecutorService repositoryWorker = Executors.newFixedThreadPool(1);
@@ -219,55 +287,67 @@ class RecoverRepositoryTest {
                     NoopEncryptionStorageManager.INSTANCE);
             final GitRepository repo = (GitRepository) mgr.create(REPO, Author.SYSTEM);
             pushMixedRevisions(repo);
-            final List<ReplayCommit> payload = mgr.buildRecoveryPayload(REPO, new Revision(3),
-                                                                                      new Revision(5));
+            final List<ReplayCommit> payload = withPaddingThrough(
+                    mgr.buildRecoveryPayload(REPO, new Revision(3), new Revision(5)), new Revision(7));
 
             // Diverge, so the recovery resets and replays instead of short-circuiting as converged.
             repo.commit(new Revision(5), 6000L, Author.SYSTEM, "diverged", "", Markup.PLAINTEXT,
                         ImmutableList.of(Change.ofTextUpsert("/g.txt", "diverged")), false).join();
 
-            // Apply it the way StandaloneCommandExecutor does: from the repository worker.
+            // Occupy the only repository worker with recovery itself to expose any nested hop back to it.
             final Future<Boolean> recovered = repositoryWorker.submit(
                     () -> mgr.recoverRepository(REPO, new Revision(2), payload));
             assertThat(recovered.get(30, TimeUnit.SECONDS)).isTrue();
-            assertThat(mgr.get(REPO).normalizeNow(Revision.HEAD)).isEqualTo(new Revision(5));
+            assertThat(mgr.get(REPO).normalizeNow(Revision.HEAD)).isEqualTo(new Revision(7));
         } finally {
             repositoryWorker.shutdownNow();
         }
     }
 
-    /**
-     * A watch waits for a revision of a history the recovery discards, so it must be failed rather than
-     * left waiting for its own timeout - whether or not the replay finished.
-     */
     @Test
-    void failsWatchersWhetherTheRecoverySucceedsOrNot() throws Exception {
+    void notifiesWatchersOnlyAfterSuccessfulRecovery() throws Exception {
         final GitRepositoryManager mgr = newRepositoryManager();
         final GitRepository repo = (GitRepository) mgr.create(REPO, Author.SYSTEM);
         pushMixedRevisions(repo); // head == r5
-        final List<ReplayCommit> payload = new ArrayList<>(
-                mgr.buildRecoveryPayload(REPO, new Revision(3), new Revision(5)));
+        final List<ReplayCommit> payload = withPaddingThrough(
+                mgr.buildRecoveryPayload(REPO, new Revision(3), new Revision(5)), new Revision(7));
         repo.commit(new Revision(5), 6000L, Author.SYSTEM, "diverged", "", Markup.PLAINTEXT,
                     ImmutableList.of(Change.ofTextUpsert("/g.txt", "diverged")), false).join();
 
         final CompletableFuture<Revision> watch = repo.watch(Revision.HEAD, "/**", false);
+        final CompletableFuture<Revision> unchangedPathWatch =
+                repo.watch(Revision.HEAD, "/not-present.txt", false);
         assertThat(mgr.recoverRepository(REPO, new Revision(2), payload)).isTrue();
-        assertThatThrownBy(() -> watch.get(30, TimeUnit.SECONDS))
-                .hasCauseInstanceOf(RepositoryRecoveryException.class);
+        assertThat(watch.get(30, TimeUnit.SECONDS)).isEqualTo(new Revision(7));
+        assertThat(unchangedPathWatch.get(30, TimeUnit.SECONDS)).isEqualTo(new Revision(7));
 
-        // Same promise on the failure path: the history was rewritten even though the replay gave up.
-        final ReplayCommit last = payload.get(payload.size() - 1);
-        payload.set(payload.size() - 1, new ReplayCommit(
-                last.revision(), last.timestampMillis(), last.author(), last.summary(), last.detail(),
-                last.markup(), last.changes(), "0000000000000000000000000000000000000000"));
-        repo.commit(new Revision(5), 7000L, Author.SYSTEM, "diverged again", "", Markup.PLAINTEXT,
+        // A failed attempt does not expose its partial head. A later administrator retry will wake the watch.
+        final List<ReplayCommit> retryPayload = withPaddingThrough(
+                mgr.buildRecoveryPayload(REPO, new Revision(3), new Revision(5)), new Revision(10));
+        final List<ReplayCommit> failingPayload = new ArrayList<>(withPaddingThrough(
+                mgr.buildRecoveryPayload(REPO, new Revision(3), new Revision(5)), new Revision(9)));
+        final ReplayCommit first = failingPayload.get(0);
+        failingPayload.set(0, new ReplayCommit(
+                first.revision(), first.timestampMillis(), first.author(), first.summary(), first.detail(),
+                first.markup(), first.changes(), "0000000000000000000000000000000000000000"));
+        repo.commit(Revision.HEAD, 7000L, Author.SYSTEM, "diverged again", "", Markup.PLAINTEXT,
                     ImmutableList.of(Change.ofTextUpsert("/g.txt", "diverged again")), false).join();
 
         final CompletableFuture<Revision> watchAcrossFailure = repo.watch(Revision.HEAD, "/**", false);
-        assertThatThrownBy(() -> mgr.recoverRepository(REPO, new Revision(2), payload))
+        await().untilAsserted(() -> assertThat(repo.commitWatchers.watchesMap).isNotEmpty());
+        assertThatThrownBy(() -> mgr.recoverRepository(REPO, new Revision(2), failingPayload))
                 .isInstanceOf(StorageException.class);
-        assertThatThrownBy(() -> watchAcrossFailure.get(30, TimeUnit.SECONDS))
-                .hasCauseInstanceOf(RepositoryRecoveryException.class);
+        assertThat(watchAcrossFailure).isNotDone();
+
+        final CompletableFuture<Revision> watchStartedAfterFailure =
+                repo.watch(Revision.HEAD, "/after-failure.txt", false);
+        await().untilAsserted(() -> assertThat(repo.commitWatchers.watchesMap)
+                .containsKey(PathPatternFilter.of("/after-failure.txt")));
+        assertThat(watchStartedAfterFailure).isNotDone();
+
+        assertThat(mgr.recoverRepository(REPO, new Revision(2), retryPayload)).isTrue();
+        assertThat(watchAcrossFailure.get(30, TimeUnit.SECONDS)).isEqualTo(new Revision(10));
+        assertThat(watchStartedAfterFailure.get(30, TimeUnit.SECONDS)).isEqualTo(new Revision(10));
     }
 
     @Test
@@ -275,7 +355,8 @@ class RecoverRepositoryTest {
         final GitRepositoryManager mgr = newRepositoryManager();
         final GitRepository repo = (GitRepository) mgr.create(REPO, Author.SYSTEM);
         pushMixedRevisions(repo); // head == r5
-        final List<ReplayCommit> payload = mgr.buildRecoveryPayload(REPO, new Revision(3), new Revision(5));
+        final List<ReplayCommit> payload = withPaddingThrough(
+                mgr.buildRecoveryPayload(REPO, new Revision(3), new Revision(5)), new Revision(7));
 
         // A server-side listener has nobody to retry on its behalf, so a recovery must leave it watching.
         final BlockingQueue<Map<String, Entry<?>>> updates = new LinkedBlockingQueue<>();
@@ -283,7 +364,7 @@ class RecoverRepositoryTest {
         await().untilAsserted(() -> assertThat(updates).isNotEmpty());
         updates.clear();
 
-        // Diverge, then recover, which discards the divergence and closes the watchers.
+        // Diverge, then recover, which discards the divergence and notifies the watchers at the final revision.
         repo.commit(new Revision(5), 6000L, Author.SYSTEM, "diverged", "", Markup.PLAINTEXT,
                     ImmutableList.of(Change.ofTextUpsert("/g.txt", "diverged")), false).join();
         assertThat(mgr.recoverRepository(REPO, new Revision(2), payload)).isTrue();
@@ -300,8 +381,8 @@ class RecoverRepositoryTest {
         final GitRepositoryManager mgr = newRepositoryManager();
         final GitRepository repo = (GitRepository) mgr.create(REPO, Author.SYSTEM);
         pushMixedRevisions(repo);
-        final List<ReplayCommit> payload = new ArrayList<>(
-                mgr.buildRecoveryPayload(REPO, new Revision(3), new Revision(5)));
+        final List<ReplayCommit> payload = new ArrayList<>(withPaddingThrough(
+                mgr.buildRecoveryPayload(REPO, new Revision(3), new Revision(5)), new Revision(7)));
 
         // Diverge so recovery does not short-circuit as already-converged.
         repo.commit(new Revision(5), 6000L, Author.SYSTEM, "diverged", "", Markup.PLAINTEXT,
@@ -323,6 +404,7 @@ class RecoverRepositoryTest {
         final Revision head = afterFailure.normalizeNow(Revision.HEAD);
         assertThat(head).isEqualTo(payload.get(payload.size() - 1).revision());
         assertThat(head).isNotEqualTo(new Revision(2));
+        assertThat(afterFailure.lastRecoveryRevision()).isEqualTo(Revision.INIT);
         assertThat(afterFailure.find(head, "/**", ImmutableMap.of()).join()).isNotEmpty();
     }
 
@@ -405,8 +487,8 @@ class RecoverRepositoryTest {
                       ImmutableList.of(Change.ofJsonUpsert("/a.json", "{ \"a\": 1 }")), false).join();
         source.commit(new Revision(2), 3000L, Author.SYSTEM, "a=2", "", Markup.PLAINTEXT,
                       ImmutableList.of(Change.ofJsonUpsert("/a.json", "{ \"a\": 2 }")), false).join();
-        final List<ReplayCommit> payload = sourceMgr.buildRecoveryPayload(REPO, new Revision(2),
-                                                                         new Revision(3));
+        final List<ReplayCommit> payload = withPaddingThrough(
+                sourceMgr.buildRecoveryPayload(REPO, new Revision(2), new Revision(3)), new Revision(4));
 
         // The replica holds the wrong content at r2 and the source's content at r3, so its head tree
         // matches the source's while its history does not.
@@ -426,21 +508,17 @@ class RecoverRepositoryTest {
     }
 
     /**
-     * Pushes r2..r5 covering the change shapes recovery must replay byte-identically: a text upsert (r2),
-     * a multi-file commit (r3), a JSON upsert (r4) and a removal (r5).
-     */
-    /**
      * A replica that lags behind the replayed range must not hand an intermediate revision to a watcher:
-     * the recovery holds the write lock across the whole replay, and the failure delivered once it ends is
-     * what tells a client to watch again.
+     * the recovery holds the write lock across the whole replay and notifies the watcher only after the
+     * final recovery revision is committed.
      */
     @Test
     void doesNotNotifyWatchersWhileReplaying() throws Exception {
         final GitRepositoryManager sourceMgr = newRepositoryManager(new File(tempDir.toFile(), "source2"));
         final GitRepository source = (GitRepository) sourceMgr.create(REPO, Author.SYSTEM);
         pushMixedRevisions(source); // head == r5
-        final List<ReplayCommit> payload = sourceMgr.buildRecoveryPayload(REPO, new Revision(3),
-                                                                          new Revision(5));
+        final List<ReplayCommit> payload = withPaddingThrough(
+                sourceMgr.buildRecoveryPayload(REPO, new Revision(3), new Revision(5)), new Revision(7));
 
         // The replica holds the shared base but stops at r3, so r4 and r5 are newer than anything it has.
         final GitRepositoryManager replicaMgr = newRepositoryManager(new File(tempDir.toFile(), "replica2"));
@@ -454,12 +532,48 @@ class RecoverRepositoryTest {
 
         final CompletableFuture<Revision> watch = replica.watch(new Revision(3), "/**", false);
         assertThat(watch).isNotDone();
+        await().untilAsserted(() -> assertThat(replica.commitWatchers.watchesMap).isNotEmpty());
 
         assertThat(replicaMgr.recoverRepository(REPO, new Revision(2), payload)).isTrue();
 
-        // Not r4 or r5, which the replay produced: the watcher is failed instead.
-        assertThatThrownBy(() -> watch.get(30, TimeUnit.SECONDS))
-                .hasCauseInstanceOf(RepositoryRecoveryException.class);
+        // Not r4 or r5, which the replay produced: only the final recovery revision is visible.
+        assertThat(watch.get(30, TimeUnit.SECONDS)).isEqualTo(new Revision(7));
+    }
+
+    @Test
+    void queuedWatchReturnsTheRecoveryRevisionWhenRecoveryFinishesBeforeRegistration() throws Exception {
+        final GitRepositoryManager sourceMgr = newRepositoryManager(new File(tempDir.toFile(), "source3"));
+        final GitRepository source = (GitRepository) sourceMgr.create(REPO, Author.SYSTEM);
+        pushMixedRevisions(source);
+        final List<ReplayCommit> payload = withPaddingThrough(
+                sourceMgr.buildRecoveryPayload(REPO, new Revision(3), new Revision(5)), new Revision(7));
+
+        final ExecutorService repositoryWorker = Executors.newFixedThreadPool(1);
+        final CountDownLatch workerStarted = new CountDownLatch(1);
+        final CountDownLatch releaseWorker = new CountDownLatch(1);
+        try {
+            final GitRepositoryManager replicaMgr = newRepositoryManager(
+                    new File(tempDir.toFile(), "replica3"), repositoryWorker);
+            final GitRepository replica = (GitRepository) replicaMgr.create(REPO, Author.SYSTEM);
+            pushMixedRevisions(replica);
+            replica.commit(new Revision(5), 6000L, Author.SYSTEM, "diverged", "", Markup.PLAINTEXT,
+                           ImmutableList.of(Change.ofTextUpsert("/g.txt", "diverged")), false).join();
+
+            repositoryWorker.execute(() -> {
+                workerStarted.countDown();
+                Uninterruptibles.awaitUninterruptibly(releaseWorker);
+            });
+            assertThat(workerStarted.await(10, TimeUnit.SECONDS)).isTrue();
+
+            final CompletableFuture<Revision> watch = replica.watch(Revision.HEAD, "/**", false);
+            assertThat(replicaMgr.recoverRepository(REPO, new Revision(2), payload)).isTrue();
+            releaseWorker.countDown();
+
+            assertThat(watch.get(10, TimeUnit.SECONDS)).isEqualTo(new Revision(7));
+        } finally {
+            releaseWorker.countDown();
+            repositoryWorker.shutdownNow();
+        }
     }
 
     /**
@@ -476,23 +590,32 @@ class RecoverRepositoryTest {
         final GitRepositoryManager mgr = new GitRepositoryManager(
                 project, projectDir, ForkJoinPool.commonPool(), MoreExecutors.directExecutor(), null,
                 encryptionStorageManager);
-        final String wdek = encryptionStorageManager.generateWdek().join();
-        encryptionStorageManager.storeWdek(
-                new WrappedDekDetails(wdek, 1, encryptionStorageManager.kekId(), "test_project", REPO));
-        mgr.create(REPO, 0, Author.SYSTEM, true);
+        try {
+            final String wdek = encryptionStorageManager.generateWdek().join();
+            encryptionStorageManager.storeWdek(
+                    new WrappedDekDetails(wdek, 1, encryptionStorageManager.kekId(), "test_project", REPO));
+            mgr.create(REPO, 0, Author.SYSTEM, true);
 
-        assertThatThrownBy(() -> mgr.buildRecoveryPayload(REPO, new Revision(2), new Revision(2)))
-                .isInstanceOf(StorageException.class)
-                .hasMessageContaining("encrypted");
-        final ReplayCommit commit =
-                new ReplayCommit(new Revision(2), 1000L, Author.SYSTEM, "s", "d", Markup.PLAINTEXT,
-                                 ImmutableList.of(Change.ofTextUpsert("/a.txt", "a")),
-                                 "0000000000000000000000000000000000000000");
-        assertThatThrownBy(() -> mgr.recoverRepository(REPO, new Revision(1), ImmutableList.of(commit)))
-                .isInstanceOf(StorageException.class)
-                .hasMessageContaining("encrypted");
+            assertThatThrownBy(() -> mgr.buildRecoveryPayload(REPO, new Revision(2), new Revision(2)))
+                    .isInstanceOf(StorageException.class)
+                    .hasMessageContaining("encrypted");
+            final ReplayCommit commit =
+                    new ReplayCommit(new Revision(2), 1000L, Author.SYSTEM, "s", "d", Markup.PLAINTEXT,
+                                     ImmutableList.of(Change.ofTextUpsert("/a.txt", "a")),
+                                     "0000000000000000000000000000000000000000");
+            assertThatThrownBy(() -> mgr.recoverRepository(REPO, new Revision(1), ImmutableList.of(commit)))
+                    .isInstanceOf(StorageException.class)
+                    .hasMessageContaining("encrypted");
+        } finally {
+            mgr.close(ShuttingDownException::new);
+            encryptionStorageManager.close();
+        }
     }
 
+    /**
+     * Pushes r2..r5 covering the change shapes recovery must replay byte-identically: a text upsert (r2),
+     * a multi-file commit (r3), a JSON upsert (r4) and a removal (r5).
+     */
     private static void pushMixedRevisions(GitRepository repo) {
         repo.commit(new Revision(1), 2000L, Author.SYSTEM, "add f", "detail2", Markup.PLAINTEXT,
                     ImmutableList.of(Change.ofTextUpsert("/f.txt", "v2")), false).join();
@@ -505,6 +628,27 @@ class RecoverRepositoryTest {
                     ImmutableList.of(Change.ofRemoval("/f.txt")), false).join();
     }
 
+    private static List<ReplayCommit> withPaddingThrough(List<ReplayCommit> commits,
+                                                         Revision recoveryRevision) {
+        final ReplayCommit last = commits.get(commits.size() - 1);
+        if (last.revision().equals(recoveryRevision)) {
+            return ImmutableList.copyOf(commits);
+        }
+        if (last.revision().compareTo(recoveryRevision) > 0) {
+            throw new IllegalArgumentException("recoveryRevision must not precede the payload");
+        }
+
+        final ImmutableList.Builder<ReplayCommit> padded = ImmutableList.builder();
+        padded.addAll(commits);
+        for (Revision revision = last.revision().forward(1);; revision = revision.forward(1)) {
+            padded.add(new ReplayCommit(revision, 0, Author.SYSTEM, "Recovery padding", "",
+                                        Markup.PLAINTEXT, ImmutableList.of(), last.expectedTreeId()));
+            if (revision.equals(recoveryRevision)) {
+                return padded.build();
+            }
+        }
+    }
+
     private static String commitId(GitRepository repo, Revision revision) {
         return repo.commitIdDatabase().get(revision).name();
     }
@@ -514,9 +658,13 @@ class RecoverRepositoryTest {
     }
 
     private static GitRepositoryManager newRepositoryManager(java.io.File rootDir) {
+        return newRepositoryManager(rootDir, ForkJoinPool.commonPool());
+    }
+
+    private static GitRepositoryManager newRepositoryManager(java.io.File rootDir, Executor repositoryWorker) {
         final Project mock = mock(Project.class);
         lenient().when(mock.name()).thenReturn("test_project");
-        return new GitRepositoryManager(mock, rootDir, ForkJoinPool.commonPool(),
+        return new GitRepositoryManager(mock, rootDir, repositoryWorker,
                                         MoreExecutors.directExecutor(), null,
                                         NoopEncryptionStorageManager.INSTANCE);
     }

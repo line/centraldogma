@@ -38,7 +38,8 @@ import com.linecorp.centraldogma.common.Revision;
  * source replica (the single source of truth) and applied identically on every replica, itself included: a
  * replica already converged with {@link #commits()} is left untouched, and every other one resets its git
  * repository and commit-id database to {@link #resetToRevision()} and replays {@link #commits()} up to
- * {@link #toRevision()}. Because the changes are self-contained, a replay reproduces the source's content;
+ * {@link #toRevision()}. The list includes empty compatibility commits after the selected source history.
+ * Because the changes are self-contained, a replay reproduces the source's content;
  * the tree of each replayed commit is verified against {@link ReplayCommit#expectedTreeId()}, and a
  * mismatch aborts the recovery, leaving that replica with a partial history until it is recovered again.
  * The commit ID is deliberately not what is verified: it covers the parent and the timestamp too, and a
@@ -56,8 +57,7 @@ import com.linecorp.centraldogma.common.Revision;
 public final class RecoverRepositoryCommand extends RepositoryCommand<Revision> {
 
     /**
-     * The most revisions a single recovery may replay. Every replica materializes the payload in memory,
-     * so an unbounded one exhausts the cluster; a real recovery spans a handful of revisions.
+     * The most revisions a single recovery may replay, including compatibility padding.
      */
     public static final int MAX_RECOVERY_COMMITS = 100;
 
@@ -81,6 +81,21 @@ public final class RecoverRepositoryCommand extends RepositoryCommand<Revision> 
         this.toRevision = requireNonNull(toRevision, "toRevision");
         this.commits = ImmutableList.copyOf(requireNonNull(commits, "commits"));
         checkArgument(!this.commits.isEmpty(), "commits is empty");
+        checkArgument(this.commits.size() <= MAX_RECOVERY_COMMITS,
+                      "commits: %s (expected: <= %s)", this.commits.size(), MAX_RECOVERY_COMMITS);
+        checkArgument(!resetToRevision.isRelative() && resetToRevision.major() >= Revision.INIT.major(),
+                      "resetToRevision: %s (expected: an absolute revision >= %s)",
+                      resetToRevision, Revision.INIT);
+        checkArgument(!toRevision.isRelative() &&
+                      toRevision.major() == resetToRevision.major() + this.commits.size(),
+                      "toRevision: %s (expected: %s)", toRevision,
+                      resetToRevision.forward(this.commits.size()));
+        for (int i = 0; i < this.commits.size(); i++) {
+            final Revision expectedRevision = resetToRevision.forward(i + 1);
+            checkArgument(expectedRevision.equals(this.commits.get(i).revision()),
+                          "commits[%s].revision: %s (expected: %s)",
+                          i, this.commits.get(i).revision(), expectedRevision);
+        }
     }
 
     /**
@@ -103,8 +118,8 @@ public final class RecoverRepositoryCommand extends RepositoryCommand<Revision> 
     }
 
     /**
-     * Returns the last {@link Revision} to replay, which every replica converges to. It need not be the
-     * source's head: the source's own commits above it are discarded too.
+     * Returns the final {@link Revision}, after replaying the selected source history and compatibility
+     * padding. The selected source history need not reach the source's head.
      */
     @JsonProperty("toRevision")
     public Revision toRevision() {

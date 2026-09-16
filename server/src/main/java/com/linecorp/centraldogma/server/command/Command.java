@@ -547,19 +547,19 @@ public interface Command<T> {
     }
 
     /**
-     * Returns a new {@link Command} which asks the source replica to originate a recovery. See
-     * {@link RecoverRepositoryRequestCommand}.
+     * Returns a new recovery request with the greatest repository head observed across the replicas.
      */
     static Command<Void> recoverRepositoryRequest(Author author, String projectName, String repositoryName,
-                                                  int sourceServerId, Revision fromRevision,
-                                                  Revision toRevision) {
+                                                  int sourceServerId,
+                                                  Revision fromRevision, Revision toRevision,
+                                                  int maxRevision) {
         requireNonNull(author, "author");
         requireNonNull(projectName, "projectName");
         requireNonNull(repositoryName, "repositoryName");
         requireNonNull(fromRevision, "fromRevision");
         requireNonNull(toRevision, "toRevision");
         return new RecoverRepositoryRequestCommand(null, author, projectName, repositoryName,
-                                                   sourceServerId, fromRevision, toRevision);
+                                                   sourceServerId, fromRevision, toRevision, maxRevision);
     }
 
     /**
