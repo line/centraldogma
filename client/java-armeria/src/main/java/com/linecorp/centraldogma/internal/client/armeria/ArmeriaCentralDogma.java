@@ -1264,7 +1264,11 @@ public final class ArmeriaCentralDogma extends AbstractCentralDogma {
         final String summary = getField(commitMessageNode, "summary").asText();
         final String detail = getField(commitMessageNode, "detail").asText();
         final Markup markup = Markup.valueOf(getField(commitMessageNode, "markup").asText());
-        return new Commit(revision, author, pushedAt, summary, detail, markup);
+        final JsonNode commitIdNode = node.get("commitId");
+        final JsonNode upstreamCommitIdNode = node.get("upstreamCommitId");
+        return new Commit(revision, author, pushedAt, summary, detail, markup,
+                          commitIdNode != null ? commitIdNode.asText() : null,
+                          upstreamCommitIdNode != null ? upstreamCommitIdNode.asText() : null);
     }
 
     private static <T> Change<T> toChange(JsonNode node) {

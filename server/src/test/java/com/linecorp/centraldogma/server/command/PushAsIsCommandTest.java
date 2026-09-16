@@ -17,6 +17,8 @@
 package com.linecorp.centraldogma.server.command;
 
 import static com.linecorp.centraldogma.testing.internal.TestUtil.assertJsonConversion;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import org.junit.jupiter.api.Test;
 
@@ -26,6 +28,7 @@ import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.internal.Jackson;
 
 class PushAsIsCommandTest {
 
@@ -34,7 +37,8 @@ class PushAsIsCommandTest {
         assertJsonConversion(
                 new PushAsIsCommand(1234L, new Author("Marge Simpson", "marge@simpsonsworld.com"),
                                     "foo", "bar", new Revision(42), "baz", "qux", Markup.MARKDOWN,
-                                    ImmutableList.of(Change.ofTextUpsert("/memo.txt", "Bon voyage!"))),
+                                    ImmutableList.of(Change.ofTextUpsert("/memo.txt", "Bon voyage!")),
+                                    null),
                 Command.class,
                 '{' +
                 "  \"type\": \"PUSH\"," +
@@ -55,5 +59,29 @@ class PushAsIsCommandTest {
                 "    \"content\": \"Bon voyage!\"" +
                 "  }]" +
                 '}');
+    }
+
+    @Test
+    void upstreamCommitIdJsonRoundTrip() throws Exception {
+        final String upstreamCommitId = "0123456789abcdef0123456789abcdef01234567";
+        final PushAsIsCommand command = newCommand(upstreamCommitId);
+
+        final String json = Jackson.writeValueAsString(command);
+        assertThat(json).contains("\"upstreamCommitId\":\"" + upstreamCommitId + '\"');
+        assertThat(Jackson.readValue(json, Command.class)).isEqualTo(command);
+    }
+
+    @Test
+    void rejectsInvalidUpstreamCommitId() {
+        assertThatThrownBy(() -> newCommand("not-a-commit-id"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("upstreamCommitId");
+    }
+
+    private static PushAsIsCommand newCommand(String upstreamCommitId) {
+        return new PushAsIsCommand(1234L, new Author("Marge Simpson", "marge@simpsonsworld.com"),
+                                   "foo", "bar", new Revision(42), "baz", "qux", Markup.MARKDOWN,
+                                   ImmutableList.of(Change.ofTextUpsert("/memo.txt", "Bon voyage!")),
+                                   upstreamCommitId);
     }
 }

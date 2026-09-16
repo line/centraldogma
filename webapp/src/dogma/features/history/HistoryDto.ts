@@ -3,6 +3,8 @@ export interface HistoryDto {
   author: HistoryAuthorDto;
   commitMessage: HistoryDetailDto;
   pushedAt: string;
+  commitId?: string;
+  upstreamCommitId?: string;
 }
 
 export interface HistoryAuthorDto {

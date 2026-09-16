@@ -21,6 +21,8 @@ import static java.util.Objects.requireNonNull;
 
 import java.time.Instant;
 
+import org.jspecify.annotations.Nullable;
+
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -40,11 +42,25 @@ public class CommitDto {
 
     private final String pushedAt;
 
-    public CommitDto(Revision revision, Author author, CommitMessageDto commitMessage, long commitTimeMillis) {
+    @Nullable
+    private final String commitId;
+
+    @Nullable
+    private final String upstreamCommitId;
+
+    public CommitDto(Revision revision, Author author, CommitMessageDto commitMessage,
+                     long commitTimeMillis) {
+        this(revision, author, commitMessage, commitTimeMillis, null, null);
+    }
+
+    public CommitDto(Revision revision, Author author, CommitMessageDto commitMessage, long commitTimeMillis,
+                     @Nullable String commitId, @Nullable String upstreamCommitId) {
         this.revision = requireNonNull(revision, "revision");
         this.author = requireNonNull(author, "author");
         this.commitMessage = requireNonNull(commitMessage, "commitMessage");
         pushedAt = ISO_INSTANT.format(Instant.ofEpochMilli(commitTimeMillis));
+        this.commitId = commitId;
+        this.upstreamCommitId = upstreamCommitId;
     }
 
     @JsonProperty("revision")
@@ -67,6 +83,24 @@ public class CommitDto {
         return pushedAt;
     }
 
+    /**
+     * Returns the SHA-1 of the Git commit that stores this commit.
+     */
+    @Nullable
+    @JsonProperty("commitId")
+    public String commitId() {
+        return commitId;
+    }
+
+    /**
+     * Returns the SHA-1 of the upstream Git commit this commit was mirrored from.
+     */
+    @Nullable
+    @JsonProperty("upstreamCommitId")
+    public String upstreamCommitId() {
+        return upstreamCommitId;
+    }
+
     @Override
     public String toString() {
         return MoreObjects.toStringHelper(this)
@@ -74,6 +108,8 @@ public class CommitDto {
                           .add("author", author())
                           .add("commitMessage", commitMessage())
                           .add("pushedAt", pushedAt())
+                          .add("commitId", commitId())
+                          .add("upstreamCommitId", upstreamCommitId())
                           .toString();
     }
 }

@@ -109,9 +109,65 @@ Here is the properties of the mirroring task:
      - a mirroring task is executed in the first zone of ``zone.allZones`` configuration.
      - if ``zone.allZones`` is not configured, a mirroring task is executed in the leader replica.
 
+- ``Preserve upstream commit history``
+
+  - whether each remote commit becomes its own revision. The option is disabled by default.
+
+  - See `Preserving the upstream commit history`_ below.
+
 - ``Enable mirror``
 
   - whether the mirroring task is enabled.
+
+Preserving the upstream commit history
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+By default a mirroring run pushes whatever the remote repository looks like at that moment as a single
+revision, so several remote commits merged in quick succession end up in one revision. Turning on
+``Preserve upstream commit history`` replays them one by one instead, which lets you pin the state where
+only one pull request has been applied.
+
+Each revision created this way records the SHA-1 of the remote commit it came from, shows it in the commit
+history next to Central Dogma's own commit SHA-1, and is tagged ``refs/tags/dogma-<remote SHA-1>``. Because
+Central Dogma serves its repositories over the Git HTTP protocol, that tag can be used as a Git label:
+
+.. code-block:: yaml
+
+    # Spring Cloud Config Server -> Central Dogma
+    spring.cloud.config.server.git.uri: https://centraldogma.example.com/myproject/config-repo.git
+    spring.cloud.config.server.git.username: dogma        # Use this literal. The password is an access token.
+
+    # Client
+    spring.cloud.config.label: dogma-3f2a1c9e8b7d6540a1b2c3d4e5f60718293a4b5c
+
+Note the following limitations:
+
+- **One revision per remote commit is guaranteed only for fast-forward pushes.** A new mirror's first run
+  creates one snapshot revision. Any non-fast-forward update also creates one snapshot revision at the new
+  remote head. A snapshot receives a tag for the remote head only.
+
+- **A single run replays at most 100 commits.** If more than 100 commits are reachable from the remote head,
+  the run creates one snapshot revision instead. This limit also applies to histories with merge commits.
+
+- Tags are immutable. If a reconciliation snapshot refers to an upstream commit that was tagged by an earlier
+  revision, the existing tag does not move and the new snapshot is left without an upstream mapping.
+
+- **A remote commit that changes nothing within the mirrored path still creates a revision**, because the
+  revision records which remote commit the repository is at. Expect this if ``remote path`` covers only a
+  part of a busy repository.
+
+- Only one mirror targeting a repository may enable this option. The ``dogma-<remote SHA-1>`` tag belongs to
+  the target repository, so two preserving mirrors could otherwise assign the same tag to different states.
+
+- The option is unavailable for:
+
+  - ``LOCAL_TO_REMOTE`` mirrors
+  - Central Dogma to Central Dogma mirrors
+  - encrypted repositories
+
+- A repository with this option configured cannot be migrated to encrypted storage.
+
+- During an upgrade, enable this option only after every replica is running a version that supports it.
 
 Central Dogma to Central Dogma mirroring
 ----------------------------------------

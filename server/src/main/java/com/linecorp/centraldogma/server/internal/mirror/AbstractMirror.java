@@ -99,6 +99,7 @@ public abstract class AbstractMirror implements Mirror {
     private final String gitignore;
     @Nullable
     private final String zone;
+    private final boolean preserveRemoteCommitHistory;
     @Nullable
     private final Cron schedule;
     @Nullable
@@ -113,8 +114,16 @@ public abstract class AbstractMirror implements Mirror {
 
     protected AbstractMirror(String id, boolean enabled, @Nullable Cron schedule, MirrorDirection direction,
                              Credential credential, Repository localRepo, String localPath,
+                             RepositoryUri remoteUri, @Nullable String gitignore, @Nullable String zone) {
+        this(id, enabled, schedule, direction, credential, localRepo, localPath, remoteUri, gitignore, zone,
+             false);
+    }
+
+    protected AbstractMirror(String id, boolean enabled, @Nullable Cron schedule, MirrorDirection direction,
+                             Credential credential, Repository localRepo, String localPath,
                              RepositoryUri remoteUri,
-                             @Nullable String gitignore, @Nullable String zone) {
+                             @Nullable String gitignore, @Nullable String zone,
+                             boolean preserveRemoteCommitHistory) {
         this.id = requireNonNull(id, "id");
         this.enabled = enabled;
         this.direction = requireNonNull(direction, "direction");
@@ -124,6 +133,7 @@ public abstract class AbstractMirror implements Mirror {
         this.remoteUri = remoteUri;
         this.gitignore = gitignore;
         this.zone = zone;
+        this.preserveRemoteCommitHistory = preserveRemoteCommitHistory;
 
         if (gitignore != null) {
             ignoreNode = new IgnoreNode();
@@ -221,6 +231,11 @@ public abstract class AbstractMirror implements Mirror {
     @Override
     public String zone() {
         return zone;
+    }
+
+    @Override
+    public boolean preserveRemoteCommitHistory() {
+        return preserveRemoteCommitHistory;
     }
 
     @Override
@@ -354,6 +369,10 @@ public abstract class AbstractMirror implements Mirror {
                                                  .add("credential", credential);
         if (schedule != null) {
             helper.add("schedule", CronDescriptor.instance().describe(schedule));
+        }
+        if (preserveRemoteCommitHistory) {
+            // Keep existing mirror hashes unchanged while the option is disabled.
+            helper.add("preserveRemoteCommitHistory", true);
         }
         return helper.toString();
     }

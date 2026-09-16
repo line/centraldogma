@@ -46,6 +46,7 @@ const NewMirrorPage = () => {
     credentialName: null,
     gitignore: null,
     enabled: false,
+    preserveRemoteCommitHistory: false,
   };
 
   const [addNewMirror, { isLoading }] = useAddNewMirrorMutation();

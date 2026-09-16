@@ -23,6 +23,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import org.junit.jupiter.api.Test;
 
 import com.linecorp.centraldogma.internal.CredentialUtil;
+import com.linecorp.centraldogma.internal.Jackson;
 
 class MirrorRequestTest {
 
@@ -53,7 +54,21 @@ class MirrorRequestTest {
                 .isEqualTo(credentialName);
     }
 
+    @Test
+    void serializesPreserveRemoteCommitHistoryOnlyWhenEnabled() throws Exception {
+        final String credentialName = credentialName("foo", "credential-id");
+
+        assertThat(Jackson.writeValueAsString(newMirror(credentialName, false)))
+                .doesNotContain("preserveRemoteCommitHistory");
+        assertThat(Jackson.writeValueAsString(newMirror(credentialName, true)))
+                .contains("\"preserveRemoteCommitHistory\":true");
+    }
+
     private static MirrorRequest newMirror(String credentialName) {
+        return newMirror(credentialName, false);
+    }
+
+    private static MirrorRequest newMirror(String credentialName, boolean preserveRemoteCommitHistory) {
         return new MirrorRequest("mirror-id",
                                  true,
                                  "foo",
@@ -67,6 +82,7 @@ class MirrorRequestTest {
                                  "main",
                                  null,
                                  credentialName,
-                                 null);
+                                 null,
+                                 preserveRemoteCommitHistory);
     }
 }
