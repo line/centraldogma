@@ -222,10 +222,15 @@ public final class XdsTestUtil {
     }
 
     public static Listener exampleListener(String listenerName, String routeName, String statPrefix) {
-        final HttpConnectionManager manager = httpConnectionManager(routeName, rdsConfigSource());
+        // Apply statPrefix to the HttpConnectionManager (a field the Armeria xDS client marks as supported)
+        // rather than to Listener.stat_prefix, which the client does not mark supported and would reject
+        // during validation.
+        final HttpConnectionManager manager =
+                httpConnectionManager(routeName, rdsConfigSource()).toBuilder()
+                                                                   .setStatPrefix(statPrefix)
+                                                                   .build();
         return Listener.newBuilder()
                        .setName(listenerName)
-                       .setStatPrefix(statPrefix)
                        .setApiListener(ApiListener.newBuilder()
                                                   .setApiListener(Any.pack(manager)))
                        .build();

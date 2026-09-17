@@ -43,9 +43,21 @@ public final class RepositoryServiceUtil {
             CommandExecutor commandExecutor, MetadataService mds,
             Author author, String projectName, String repoName, boolean encrypt,
             @Nullable EncryptionStorageManager encryptionStorageManager) {
+        return createRepository(commandExecutor, mds, author, projectName, repoName, true,
+                                encrypt, encryptionStorageManager);
+    }
+
+    public static CompletableFuture<Revision> createRepository(
+            CommandExecutor commandExecutor, MetadataService mds,
+            Author author, String projectName, String repoName, boolean assignRoleToAuthor,
+            boolean encrypt, @Nullable EncryptionStorageManager encryptionStorageManager) {
         final Map<String, RepositoryRole> users;
         final Map<String, RepositoryRole> appIds;
-        if (author.isAppIdentity()) {
+        if (!assignRoleToAuthor) {
+            // Do not grant the author (e.g. a bot) any role on the new repository.
+            users = ImmutableMap.of();
+            appIds = ImmutableMap.of();
+        } else if (author.isAppIdentity()) {
             users = ImmutableMap.of();
             // author.name() is the appId.
             appIds = ImmutableMap.of(author.name(), RepositoryRole.ADMIN);

@@ -9,7 +9,7 @@
     "develop": "NEXT_PUBLIC_HOST=\"http://127.0.0.1:36462\" NEXT_ENV=\"development\" next dev --hostname 127.0.0.1",
     "backend": "../gradlew runTestShiroServer -PnoWeb",
     "mock": "NEXT_ENV=\"development\" next dev",
-    "build": "next build",
+    "build": "next build && node scripts/compress-static.mjs",
     "start": "next start",
     "lint": "next lint",
     "lint:fix": "next lint --fix --ext .json,.js,.jsx,.ts,.tsx .",

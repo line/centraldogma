@@ -15,6 +15,7 @@
  */
 package com.linecorp.centraldogma.xds.internal;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
@@ -22,6 +23,8 @@ import java.util.regex.Pattern;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.hash.Hashing;
+import com.google.protobuf.CodedOutputStream;
 import com.google.protobuf.Message;
 
 import io.envoyproxy.controlplane.cache.Resources.ResourceType;
@@ -69,29 +72,53 @@ final class CentralDogmaXdsResources {
     void setCluster(String groupName, Cluster cluster) {
         final Map<String, VersionedResource<Cluster>> groupClusters =
                 clusterResources.computeIfAbsent(groupName, k -> new HashMap<>());
-        groupClusters.put(cluster.getName(), VersionedResource.create(cluster));
+        groupClusters.put(cluster.getName(), versionedResource(cluster));
         clusterUpdated = true;
     }
 
     void setEndpoint(String groupName, ClusterLoadAssignment endpoint) {
         final Map<String, VersionedResource<ClusterLoadAssignment>> groupEndpoints =
                 endpointResources.computeIfAbsent(groupName, k -> new HashMap<>());
-        groupEndpoints.put(endpoint.getClusterName(), VersionedResource.create(endpoint));
+        groupEndpoints.put(endpoint.getClusterName(), versionedResource(endpoint));
         endpointUpdated = true;
     }
 
     void setListener(String groupName, Listener listener) {
         final Map<String, VersionedResource<Listener>> groupListeners =
                 listenerResources.computeIfAbsent(groupName, k -> new HashMap<>());
-        groupListeners.put(listener.getName(), VersionedResource.create(listener));
+        groupListeners.put(listener.getName(), versionedResource(listener));
         listenerUpdated = true;
     }
 
     void setRoute(String groupName, RouteConfiguration route) {
         final Map<String, VersionedResource<RouteConfiguration>> groupRoutes =
                 routeResources.computeIfAbsent(groupName, k -> new HashMap<>());
-        groupRoutes.put(route.getName(), VersionedResource.create(route));
+        groupRoutes.put(route.getName(), versionedResource(route));
         routeUpdated = true;
+    }
+
+    private static <T extends Message> VersionedResource<T> versionedResource(T resource) {
+        return VersionedResource.create(resource, stableVersion(resource));
+    }
+
+    /**
+     * Computes a version that is deterministic across replicas for the given resource.
+     *
+     * <p>{@link VersionedResource#create(Message)} derives the version from {@link Message#hashCode()}, which
+     * folds in the identity hash of the message descriptor (a per-JVM singleton).
+     */
+    static String stableVersion(Message resource) {
+        final byte[] serialized = new byte[resource.getSerializedSize()];
+        final CodedOutputStream out = CodedOutputStream.newInstance(serialized);
+        out.useDeterministicSerialization();
+        try {
+            resource.writeTo(out);
+            out.checkNoSpaceLeft();
+        } catch (IOException e) {
+            // Should never reach here
+            throw new Error();
+        }
+        return Hashing.sha256().hashBytes(serialized).toString();
     }
 
     void removeCluster(String groupName, String path) {

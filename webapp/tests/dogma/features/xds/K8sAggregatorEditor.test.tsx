@@ -286,7 +286,18 @@ describe('K8sAggregatorEditor – aggregator ID pattern validation', () => {
       renderWithProviders(<K8sAggregatorEditor group="foo" id="my-agg" isNew={false} />);
       await waitFor(() => expect(screen.getByDisplayValue('my-agg')).toBeInTheDocument());
 
+      const tlsVerification = screen.getByRole('checkbox', {
+        name: 'Trust all certificates (skip verification)',
+      });
+      expect(tlsVerification).toBeChecked();
+      expect(tlsVerification).toBeDisabled();
+      expect(
+        screen.getByText(/An intercepted connection could expose the OAuth token and return falsified data/),
+      ).toBeInTheDocument();
+      expect(screen.getByText(/self-signed control plane in a controlled environment/)).toBeInTheDocument();
+
       await user.click(screen.getByRole('button', { name: /^edit$/i }));
+      expect(tlsVerification).toBeEnabled();
       await user.click(screen.getByRole('button', { name: /^save$/i }));
 
       await waitFor(() => expect(mockUpdate).toHaveBeenCalled());
