@@ -291,8 +291,6 @@ public class CentralDogma implements AutoCloseable {
     @Nullable
     private volatile ProjectManager pm;
     @Nullable
-    private volatile RecoveryCommandFactory recoveryCommandFactory;
-    @Nullable
     private volatile Server server;
     @Nullable
     private ExecutorService repositoryWorker;
@@ -523,8 +521,8 @@ public class CentralDogma implements AutoCloseable {
                 this.server = server;
                 this.sessionManager = sessionManager;
             } else {
-                doStop(server, executor, pm, repositoryWorker, purgeWorker,
-                       sessionManager, mirrorRunner, encryptionStorageManager);
+                doStop(server, executor, pm, repositoryWorker, purgeWorker, sessionManager, mirrorRunner,
+                       encryptionStorageManager);
             }
         }
         return success;
@@ -627,23 +625,21 @@ public class CentralDogma implements AutoCloseable {
 
         statusManager = new ServerStatusManager(cfg.dataDir());
         repoStatusManager = new RepoStatusManager(statusManager, pm, meterRegistry);
-        recoveryCommandFactory = new RecoveryCommandFactory(pm);
         logger.info("Startup mode: {}", statusManager.serverStatus());
         final CommandExecutor executor;
         final ReplicationMethod replicationMethod = cfg.replicationConfig().method();
         switch (replicationMethod) {
             case ZOOKEEPER:
-                executor = newZooKeeperCommandExecutor(pm, repositoryWorker,
-                                                       statusManager, repoStatusManager, meterRegistry,
+                executor = newZooKeeperCommandExecutor(pm, repositoryWorker, statusManager, repoStatusManager,
+                                                       meterRegistry,
                                                        sessionManager, encryptionStorageManager,
                                                        onTakeLeadership, onReleaseLeadership,
                                                        onTakeZoneLeadership, onReleaseZoneLeadership);
                 break;
             case NONE:
                 logger.info("No replication mechanism specified; entering standalone");
-                executor = new StandaloneCommandExecutor(pm, repositoryWorker,
-                                                         statusManager, repoStatusManager, sessionManager,
-                                                         encryptionStorageManager,
+                executor = new StandaloneCommandExecutor(pm, repositoryWorker, statusManager, repoStatusManager,
+                                                         sessionManager, encryptionStorageManager,
                                                          onTakeLeadership, onReleaseLeadership,
                                                          onTakeZoneLeadership, onReleaseZoneLeadership);
                 break;
@@ -964,12 +960,11 @@ public class CentralDogma implements AutoCloseable {
         //                so that we can recover from ZooKeeper maintenance automatically.
         return new ZooKeeperCommandExecutor(
                 zkCfg, dataDir,
-                new StandaloneCommandExecutor(pm, repositoryWorker,
-                                              serverStatusManager, repoStatusManager, sessionManager,
-                                              encryptionStorageManager,
+                new StandaloneCommandExecutor(pm, repositoryWorker, serverStatusManager, repoStatusManager,
+                                              sessionManager, encryptionStorageManager,
                         /* onTakeLeadership */ null, /* onReleaseLeadership */ null,
                         /* onTakeZoneLeadership */ null, /* onReleaseZoneLeadership */ null),
-                meterRegistry, zone, recoveryCommandFactory,
+                meterRegistry, zone, new RecoveryCommandFactory(pm),
                 onTakeLeadership, onReleaseLeadership,
                 onTakeZoneLeadership, onReleaseZoneLeadership);
     }
@@ -1268,7 +1263,6 @@ public class CentralDogma implements AutoCloseable {
         this.executor = null;
         this.encryptionStorageManager = null;
         this.pm = null;
-        recoveryCommandFactory = null;
         this.repositoryWorker = null;
         this.sessionManager = null;
         this.mirrorRunner = null;
@@ -1285,8 +1279,8 @@ public class CentralDogma implements AutoCloseable {
         }
 
         logger.info("Stopping the Central Dogma ..");
-        if (!doStop(server, executor, pm, repositoryWorker, purgeWorker,
-                    sessionManager, mirrorRunner, encryptionStorageManager)) {
+        if (!doStop(server, executor, pm, repositoryWorker, purgeWorker, sessionManager, mirrorRunner,
+                    encryptionStorageManager)) {
             logger.warn("Stopped the Central Dogma with failure.");
         } else {
             logger.info("Stopped the Central Dogma successfully.");

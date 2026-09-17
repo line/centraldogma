@@ -51,17 +51,25 @@ public interface RepositoryManager extends StorageManager<Repository> {
      *
      * @return {@code true} if the repository was rewritten; {@code false} if it already held exactly the
      *         given commits and was thus left untouched.
+     * @throws UnsupportedOperationException if this implementation does not support repository recovery
      */
-    boolean recoverRepository(String repositoryName, Revision resetToRevision, List<ReplayCommit> commits);
+    default boolean recoverRepository(String repositoryName, Revision resetToRevision,
+                                      List<ReplayCommit> commits) {
+        throw new UnsupportedOperationException("repository recovery is not supported");
+    }
 
     /**
      * Builds the {@link ReplayCommit}s of {@code fromRevision..toRevision} of the specified repository, to
      * be carried by a {@link RecoverRepositoryCommand}. Invoked only on the source replica of a recovery.
      * Both revisions must be absolute, {@code fromRevision} greater than 1 and {@code toRevision} between
      * {@code fromRevision} and the HEAD revision.
+     *
+     * @throws UnsupportedOperationException if this implementation does not support repository recovery
      */
-    List<ReplayCommit> buildRecoveryPayload(String repositoryName, Revision fromRevision,
-                                            Revision toRevision);
+    default List<ReplayCommit> buildRecoveryPayload(String repositoryName, Revision fromRevision,
+                                                    Revision toRevision) {
+        throw new UnsupportedOperationException("repository recovery is not supported");
+    }
 
     /**
      * Sets a callback that is invoked after a repository is migrated or fallen back.

@@ -51,16 +51,16 @@ public final class RecoveryCommandFactory {
         this.projectManager = requireNonNull(projectManager, "projectManager");
     }
 
-    Command<Revision> newCommand(RecoverRepositoryRequestCommand request) {
+    Command<Revision> blockingNewCommand(RecoverRepositoryRequestCommand request) {
         requireNonNull(request, "request");
-        return newCommand(request.author(), request.projectName(), request.repositoryName(),
-                          request.sourceServerId(), request.fromRevision(), request.toRevision(),
-                          request.maxRevision());
+        return blockingNewCommand(request.author(), request.projectName(), request.repositoryName(),
+                                  request.sourceServerId(), request.fromRevision(), request.toRevision(),
+                                  request.maxRevision());
     }
 
-    Command<Revision> newCommand(Author author, String projectName, String repositoryName,
-                                 int sourceServerId, Revision fromRevision, Revision toRevision,
-                                 int maxRevision) {
+    Command<Revision> blockingNewCommand(Author author, String projectName, String repositoryName,
+                                         int sourceServerId, Revision fromRevision, Revision toRevision,
+                                         int maxRevision) {
         requireNonNull(author, "author");
         requireNonNull(projectName, "projectName");
         requireNonNull(repositoryName, "repositoryName");
@@ -89,6 +89,7 @@ public final class RecoveryCommandFactory {
         commits.addAll(sourceCommits);
 
         final String expectedTreeId = sourceCommits.get(sourceCommits.size() - 1).expectedTreeId();
+        // Advance past the supplied maximum revision so clients can resume watches from old absolute cursors.
         for (Revision revision = toRevision.forward(1);; revision = revision.forward(1)) {
             commits.add(new ReplayCommit(revision, PADDING_COMMIT_TIMESTAMP_MILLIS, Author.SYSTEM,
                                          PADDING_COMMIT_SUMMARY, "", Markup.PLAINTEXT,

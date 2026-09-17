@@ -45,6 +45,11 @@ public final class ForcePushCommand<T> extends SystemAdministrativeCommand<T> {
     }
 
     @Override
+    public String executionPath() {
+        return delegate.executionPath();
+    }
+
+    @Override
     public boolean equals(Object o) {
         if (this == o) {
             return true;

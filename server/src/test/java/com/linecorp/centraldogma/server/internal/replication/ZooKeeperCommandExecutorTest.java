@@ -715,7 +715,7 @@ class ZooKeeperCommandExecutorTest {
                 Command.recoverRepository(Author.SYSTEM, "p", "r", 1, Revision.INIT,
                                           recoveryRevision, ImmutableList.of(commit, padding));
         final RecoveryCommandFactory factory = mock(RecoveryCommandFactory.class);
-        when(factory.newCommand(any())).thenReturn(recovery);
+        when(factory.blockingNewCommand(any())).thenReturn(recovery);
         final Supplier<Function<Command<?>, CompletableFuture<?>>> delegateSupplier = () -> {
             final Function<Command<?>, CompletableFuture<?>> delegate = newMockDelegate();
             when(delegate.apply(eq(recovery))).thenAnswer(unused -> completedFuture(recoveryRevision));
@@ -736,7 +736,7 @@ class ZooKeeperCommandExecutorTest {
                 verify(replica.delegate(), timeout(30000)).apply(eq(recovery));
                 await().untilAsserted(() -> assertThat(replica.localRevision()).isEqualTo(1L));
             }
-            verify(factory, times(1)).newCommand(any());
+            verify(factory, times(1)).blockingNewCommand(any());
         }
     }
 

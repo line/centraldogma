@@ -475,6 +475,7 @@ public final class ZooKeeperCommandExecutor
                     });
 
             curator.start();
+
             // Start the log replay.
             logWatcherExecutor = ExecutorServiceMetrics.monitor(
                     meterRegistry,
@@ -708,8 +709,7 @@ public final class ZooKeeperCommandExecutor
         listenerInfo = null;
 
         logger.info("Stopping the worker threads");
-        boolean interrupted = false;
-        interrupted |= shutdown(executor);
+        boolean interrupted = shutdown(executor);
         logger.info("Stopped the worker threads");
 
         try {
@@ -942,7 +942,7 @@ public final class ZooKeeperCommandExecutor
             return;
         }
         try {
-            CompletableFuture.supplyAsync(() -> recoveryCommandFactory.newCommand(command), executor)
+            CompletableFuture.supplyAsync(() -> recoveryCommandFactory.blockingNewCommand(command), executor)
                              .thenCompose(this::execute)
                              .whenComplete((revision, cause) -> {
                                  if (cause != null) {
@@ -1329,10 +1329,9 @@ public final class ZooKeeperCommandExecutor
 
                 timings.startCommandExecution();
                 final T result;
-                final Command<T> commandToExecute = command;
-                if (commandToExecute instanceof RecoverRepositoryCommand) {
+                if (command instanceof RecoverRepositoryCommand) {
                     final RecoverRepositoryCommand recovery =
-                            (RecoverRepositoryCommand) commandToExecute;
+                            (RecoverRepositoryCommand) command;
                     final ReplicationLog<Revision> log =
                             new ReplicationLog<>(replicaId(), recovery, recovery.toRevision());
                     final long revision;
@@ -1346,7 +1345,7 @@ public final class ZooKeeperCommandExecutor
                             } finally {
                                 timings.endLogStore();
                             }
-                            result = delegate.execute(ctx, commandToExecute).get();
+                            result = delegate.execute(ctx, command).get();
                             updateLastReplayedRevision(revision);
                             lastReplayedRevision = revision;
                         } finally {
@@ -1357,7 +1356,7 @@ public final class ZooKeeperCommandExecutor
                     return result;
                 }
                 try {
-                    result = delegate.execute(ctx, commandToExecute).get();
+                    result = delegate.execute(ctx, command).get();
                 } finally {
                     timings.endCommandExecution();
                 }
@@ -1366,17 +1365,17 @@ public final class ZooKeeperCommandExecutor
                 final long revision;
                 final ReplicationLog<?> log;
                 try {
-                    final Command<?> maybeUnwrapped = unwrapForcePush(commandToExecute);
+                    final Command<?> maybeUnwrapped = unwrapForcePush(command);
                     if (maybeUnwrapped instanceof NormalizableCommit) {
                         final NormalizableCommit normalizingPushCommand = (NormalizableCommit) maybeUnwrapped;
                         assert result instanceof CommitResult : result;
                         final CommitResult commitResult = (CommitResult) result;
                         final Command<Revision> pushAsIsCommand = normalizingPushCommand.asIs(commitResult);
                         log = new ReplicationLog<>(replicaId(),
-                                                   maybeWrap(commandToExecute, pushAsIsCommand),
+                                                   maybeWrap(command, pushAsIsCommand),
                                                    commitResult.revision());
                     } else {
-                        log = new ReplicationLog<>(replicaId(), commandToExecute, result);
+                        log = new ReplicationLog<>(replicaId(), command, result);
                     }
 
                     // Store the command execution log to ZooKeeper.
@@ -1385,8 +1384,8 @@ public final class ZooKeeperCommandExecutor
                     timings.endLogStore();
                 }
 
-                if (commandToExecute instanceof RecoverRepositoryRequestCommand) {
-                    reactToRecoveryRequestLater((RecoverRepositoryRequestCommand) commandToExecute);
+                if (command instanceof RecoverRepositoryRequestCommand) {
+                    reactToRecoveryRequestLater((RecoverRepositoryRequestCommand) command);
                 }
 
                 // Update the ServerStatus to the CommandExecutor after the log is stored.

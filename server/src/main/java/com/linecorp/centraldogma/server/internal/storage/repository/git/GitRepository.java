@@ -670,7 +670,7 @@ class GitRepository implements Repository {
      * describes one history. A recovery rewrites the history in place, so a build that reads the history,
      * the diffs and the tree IDs under separate locks can splice two of them together.
      */
-    <T> T readLocked(Supplier<T> supplier) {
+    <T> T withReadLock(Supplier<T> supplier) {
         readLock();
         try {
             return supplier.get();
@@ -967,22 +967,13 @@ class GitRepository implements Repository {
      * Commits on the calling thread instead of dispatching to the repository worker, and without notifying
      * watchers. A recovery replays its commits while holding this repository's write lock, and readers
      * parked on that lock consume the worker pool, so blocking on a task queued back to it would deadlock.
-     * Waking a watcher has the same effect, and would hand it a half-replayed history.
-     */
-    CommitResult blockingCommit(Revision baseRevision, long commitTimeMillis, Author author, String summary,
-                                String detail, Markup markup, Iterable<Change<?>> changes) {
-        return blockingCommit(baseRevision, commitTimeMillis, author, summary, detail, markup, changes, false);
-    }
-
-    /**
-     * Commits on the calling thread, optionally retaining an empty commit. Recovery uses empty commits as
+     * Waking a watcher has the same effect, and would hand it a half-replayed history. Empty commits provide
      * deterministic revision padding after replaying the source history.
      */
     CommitResult blockingCommit(Revision baseRevision, long commitTimeMillis, Author author, String summary,
-                                String detail, Markup markup, Iterable<Change<?>> changes,
-                                boolean allowEmptyCommit) {
+                                String detail, Markup markup, Iterable<Change<?>> changes) {
         final CommitExecutor commitExecutor =
-                new CommitExecutor(this, commitTimeMillis, author, summary, detail, markup, allowEmptyCommit);
+                new CommitExecutor(this, commitTimeMillis, author, summary, detail, markup, true);
         return commitExecutor.execute(baseRevision, normBaseRevision -> changes, false);
     }
 

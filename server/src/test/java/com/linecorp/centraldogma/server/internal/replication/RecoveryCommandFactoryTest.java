@@ -55,8 +55,8 @@ class RecoveryCommandFactoryTest {
                 .thenReturn(new RepositoryHead(new Revision(3), "commit", "tree"));
 
         final RecoveryCommandFactory factory = new RecoveryCommandFactory(projectManager);
-        final Command<Revision> command = factory.newCommand(Author.SYSTEM, "foo", "bar", 1,
-                                                             new Revision(3), new Revision(3), 3);
+        final Command<Revision> command = factory.blockingNewCommand(
+                Author.SYSTEM, "foo", "bar", 1, new Revision(3), new Revision(3), 3);
 
         assertThat(command).isInstanceOf(RecoverRepositoryCommand.class);
         final RecoverRepositoryCommand recoverCommand = (RecoverRepositoryCommand) command;
@@ -84,7 +84,7 @@ class RecoveryCommandFactoryTest {
                 .thenReturn(new RepositoryHead(new Revision(3), "commit", "tree"));
 
         final RecoveryCommandFactory factory = new RecoveryCommandFactory(projectManager);
-        final RecoverRepositoryCommand command = (RecoverRepositoryCommand) factory.newCommand(
+        final RecoverRepositoryCommand command = (RecoverRepositoryCommand) factory.blockingNewCommand(
                 Author.SYSTEM, "foo", "bar", 1, new Revision(3), new Revision(3), 5);
 
         assertThat(command.toRevision()).isEqualTo(new Revision(6));
@@ -105,8 +105,8 @@ class RecoveryCommandFactoryTest {
                 .thenReturn(new RepositoryHead(new Revision(6), "commit", "tree"));
         final RecoveryCommandFactory factory = new RecoveryCommandFactory(projectManager);
 
-        assertThatThrownBy(() -> factory.newCommand(Author.SYSTEM, "foo", "bar", 1,
-                                                    new Revision(3), new Revision(3), 5))
+        assertThatThrownBy(() -> factory.blockingNewCommand(
+                Author.SYSTEM, "foo", "bar", 1, new Revision(3), new Revision(3), 5))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("source head")
                 .hasMessageContaining("6")

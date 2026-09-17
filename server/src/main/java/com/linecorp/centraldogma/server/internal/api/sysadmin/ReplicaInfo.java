@@ -38,25 +38,16 @@ final class ReplicaInfo {
         this.current = current;
     }
 
-    /**
-     * Returns the ZooKeeper server ID of the replica.
-     */
     @JsonProperty("serverId")
     int serverId() {
         return serverId;
     }
 
-    /**
-     * Returns the host name of the replica.
-     */
     @JsonProperty("host")
     String host() {
         return host;
     }
 
-    /**
-     * Returns whether this replica is the one that served the request.
-     */
     @JsonProperty("current")
     boolean current() {
         return current;

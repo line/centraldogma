@@ -101,7 +101,7 @@ final class RepositoryRecovery {
                 final Revision revision = commit.revision();
                 final CommitResult result = repo.blockingCommit(
                         revision.backward(1), commit.timestampMillis(), commit.author(), commit.summary(),
-                        commit.detail(), commit.markup(), commit.changes(), true);
+                        commit.detail(), commit.markup(), commit.changes());
                 if (!revision.equals(result.revision())) {
                     throw new StorageException("unexpected replayed revision: " + result.revision() +
                                                " (expected: " + revision + ')');
@@ -285,7 +285,7 @@ final class RepositoryRecovery {
         final GitRepository repo = fileRepository(repositoryName);
         // One snapshot: the history, every diff and every tree ID come from the same state, and a recovery
         // rewriting this repository waits rather than splicing two histories into one payload.
-        return repo.readLocked(() -> buildPayload(repo, repoPath, fromRevision, toRevision));
+        return repo.withReadLock(() -> buildPayload(repo, repoPath, fromRevision, toRevision));
     }
 
     private static List<ReplayCommit> buildPayload(GitRepository repo, String repoPath,

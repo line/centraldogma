@@ -297,11 +297,10 @@ public class RepositoryServiceV1 extends AbstractService {
      * GET /projects/{projectName}/repos/{repoName}/head
      *
      * <p>Returns the head of the repository <em>on the replica that served the request</em>: that
-     * replica's server ID, and the head's revision, commit ID and tree ID. Diverged replicas report the
-     * same revision, so a matching revision proves nothing, and so does a matching commit ID fail to
-     * appear between replicas of a metadata repository, which wrote their early commits locally. The tree
-     * ID is the fingerprint of the content alone, so it is what an administrator compares to confirm a
-     * recovery converged before making the repository writable again.
+     * replica's server ID, and the head's revision, commit ID and tree ID. A matching revision alone does
+     * not prove convergence. Commit IDs can also differ between replicas of a metadata repository because
+     * their early commits were written locally. The tree ID fingerprints the content alone, so it is what
+     * an administrator compares before making the repository writable again.
      *
      * <p>A system administrator calls this while the repository is read-only, so no commit moves the head
      * between the replicas being compared.
@@ -312,7 +311,7 @@ public class RepositoryServiceV1 extends AbstractService {
     public RepositoryHeadResponse head(Repository repository) {
         final Integer serverId =
                 executor() instanceof ZooKeeperCommandExecutor ?
-                ((ZooKeeperCommandExecutor) executor()).replicaId() : null;
+                executor().replicaId() : null;
         return new RepositoryHeadResponse(serverId, repository.head());
     }
 
@@ -324,8 +323,9 @@ public class RepositoryServiceV1 extends AbstractService {
      * padded with empty commits through {@code maxRevision + 1}, which becomes the new head. Replicated
      * (ZooKeeper) mode only, and the repository must be read-only first.
      *
-     * <p>The response only means the request was recorded. Confirm convergence with {@code GET .../head}
-     * on every replica.
+     * <p>The response only means the request was recorded. The source replica must be running when it
+     * replays the request. Confirm convergence with {@code GET .../head} on every replica, and submit a new
+     * request if they do not converge.
      */
     @Post("/projects/{projectName}/repos/{repoName}/recover")
     @Consumes("application/json")
@@ -352,13 +352,13 @@ public class RepositoryServiceV1 extends AbstractService {
                                                                    recoveryRevision));
     }
 
-    private ZooKeeperCommandExecutor validateRecoveryPrerequisites(ServiceRequestContext ctx, Project project,
-                                                                   Repository repository,
-                                                                   RecoverRepositoryRequest request) {
+    private void validateRecoveryPrerequisites(ServiceRequestContext ctx, Project project,
+                                               Repository repository,
+                                               RecoverRepositoryRequest request) {
         if (InternalProjectInitializer.INTERNAL_PROJECT_DOGMA.equals(project.name())) {
             // The internal project has no repository status to make read-only, so the precondition below is
             // unreachable for it.
-            return HttpApiUtil.throwResponse(
+            HttpApiUtil.throwResponse(
                     ctx, HttpStatus.FORBIDDEN,
                     "Cannot recover a repository of the internal project: %s/%s",
                     project.name(), repository.name());
@@ -379,13 +379,12 @@ public class RepositoryServiceV1 extends AbstractService {
                     zkExecutor.replicationConfig().servers().keySet() + ')');
         }
         if (getReplicationStatus(repository) != ReplicationStatus.READ_ONLY) {
-            return HttpApiUtil.throwResponse(
+            HttpApiUtil.throwResponse(
                     ctx, HttpStatus.CONFLICT,
                     "The repository must be read-only before recovery so that no new commit can be " +
                     "originated while the recovery is in flight: %s/%s. Change the status to READ_ONLY " +
                     "first.", project.name(), repository.name());
         }
-        return zkExecutor;
     }
 
     /**
