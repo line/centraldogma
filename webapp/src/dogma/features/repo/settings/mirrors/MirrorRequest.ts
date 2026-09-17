@@ -13,6 +13,13 @@ export interface MirrorRequest {
   credentialName: string;
   enabled: boolean;
   zone?: string;
+  preserveRemoteCommitHistory?: boolean;
+}
+
+const GIT_MIRROR_SCHEMES = new Set(['git', 'git+file', 'git+http', 'git+https', 'git+ssh']);
+
+export function isGitMirrorScheme(scheme: string): boolean {
+  return GIT_MIRROR_SCHEMES.has(scheme);
 }
 
 export interface MirrorDto extends MirrorRequest {

@@ -141,9 +141,9 @@ final class DtoConverter {
     public static CommitDto newCommitDto(Commit commit) {
         requireNonNull(commit, "commit");
 
-        return newCommitDto(commit.revision(), commit.author(),
-                            new CommitMessageDto(commit.summary(), commit.detail(), commit.markup()),
-                            commit.when());
+        return new CommitDto(commit.revision(), commit.author(),
+                             new CommitMessageDto(commit.summary(), commit.detail(), commit.markup()),
+                             commit.when(), commit.commitId(), commit.upstreamCommitId());
     }
 
     public static CommitDto newCommitDto(Revision revision, Author author, CommitMessageDto commitMessage,

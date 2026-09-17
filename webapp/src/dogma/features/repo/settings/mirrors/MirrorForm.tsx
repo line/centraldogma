@@ -20,6 +20,7 @@ import {
   AlertIcon,
   Button,
   Center,
+  Code,
   Divider,
   FormControl,
   FormHelperText,
@@ -47,12 +48,13 @@ import {
   useGetProjectCredentialsQuery,
   useGetRepoCredentialsQuery,
 } from 'dogma/features/api/apiSlice';
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import FieldErrorMessage from 'dogma/common/components/form/FieldErrorMessage';
-import { MirrorRequest } from 'dogma/features/repo/settings/mirrors/MirrorRequest';
+import { isGitMirrorScheme, MirrorRequest } from 'dogma/features/repo/settings/mirrors/MirrorRequest';
 import { CredentialDto } from 'dogma/features/project/settings/credentials/CredentialDto';
 import cronstrue from 'cronstrue';
 import { CiLocationOn } from 'react-icons/ci';
+import { VscGitCommit } from 'react-icons/vsc';
 
 interface MirrorFormProps {
   projectName: string;
@@ -81,6 +83,10 @@ const MIRROR_SCHEMES: OptionType[] = ['git+ssh', 'git+http', 'git+https', 'dogma
 
 function isDogmaScheme(scheme: string): boolean {
   return scheme === 'dogma' || scheme === 'dogma+https';
+}
+
+function canPreserveRemoteCommitHistory(direction: string, remoteScheme: string): boolean {
+  return direction === 'REMOTE_TO_LOCAL' && isGitMirrorScheme(remoteScheme);
 }
 
 function repoMirrorCredentialName(project: string, repo: string, id: string): string {
@@ -121,8 +127,17 @@ const MirrorForm = ({
 
   const [isScheduleEnabled, setScheduleEnabled] = useState<boolean>(defaultValue.schedule != null);
   const schedule = watch('schedule');
+  const direction = watch('direction');
   const remoteScheme = watch('remoteScheme');
+  const preserveRemoteCommitHistory = watch('preserveRemoteCommitHistory');
   const isDogma = isDogmaScheme(remoteScheme);
+  const canPreserveCommitHistory = canPreserveRemoteCommitHistory(direction, remoteScheme);
+
+  useEffect(() => {
+    if (!canPreserveCommitHistory && preserveRemoteCommitHistory) {
+      setValue('preserveRemoteCommitHistory', false, { shouldDirty: true });
+    }
+  }, [canPreserveCommitHistory, preserveRemoteCommitHistory, setValue]);
 
   const repoCredentialOptions: OptionType[] = (repoCredentials || [])
     .filter((credential: CredentialDto) => credential.id)
@@ -194,6 +209,9 @@ const MirrorForm = ({
         }
         if (isDogmaScheme(mirror.remoteScheme)) {
           mirror.remoteBranch = '';
+        }
+        if (!canPreserveRemoteCommitHistory(mirror.direction, mirror.remoteScheme)) {
+          mirror.preserveRemoteCommitHistory = false;
         }
         return onSubmit(mirror, () => {}, setError);
       })}
@@ -509,6 +527,37 @@ const MirrorForm = ({
                 gitignore <ExternalLinkIcon mx="2px" />
               </Link>{' '}
               describes files that should be excluded from the mirroring.
+            </FormHelperText>
+          </FormControl>
+          <Spacer />
+
+          <FormControl display="flex" alignItems="center">
+            <FormLabel htmlFor="preserveRemoteCommitHistory" mb="0">
+              <LabelledIcon icon={VscGitCommit} text={'Preserve upstream commit history?'} />
+            </FormLabel>
+            <Controller
+              name="preserveRemoteCommitHistory"
+              control={control}
+              render={({ field: { onChange, value, name, ref } }) => (
+                <Switch
+                  id="preserveRemoteCommitHistory"
+                  name={name}
+                  ref={ref}
+                  isChecked={Boolean(value)}
+                  isDisabled={!canPreserveCommitHistory}
+                  onChange={onChange}
+                />
+              )}
+            />
+            <FormHelperText ml={4}>
+              {canPreserveCommitHistory ? (
+                <>
+                  Mirror each upstream commit as its own revision, tagged <Code>dogma-&lt;commit SHA&gt;</Code>.
+                  Guaranteed for fast-forward pushes only.
+                </>
+              ) : (
+                'Available only for remote-to-Central Dogma Git mirrors.'
+              )}
             </FormHelperText>
           </FormControl>
           <Spacer />

@@ -1,4 +1,4 @@
-import { screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { renderWithProviders } from 'dogma/util/test-utils';
 import MirrorForm from 'dogma/features/repo/settings/mirrors/MirrorForm';
 import { MirrorRequest } from 'dogma/features/repo/settings/mirrors/MirrorRequest';
@@ -72,6 +72,7 @@ const emptyMirror: MirrorRequest = {
   credentialName: null,
   gitignore: null,
   enabled: false,
+  preserveRemoteCommitHistory: false,
 };
 
 const mockOnSubmit = jest.fn().mockResolvedValue(undefined);
@@ -149,5 +150,43 @@ describe('MirrorForm', () => {
     };
     renderMirrorForm(gitMirror);
     expect(screen.getByPlaceholderText('my.git.com/org/myrepo.git')).toBeInTheDocument();
+  });
+
+  it('enables commit history preservation for remote-to-local Git mirrors', () => {
+    renderMirrorForm({ ...emptyMirror, remoteScheme: 'git+https' });
+
+    expect(screen.getByRole('checkbox', { name: 'Preserve upstream commit history?' })).toBeEnabled();
+  });
+
+  it('disables commit history preservation until a supported scheme is selected', () => {
+    renderMirrorForm();
+
+    expect(screen.getByRole('checkbox', { name: 'Preserve upstream commit history?' })).toBeDisabled();
+  });
+
+  it('disables commit history preservation for Central Dogma mirrors', () => {
+    renderMirrorForm({ ...emptyMirror, remoteScheme: 'dogma' });
+
+    expect(screen.getByRole('checkbox', { name: 'Preserve upstream commit history?' })).toBeDisabled();
+  });
+
+  it('clears commit history preservation when the direction becomes local-to-remote', async () => {
+    renderMirrorForm({
+      ...emptyMirror,
+      remoteScheme: 'git+https',
+      preserveRemoteCommitHistory: true,
+    });
+
+    const preserve = screen.getByRole('checkbox', {
+      name: 'Preserve upstream commit history?',
+    }) as HTMLInputElement;
+    expect(preserve).toBeChecked();
+
+    fireEvent.click(screen.getByRole('radio', { name: 'Central Dogma to Remote' }));
+
+    await waitFor(() => {
+      expect(preserve).toBeDisabled();
+      expect(preserve).not.toBeChecked();
+    });
   });
 });

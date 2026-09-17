@@ -37,6 +37,10 @@ public class Commit {
     private final String detail;
     private final Markup markup;
     @Nullable
+    private final String commitId;
+    @Nullable
+    private final String upstreamCommitId;
+    @Nullable
     private String whenAsText;
 
     /**
@@ -64,12 +68,34 @@ public class Commit {
      * @param markup the {@link Markup} language of {@code summary} and {@code detail}
      */
     public Commit(Revision revision, Author author, long when, String summary, String detail, Markup markup) {
+        this(revision, author, when, summary, detail, markup, null, null);
+    }
+
+    /**
+     * Creates a new instance.
+     *
+     * @param revision the {@link Revision} of this {@link Commit}
+     * @param author the {@link Author} of this {@link Commit}
+     * @param when the time and date of this {@link Commit},
+     *             represented as the number of milliseconds since the epoch (midnight, January 1, 1970 UTC)
+     * @param summary the human-readable summary of this {@link Commit}
+     * @param detail the human-readable detailed description of this {@link Commit}
+     * @param markup the {@link Markup} language of {@code summary} and {@code detail}
+     * @param commitId the SHA-1 of the Git commit that stores this {@link Commit},
+     *                 or {@code null} if unknown
+     * @param upstreamCommitId the SHA-1 of the upstream Git commit this {@link Commit} was mirrored from,
+     *                         or {@code null} if this {@link Commit} did not come from a mirror
+     */
+    public Commit(Revision revision, Author author, long when, String summary, String detail, Markup markup,
+                  @Nullable String commitId, @Nullable String upstreamCommitId) {
         this.revision = requireNonNull(revision, "revision");
         this.author = requireNonNull(author, "author");
         this.summary = requireNonNull(summary, "summary");
         this.detail = requireNonNull(detail, "detail");
         this.markup = requireNonNull(markup, "markup");
         this.when = when / 1000L * 1000L; // Drop the milliseconds
+        this.commitId = commitId;
+        this.upstreamCommitId = upstreamCommitId;
     }
 
     /**
@@ -126,6 +152,27 @@ public class Commit {
      */
     public Markup markup() {
         return markup;
+    }
+
+    /**
+     * Returns the SHA-1 of the Git commit that stores this {@link Commit}.
+     *
+     * @return the 40-character hexadecimal SHA-1, or {@code null} if unknown
+     */
+    @Nullable
+    public String commitId() {
+        return commitId;
+    }
+
+    /**
+     * Returns the SHA-1 of the upstream Git commit this {@link Commit} was mirrored from.
+     *
+     * @return the 40-character hexadecimal SHA-1, or {@code null} if this {@link Commit} did not come from
+     *         a mirror
+     */
+    @Nullable
+    public String upstreamCommitId() {
+        return upstreamCommitId;
     }
 
     @Override

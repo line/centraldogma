@@ -28,6 +28,8 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
+import org.jspecify.annotations.Nullable;
+
 import com.linecorp.armeria.common.CommonPools;
 import com.linecorp.armeria.common.RequestContext;
 import com.linecorp.armeria.common.util.Exceptions;
@@ -275,9 +277,18 @@ final class CachingRepository implements Repository {
     public CompletableFuture<CommitResult> commit(Revision baseRevision, long commitTimeMillis,
                                                   Author author, String summary, String detail, Markup markup,
                                                   Iterable<Change<?>> changes, boolean normalizing) {
-
         return repo.commit(baseRevision, commitTimeMillis, author, summary, detail, markup, changes,
                            normalizing);
+    }
+
+    @Override
+    public CompletableFuture<CommitResult> commit(Revision baseRevision, long commitTimeMillis,
+                                                  Author author, String summary, String detail, Markup markup,
+                                                  Iterable<Change<?>> changes, boolean normalizing,
+                                                  @Nullable String upstreamCommitId) {
+
+        return repo.commit(baseRevision, commitTimeMillis, author, summary, detail, markup, changes,
+                           normalizing, upstreamCommitId);
     }
 
     @Override

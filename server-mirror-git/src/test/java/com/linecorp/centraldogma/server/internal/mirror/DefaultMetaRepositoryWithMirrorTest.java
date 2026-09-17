@@ -44,12 +44,17 @@ import com.google.common.collect.ImmutableList;
 
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
+import com.linecorp.centraldogma.common.ChangeConflictException;
+import com.linecorp.centraldogma.common.RepositoryRole;
+import com.linecorp.centraldogma.common.RepositoryStatus;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.api.v1.MirrorRequest;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.credential.Credential;
 import com.linecorp.centraldogma.server.internal.credential.SshKeyCredential;
 import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryMetadataException;
+import com.linecorp.centraldogma.server.metadata.MetadataService;
+import com.linecorp.centraldogma.server.metadata.ProjectRoles;
 import com.linecorp.centraldogma.server.mirror.Mirror;
 import com.linecorp.centraldogma.server.mirror.MirrorDirection;
 import com.linecorp.centraldogma.server.storage.project.Project;
@@ -185,6 +190,10 @@ class DefaultMetaRepositoryWithMirrorTest {
 
         assertThat(foo.direction()).isEqualTo(MirrorDirection.LOCAL_TO_REMOTE);
         assertThat(bar.direction()).isEqualTo(MirrorDirection.REMOTE_TO_LOCAL);
+        assertThat(foo.preserveRemoteCommitHistory()).isFalse();
+        assertThat(bar.preserveRemoteCommitHistory()).isFalse();
+        assertThat(foo.toString()).doesNotContain("preserveRemoteCommitHistory");
+        assertThat(bar.toString()).doesNotContain("preserveRemoteCommitHistory");
 
         assertThat(foo.schedule().equivalent(cronParser.parse("0 * * * * ?"))).isTrue();
         assertThat(bar.schedule().equivalent(cronParser.parse("0 */10 * * * ?"))).isTrue();
@@ -308,6 +317,129 @@ class DefaultMetaRepositoryWithMirrorTest {
     }
 
     @Test
+    void rawUnsupportedPreserveRemoteCommitHistory_isRejected() {
+        metaRepo.commit(
+                Revision.HEAD, 0, Author.SYSTEM, "",
+                Change.ofJsonUpsert(
+                        "/repos/foo/mirrors/foo.json",
+                        '{' +
+                        "  \"id\": \"foo\"," +
+                        "  \"enabled\": true," +
+                        "  \"direction\": \"LOCAL_TO_REMOTE\"," +
+                        "  \"localRepo\": \"foo\"," +
+                        "  \"remoteUri\": \"git+https://example.com/foo.git\"," +
+                        "  \"credentialName\": \"\"," +
+                        "  \"preserveRemoteCommitHistory\": true" +
+                        '}')).join();
+        project.repos().create("foo", Author.SYSTEM);
+
+        assertThat(metaRepo.mirrors().join()).isEmpty();
+        assertThatThrownBy(() -> metaRepo.mirror("foo", "foo").join())
+                .isInstanceOf(CompletionException.class)
+                .hasCauseInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("preserveRemoteCommitHistory is only supported for REMOTE_TO_LOCAL");
+    }
+
+    @Test
+    void rawNonGitPreserveRemoteCommitHistory_isRejected() {
+        metaRepo.commit(
+                Revision.HEAD, 0, Author.SYSTEM, "",
+                Change.ofJsonUpsert(
+                        "/repos/foo/mirrors/foo.json",
+                        '{' +
+                        "  \"id\": \"foo\"," +
+                        "  \"enabled\": true," +
+                        "  \"direction\": \"REMOTE_TO_LOCAL\"," +
+                        "  \"localRepo\": \"foo\"," +
+                        "  \"remoteUri\": \"dogma+https://example.com/project/repo.dogma\"," +
+                        "  \"credentialName\": \"\"," +
+                        "  \"preserveRemoteCommitHistory\": true" +
+                        '}')).join();
+        project.repos().create("foo", Author.SYSTEM);
+
+        assertThat(metaRepo.mirrors().join()).isEmpty();
+        assertThatThrownBy(() -> metaRepo.mirror("foo", "foo").join())
+                .isInstanceOf(CompletionException.class)
+                .hasCauseInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("preserveRemoteCommitHistory is only supported for Git mirrors");
+    }
+
+    @Test
+    void multiplePreservingMirrorsForOneRepository_areRejected() {
+        metaRepo.commit(
+                Revision.HEAD, 0, Author.SYSTEM, "",
+                ImmutableList.of(preservingMirror("foo", "/one", "git+https://example.com/one.git"),
+                                 preservingMirror("bar", "/two", "git+https://example.com/two.git")))
+                .join();
+        project.repos().create("repo", Author.SYSTEM);
+
+        assertThat(metaRepo.mirrors().join()).isEmpty();
+        for (String mirrorId : ImmutableList.of("foo", "bar")) {
+            assertThatThrownBy(() -> metaRepo.mirror("repo", mirrorId).join())
+                    .isInstanceOf(CompletionException.class)
+                    .hasCauseInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("Only one mirror may preserve remote commit history");
+        }
+    }
+
+    @Test
+    void mirrorApiRejectsSecondPreservingMirrorForOneRepository() {
+        project.repos().create("repo", Author.SYSTEM);
+        final MirrorRequest first = preservingMirrorRequest("first", "example.com/one.git");
+        pmExtension.executor().execute(
+                metaRepo.createMirrorPushCommand("repo", first, Author.SYSTEM, null, false).join()).join();
+
+        final MirrorRequest second = preservingMirrorRequest("second", "example.com/two.git");
+        assertThatThrownBy(() ->
+                metaRepo.createMirrorPushCommand("repo", second, Author.SYSTEM, null, false).join())
+                .isInstanceOf(CompletionException.class)
+                .hasCauseInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Only one mirror may preserve remote commit history");
+    }
+
+    @Test
+    void concurrentPreservingMirrorCommandsUseTheValidatedRevision() {
+        project.repos().create("repo", Author.SYSTEM);
+        final Command<Revision> first = metaRepo.createMirrorPushCommand(
+                "repo", preservingMirrorRequest("first", "example.com/one.git"),
+                Author.SYSTEM, null, false).join();
+        final Command<Revision> second = metaRepo.createMirrorPushCommand(
+                "repo", preservingMirrorRequest("second", "example.com/two.git"),
+                Author.SYSTEM, null, false).join();
+
+        pmExtension.executor().execute(first).join();
+        assertThatThrownBy(() -> pmExtension.executor().execute(second).join())
+                .isInstanceOf(CompletionException.class)
+                .hasCauseInstanceOf(ChangeConflictException.class);
+        assertThat(metaRepo.mirrors("repo", true).join()).hasSize(1);
+    }
+
+    @Test
+    void preservingMirrorCannotRaceRepositoryEncryption() {
+        project.repos().create("repo", Author.SYSTEM);
+        final MetadataService metadataService =
+                new MetadataService(pm, pmExtension.executor(), pmExtension.internalProjectInitializer());
+        metadataService.addRepo(Author.SYSTEM, project.name(), "repo",
+                                ProjectRoles.of(RepositoryRole.WRITE, RepositoryRole.WRITE)).join();
+
+        final Command<Revision> command = metaRepo.createMirrorPushCommand(
+                "repo", preservingMirrorRequest("first", "example.com/one.git"),
+                Author.SYSTEM, null, false).join();
+        metadataService.updateRepositoryStatus(
+                Author.SYSTEM, project.name(), "repo", RepositoryStatus.READ_ONLY).join();
+
+        assertThatThrownBy(() -> pmExtension.executor().execute(command).join())
+                .isInstanceOf(CompletionException.class)
+                .hasCauseInstanceOf(ChangeConflictException.class);
+        assertThatThrownBy(() -> metaRepo.createMirrorPushCommand(
+                "repo", preservingMirrorRequest("second", "example.com/two.git"),
+                Author.SYSTEM, null, false).join())
+                .isInstanceOf(CompletionException.class)
+                .hasCauseInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("ACTIVE");
+    }
+
+    @Test
     void projectLevelCredentialForAnotherProject_isRejected() {
         // A project-level credential whose name points to a different project must be rejected.
         // The credential file physically lives at '/credentials/alice.json' in this project's meta
@@ -400,6 +532,26 @@ class DefaultMetaRepositoryWithMirrorTest {
                 "  \"publicKey\": \"ssh-rsa AAAA\"," +
                 "  \"privateKey\": \"" + dummyKey + '"' +
                 '}');
+    }
+
+    private static Change<?> preservingMirror(String id, String localPath, String remoteUri) {
+        return Change.ofJsonUpsert(
+                "/repos/repo/mirrors/" + id + ".json",
+                '{' +
+                "  \"id\": \"" + id + "\"," +
+                "  \"enabled\": true," +
+                "  \"direction\": \"REMOTE_TO_LOCAL\"," +
+                "  \"localRepo\": \"repo\"," +
+                "  \"localPath\": \"" + localPath + "\"," +
+                "  \"remoteUri\": \"" + remoteUri + "\"," +
+                "  \"credentialName\": \"\"," +
+                "  \"preserveRemoteCommitHistory\": true" +
+                '}');
+    }
+
+    private MirrorRequest preservingMirrorRequest(String id, String remoteUrl) {
+        return new MirrorRequest(id, true, project.name(), null, "REMOTE_TO_LOCAL", "repo", "/",
+                                 "git+https", remoteUrl, "/", "main", null, "", null, true);
     }
 
     private static List<Credential> credentials(String projectName) {

@@ -428,8 +428,8 @@ public class RepositoryServiceV1 extends AbstractService {
         final boolean isDogmaProject =
                 InternalProjectInitializer.INTERNAL_PROJECT_DOGMA.equals(project.name());
 
-        return encryptionStorageManager
-                .generateWdek()
+        return validateNoPreservingMirrors(project, repository)
+                .thenCompose(unused -> encryptionStorageManager.generateWdek())
                 .thenCompose(wdek -> {
                     final WrappedDekDetails wdekDetails = new WrappedDekDetails(
                             wdek, 1, encryptionStorageManager.kekId(),
@@ -437,13 +437,49 @@ public class RepositoryServiceV1 extends AbstractService {
                     if (isDogmaProject) {
                         // The dogma project does not have project metadata, so the repository
                         // status cannot be changed. Migrate directly without changing the status.
-                        return migrate(author, project, repository, wdekDetails, true);
+                        return validateNoPreservingMirrors(project, repository)
+                                .thenCompose(unused ->
+                                        migrate(author, project, repository, wdekDetails, true));
                     }
                     return setRepositoryStatus(author, project, repository.name(),
                                                RepositoryStatus.READ_ONLY)
+                            .thenCompose(unused -> validateNoPreservingMirrorsOrRestoreStatus(
+                                    author, project, repository))
                             .thenCompose(unused -> migrate(author, project, repository,
                                                            wdekDetails, false));
                 });
+    }
+
+    private CompletableFuture<Void> validateNoPreservingMirrorsOrRestoreStatus(
+            Author author, Project project, Repository repository) {
+        return validateNoPreservingMirrors(project, repository)
+                .handle((unused, cause) -> {
+                    if (cause == null) {
+                        return CompletableFuture.<Void>completedFuture(null);
+                    }
+                    return setRepositoryStatus(author, project, repository.name(), RepositoryStatus.ACTIVE)
+                            .thenApply(unused1 -> Exceptions.<Void>throwUnsafely(cause));
+                })
+                .thenCompose(Function.identity());
+    }
+
+    private static CompletableFuture<Void> validateNoPreservingMirrors(Project project,
+                                                                       Repository repository) {
+        if (InternalProjectInitializer.INTERNAL_PROJECT_DOGMA.equals(project.name())) {
+            return CompletableFuture.completedFuture(null);
+        }
+        final String pattern = "/repos/" + repository.name() + "/mirrors/*.json";
+        return project.metaRepo().find(Revision.HEAD, pattern).thenAccept(entries -> {
+            final boolean hasPreservingMirror = entries.values().stream()
+                                                       .map(entry -> (JsonNode) entry.content())
+                                                       .anyMatch(config ->
+                                                               config.path("preserveRemoteCommitHistory")
+                                                                     .asBoolean(false));
+            if (hasPreservingMirror) {
+                throw new IllegalArgumentException(
+                        "Cannot encrypt a repository with a mirror that preserves remote commit history.");
+            }
+        });
     }
 
     private void validateMigrationPrerequisites(ServiceRequestContext ctx, Project project,

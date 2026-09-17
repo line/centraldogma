@@ -394,7 +394,7 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
         final AbstractPushCommand<?> pushCommand = (AbstractPushCommand<?>) c;
         return repo(c).commit(pushCommand.baseRevision(), pushCommand.timestamp(), pushCommand.author(),
                               pushCommand.summary(), pushCommand.detail(), pushCommand.markup(),
-                              pushCommand.changes(), normalizing);
+                              pushCommand.changes(), normalizing, pushCommand.upstreamCommitId());
     }
 
     private Repository repo(RepositoryCommand<?> c) {

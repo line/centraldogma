@@ -23,8 +23,8 @@ import { IoBanSharp } from 'react-icons/io5';
 import { EditIcon } from '@chakra-ui/icons';
 import React, { ReactNode } from 'react';
 import { IconType } from 'react-icons';
-import { VscMirror, VscRepoClone } from 'react-icons/vsc';
-import { MirrorRequest } from 'dogma/features/repo/settings/mirrors/MirrorRequest';
+import { VscGitCommit, VscMirror, VscRepoClone } from 'react-icons/vsc';
+import { isGitMirrorScheme, MirrorRequest } from 'dogma/features/repo/settings/mirrors/MirrorRequest';
 import cronstrue from 'cronstrue';
 import { RunMirror } from 'dogma/features/mirror/RunMirrorButton';
 import { FaPlay } from 'react-icons/fa';
@@ -170,6 +170,20 @@ const MirrorView = ({ projectName, repoName, mirror, editHref }: MirrorViewProps
                   <Text>{mirror.gitignore}</Text>
                 </Td>
               </Tr>
+              {mirror.direction === 'REMOTE_TO_LOCAL' && isGitMirrorScheme(mirror.remoteScheme) && (
+                <Tr>
+                  <HeadRow>
+                    <AlignedIcon as={VscGitCommit} /> Upstream commit history
+                  </HeadRow>
+                  <Td>
+                    {mirror.preserveRemoteCommitHistory ? (
+                      <Badge colorScheme={'green'}>Preserved</Badge>
+                    ) : (
+                      <Badge colorScheme={'gray'}>Squashed</Badge>
+                    )}
+                  </Td>
+                </Tr>
+              )}
               <Tr>
                 <HeadRow>
                   <AlignedIcon as={GiPowerButton} /> Status

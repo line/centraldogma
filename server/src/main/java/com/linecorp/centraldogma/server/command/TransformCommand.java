@@ -107,6 +107,6 @@ public final class TransformCommand extends RepositoryCommand<CommitResult> impl
         requireNonNull(commitResult, "commitResult");
         return new PushAsIsCommand(timestamp(), author(), projectName(), repositoryName(),
                                    commitResult.revision().backward(1), summary(), detail(),
-                                   markup(), commitResult.changes());
+                                   markup(), commitResult.changes(), null);
     }
 }

@@ -29,6 +29,7 @@ import java.nio.file.Paths;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 
 import org.eclipse.jgit.api.Git;
@@ -41,11 +42,17 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
+import com.google.common.collect.ImmutableMap;
+
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.server.command.AbstractPushCommand;
 import com.linecorp.centraldogma.server.command.Command;
+import com.linecorp.centraldogma.server.command.CommandExecutor;
+import com.linecorp.centraldogma.server.command.CommandExecutorStatusManager;
+import com.linecorp.centraldogma.server.command.ExecutionContext;
 import com.linecorp.centraldogma.server.credential.Credential;
 import com.linecorp.centraldogma.server.mirror.MirrorContext;
 import com.linecorp.centraldogma.server.mirror.MirrorDirection;
@@ -87,7 +94,6 @@ class RemoteToLocalMirrorFetchTest {
     @BeforeEach
     void setUp(TestInfo testInfo) throws Exception {
         projectName = TestUtil.normalizedDisplayName(testInfo);
-
         workDir = new File(tempDir.getRoot().toFile(), "work-dir");
         gitWorkTree = new File(tempDir.getRoot().toFile(), "remote").getAbsoluteFile();
         final org.eclipse.jgit.lib.Repository gitRepo =
@@ -142,18 +148,56 @@ class RemoteToLocalMirrorFetchTest {
         assertThat(transportCommands).containsExactly("LsRemoteCommand", "FetchCommand");
     }
 
+    @Test
+    void replayedCommitsUseTheRevisionTheyReadAsTheirBase() throws Exception {
+        final DefaultGitMirror mirror = newMirror("/", true);
+        commitToRemote("initial.txt", "0");
+        assertThat(mirrorRemoteToLocal(mirror).mirrorStatus()).isEqualTo(MirrorStatus.SUCCESS);
+        final Revision baseline = localRepo.normalizeNow(Revision.HEAD);
+
+        commitToRemote("first.txt", "1");
+        commitToRemote("second.txt", "2");
+        final List<Revision> baseRevisions = new ArrayList<>();
+        final CommandExecutor executor = new CapturingCommandExecutor(pmExtension.executor(), baseRevisions);
+
+        assertThat(mirrorRemoteToLocal(mirror, executor).mirrorStatus()).isEqualTo(MirrorStatus.SUCCESS);
+        assertThat(baseRevisions).containsExactly(baseline, baseline.forward(1));
+    }
+
+    @Test
+    void snapshotUsesTheRevisionItReadAsItsBase() throws Exception {
+        final DefaultGitMirror mirror = newMirror("/", true);
+        commitToRemote("initial.txt", "0");
+        final Revision baseline = localRepo.normalizeNow(Revision.HEAD);
+        final List<Revision> baseRevisions = new ArrayList<>();
+        final CommandExecutor executor = new CapturingCommandExecutor(pmExtension.executor(), baseRevisions);
+
+        assertThat(mirrorRemoteToLocal(mirror, executor).mirrorStatus()).isEqualTo(MirrorStatus.SUCCESS);
+        assertThat(baseRevisions).containsExactly(baseline);
+    }
+
     private DefaultGitMirror newMirror(String localPath) {
+        return newMirror(localPath, false);
+    }
+
+    private DefaultGitMirror newMirror(String localPath, boolean preserveRemoteCommitHistory) {
         return (DefaultGitMirror) new GitMirrorProvider().newMirror(
                 new MirrorContext("mirror-id", true, EVERY_MINUTE, MirrorDirection.REMOTE_TO_LOCAL,
-                                  Credential.NONE, localRepo, localPath, URI.create(gitUri), null, null));
+                                  Credential.NONE, localRepo, localPath, URI.create(gitUri), null, null,
+                                  preserveRemoteCommitHistory, ImmutableMap.of()));
     }
 
     private MirrorResult mirrorRemoteToLocal(DefaultGitMirror mirror) throws Exception {
+        return mirrorRemoteToLocal(mirror, pmExtension.executor());
+    }
+
+    private MirrorResult mirrorRemoteToLocal(DefaultGitMirror mirror, CommandExecutor executor)
+            throws Exception {
         final Consumer<TransportCommand<?, ?>> recorder =
                 command -> transportCommands.add(command.getClass().getSimpleName());
         final URIish remoteUri = new URIish(gitUri.substring("git+".length()));
         try (GitWithAuth git = mirror.openGit(workDir, remoteUri, recorder)) {
-            return mirror.mirrorRemoteToLocal(git, pmExtension.executor(), MAX_NUM_FILES, MAX_NUM_BYTES,
+            return mirror.mirrorRemoteToLocal(git, executor, MAX_NUM_FILES, MAX_NUM_BYTES,
                                               Instant.now());
         }
     }
@@ -164,5 +208,59 @@ class RemoteToLocalMirrorFetchTest {
         Files.write(file.toPath(), content.getBytes(UTF_8));
         remoteGit.add().addFilepattern(path).call();
         remoteGit.commit().setMessage("Add " + path).call();
+    }
+
+    private static final class CapturingCommandExecutor implements CommandExecutor {
+
+        private final CommandExecutor delegate;
+        private final List<Revision> baseRevisions;
+
+        private CapturingCommandExecutor(CommandExecutor delegate, List<Revision> baseRevisions) {
+            this.delegate = delegate;
+            this.baseRevisions = baseRevisions;
+        }
+
+        @Override
+        public <T> CompletableFuture<T> execute(ExecutionContext ctx, Command<T> command) {
+            if (command instanceof AbstractPushCommand) {
+                baseRevisions.add(((AbstractPushCommand<?>) command).baseRevision());
+            }
+            return delegate.execute(ctx, command);
+        }
+
+        @Override
+        public int replicaId() {
+            return delegate.replicaId();
+        }
+
+        @Override
+        public boolean isStarted() {
+            return delegate.isStarted();
+        }
+
+        @Override
+        public CompletableFuture<Void> start() {
+            return delegate.start();
+        }
+
+        @Override
+        public CompletableFuture<Void> stop() {
+            return delegate.stop();
+        }
+
+        @Override
+        public boolean isWritable() {
+            return delegate.isWritable();
+        }
+
+        @Override
+        public void setWritable(boolean writable) {
+            delegate.setWritable(writable);
+        }
+
+        @Override
+        public CommandExecutorStatusManager statusManager() {
+            return delegate.statusManager();
+        }
     }
 }

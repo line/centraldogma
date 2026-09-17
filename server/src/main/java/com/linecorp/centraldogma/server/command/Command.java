@@ -29,6 +29,7 @@ import com.google.common.collect.ImmutableList;
 
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
+import com.linecorp.centraldogma.common.Commit;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.server.EncryptionConfig;
@@ -402,8 +403,33 @@ public interface Command<T> {
                                   String projectName, String repositoryName,
                                   Revision baseRevision, String summary, String detail,
                                   Markup markup, Iterable<Change<?>> changes) {
+        return push(timestamp, author, projectName, repositoryName, baseRevision, summary, detail, markup,
+                    null, changes);
+    }
+
+    /**
+     * Returns a new {@link Command} which is used to push the changes mirrored from an upstream Git commit.
+     * The upstream commit ID is recorded in the resulting {@link Commit} and exposed as a Git tag, so that it
+     * can be used as a Git label when the repository is cloned over HTTP.
+     *
+     * @param timestamp the time when pushing the changes, in milliseconds
+     * @param author the author who is pushing the changes
+     * @param projectName the name of the project
+     * @param repositoryName the name of the repository to which the changes are pushed
+     * @param baseRevision the revision which is supposed to apply the changes
+     * @param summary the summary of the changes
+     * @param detail the detail message of the changes
+     * @param markup the markup for the detail message
+     * @param upstreamCommitId the SHA-1 of the upstream Git commit the changes are mirrored from
+     * @param changes the changes to be applied
+     */
+    static Command<Revision> push(@Nullable Long timestamp, Author author,
+                                  String projectName, String repositoryName,
+                                  Revision baseRevision, String summary, String detail,
+                                  Markup markup, @Nullable String upstreamCommitId,
+                                  Iterable<Change<?>> changes) {
         return new PushAsIsCommand(timestamp, author, projectName, repositoryName, baseRevision,
-                                   summary, detail, markup, changes);
+                                   summary, detail, markup, changes, upstreamCommitId);
     }
 
     /**

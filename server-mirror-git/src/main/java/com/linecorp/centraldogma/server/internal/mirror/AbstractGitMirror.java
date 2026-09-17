@@ -16,6 +16,7 @@
 
 package com.linecorp.centraldogma.server.internal.mirror;
 
+import static com.linecorp.centraldogma.internal.HistoryConstants.UPSTREAM_TAG_PREFIX;
 import static com.linecorp.centraldogma.server.storage.repository.FindOptions.FIND_ALL_WITHOUT_CONTENT;
 import static com.linecorp.centraldogma.server.storage.repository.FindOptions.FIND_ALL_WITH_CONTENT;
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -26,6 +27,7 @@ import java.io.IOException;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletionException;
@@ -42,6 +44,7 @@ import org.eclipse.jgit.dircache.DirCacheEditor;
 import org.eclipse.jgit.dircache.DirCacheEditor.DeletePath;
 import org.eclipse.jgit.dircache.DirCacheEditor.PathEdit;
 import org.eclipse.jgit.dircache.DirCacheEntry;
+import org.eclipse.jgit.errors.MissingObjectException;
 import org.eclipse.jgit.ignore.IgnoreNode.MatchResult;
 import org.eclipse.jgit.lib.CommitBuilder;
 import org.eclipse.jgit.lib.Constants;
@@ -54,6 +57,7 @@ import org.eclipse.jgit.lib.Ref;
 import org.eclipse.jgit.lib.RefUpdate;
 import org.eclipse.jgit.lib.RefUpdate.Result;
 import org.eclipse.jgit.revwalk.RevCommit;
+import org.eclipse.jgit.revwalk.RevSort;
 import org.eclipse.jgit.revwalk.RevWalk;
 import org.eclipse.jgit.transport.FetchResult;
 import org.eclipse.jgit.transport.RefSpec;
@@ -69,8 +73,10 @@ import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.TreeNode;
 import com.fasterxml.jackson.databind.JsonMappingException;
+import com.google.common.collect.ImmutableList;
 import com.google.common.hash.Hashing;
 
+import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.EntryType;
@@ -106,8 +112,10 @@ abstract class AbstractGitMirror extends AbstractMirror {
 
     AbstractGitMirror(String id, boolean enabled, @Nullable Cron schedule, MirrorDirection direction,
                       Credential credential, Repository localRepo, String localPath,
-                      RepositoryUri remoteUri, @Nullable String gitignore, @Nullable String zone) {
-        super(id, enabled, schedule, direction, credential, localRepo, localPath, remoteUri, gitignore, zone);
+                      RepositoryUri remoteUri, @Nullable String gitignore, @Nullable String zone,
+                      boolean preserveRemoteCommitHistory) {
+        super(id, enabled, schedule, direction, credential, localRepo, localPath, remoteUri, gitignore, zone,
+              preserveRemoteCommitHistory);
     }
 
     GitWithAuth openGit(File workDir,
@@ -226,7 +234,8 @@ abstract class AbstractGitMirror extends AbstractMirror {
         // TODO(minwoox): Early return if the remote does not have any updates.
         final Ref headBranchRef = getHeadBranchRef(git);
         final String headBranchRefName = headBranchRef.getName();
-        final ObjectId headCommitId = fetchRemoteHeadAndGetCommitId(git, headBranchRefName);
+        // The head commit and its parent are needed to run the mirroring.
+        final ObjectId headCommitId = fetchRemoteHeadAndGetCommitId(git, headBranchRefName, 2);
 
         final org.eclipse.jgit.lib.Repository gitRepository = git.getRepository();
         final String description;
@@ -321,13 +330,14 @@ abstract class AbstractGitMirror extends AbstractMirror {
         final String detail;
         final Ref headBranchRef;
         final ObjectId headCommitId;
+        final MirrorState oldMirrorState;
         final Map<String, Change<?>> changes = new HashMap<>();
         final Revision localRev = localRepo().normalizeNow(Revision.HEAD);
         final String mirrorStatePath = localPath() + MIRROR_STATE_FILE_NAME;
         final MirrorDecision mirrorDecision;
         try {
             headBranchRef = getHeadBranchRef(git);
-            final MirrorState oldMirrorState = localCurrentMirrorState(mirrorStatePath, localRev);
+            oldMirrorState = localCurrentMirrorState(mirrorStatePath, localRev);
 
             // Decide with the advertised commit ID so that an up-to-date repository does not fetch objects.
             mirrorDecision = shouldRunRemoteToLocal(oldMirrorState, localRev.backward(1),
@@ -338,7 +348,8 @@ abstract class AbstractGitMirror extends AbstractMirror {
 
             // Update the head commit ID again because there's a chance a commit is pushed between the
             // getHeadBranchRef and fetchRemoteHeadAndGetCommitId calls.
-            headCommitId = fetchRemoteHeadAndGetCommitId(git, headBranchRef.getName());
+            headCommitId = fetchRemoteHeadAndGetCommitId(git, headBranchRef.getName(),
+                                                         fetchDepth(oldMirrorState));
         } catch (Exception e) {
             String message = "Failed to fetch the remote repository '" + git.remoteUri() +
                              "' to the local repository '" + localPath() + "'.";
@@ -348,26 +359,232 @@ abstract class AbstractGitMirror extends AbstractMirror {
             throw new GitMirrorException(message, e);
         }
 
+        if (preserveRemoteCommitHistory()) {
+            final List<RevCommit> replaySet = replaySet(git, oldMirrorState, headCommitId);
+            if (replaySet != null) {
+                return replayRemoteCommits(git, executor, replaySet, headBranchRef, mirrorStatePath,
+                                           maxNumFiles, maxNumBytes, triggeredTime);
+            }
+        }
+
+        try (ObjectReader reader = git.getRepository().newObjectReader();
+             RevWalk revWalk = new RevWalk(reader)) {
+            summary = "Mirror " + reader.abbreviate(headCommitId).name() + ", '" + remoteUri() +
+                      "' to the repository '" + localRepo().name() + '\'';
+            detail = generateCommitDetail(revWalk.parseCommit(headCommitId));
+        }
+        logger.info(summary);
+        changes.putAll(collectRemoteChanges(git, headCommitId, mirrorStatePath, localRev,
+                                            maxNumFiles, maxNumBytes));
+
+        final Map<FindOption<?>, ?> findOptions =
+                mirrorDecision == MirrorDecision.COMPARE_AND_RUN ? FIND_ALL_WITH_CONTENT
+                                                                 : FIND_ALL_WITHOUT_CONTENT;
+        final Map<String, Entry<?>> oldEntries = localRepo().find(localRev, localPath() + "**", findOptions)
+                                                            .join();
+        if (mirrorDecision == MirrorDecision.COMPARE_AND_RUN) {
+            if (!hasChanges(changes, oldEntries)) {
+                return newMirrorResultForUpToDate(headBranchRef, triggeredTime);
+            }
+        }
+
+        oldEntries.keySet().removeAll(changes.keySet());
+
+        // Add the removed entries.
+        oldEntries.forEach((path, entry) -> {
+            if (entry.type() != EntryType.DIRECTORY && !changes.containsKey(path)) {
+                changes.put(path, Change.ofRemoval(path));
+            }
+        });
+
+        validateChanges(changes);
+        final String upstreamCommitId = upstreamCommitIdToRecord(headCommitId);
+        try {
+            final Revision revision = executor.execute(Command.push(
+                    null, MIRROR_AUTHOR, localRepo().parent().name(), localRepo().name(),
+                    localRev, summary, detail, Markup.PLAINTEXT, upstreamCommitId, changes.values())).join();
+            final String description = summary + ", revision: " + revision.text();
+            return newMirrorResult(MirrorStatus.SUCCESS, description, triggeredTime);
+        } catch (CompletionException e) {
+            if (e.getCause() instanceof RedundantChangeException) {
+                return newMirrorResultForUpToDate(headBranchRef, triggeredTime);
+            }
+            throw e;
+        }
+    }
+
+    // Fetch one more generation so a linear history can include the previously mirrored commit.
+    private static final int MAX_REPLAY_COMMITS = 100;
+
+    private int fetchDepth(@Nullable MirrorState oldMirrorState) {
+        if (!preserveRemoteCommitHistory() || oldMirrorState == null ||
+            oldMirrorState.remoteRevision() == null) {
+            // First runs take snapshots and need only HEAD and its parent.
+            return 2;
+        }
+        return MAX_REPLAY_COMMITS + 1;
+    }
+
+    /**
+     * Returns the remote commits to replay, oldest first, or {@code null} if this run has to fall back to
+     * pushing a single snapshot of the remote head.
+     */
+    @Nullable
+    private List<RevCommit> replaySet(GitWithAuth git, @Nullable MirrorState oldMirrorState,
+                                      ObjectId headCommitId) {
+        if (oldMirrorState == null) {
+            // The first run for this mirror has no commit to replay from.
+            return null;
+        }
+        final String remoteRevision = oldMirrorState.remoteRevision();
+        if (remoteRevision == null) {
+            return null;
+        }
+
+        final ObjectId previousCommitId;
+        try {
+            previousCommitId = ObjectId.fromString(remoteRevision);
+        } catch (IllegalArgumentException e) {
+            logger.debug("Not a commit ID: {}", remoteRevision, e);
+            return null;
+        }
+
+        try (RevWalk revWalk = new RevWalk(git.getRepository())) {
+            final RevCommit headCommit = revWalk.parseCommit(headCommitId);
+            final RevCommit previousCommit;
+            try {
+                previousCommit = revWalk.parseCommit(previousCommitId);
+            } catch (MissingObjectException e) {
+                // The previously mirrored commit is outside the fetch window, or the remote dropped it.
+                return null;
+            }
+            if (!revWalk.isMergedInto(previousCommit, headCommit)) {
+                // A non-fast-forward remote can only be represented by one snapshot at its new HEAD.
+                return null;
+            }
+
+            revWalk.reset();
+            revWalk.sort(RevSort.TOPO);
+            revWalk.sort(RevSort.REVERSE, true);
+            revWalk.markStart(headCommit);
+            revWalk.markUninteresting(previousCommit);
+            final ImmutableList.Builder<RevCommit> commits = ImmutableList.builder();
+            int numCommits = 0;
+            for (RevCommit commit : revWalk) {
+                if (++numCommits > MAX_REPLAY_COMMITS) {
+                    logger.info("More than {} commits are reachable from the remote head. " +
+                                "Falling back to a single snapshot.", MAX_REPLAY_COMMITS);
+                    return null;
+                }
+                commits.add(commit);
+            }
+            final List<RevCommit> replaySet = commits.build();
+            return replaySet.isEmpty() ? null : replaySet;
+        } catch (IOException e) {
+            logger.warn("Failed to resolve the commits to replay from '{}'. " +
+                        "Falling back to mirroring the remote head as a single revision.",
+                        git.remoteUri(), e);
+            return null;
+        }
+    }
+
+    private MirrorResult replayRemoteCommits(
+            GitWithAuth git, CommandExecutor executor, List<RevCommit> replaySet, Ref headBranchRef,
+            String mirrorStatePath, int maxNumFiles, long maxNumBytes, Instant triggeredTime)
+            throws IOException {
+        Revision revision = null;
+        int replayed = 0;
+        // The size limits apply to each mirrored tree; MAX_REPLAY_COMMITS bounds the whole run.
+        for (RevCommit commit : replaySet) {
+            final Revision localRev = localRepo().normalizeNow(Revision.HEAD);
+            final Map<String, Change<?>> changes =
+                    collectRemoteChanges(git, commit, mirrorStatePath, localRev, maxNumFiles, maxNumBytes);
+            final Map<String, Entry<?>> oldEntries =
+                    localRepo().find(localRev, localPath() + "**", FIND_ALL_WITHOUT_CONTENT).join();
+            oldEntries.keySet().removeAll(changes.keySet());
+            oldEntries.forEach((path, entry) -> {
+                if (entry.type() != EntryType.DIRECTORY && !changes.containsKey(path)) {
+                    changes.put(path, Change.ofRemoval(path));
+                }
+            });
+            validateChanges(changes);
+
+            final String summary = commitSummary(commit);
+            logger.info(summary);
+            final String upstreamCommitId = upstreamCommitIdToRecord(commit);
+            try {
+                revision = executor.execute(Command.push(
+                        null, upstreamAuthor(commit), localRepo().parent().name(), localRepo().name(),
+                        localRev, summary, commit.getFullMessage(), Markup.PLAINTEXT, upstreamCommitId,
+                        changes.values())).join();
+                replayed++;
+            } catch (CompletionException e) {
+                if (e.getCause() instanceof RedundantChangeException) {
+                    continue;
+                }
+                throw e;
+            }
+        }
+
+        if (revision == null) {
+            return newMirrorResultForUpToDate(headBranchRef, triggeredTime);
+        }
+        final String description = "Mirror " + replayed + " commit(s) of '" + remoteUri() +
+                                   "' to the repository '" + localRepo().name() + "', revision: " +
+                                   revision.text();
+        return newMirrorResult(MirrorStatus.SUCCESS, description, triggeredTime);
+    }
+
+    @Nullable
+    private String upstreamCommitIdToRecord(ObjectId commitId) throws IOException {
+        if (!preserveRemoteCommitHistory()) {
+            return null;
+        }
+        final String refName = Constants.R_TAGS + UPSTREAM_TAG_PREFIX + commitId.name();
+        return localRepo().jGitRepository().exactRef(refName) == null ? commitId.name() : null;
+    }
+
+    private String commitSummary(RevCommit commit) {
+        final String shortMessage = commit.getShortMessage();
+        if (!shortMessage.isEmpty()) {
+            return shortMessage;
+        }
+        // Git allows an empty commit message, which would leave the history with a blank row.
+        return "Mirror " + commit.abbreviate(OBJECT_ID_ABBREV_STRING_LENGTH).name() + ", '" + remoteUri() +
+               "' to the repository '" + localRepo().name() + '\'';
+    }
+
+    private static Author upstreamAuthor(RevCommit commit) {
+        final PersonIdent ident = commit.getAuthorIdent();
+        if (ident == null || ident.getName() == null || ident.getEmailAddress() == null) {
+            return MIRROR_AUTHOR;
+        }
+        try {
+            return new Author(ident.getName(), ident.getEmailAddress());
+        } catch (RuntimeException e) {
+            // Git accepts identities that Author does not, such as an empty e-mail address.
+            logger.debug("Cannot use the remote commit author of {}: {}", commit.name(), ident, e);
+            return MIRROR_AUTHOR;
+        }
+    }
+
+    private Map<String, Change<?>> collectRemoteChanges(
+            GitWithAuth git, ObjectId commitId, String mirrorStatePath, Revision localRev,
+            int maxNumFiles, long maxNumBytes) throws IOException {
+        final Map<String, Change<?>> changes = new HashMap<>();
         try (ObjectReader reader = git.getRepository().newObjectReader();
              TreeWalk treeWalk = new TreeWalk(reader);
              RevWalk revWalk = new RevWalk(reader)) {
 
             // Prepare to traverse the tree.
-            treeWalk.addTree(revWalk.parseTree(headCommitId).getId());
-            final String abbrId = reader.abbreviate(headCommitId).name();
+            treeWalk.addTree(revWalk.parseTree(commitId).getId());
 
             // Add mirror_state.json.
-            final String sourceRevision = headCommitId.name();
+            final String sourceRevision = commitId.name();
             final MirrorState newMirrorState = new MirrorState(sourceRevision, sourceRevision, localRev.text(),
                                                                MirrorDirection.REMOTE_TO_LOCAL, hashString());
             changes.put(mirrorStatePath, Change.ofJsonUpsert(mirrorStatePath,
                                                              Jackson.valueToTree(newMirrorState)));
-            // Construct the log message and log.
-            summary = "Mirror " + abbrId + ", '" + remoteUri() + "' to the repository '" +
-                      localRepo().name() + '\'';
-            final RevCommit headCommit = revWalk.parseCommit(headCommitId);
-            detail = generateCommitDetail(headCommit);
-            logger.info(summary);
             long numFiles = 0;
             long numBytes = 0;
             while (treeWalk.next()) {
@@ -432,40 +649,7 @@ abstract class AbstractGitMirror extends AbstractMirror {
                 }
             }
         }
-
-        final Map<FindOption<?>, ?> findOptions =
-                mirrorDecision == MirrorDecision.COMPARE_AND_RUN ? FIND_ALL_WITH_CONTENT
-                                                                 : FIND_ALL_WITHOUT_CONTENT;
-        final Map<String, Entry<?>> oldEntries = localRepo().find(localRev, localPath() + "**", findOptions)
-                                                            .join();
-        if (mirrorDecision == MirrorDecision.COMPARE_AND_RUN) {
-            if (!hasChanges(changes, oldEntries)) {
-                return newMirrorResultForUpToDate(headBranchRef, triggeredTime);
-            }
-        }
-
-        oldEntries.keySet().removeAll(changes.keySet());
-
-        // Add the removed entries.
-        oldEntries.forEach((path, entry) -> {
-            if (entry.type() != EntryType.DIRECTORY && !changes.containsKey(path)) {
-                changes.put(path, Change.ofRemoval(path));
-            }
-        });
-
-        validateChanges(changes);
-        try {
-            final Revision revision = executor.execute(Command.push(
-                    MIRROR_AUTHOR, localRepo().parent().name(), localRepo().name(),
-                    Revision.HEAD, summary, detail, Markup.PLAINTEXT, changes.values())).join();
-            final String description = summary + ", revision: " + revision.text();
-            return newMirrorResult(MirrorStatus.SUCCESS, description, triggeredTime);
-        } catch (CompletionException e) {
-            if (e.getCause() instanceof RedundantChangeException) {
-                return newMirrorResultForUpToDate(headBranchRef, triggeredTime);
-            }
-            throw e;
-        }
+        return changes;
     }
 
     private static boolean hasChanges(Map<String, Change<?>> newChanges, Map<String, Entry<?>> oldEntries) {
@@ -622,10 +806,9 @@ abstract class AbstractGitMirror extends AbstractMirror {
     }
 
     private static ObjectId fetchRemoteHeadAndGetCommitId(
-            GitWithAuth git, String headBranchRefName) throws GitAPIException, IOException {
+            GitWithAuth git, String headBranchRefName, int depth) throws GitAPIException, IOException {
         final FetchResult fetchResult = git.fetch()
-                                           // The head commit and its parent are needed to run the mirroring.
-                                           .setDepth(2)
+                                           .setDepth(depth)
                                            .setRefSpecs(new RefSpec(headBranchRefName))
                                            .setRemoveDeletedRefs(true)
                                            .setTagOpt(TagOpt.NO_TAGS)

@@ -53,6 +53,7 @@ describe('MirrorView', () => {
     expect(remotePathCodes.length).toBe(1);
     expect(remotePathCodes[0].textContent).toContain('dogma://my-cd.com/myproject/myrepo.dogma');
     expect(remotePathCodes[0].textContent).not.toContain('#');
+    expect(container).not.toHaveTextContent('Upstream commit history');
   });
 
   it('renders remote path without branch for dogma+https mirrors', () => {
@@ -74,5 +75,17 @@ describe('MirrorView', () => {
     expect(remotePathCode.textContent).toContain('dogma+https://my-cd.com/myproject/myrepo.dogma');
     expect(remotePathCode.textContent).toContain('/config/');
     expect(remotePathCode.textContent).not.toContain('#');
+  });
+
+  it('hides the upstream history status for local-to-remote mirrors', () => {
+    const { container } = renderWithProviders(
+      <MirrorView
+        projectName="myProject"
+        repoName="myRepo"
+        mirror={{ ...baseMirror, direction: 'LOCAL_TO_REMOTE' }}
+      />,
+    );
+
+    expect(container).not.toHaveTextContent('Upstream commit history');
   });
 });

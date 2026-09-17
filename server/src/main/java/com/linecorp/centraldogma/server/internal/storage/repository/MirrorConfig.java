@@ -64,6 +64,15 @@ public final class MirrorConfig {
     private final Cron schedule;
     @Nullable
     private final String zone;
+    private final boolean preserveRemoteCommitHistory;
+
+    public MirrorConfig(String id, @Nullable Boolean enabled, @Nullable String schedule,
+                        MirrorDirection direction, String localRepo, @Nullable String localPath,
+                        URI remoteUri, @Nullable Object gitignore, @Nullable String credentialId,
+                        @Nullable String credentialName, @Nullable String zone) {
+        this(id, enabled, schedule, direction, localRepo, localPath, remoteUri, gitignore, credentialId,
+             credentialName, zone, null);
+    }
 
     @JsonCreator
     public MirrorConfig(@JsonProperty("id") String id,
@@ -77,17 +86,19 @@ public final class MirrorConfig {
                         // TODO(minwoox): Remove this credentialId property after migration is done.
                         @JsonProperty("credentialId") @Nullable String credentialId,
                         @JsonProperty("credentialName") @Nullable String credentialName,
-                        @JsonProperty("zone") @Nullable String zone) {
+                        @JsonProperty("zone") @Nullable String zone,
+                        @JsonProperty("preserveRemoteCommitHistory")
+                        @Nullable Boolean preserveRemoteCommitHistory) {
         this(id, enabled, schedule != null ? CRON_PARSER.parse(schedule) : null, direction, localRepo,
              localPath, remoteUri, gitignore,
              requireNonNull(firstNonNull(credentialName, credentialId), "credentialName"),
-             zone);
+             zone, preserveRemoteCommitHistory);
     }
 
     private MirrorConfig(String id, @Nullable Boolean enabled, @Nullable Cron schedule,
                          MirrorDirection direction, String localRepo, @Nullable String localPath,
                          URI remoteUri, @Nullable Object gitignore, String credentialName,
-                         @Nullable String zone) {
+                         @Nullable String zone, @Nullable Boolean preserveRemoteCommitHistory) {
         this.id = requireNonNull(id, "id");
         this.enabled = firstNonNull(enabled, true);
         this.schedule = schedule;
@@ -117,11 +128,12 @@ public final class MirrorConfig {
         }
         this.credentialName = requireNonNull(credentialName, "credentialName");
         this.zone = zone;
+        this.preserveRemoteCommitHistory = firstNonNull(preserveRemoteCommitHistory, false);
     }
 
     public MirrorConfig withCredentialName(String credentialName) {
         return new MirrorConfig(id, enabled, schedule, direction, localRepo, localPath, remoteUri,
-                                gitignore, credentialName, zone);
+                                gitignore, credentialName, zone, preserveRemoteCommitHistory);
     }
 
     @JsonProperty("id")
@@ -190,6 +202,13 @@ public final class MirrorConfig {
         return zone;
     }
 
+    // Omit the default so existing mirror configurations remain unchanged.
+    @JsonInclude(Include.NON_DEFAULT)
+    @JsonProperty("preserveRemoteCommitHistory")
+    public boolean preserveRemoteCommitHistory() {
+        return preserveRemoteCommitHistory;
+    }
+
     @Override
     public String toString() {
         return MoreObjects.toStringHelper(this).omitNullValues()
@@ -202,6 +221,7 @@ public final class MirrorConfig {
                           .add("credentialName", credentialName)
                           .add("schedule", schedule)
                           .add("zone", zone)
+                          .add("preserveRemoteCommitHistory", preserveRemoteCommitHistory)
                           .toString();
     }
 }
