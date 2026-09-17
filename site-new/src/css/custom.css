@@ -31,3 +31,10 @@
 .navbar__logo img {
   object-fit: contain;
 }
+
+/* Mermaid renders client-side into a left-aligned container; centre the figure. */
+.docusaurus-mermaid-container {
+  display: flex;
+  justify-content: center;
+  margin: 1.5rem 0;
+}
