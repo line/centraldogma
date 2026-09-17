@@ -348,8 +348,7 @@ public class RepositoryServiceV1 extends AbstractService {
                     projectName, repoName, fromRevision, toRevision, sourceServerId);
         return execute(Command.requestRepositoryRecovery(author, projectName, repoName, sourceServerId,
                                                         fromRevision, toRevision, maxRevision))
-                .thenApply(unused -> new RecoverRepositoryResponse(RecoveryStatus.REQUESTED,
-                                                                   recoveryRevision));
+                .thenApply(unused -> new RecoverRepositoryResponse(recoveryRevision));
     }
 
     private void validateRecoveryPrerequisites(ServiceRequestContext ctx, Project project,

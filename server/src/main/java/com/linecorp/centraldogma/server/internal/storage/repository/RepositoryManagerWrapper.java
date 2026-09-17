@@ -91,9 +91,8 @@ public class RepositoryManagerWrapper implements RepositoryManager {
     }
 
     @Override
-    public boolean recoverRepository(String repositoryName, Revision resetToRevision,
-                                     List<ReplayCommit> commits) {
-        return delegate.recoverRepository(repositoryName, resetToRevision, commits);
+    public void recoverRepository(String repositoryName, List<ReplayCommit> commits) {
+        delegate.recoverRepository(repositoryName, commits);
     }
 
     @Override

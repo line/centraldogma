@@ -17,6 +17,7 @@ package com.linecorp.centraldogma.server.command;
 
 import static java.util.Objects.requireNonNull;
 
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.function.Consumer;
@@ -444,9 +445,10 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
 
     private CompletableFuture<Revision> applyRepositoryRecovery(ApplyRepositoryRecoveryCommand c) {
         return CompletableFuture.supplyAsync(() -> {
+            final List<ReplayCommit> commits = c.commits();
             projectManager.get(c.projectName()).repos()
-                          .recoverRepository(c.repositoryName(), c.resetToRevision(), c.commits());
-            return c.toRevision();
+                          .recoverRepository(c.repositoryName(), commits);
+            return commits.get(commits.size() - 1).revision();
         }, repositoryWorker);
     }
 

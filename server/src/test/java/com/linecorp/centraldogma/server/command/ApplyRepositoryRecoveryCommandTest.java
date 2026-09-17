@@ -40,43 +40,54 @@ class ApplyRepositoryRecoveryCommandTest {
                                  "0123456789012345678901234567890123456789");
 
         assertThatThrownBy(() -> new ApplyRepositoryRecoveryCommand(
-                1234L, Author.SYSTEM, "foo", "bar", 1,
-                Revision.INIT, new Revision(2),
+                1234L, Author.SYSTEM, "foo", "bar",
                 Collections.nCopies(ApplyRepositoryRecoveryCommand.MAX_RECOVERY_COMMITS + 1, commit)))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("expected: <= " + ApplyRepositoryRecoveryCommand.MAX_RECOVERY_COMMITS);
     }
 
     @Test
-    void rejectsACommandWhoseDeclaredRangeDoesNotMatchItsCommits() {
+    void rejectsInvalidCommitRanges() {
         final ReplayCommit revision2 =
                 new ReplayCommit(new Revision(2), 1234L, Author.SYSTEM, "summary", "", Markup.PLAINTEXT,
                                  ImmutableList.of(Change.ofTextUpsert("/memo.txt", "v2")),
                                  "0123456789012345678901234567890123456789");
+        final ReplayCommit maxRevision =
+                new ReplayCommit(new Revision(Integer.MAX_VALUE), 1234L, Author.SYSTEM, "summary", "",
+                                 Markup.PLAINTEXT,
+                                 ImmutableList.of(Change.ofTextUpsert("/memo.txt", "max")),
+                                 "0123456789012345678901234567890123456789");
 
         assertThatThrownBy(() -> new ApplyRepositoryRecoveryCommand(
-                1234L, Author.SYSTEM, "foo", "bar", 1,
-                Revision.INIT, new Revision(100), ImmutableList.of(revision2)))
+                1234L, Author.SYSTEM, "foo", "bar",
+                ImmutableList.of(revision2,
+                                 new ReplayCommit(
+                                         new Revision(100), 1234L, Author.SYSTEM, "summary", "",
+                                         Markup.PLAINTEXT,
+                                         ImmutableList.of(Change.ofTextUpsert("/memo.txt", "v100")),
+                                         "0123456789012345678901234567890123456789"))))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("toRevision");
+                .hasMessageContaining("commits[1].revision");
         assertThatThrownBy(() -> new ApplyRepositoryRecoveryCommand(
-                1234L, Author.SYSTEM, "foo", "bar", 1,
-                Revision.INIT, new Revision(2),
+                1234L, Author.SYSTEM, "foo", "bar",
                 ImmutableList.of(new ReplayCommit(
-                        new Revision(3), 1234L, Author.SYSTEM, "summary", "", Markup.PLAINTEXT,
-                        ImmutableList.of(Change.ofTextUpsert("/memo.txt", "v3")),
+                        Revision.INIT, 1234L, Author.SYSTEM, "summary", "", Markup.PLAINTEXT,
+                        ImmutableList.of(Change.ofTextUpsert("/memo.txt", "v1")),
                         "0123456789012345678901234567890123456789"))))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("commits[0].revision");
+        assertThatThrownBy(() -> new ApplyRepositoryRecoveryCommand(
+                1234L, Author.SYSTEM, "foo", "bar", ImmutableList.of(maxRevision, maxRevision)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("maximum revision");
     }
 
-    // The command crosses the replication log as JSON, so the wire format must stay stable.
+    // The command crosses the replication log as JSON, so assert the exact payload.
     @Test
     void testJsonConversion() {
         assertJsonConversion(
                 new ApplyRepositoryRecoveryCommand(
-                        1234L, Author.SYSTEM, "foo", "bar", 2,
-                        new Revision(2), new Revision(4),
+                        1234L, Author.SYSTEM, "foo", "bar",
                         ImmutableList.of(
                                 new ReplayCommit(new Revision(3), 5678L,
                                                  new Author("Marge Simpson", "marge@simpsonsworld.com"),
@@ -99,9 +110,6 @@ class ApplyRepositoryRecoveryCommandTest {
                 "  }," +
                 "  \"projectName\": \"foo\"," +
                 "  \"repositoryName\": \"bar\"," +
-                "  \"sourceServerId\": 2," +
-                "  \"resetToRevision\": 2," +
-                "  \"toRevision\": 4," +
                 "  \"commits\": [{" +
                 "    \"revision\": 3," +
                 "    \"timestampMillis\": 5678," +

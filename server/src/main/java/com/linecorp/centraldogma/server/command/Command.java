@@ -529,22 +529,15 @@ public interface Command<T> {
     }
 
     /**
-     * Returns a new {@link Command} which applies a repository recovery by resetting to
-     * {@code resetToRevision} and replaying {@code commits} up to {@code toRevision}.
+     * Returns a new {@link Command} which applies a repository recovery by replaying {@code commits}.
      */
     static Command<Revision> applyRepositoryRecovery(Author author, String projectName,
-                                                     String repositoryName, int sourceServerId,
-                                                     Revision resetToRevision, Revision toRevision,
-                                                     Iterable<ReplayCommit> commits) {
+                                                     String repositoryName, Iterable<ReplayCommit> commits) {
         requireNonNull(author, "author");
         requireNonNull(projectName, "projectName");
         requireNonNull(repositoryName, "repositoryName");
-        requireNonNull(resetToRevision, "resetToRevision");
-        requireNonNull(toRevision, "toRevision");
         requireNonNull(commits, "commits");
-        return new ApplyRepositoryRecoveryCommand(
-                null, author, projectName, repositoryName, sourceServerId,
-                resetToRevision, toRevision, commits);
+        return new ApplyRepositoryRecoveryCommand(null, author, projectName, repositoryName, commits);
     }
 
     /**

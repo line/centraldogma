@@ -45,14 +45,11 @@ public interface RepositoryManager extends StorageManager<Repository> {
     void fallbackToFileRepository(String repositoryName);
 
     /**
-     * Recovers the specified repository by resetting it to {@code resetToRevision} and replaying the given
-     * {@code commits} on top of it, in place. Used to reconcile a diverged replica with a source replica.
-     * See {@link ApplyRepositoryRecoveryCommand}.
-     *
-     * @return {@code true} if the repository was rewritten; {@code false} if it already held exactly the
-     *         given commits and was thus left untouched.
+     * Recovers the specified repository by resetting it to the revision before the first commit and replaying
+     * the given {@code commits} on top of it, in place. Used to reconcile a diverged replica with a source
+     * replica. See {@link ApplyRepositoryRecoveryCommand}.
      */
-    boolean recoverRepository(String repositoryName, Revision resetToRevision, List<ReplayCommit> commits);
+    void recoverRepository(String repositoryName, List<ReplayCommit> commits);
 
     /**
      * Builds the {@link ReplayCommit}s of {@code fromRevision..toRevision} of the specified repository, to

@@ -667,7 +667,9 @@ class ZooKeeperCommandExecutorTest {
                         } catch (InterruptedException e) {
                             throw new RuntimeException(e);
                         }
-                        return ((ApplyRepositoryRecoveryCommand) command).toRevision();
+                        final List<ReplayCommit> commits =
+                                ((ApplyRepositoryRecoveryCommand) command).commits();
+                        return commits.get(commits.size() - 1).revision();
                     }, CommonPools.blockingTaskExecutor());
                 }
                 return base.apply(command);
@@ -682,8 +684,7 @@ class ZooKeeperCommandExecutorTest {
                                      ImmutableList.of(Change.ofTextUpsert("/memo.txt", "v2")),
                                      "0123456789012345678901234567890123456789");
             final Command<Revision> recoveryCommand =
-                    Command.applyRepositoryRecovery(Author.SYSTEM, "p", "r", 1, Revision.INIT,
-                                                    new Revision(2), ImmutableList.of(commit));
+                    Command.applyRepositoryRecovery(Author.SYSTEM, "p", "r", ImmutableList.of(commit));
             final CompletableFuture<Revision> recoveryFuture =
                     replica.commandExecutor().execute(recoveryCommand);
 
@@ -728,8 +729,8 @@ class ZooKeeperCommandExecutorTest {
                 new ReplayCommit(recoveryRevision, 0, Author.SYSTEM, "Recovery padding", "",
                                  Markup.PLAINTEXT, ImmutableList.of(), commit.expectedTreeId());
         final Command<Revision> recovery =
-                Command.applyRepositoryRecovery(Author.SYSTEM, "p", "r", 1, Revision.INIT,
-                                          recoveryRevision, ImmutableList.of(commit, padding));
+                Command.applyRepositoryRecovery(Author.SYSTEM, "p", "r",
+                                                ImmutableList.of(commit, padding));
         final RecoveryCommandFactory factory = mock(RecoveryCommandFactory.class);
         when(factory.blockingNewCommand(any())).thenReturn(recovery);
         final Supplier<Function<Command<?>, CompletableFuture<?>>> delegateSupplier = () -> {
@@ -780,8 +781,7 @@ class ZooKeeperCommandExecutorTest {
                                      ImmutableList.of(Change.ofTextUpsert("/memo.txt", "v2")),
                                      "0123456789012345678901234567890123456789");
             final Command<Revision> recovery =
-                    Command.applyRepositoryRecovery(Author.SYSTEM, "p", "r", 1, Revision.INIT,
-                                              new Revision(2), ImmutableList.of(commit));
+                    Command.applyRepositoryRecovery(Author.SYSTEM, "p", "r", ImmutableList.of(commit));
 
             assertThatThrownBy(() -> replica.commandExecutor().execute(recovery).join())
                     .hasRootCauseInstanceOf(IllegalStateException.class)

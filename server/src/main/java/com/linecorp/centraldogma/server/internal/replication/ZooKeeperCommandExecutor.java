@@ -850,14 +850,8 @@ public final class ZooKeeperCommandExecutor
                 final Command<?> command = l.command();
                 final Object expectedResult = l.result();
                 // An interrupt here would split the local apply from updateLastReplayedRevision() below.
-                final Object actualResult;
-                if (command instanceof RequestRepositoryRecoveryCommand) {
-                    // The source handles the request after this replay revision is recorded below.
-                    actualResult = null;
-                } else {
-                    actualResult =
-                            Uninterruptibles.getUninterruptibly(delegate.execute(REPLAY_CONTEXT, command));
-                }
+                final Object actualResult =
+                        Uninterruptibles.getUninterruptibly(delegate.execute(REPLAY_CONTEXT, command));
 
                 if (!Objects.equals(expectedResult, actualResult)) {
                     throw new ReplicationException(
@@ -872,6 +866,7 @@ public final class ZooKeeperCommandExecutor
                     updateZkCommandStatusLater((UpdateServerStatusCommand) command);
                 }
                 if (command instanceof RequestRepositoryRecoveryCommand) {
+                    // React only after recording this revision; recovery origination re-enters replay.
                     reactToRecoveryRequestLater((RequestRepositoryRecoveryCommand) command);
                 }
             } catch (Throwable t) {
@@ -935,12 +930,12 @@ public final class ZooKeeperCommandExecutor
         }
 
         final String repoPath = command.projectName() + '/' + command.repositoryName();
-        final ExecutorService executor = this.executor;
-        if (!isStarted() || executor == null) {
+        if (!isStarted()) {
             logger.warn("Failed to schedule a recovery of {}; the source replica is not running. " +
                         "Submit the recovery request again.", repoPath);
             return;
         }
+        final ExecutorService executor = this.executor;
         try {
             CompletableFuture.supplyAsync(() -> recoveryCommandFactory.blockingNewCommand(command), executor)
                              .thenCompose(this::execute)

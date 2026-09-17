@@ -46,7 +46,7 @@ final class CacheableMergeQueryCall<T> extends AbstractCacheableCall<MergedEntry
         // Only JSON files can currently be merged.
         query.mergeSources().forEach(path -> validateJsonFilePath(path.path(), "path"));
 
-        hashCode = Objects.hash(revision, query) * 31 + repoHashCode();
+        hashCode = Objects.hash(revision, query) * 31 + super.hashCode();
 
         assert !revision.isRelative();
     }

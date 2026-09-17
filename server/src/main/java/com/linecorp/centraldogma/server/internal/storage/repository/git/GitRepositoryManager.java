@@ -271,9 +271,8 @@ public final class GitRepositoryManager extends DirectoryBasedStorageManager<Rep
     }
 
     @Override
-    public boolean recoverRepository(String repositoryName, Revision resetToRevision,
-                                     List<ReplayCommit> commits) {
-        return new RepositoryRecovery(this).recoverRepository(repositoryName, resetToRevision, commits);
+    public void recoverRepository(String repositoryName, List<ReplayCommit> commits) {
+        new RepositoryRecovery(this).recoverRepository(repositoryName, commits);
     }
 
     @Override

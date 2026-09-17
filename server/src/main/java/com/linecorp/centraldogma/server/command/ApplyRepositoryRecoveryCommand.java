@@ -37,8 +37,8 @@ import com.linecorp.centraldogma.common.Revision;
  * A {@link Command} which recovers a diverged repository from a source replica. It is originated by the
  * source replica (the single source of truth) and applied identically on every replica, itself included: a
  * replica already converged with {@link #commits()} is left untouched, and every other one resets its git
- * repository and commit-id database to {@link #resetToRevision()} and replays {@link #commits()} up to
- * {@link #toRevision()}. The list includes empty compatibility commits after the selected source history.
+ * repository and commit-id database to the revision before the first commit and replays {@link #commits()}.
+ * The list includes empty compatibility commits after the selected source history.
  * Because the changes are self-contained, a replay reproduces the source's content;
  * the tree of each replayed commit is verified against {@link ReplayCommit#expectedTreeId()}, and a
  * mismatch aborts the recovery, leaving that replica with a partial history until it is recovered again.
@@ -46,9 +46,8 @@ import com.linecorp.centraldogma.common.Revision;
  * metadata repository writes its early commits locally on each replica, so replicas holding identical
  * content still report different commit IDs.
  *
- * <p>The convergence check is by content, not by replica, so the source replays over itself whenever it
- * holds commits the payload does not: a {@link #toRevision()} below its head discards them by design, and
- * so does a force push that lands between the payload build and the apply.
+ * <p>The convergence check is by content, not by replica. A non-converged replica whose head has reached
+ * the final payload revision is rejected instead of rewound.
  *
  * <p>This is a {@link RepositoryCommand} so that it is scoped to a single repository (lock scope and
  * read-only failure blast radius) and is not rejected while the repository/project is read-only.
@@ -61,37 +60,27 @@ public final class ApplyRepositoryRecoveryCommand extends RepositoryCommand<Revi
      */
     public static final int MAX_RECOVERY_COMMITS = 100;
 
-    private final int sourceServerId;
-    private final Revision resetToRevision;
-    private final Revision toRevision;
     private final List<ReplayCommit> commits;
 
     @JsonCreator
     ApplyRepositoryRecoveryCommand(@JsonProperty("timestamp") @Nullable Long timestamp,
-                             @JsonProperty("author") @Nullable Author author,
-                             @JsonProperty("projectName") String projectName,
-                             @JsonProperty("repositoryName") String repositoryName,
-                             @JsonProperty("sourceServerId") int sourceServerId,
-                             @JsonProperty("resetToRevision") Revision resetToRevision,
-                             @JsonProperty("toRevision") Revision toRevision,
-                             @JsonProperty("commits") Iterable<ReplayCommit> commits) {
+                                   @JsonProperty("author") @Nullable Author author,
+                                   @JsonProperty("projectName") String projectName,
+                                   @JsonProperty("repositoryName") String repositoryName,
+                                   @JsonProperty("commits") Iterable<ReplayCommit> commits) {
         super(CommandType.APPLY_REPOSITORY_RECOVERY, timestamp, author, projectName, repositoryName);
-        this.sourceServerId = sourceServerId;
-        this.resetToRevision = requireNonNull(resetToRevision, "resetToRevision");
-        this.toRevision = requireNonNull(toRevision, "toRevision");
         this.commits = ImmutableList.copyOf(requireNonNull(commits, "commits"));
         checkArgument(!this.commits.isEmpty(), "commits is empty");
         checkArgument(this.commits.size() <= MAX_RECOVERY_COMMITS,
                       "commits: %s (expected: <= %s)", this.commits.size(), MAX_RECOVERY_COMMITS);
-        checkArgument(!resetToRevision.isRelative() && resetToRevision.major() >= Revision.INIT.major(),
-                      "resetToRevision: %s (expected: an absolute revision >= %s)",
-                      resetToRevision, Revision.INIT);
-        checkArgument(!toRevision.isRelative() &&
-                      toRevision.major() == resetToRevision.major() + this.commits.size(),
-                      "toRevision: %s (expected: %s)", toRevision,
-                      resetToRevision.forward(this.commits.size()));
+        final Revision firstRevision = this.commits.get(0).revision();
+        checkArgument(!firstRevision.isRelative() && firstRevision.major() > Revision.INIT.major(),
+                      "commits[0].revision: %s (expected: an absolute revision > %s)",
+                      firstRevision, Revision.INIT);
+        checkArgument((long) firstRevision.major() + this.commits.size() - 1 <= Integer.MAX_VALUE,
+                      "commits exceed the maximum revision: %s", Integer.MAX_VALUE);
         for (int i = 0; i < this.commits.size(); i++) {
-            final Revision expectedRevision = resetToRevision.forward(i + 1);
+            final Revision expectedRevision = firstRevision.forward(i);
             checkArgument(expectedRevision.equals(this.commits.get(i).revision()),
                           "commits[%s].revision: %s (expected: %s)",
                           i, this.commits.get(i).revision(), expectedRevision);
@@ -99,35 +88,7 @@ public final class ApplyRepositoryRecoveryCommand extends RepositoryCommand<Revi
     }
 
     /**
-     * Returns the ZooKeeper server ID of the source replica whose repository the {@link #commits()} were
-     * taken from. It records where a recovery came from; it is not consulted when the command is applied,
-     * which decides by content (see the class javadoc).
-     */
-    @JsonProperty("sourceServerId")
-    public int sourceServerId() {
-        return sourceServerId;
-    }
-
-    /**
-     * Returns the {@link Revision} to which a replica resets its repository before replaying
-     * {@link #commits()}.
-     */
-    @JsonProperty("resetToRevision")
-    public Revision resetToRevision() {
-        return resetToRevision;
-    }
-
-    /**
-     * Returns the final {@link Revision}, after replaying the selected source history and compatibility
-     * padding. The selected source history need not reach the source's head.
-     */
-    @JsonProperty("toRevision")
-    public Revision toRevision() {
-        return toRevision;
-    }
-
-    /**
-     * Returns the ordered {@link ReplayCommit}s to replay after resetting to {@link #resetToRevision()}.
+     * Returns the ordered {@link ReplayCommit}s to replay after resetting to the preceding revision.
      */
     @JsonProperty("commits")
     public List<ReplayCommit> commits() {
@@ -144,23 +105,17 @@ public final class ApplyRepositoryRecoveryCommand extends RepositoryCommand<Revi
         }
         final ApplyRepositoryRecoveryCommand that = (ApplyRepositoryRecoveryCommand) obj;
         return super.equals(that) &&
-               sourceServerId == that.sourceServerId &&
-               resetToRevision.equals(that.resetToRevision) &&
-               toRevision.equals(that.toRevision) &&
                commits.equals(that.commits);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(sourceServerId, resetToRevision, toRevision, commits) * 31 + super.hashCode();
+        return Objects.hash(commits) * 31 + super.hashCode();
     }
 
     @Override
     ToStringHelper toStringHelper() {
         return super.toStringHelper()
-                    .add("sourceServerId", sourceServerId)
-                    .add("resetToRevision", resetToRevision)
-                    .add("toRevision", toRevision)
                     .add("commits", commits.size());
     }
 }

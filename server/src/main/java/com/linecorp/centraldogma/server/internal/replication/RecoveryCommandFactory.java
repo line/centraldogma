@@ -54,13 +54,11 @@ public final class RecoveryCommandFactory {
     Command<Revision> blockingNewCommand(RequestRepositoryRecoveryCommand request) {
         requireNonNull(request, "request");
         return blockingNewCommand(request.author(), request.projectName(), request.repositoryName(),
-                                  request.sourceServerId(), request.fromRevision(), request.toRevision(),
-                                  request.maxRevision());
+                                  request.fromRevision(), request.toRevision(), request.maxRevision());
     }
 
     Command<Revision> blockingNewCommand(Author author, String projectName, String repositoryName,
-                                         int sourceServerId, Revision fromRevision, Revision toRevision,
-                                         int maxRevision) {
+                                         Revision fromRevision, Revision toRevision, int maxRevision) {
         requireNonNull(author, "author");
         requireNonNull(projectName, "projectName");
         requireNonNull(repositoryName, "repositoryName");
@@ -98,7 +96,6 @@ public final class RecoveryCommandFactory {
                 break;
             }
         }
-        return Command.applyRepositoryRecovery(author, projectName, repositoryName, sourceServerId,
-                                         fromRevision.backward(1), recoveryRevision, commits.build());
+        return Command.applyRepositoryRecovery(author, projectName, repositoryName, commits.build());
     }
 }

@@ -83,11 +83,11 @@ final class CommitWatchers {
         notify0(revision, path, false);
     }
 
-    void notifyRecovery(Revision revision) {
+    void notifyAll(Revision revision) {
         notify0(revision, null, true);
     }
 
-    private void notify0(Revision revision, @Nullable String path, boolean allPaths) {
+    private void notify0(Revision revision, @Nullable String path, boolean force) {
         List<Watch> eligibleWatches = null;
         synchronized (watchesMap) {
             if (watchesMap.isEmpty()) {
@@ -98,7 +98,7 @@ final class CommitWatchers {
                  mapIt.hasNext();) {
 
                 final Entry<PathPatternFilter, Set<Watch>> entry = mapIt.next();
-                if (!allPaths && !entry.getKey().matches(path)) {
+                if (!force && !entry.getKey().matches(path)) {
                     continue;
                 }
 

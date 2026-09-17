@@ -57,12 +57,12 @@ final class RepositoryRecovery {
         this.manager = manager;
     }
 
-    boolean recoverRepository(String repositoryName, Revision resetToRevision,
-                              List<ReplayCommit> commits) {
+    void recoverRepository(String repositoryName, List<ReplayCommit> commits) {
         requireNonNull(repositoryName, "repositoryName");
-        requireNonNull(resetToRevision, "resetToRevision");
         requireNonNull(commits, "commits");
-        checkRecoveryRange(resetToRevision, commits);
+        checkRecoveryRange(commits);
+        final Revision resetToRevision =
+                requireNonNull(commits.get(0), "commits[0]").revision().backward(1);
         final Revision recoveryRevision = commits.get(commits.size() - 1).revision();
         final String repoPath = manager.projectRepositoryName(repositoryName);
         logger.info("Starting to recover the repository '{}' (reset to {}, replay {} commits, through {}).",
@@ -70,17 +70,15 @@ final class RepositoryRecovery {
         final long startTime = System.nanoTime();
         final GitRepository repo = fileRepository(repositoryName);
         final CommitIdDatabase commitIdDatabase = repo.commitIdDatabase();
-        boolean recoveryStarted = false;
         boolean recoverySucceeded = false;
 
         // No read may observe the repository between the reset and the final padding commit.
         repo.writeLock();
         try {
             if (isConverged(repoPath, repo, commitIdDatabase, commits)) {
-                recoveryStarted = true;
                 repo.setLastRecoveryRevision(recoveryRevision);
                 recoverySucceeded = true;
-                return false;
+                return;
             }
 
             final Revision currentHead = repo.normalizeNow(Revision.HEAD);
@@ -91,63 +89,59 @@ final class RepositoryRecovery {
             }
             checkResetBase(repoPath, resetToRevision, currentHead);
             final ObjectId resetToCommitId = commitIdDatabase.get(resetToRevision);
-            recoveryStarted = true;
-            rewindTo(repo, resetToCommitId, resetToRevision);
 
-            // Replayed on this thread rather than through commit(), which queues to the fixed-size
-            // repository worker: readers of this repository park on the write lock held here and consume
-            // that pool, so a queued task can wait for a thread that only this method can release.
-            for (ReplayCommit commit : commits) {
-                final Revision revision = commit.revision();
-                final CommitResult result = repo.blockingCommit(
-                        revision.backward(1), commit.timestampMillis(), commit.author(), commit.summary(),
-                        commit.detail(), commit.markup(), commit.changes());
-                if (!revision.equals(result.revision())) {
-                    throw new StorageException("unexpected replayed revision: " + result.revision() +
-                                               " (expected: " + revision + ')');
-                }
-                final String expectedTreeId = commit.expectedTreeId();
-                final String actualTreeId = treeIdOf(repo, commitIdDatabase.get(revision));
-                if (!expectedTreeId.equals(actualTreeId)) {
-                    throw new StorageException(
-                            "tree ID mismatch while recovering '" + repoPath + "' at " + revision +
-                            " (expected: " + expectedTreeId + ", actual: " + actualTreeId +
-                            "). Revisions up to " + resetToRevision + " may have diverged, or the content " +
-                            "is not reproducible byte-identically (e.g. written by a content " +
-                            "transformer). The recovery stopped here, leaving a partial history.");
-                }
-            }
+            try {
+                rewindTo(repo, resetToCommitId, resetToRevision);
 
-            repo.setLastRecoveryRevision(recoveryRevision);
-            recoverySucceeded = true;
-        } catch (Throwable t) {
-            if (!recoveryStarted) {
-                if (t instanceof RuntimeException) {
-                    throw (RuntimeException) t;
+                // Replayed on this thread rather than through commit(), which queues to the fixed-size
+                // repository worker: readers of this repository park on the write lock held here and consume
+                // that pool, so a queued task can wait for a thread that only this method can release.
+                for (ReplayCommit commit : commits) {
+                    final Revision revision = commit.revision();
+                    final CommitExecutor commitExecutor =
+                            new CommitExecutor(repo, commit.timestampMillis(), commit.author(),
+                                               commit.summary(), commit.detail(), commit.markup(), true);
+                    // Publish only the final revision after the whole recovery succeeds.
+                    final CommitResult result =
+                            commitExecutor.execute(revision.backward(1), unused -> commit.changes(), false);
+                    if (!revision.equals(result.revision())) {
+                        throw new StorageException("unexpected replayed revision: " + result.revision() +
+                                                   " (expected: " + revision + ')');
+                    }
+                    final String expectedTreeId = commit.expectedTreeId();
+                    final String actualTreeId = treeIdOf(repo, commitIdDatabase.get(revision));
+                    if (!expectedTreeId.equals(actualTreeId)) {
+                        throw new StorageException(
+                                "tree ID mismatch while recovering '" + repoPath + "' at " + revision +
+                                " (expected: " + expectedTreeId + ", actual: " + actualTreeId +
+                                "). Revisions up to " + resetToRevision + " may have diverged, or the " +
+                                "content is not reproducible byte-identically (e.g. written by a content " +
+                                "transformer). The recovery stopped here, leaving a partial history.");
+                    }
                 }
-                if (t instanceof Error) {
-                    throw (Error) t;
-                }
+
+                repo.setLastRecoveryRevision(recoveryRevision);
+                recoverySucceeded = true;
+            } catch (Exception e) {
+                // Deliberately not rolled back: an automatic repair is a second thing that can fail, and it
+                // would leave a worse state than this one. The history stays readable, and an administrator
+                // recovers it again.
+                logger.error("Failed to recover the repository '{}' (reset to {}). It holds a partial " +
+                             "history and must be recovered again.", repoPath, resetToRevision, e);
+                throw new StorageException(
+                        "failed to recover the repository '" + repoPath + "' (reset to " +
+                        resetToRevision + ')', e);
             }
-            // Deliberately not rolled back: an automatic repair is a second thing that can fail, and it
-            // would leave a worse state than this one. The history stays readable, and an administrator
-            // recovers it again.
-            logger.error("Failed to recover the repository '{}' (reset to {}). It holds a partial history " +
-                         "and must be recovered again.", repoPath, resetToRevision, t);
-            throw new StorageException(
-                    "failed to recover the repository '" + repoPath + "' (reset to " + resetToRevision + ')',
-                    t);
         } finally {
             repo.writeUnLock();
             if (recoverySucceeded) {
-                repo.commitWatchers.notifyRecovery(recoveryRevision);
+                repo.commitWatchers.notifyAll(recoveryRevision);
             }
         }
 
         logger.info("Recovered the repository '{}' to {} in {} seconds.",
                     repoPath, repo.normalizeNow(Revision.HEAD),
                     TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startTime));
-        return true;
     }
 
     /**
@@ -186,17 +180,23 @@ final class RepositoryRecovery {
         return true;
     }
 
-    private static void checkRecoveryRange(Revision resetToRevision, List<ReplayCommit> commits) {
+    private static void checkRecoveryRange(List<ReplayCommit> commits) {
         checkArgument(!commits.isEmpty(), "commits is empty (expected: the revisions to replay)");
         checkArgument(commits.size() <= ApplyRepositoryRecoveryCommand.MAX_RECOVERY_COMMITS,
                       "commits: %s (expected: <= %s)", commits.size(),
                       ApplyRepositoryRecoveryCommand.MAX_RECOVERY_COMMITS);
+        for (int i = 0; i < commits.size(); i++) {
+            requireNonNull(commits.get(i), "commits[" + i + ']');
+        }
+        checkArgument((long) commits.get(0).revision().major() + commits.size() - 1 <= Integer.MAX_VALUE,
+                      "commits exceed the maximum revision: %s", Integer.MAX_VALUE);
+        final Revision resetToRevision = commits.get(0).revision().backward(1);
         checkArgument(!resetToRevision.isRelative() && resetToRevision.major() >= Revision.INIT.major(),
                       "resetToRevision: %s (expected: an absolute revision >= %s)",
                       resetToRevision, Revision.INIT);
 
         for (int i = 0; i < commits.size(); i++) {
-            final ReplayCommit commit = requireNonNull(commits.get(i), "commits[" + i + ']');
+            final ReplayCommit commit = commits.get(i);
             final Revision expectedRevision = resetToRevision.forward(i + 1);
             checkArgument(expectedRevision.equals(commit.revision()),
                           "commits[%s].revision: %s (expected: %s)", i, commit.revision(),

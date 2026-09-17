@@ -44,7 +44,7 @@ final class CacheableSingleDiffCall extends AbstractCacheableCall<Change<?>> {
         this.to = requireNonNull(to, "to");
         this.query = requireNonNull(query, "query");
 
-        hashCode = Objects.hash(from, to, query) * 31 + repoHashCode();
+        hashCode = Objects.hash(from, to, query) * 31 + super.hashCode();
 
         assert !from.isRelative();
         assert !to.isRelative();

@@ -27,17 +27,10 @@ import com.linecorp.centraldogma.common.Revision;
 
 final class RecoverRepositoryResponse {
 
-    private final RecoveryStatus status;
     private final Revision recoveryRevision;
 
-    RecoverRepositoryResponse(RecoveryStatus status, Revision recoveryRevision) {
-        this.status = requireNonNull(status, "status");
+    RecoverRepositoryResponse(Revision recoveryRevision) {
         this.recoveryRevision = requireNonNull(recoveryRevision, "recoveryRevision");
-    }
-
-    @JsonProperty("status")
-    RecoveryStatus status() {
-        return status;
     }
 
     /**
@@ -58,18 +51,17 @@ final class RecoverRepositoryResponse {
             return false;
         }
         final RecoverRepositoryResponse that = (RecoverRepositoryResponse) o;
-        return status == that.status && Objects.equals(recoveryRevision, that.recoveryRevision);
+        return Objects.equals(recoveryRevision, that.recoveryRevision);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(status, recoveryRevision);
+        return Objects.hash(recoveryRevision);
     }
 
     @Override
     public String toString() {
         return MoreObjects.toStringHelper(this)
-                          .add("status", status)
                           .add("recoveryRevision", recoveryRevision)
                           .toString();
     }

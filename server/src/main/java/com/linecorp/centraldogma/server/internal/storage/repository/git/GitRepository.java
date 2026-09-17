@@ -249,7 +249,7 @@ class GitRepository implements Repository {
                     try {
                         rwLock.writeLock().unlock();
                     } finally {
-                        commitWatchers.close(closePending.get());
+                        commitWatchers.close(failureCauseSupplier);
                         closeFuture.complete(null);
                     }
                 }
@@ -502,19 +502,14 @@ class GitRepository implements Repository {
     public CompletableFuture<List<Commit>> history(
             Revision from, Revision to, String pathPattern, int maxCommits) {
 
-        final int cappedMaxCommits = Math.min(maxCommits, MAX_MAX_COMMITS);
         final ServiceRequestContext ctx = context();
         return CompletableFuture.supplyAsync(() -> {
-            failFastIfTimedOut(this, logger, ctx, "history", from, to, pathPattern, cappedMaxCommits);
-            return blockingHistory(from, to, pathPattern, cappedMaxCommits);
+            failFastIfTimedOut(this, logger, ctx, "history", from, to, pathPattern, maxCommits);
+            return blockingHistory(from, to, pathPattern, maxCommits);
         }, repositoryWorker);
     }
 
-    /**
-     * Returns up to {@code maxCommits} commits of {@code from..to}. Unlike {@link #history(Revision,
-     * Revision, String, int)}, {@code maxCommits} is taken as given rather than capped at
-     * {@value Repository#MAX_MAX_COMMITS}, so the caller decides how many it needs.
-     */
+    @VisibleForTesting
     List<Commit> blockingHistory(Revision from, Revision to, String pathPattern, int maxCommits) {
         requireNonNull(pathPattern, "pathPattern");
         requireNonNull(from, "from");
@@ -522,6 +517,8 @@ class GitRepository implements Repository {
         if (maxCommits <= 0) {
             throw new IllegalArgumentException("maxCommits: " + maxCommits + " (expected: > 0)");
         }
+
+        maxCommits = Math.min(maxCommits, MAX_MAX_COMMITS);
 
         final RevisionRange range = normalizeNow(from, to);
         final RevisionRange descendingRange = range.toDescending();
@@ -1017,20 +1014,6 @@ class GitRepository implements Repository {
     }
 
     /**
-     * Commits on the calling thread instead of dispatching to the repository worker, and without notifying
-     * watchers. A recovery replays its commits while holding this repository's write lock, and readers
-     * parked on that lock consume the worker pool, so blocking on a task queued back to it would deadlock.
-     * Waking a watcher has the same effect, and would hand it a half-replayed history. Empty commits provide
-     * deterministic revision padding after replaying the source history.
-     */
-    CommitResult blockingCommit(Revision baseRevision, long commitTimeMillis, Author author, String summary,
-                                String detail, Markup markup, Iterable<Change<?>> changes) {
-        final CommitExecutor commitExecutor =
-                new CommitExecutor(this, commitTimeMillis, author, summary, detail, markup, true);
-        return commitExecutor.execute(baseRevision, normBaseRevision -> changes, false);
-    }
-
-    /**
      * Removes {@code \r} and appends {@code \n} on the last line if it does not end with {@code \n}.
      */
     static String sanitizeText(String text) {
@@ -1216,34 +1199,6 @@ class GitRepository implements Repository {
         return future;
     }
 
-    private void watch(RepositoryListener listener) {
-        final String pathPattern = listener.pathPattern();
-        recursiveWatch(pathPattern, (newRevision, cause) -> {
-            if (shouldStopListening()) {
-                return;
-            }
-
-            if (cause != null) {
-                cause = Exceptions.peel(cause);
-                if (cause instanceof ShuttingDownException) {
-                    return;
-                }
-
-                logger.warn("Failed to watch {} file in {}/{}.", pathPattern, parent.name(), name, cause);
-                return;
-            }
-
-            try {
-                assert newRevision != null;
-                // repositoryWorker thread will call this method.
-                listener.onUpdate(blockingFind(headRevision, pathPattern, ImmutableMap.of()));
-            } catch (Exception ex) {
-                logger.warn("Unexpected exception while invoking {}.onUpdate(). listener: {}",
-                            RepositoryListener.class.getSimpleName(), listener, ex);
-            }
-        });
-    }
-
     private boolean tryCompleteWatchAfterRecovery(Revision lastKnownRevision, String pathPattern,
                                                   boolean errorOnEntryNotFound,
                                                   CompletableFuture<Revision> future) {
@@ -1287,7 +1242,32 @@ class GitRepository implements Repository {
     @Override
     public void addListener(RepositoryListener listener) {
         listeners.add(listener);
-        watch(listener);
+
+        final String pathPattern = listener.pathPattern();
+        recursiveWatch(pathPattern, (newRevision, cause) -> {
+            if (shouldStopListening()) {
+                return;
+            }
+
+            if (cause != null) {
+                cause = Exceptions.peel(cause);
+                if (cause instanceof ShuttingDownException) {
+                    return;
+                }
+
+                logger.warn("Failed to watch {} file in {}/{}.", pathPattern, parent.name(), name, cause);
+                return;
+            }
+
+            try {
+                assert newRevision != null;
+                // repositoryWorker thread will call this method.
+                listener.onUpdate(blockingFind(headRevision, pathPattern, ImmutableMap.of()));
+            } catch (Exception ex) {
+                logger.warn("Unexpected exception while invoking {}.onUpdate(). listener: {}",
+                            RepositoryListener.class.getSimpleName(), listener, ex);
+            }
+        });
     }
 
     private boolean shouldStopListening() {

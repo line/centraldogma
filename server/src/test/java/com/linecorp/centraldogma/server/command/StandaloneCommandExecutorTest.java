@@ -188,8 +188,7 @@ class StandaloneCommandExecutorTest {
         executor.start().join();
 
         executor.execute(Command.applyRepositoryRecovery(
-                Author.SYSTEM, projectName, repoName, 0, Revision.INIT, new Revision(4),
-                recoveryCommits)).join();
+                Author.SYSTEM, projectName, repoName, recoveryCommits)).join();
         assertThat(repo.normalizeNow(Revision.HEAD)).isEqualTo(new Revision(4));
         assertThat(repo.get(Revision.HEAD, "/a.txt").join().contentAsText()).isEqualTo("v2\n");
     }

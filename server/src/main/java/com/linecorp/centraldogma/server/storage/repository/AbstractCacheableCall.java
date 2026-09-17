@@ -43,19 +43,9 @@ public abstract class AbstractCacheableCall<T> implements CacheableCall<T> {
         return repo;
     }
 
-    /**
-     * Returns the hash of the {@link Repository} this call is associated with, together with its
-     * {@link Repository#cacheGeneration()}. Subclasses must build their hash from this rather than
-     * from the repository alone, so that a call made before an in-place rewrite never matches one made
-     * after it.
-     */
-    protected final int repoHashCode() {
-        return System.identityHashCode(repo) * 31 + cacheGeneration;
-    }
-
     @Override
     public int hashCode() {
-        return repoHashCode();
+        return System.identityHashCode(repo) * 31 + cacheGeneration;
     }
 
     @Override

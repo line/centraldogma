@@ -130,8 +130,7 @@ class ZooKeeperRepositoryRecoveryIntegrationTest {
                 recover(adminClientOf(SOURCE_SERVER_ID), new RecoverRepositoryRequest(3, 3, 3,
                                                                                       SOURCE_SERVER_ID));
         assertThat(response.status()).isEqualTo(HttpStatus.OK);
-        assertThat(response.contentUtf8()).contains("\"REQUESTED\"");
-        assertThat(response.contentUtf8()).contains("\"recoveryRevision\":4");
+        assertThat(response.contentUtf8()).isEqualTo("{\"recoveryRevision\":4}");
 
         assertClusterConvergedAndUsable();
     }
@@ -145,13 +144,13 @@ class ZooKeeperRepositoryRecoveryIntegrationTest {
                 recover(adminClientOf(SOURCE_SERVER_ID), new RecoverRepositoryRequest(99, 99, 99,
                                                                                       SOURCE_SERVER_ID));
         assertThat(invalidResponse.status()).isEqualTo(HttpStatus.OK);
-        assertThat(invalidResponse.contentUtf8()).contains("\"REQUESTED\"");
+        assertThat(invalidResponse.contentUtf8()).isEqualTo("{\"recoveryRevision\":100}");
 
         final AggregatedHttpResponse validResponse =
                 recover(adminClientOf(SOURCE_SERVER_ID), new RecoverRepositoryRequest(2, 3, 3,
                                                                                       SOURCE_SERVER_ID));
         assertThat(validResponse.status()).isEqualTo(HttpStatus.OK);
-        assertThat(validResponse.contentUtf8()).contains("\"REQUESTED\"");
+        assertThat(validResponse.contentUtf8()).isEqualTo("{\"recoveryRevision\":4}");
 
         assertClusterConvergedAndUsable();
     }
@@ -190,8 +189,7 @@ class ZooKeeperRepositoryRecoveryIntegrationTest {
                 recover(adminClientOf(DIVERGED_SERVER_ID), new RecoverRepositoryRequest(2, 3, 3,
                                                                                         SOURCE_SERVER_ID));
         assertThat(response.status()).isEqualTo(HttpStatus.OK);
-        assertThat(response.contentUtf8()).contains("\"REQUESTED\"");
-        assertThat(response.contentUtf8()).contains("\"recoveryRevision\":4");
+        assertThat(response.contentUtf8()).isEqualTo("{\"recoveryRevision\":4}");
 
         assertClusterConvergedAndUsable();
     }
@@ -206,7 +204,7 @@ class ZooKeeperRepositoryRecoveryIntegrationTest {
                     recover(adminClientOf(DIVERGED_SERVER_ID), new RecoverRepositoryRequest(2, 3, 3,
                                                                                             SOURCE_SERVER_ID));
             assertThat(response.status()).isEqualTo(HttpStatus.OK);
-            assertThat(response.contentUtf8()).contains("\"REQUESTED\"");
+            assertThat(response.contentUtf8()).isEqualTo("{\"recoveryRevision\":4}");
         } finally {
             replica.serverById(SOURCE_SERVER_ID).dogma().start().join();
         }

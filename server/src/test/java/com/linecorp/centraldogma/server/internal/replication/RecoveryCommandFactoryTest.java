@@ -56,12 +56,10 @@ class RecoveryCommandFactoryTest {
 
         final RecoveryCommandFactory factory = new RecoveryCommandFactory(projectManager);
         final Command<Revision> command = factory.blockingNewCommand(
-                Author.SYSTEM, "foo", "bar", 1, new Revision(3), new Revision(3), 3);
+                Author.SYSTEM, "foo", "bar", new Revision(3), new Revision(3), 3);
 
         assertThat(command).isInstanceOf(ApplyRepositoryRecoveryCommand.class);
         final ApplyRepositoryRecoveryCommand recoverCommand = (ApplyRepositoryRecoveryCommand) command;
-        assertThat(recoverCommand.resetToRevision()).isEqualTo(new Revision(2));
-        assertThat(recoverCommand.toRevision()).isEqualTo(new Revision(4));
         assertThat(recoverCommand.commits()).hasSize(2);
         assertThat(recoverCommand.commits().get(0)).isEqualTo(COMMIT);
         final ReplayCommit padding = recoverCommand.commits().get(1);
@@ -71,7 +69,6 @@ class RecoveryCommandFactoryTest {
         assertThat(padding.summary()).isEqualTo("Recovery padding");
         assertThat(padding.changes()).isEmpty();
         assertThat(padding.expectedTreeId()).isEqualTo(COMMIT.expectedTreeId());
-        assertThat(recoverCommand.sourceServerId()).isEqualTo(1);
     }
 
     @Test
@@ -86,9 +83,8 @@ class RecoveryCommandFactoryTest {
         final RecoveryCommandFactory factory = new RecoveryCommandFactory(projectManager);
         final ApplyRepositoryRecoveryCommand command =
                 (ApplyRepositoryRecoveryCommand) factory.blockingNewCommand(
-                        Author.SYSTEM, "foo", "bar", 1, new Revision(3), new Revision(3), 5);
+                        Author.SYSTEM, "foo", "bar", new Revision(3), new Revision(3), 5);
 
-        assertThat(command.toRevision()).isEqualTo(new Revision(6));
         assertThat(command.commits()).extracting(ReplayCommit::revision)
                                      .containsExactly(new Revision(3), new Revision(4),
                                                       new Revision(5), new Revision(6));
@@ -107,7 +103,7 @@ class RecoveryCommandFactoryTest {
         final RecoveryCommandFactory factory = new RecoveryCommandFactory(projectManager);
 
         assertThatThrownBy(() -> factory.blockingNewCommand(
-                Author.SYSTEM, "foo", "bar", 1, new Revision(3), new Revision(3), 5))
+                Author.SYSTEM, "foo", "bar", new Revision(3), new Revision(3), 5))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("source head")
                 .hasMessageContaining("6")

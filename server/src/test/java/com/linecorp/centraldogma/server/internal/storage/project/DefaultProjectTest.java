@@ -88,8 +88,7 @@ class DefaultProjectTest {
                 break;
             }
         }
-        assertThat(foo.repos().recoverRepository(Project.REPO_DOGMA, keptRevision.backward(1), payload))
-                .isTrue();
+        foo.repos().recoverRepository(Project.REPO_DOGMA, payload);
 
         await().untilAsserted(() -> {
             assertThat(foo.metadata().repos()).containsKey("kept");

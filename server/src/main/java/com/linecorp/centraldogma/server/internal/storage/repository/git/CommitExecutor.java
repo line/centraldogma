@@ -90,11 +90,6 @@ final class CommitExecutor {
         return execute(baseRevision, applyingChangesProvider, true);
     }
 
-    /**
-     * Commits and, unless {@code notifyWatchers} is set, leaves the watchers untouched. A recovery replays a
-     * whole range under one write lock, so an intermediate revision must never reach a watcher; only the
-     * final recovery revision is delivered after the rewrite succeeds.
-     */
     CommitResult execute(Revision baseRevision,
                          Function<Revision, Iterable<Change<?>>> applyingChangesProvider,
                          boolean notifyWatchers) {
