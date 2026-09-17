@@ -101,15 +101,4 @@ public final class RecoveryCommandFactory {
         return Command.applyRepositoryRecovery(author, projectName, repositoryName, sourceServerId,
                                          fromRevision.backward(1), recoveryRevision, commits.build());
     }
-
-    void validateRecoveryRevision(ApplyRepositoryRecoveryCommand command) {
-        final Revision currentHead = projectManager.get(command.projectName()).repos()
-                                                     .get(command.repositoryName()).head().revision();
-        if (currentHead.compareTo(command.toRevision()) >= 0) {
-            throw new IllegalArgumentException(
-                    "cannot publish recovery for " + command.projectName() + '/' + command.repositoryName() +
-                    ": source head " + currentHead + " is not before recovery revision " +
-                    command.toRevision());
-        }
-    }
 }

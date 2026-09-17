@@ -87,7 +87,6 @@ import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.ZooKeeperReplicationConfig;
 import com.linecorp.centraldogma.server.ZooKeeperServerConfig;
 import com.linecorp.centraldogma.server.command.AbstractCommandExecutor;
-import com.linecorp.centraldogma.server.command.ApplyRepositoryRecoveryCommand;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.command.CommandType;
@@ -950,8 +949,8 @@ public final class ZooKeeperCommandExecutor
                                      logger.error("Failed to recover {}. Submit the recovery request again.",
                                                   repoPath, Exceptions.peel(cause));
                                  } else {
-                                     logger.info("Published the recovery of {} and applied it on the source " +
-                                                 "replica. head: {}. Verify every replica.",
+                                     logger.info("Applied recovery of {} on the source replica and " +
+                                                 "published its log. head: {}. Verify every replica.",
                                                  repoPath, revision);
                                  }
                              });
@@ -1068,10 +1067,6 @@ public final class ZooKeeperCommandExecutor
     }
 
     private long storeLog(ReplicationLog<?> log) {
-        return storeLog(log, true);
-    }
-
-    private long storeLog(ReplicationLog<?> log, boolean markReplayed) {
         final ReplicationLogContext logContext = new ReplicationLogContext();
         logContext.setLog(log);
         try {
@@ -1124,10 +1119,8 @@ public final class ZooKeeperCommandExecutor
                 logContext.setReplayRevision(revision);
 
                 replayLogs(revision - 1, true);
-                if (markReplayed) {
-                    updateLastReplayedRevision(revision);
-                    lastReplayedRevision = revision;
-                }
+                updateLastReplayedRevision(revision);
+                lastReplayedRevision = revision;
             }
             return revision;
         } catch (Exception e) {
@@ -1330,32 +1323,6 @@ public final class ZooKeeperCommandExecutor
 
                 timings.startCommandExecution();
                 final T result;
-                if (command instanceof ApplyRepositoryRecoveryCommand) {
-                    final ApplyRepositoryRecoveryCommand recovery =
-                            (ApplyRepositoryRecoveryCommand) command;
-                    final ReplicationLog<Revision> log =
-                            new ReplicationLog<>(replicaId(), recovery, recovery.toRevision());
-                    final long revision;
-                    // Publish first; the monitor keeps local replay behind the direct apply and cursor update.
-                    synchronized (this) {
-                        try {
-                            recoveryCommandFactory.validateRecoveryRevision(recovery);
-                            timings.startLogStore();
-                            try {
-                                revision = storeLog(log, false);
-                            } finally {
-                                timings.endLogStore();
-                            }
-                            result = delegate.execute(ctx, command).get();
-                            updateLastReplayedRevision(revision);
-                            lastReplayedRevision = revision;
-                        } finally {
-                            timings.endCommandExecution();
-                        }
-                    }
-                    logger.debug("logging OK. revision = {}, log = {}", revision, log);
-                    return result;
-                }
                 try {
                     result = delegate.execute(ctx, command).get();
                 } finally {

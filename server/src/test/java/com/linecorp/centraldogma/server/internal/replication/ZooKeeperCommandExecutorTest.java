@@ -24,10 +24,8 @@ import static org.awaitility.Awaitility.await;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -49,6 +47,7 @@ import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
+import org.apache.zookeeper.KeeperException.NoNodeException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.function.ThrowingConsumer;
@@ -84,8 +83,6 @@ import com.linecorp.centraldogma.server.command.PushAsIsCommand;
 import com.linecorp.centraldogma.server.command.ReplayCommit;
 import com.linecorp.centraldogma.server.command.TransformCommand;
 import com.linecorp.centraldogma.server.management.ServerStatus;
-import com.linecorp.centraldogma.server.storage.project.ProjectManager;
-import com.linecorp.centraldogma.server.storage.repository.RepositoryHead;
 import com.linecorp.centraldogma.testing.internal.FlakyTest;
 
 @FlakyTest
@@ -651,13 +648,15 @@ class ZooKeeperCommandExecutorTest {
 
     @Test
     @Timeout(60)
-    void recoveryLogIsDurableBeforeTheSourceIsRewritten() throws Exception {
+    void recoveryIsAppliedBeforeItsLogIsStored() throws Exception {
         final CountDownLatch applyEntered = new CountDownLatch(1);
         final CountDownLatch proceed = new CountDownLatch(1);
+        final AtomicInteger recoveryAttempts = new AtomicInteger();
         final Supplier<Function<Command<?>, CompletableFuture<?>>> delegateSupplier = () -> {
             final Function<Command<?>, CompletableFuture<?>> base = newMockDelegate();
             return command -> {
                 if (command instanceof ApplyRepositoryRecoveryCommand) {
+                    recoveryAttempts.incrementAndGet();
                     applyEntered.countDown();
                     return CompletableFuture.supplyAsync(() -> {
                         try {
@@ -679,22 +678,28 @@ class ZooKeeperCommandExecutorTest {
                                      Markup.PLAINTEXT,
                                      ImmutableList.of(Change.ofTextUpsert("/memo.txt", "v2")),
                                      "0123456789012345678901234567890123456789");
-            final CompletableFuture<Revision> recovery = replica.commandExecutor().execute(
+            final Command<Revision> recoveryCommand =
                     Command.applyRepositoryRecovery(Author.SYSTEM, "p", "r", 1, Revision.INIT,
-                                              new Revision(2), ImmutableList.of(commit)));
+                                                    new Revision(2), ImmutableList.of(commit));
+            final CompletableFuture<Revision> recoveryFuture =
+                    replica.commandExecutor().execute(recoveryCommand);
 
             try {
                 assertThat(applyEntered.await(10, TimeUnit.SECONDS)).isTrue();
-                final ReplicationLog<?> log = replica.commandExecutor().loadLog(0).log();
-                assertThat(log).isNotNull();
-                assertThat(log.command()).isInstanceOf(ApplyRepositoryRecoveryCommand.class);
-                assertThat(log.result()).isEqualTo(new Revision(2));
-                assertThat(recovery).isNotDone();
+                assertThatThrownBy(() -> replica.commandExecutor().loadLog(0))
+                        .hasRootCauseInstanceOf(NoNodeException.class);
+                assertThat(replica.existsLocalRevision()).isFalse();
+                assertThat(recoveryFuture).isNotDone();
             } finally {
                 proceed.countDown();
             }
-            assertThat(recovery.join()).isEqualTo(new Revision(2));
+            assertThat(recoveryFuture.join()).isEqualTo(new Revision(2));
+            final ReplicationLog<?> log = replica.commandExecutor().loadLog(0).log();
+            assertThat(log).isNotNull();
+            assertThat(log.command()).isEqualTo(recoveryCommand);
+            assertThat(log.result()).isEqualTo(new Revision(2));
             assertThat(replica.localRevision()).isEqualTo(0L);
+            assertThat(recoveryAttempts).hasValue(1);
         }
     }
 
@@ -741,16 +746,22 @@ class ZooKeeperCommandExecutorTest {
     }
 
     @Test
-    void rejectsARecoveryThatBecameStaleBeforePublishingItsLog() throws Exception {
-        final ProjectManager projectManager = mock(ProjectManager.class, RETURNS_DEEP_STUBS);
-        when(projectManager.get("p").repos().get("r").head())
-                .thenReturn(new RepositoryHead(new Revision(2), "commit", "tree"));
-        final RecoveryCommandFactory recoveryCommandFactory =
-                new RecoveryCommandFactory(projectManager);
+    void failedRecoveryIsNotPublished() throws Exception {
+        final AtomicInteger recoveryAttempts = new AtomicInteger();
+        final Supplier<Function<Command<?>, CompletableFuture<?>>> delegateSupplier = () -> {
+            final Function<Command<?>, CompletableFuture<?>> delegate = newMockDelegate();
+            return command -> {
+                if (command instanceof ApplyRepositoryRecoveryCommand) {
+                    recoveryAttempts.incrementAndGet();
+                    final CompletableFuture<Revision> future = new CompletableFuture<>();
+                    future.completeExceptionally(new IllegalStateException("failed to apply recovery"));
+                    return future;
+                }
+                return delegate.apply(command);
+            };
+        };
 
-        try (Cluster cluster = Cluster.builder().numReplicas(1)
-                                      .recoveryCommandFactorySupplier(() -> recoveryCommandFactory)
-                                      .build(ZooKeeperCommandExecutorTest::newMockDelegate)) {
+        try (Cluster cluster = Cluster.builder().numReplicas(1).build(delegateSupplier)) {
             final Replica replica = cluster.get(0);
             final ReplayCommit commit =
                     new ReplayCommit(new Revision(2), 1234L, Author.SYSTEM, "summary", "",
@@ -762,9 +773,11 @@ class ZooKeeperCommandExecutorTest {
                                               new Revision(2), ImmutableList.of(commit));
 
             assertThatThrownBy(() -> replica.commandExecutor().execute(recovery).join())
-                    .hasRootCauseInstanceOf(IllegalArgumentException.class)
-                    .hasStackTraceContaining("source head");
-            verify(replica.delegate(), never()).apply(any());
+                    .hasRootCauseInstanceOf(IllegalStateException.class)
+                    .hasStackTraceContaining("failed to apply recovery");
+            assertThatThrownBy(() -> replica.commandExecutor().loadLog(0))
+                    .hasRootCauseInstanceOf(NoNodeException.class);
+            assertThat(recoveryAttempts).hasValue(1);
             assertThat(replica.existsLocalRevision()).isFalse();
         }
     }
