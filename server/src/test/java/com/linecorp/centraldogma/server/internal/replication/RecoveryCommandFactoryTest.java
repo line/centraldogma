@@ -32,8 +32,8 @@ import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.server.command.ApplyRepositoryRecoveryCommand;
 import com.linecorp.centraldogma.server.command.Command;
-import com.linecorp.centraldogma.server.command.RecoverRepositoryCommand;
 import com.linecorp.centraldogma.server.command.ReplayCommit;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 import com.linecorp.centraldogma.server.storage.repository.RepositoryHead;
@@ -58,8 +58,8 @@ class RecoveryCommandFactoryTest {
         final Command<Revision> command = factory.blockingNewCommand(
                 Author.SYSTEM, "foo", "bar", 1, new Revision(3), new Revision(3), 3);
 
-        assertThat(command).isInstanceOf(RecoverRepositoryCommand.class);
-        final RecoverRepositoryCommand recoverCommand = (RecoverRepositoryCommand) command;
+        assertThat(command).isInstanceOf(ApplyRepositoryRecoveryCommand.class);
+        final ApplyRepositoryRecoveryCommand recoverCommand = (ApplyRepositoryRecoveryCommand) command;
         assertThat(recoverCommand.resetToRevision()).isEqualTo(new Revision(2));
         assertThat(recoverCommand.toRevision()).isEqualTo(new Revision(4));
         assertThat(recoverCommand.commits()).hasSize(2);
@@ -84,8 +84,9 @@ class RecoveryCommandFactoryTest {
                 .thenReturn(new RepositoryHead(new Revision(3), "commit", "tree"));
 
         final RecoveryCommandFactory factory = new RecoveryCommandFactory(projectManager);
-        final RecoverRepositoryCommand command = (RecoverRepositoryCommand) factory.blockingNewCommand(
-                Author.SYSTEM, "foo", "bar", 1, new Revision(3), new Revision(3), 5);
+        final ApplyRepositoryRecoveryCommand command =
+                (ApplyRepositoryRecoveryCommand) factory.blockingNewCommand(
+                        Author.SYSTEM, "foo", "bar", 1, new Revision(3), new Revision(3), 5);
 
         assertThat(command.toRevision()).isEqualTo(new Revision(6));
         assertThat(command.commits()).extracting(ReplayCommit::revision)

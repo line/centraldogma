@@ -68,8 +68,8 @@ import com.linecorp.centraldogma.server.storage.repository.Repository;
         @Type(value = UpdateProjectStatusCommand.class, name = "UPDATE_PROJECT_STATUS"),
         @Type(value = UpdateRepositoryStatusCommand.class, name = "UPDATE_REPOSITORY_STATUS"),
         @Type(value = ForcePushCommand.class, name = "FORCE_PUSH_COMMAND"),
-        @Type(value = RecoverRepositoryCommand.class, name = "RECOVER_REPOSITORY"),
-        @Type(value = RecoverRepositoryRequestCommand.class, name = "RECOVER_REPOSITORY_REQUEST"),
+        @Type(value = RequestRepositoryRecoveryCommand.class, name = "REQUEST_REPOSITORY_RECOVERY"),
+        @Type(value = ApplyRepositoryRecoveryCommand.class, name = "APPLY_REPOSITORY_RECOVERY"),
 })
 public interface Command<T> {
 
@@ -529,27 +529,28 @@ public interface Command<T> {
     }
 
     /**
-     * Returns a new {@link Command} which recovers a diverged repository from a source replica by resetting
-     * to {@code resetToRevision} and replaying {@code commits} up to {@code toRevision}. See
-     * {@link RecoverRepositoryCommand}.
+     * Returns a new {@link Command} which applies a repository recovery by resetting to
+     * {@code resetToRevision} and replaying {@code commits} up to {@code toRevision}.
      */
-    static Command<Revision> recoverRepository(Author author, String projectName, String repositoryName,
-                                               int sourceServerId, Revision resetToRevision,
-                                               Revision toRevision, Iterable<ReplayCommit> commits) {
+    static Command<Revision> applyRepositoryRecovery(Author author, String projectName,
+                                                     String repositoryName, int sourceServerId,
+                                                     Revision resetToRevision, Revision toRevision,
+                                                     Iterable<ReplayCommit> commits) {
         requireNonNull(author, "author");
         requireNonNull(projectName, "projectName");
         requireNonNull(repositoryName, "repositoryName");
         requireNonNull(resetToRevision, "resetToRevision");
         requireNonNull(toRevision, "toRevision");
         requireNonNull(commits, "commits");
-        return new RecoverRepositoryCommand(null, author, projectName, repositoryName, sourceServerId,
-                                            resetToRevision, toRevision, commits);
+        return new ApplyRepositoryRecoveryCommand(
+                null, author, projectName, repositoryName, sourceServerId,
+                resetToRevision, toRevision, commits);
     }
 
     /**
-     * Returns a new recovery request with the greatest repository head observed across the replicas.
+     * Returns a new {@link Command} which asks the source replica to originate a repository recovery.
      */
-    static Command<Void> recoverRepositoryRequest(Author author, String projectName, String repositoryName,
+    static Command<Void> requestRepositoryRecovery(Author author, String projectName, String repositoryName,
                                                   int sourceServerId,
                                                   Revision fromRevision, Revision toRevision,
                                                   int maxRevision) {
@@ -558,8 +559,9 @@ public interface Command<T> {
         requireNonNull(repositoryName, "repositoryName");
         requireNonNull(fromRevision, "fromRevision");
         requireNonNull(toRevision, "toRevision");
-        return new RecoverRepositoryRequestCommand(null, author, projectName, repositoryName,
-                                                   sourceServerId, fromRevision, toRevision, maxRevision);
+        return new RequestRepositoryRecoveryCommand(
+                null, author, projectName, repositoryName,
+                sourceServerId, fromRevision, toRevision, maxRevision);
     }
 
     /**

@@ -30,7 +30,7 @@ import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.Revision;
 
-class RecoverRepositoryCommandTest {
+class ApplyRepositoryRecoveryCommandTest {
 
     @Test
     void rejectsTooManyCommitsAtIngestion() {
@@ -39,12 +39,12 @@ class RecoverRepositoryCommandTest {
                                  ImmutableList.of(Change.ofTextUpsert("/memo.txt", "v2")),
                                  "0123456789012345678901234567890123456789");
 
-        assertThatThrownBy(() -> new RecoverRepositoryCommand(
+        assertThatThrownBy(() -> new ApplyRepositoryRecoveryCommand(
                 1234L, Author.SYSTEM, "foo", "bar", 1,
                 Revision.INIT, new Revision(2),
-                Collections.nCopies(RecoverRepositoryCommand.MAX_RECOVERY_COMMITS + 1, commit)))
+                Collections.nCopies(ApplyRepositoryRecoveryCommand.MAX_RECOVERY_COMMITS + 1, commit)))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("expected: <= " + RecoverRepositoryCommand.MAX_RECOVERY_COMMITS);
+                .hasMessageContaining("expected: <= " + ApplyRepositoryRecoveryCommand.MAX_RECOVERY_COMMITS);
     }
 
     @Test
@@ -54,12 +54,12 @@ class RecoverRepositoryCommandTest {
                                  ImmutableList.of(Change.ofTextUpsert("/memo.txt", "v2")),
                                  "0123456789012345678901234567890123456789");
 
-        assertThatThrownBy(() -> new RecoverRepositoryCommand(
+        assertThatThrownBy(() -> new ApplyRepositoryRecoveryCommand(
                 1234L, Author.SYSTEM, "foo", "bar", 1,
                 Revision.INIT, new Revision(100), ImmutableList.of(revision2)))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("toRevision");
-        assertThatThrownBy(() -> new RecoverRepositoryCommand(
+        assertThatThrownBy(() -> new ApplyRepositoryRecoveryCommand(
                 1234L, Author.SYSTEM, "foo", "bar", 1,
                 Revision.INIT, new Revision(2),
                 ImmutableList.of(new ReplayCommit(
@@ -74,7 +74,7 @@ class RecoverRepositoryCommandTest {
     @Test
     void testJsonConversion() {
         assertJsonConversion(
-                new RecoverRepositoryCommand(
+                new ApplyRepositoryRecoveryCommand(
                         1234L, Author.SYSTEM, "foo", "bar", 2,
                         new Revision(2), new Revision(4),
                         ImmutableList.of(
@@ -91,7 +91,7 @@ class RecoverRepositoryCommandTest {
                                                  "0123456789012345678901234567890123456789"))),
                 Command.class,
                 '{' +
-                "  \"type\": \"RECOVER_REPOSITORY\"," +
+                "  \"type\": \"APPLY_REPOSITORY_RECOVERY\"," +
                 "  \"timestamp\": 1234," +
                 "  \"author\": {" +
                 "    \"name\": \"system\"," +

@@ -245,13 +245,13 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
             return doExecute0(ctx, ((ForcePushCommand<T>) command).delegate());
         }
 
-        if (command instanceof RecoverRepositoryRequestCommand) {
+        if (command instanceof RequestRepositoryRecoveryCommand) {
             // Applied as a no-op on every replica; the source replica reacts to it in the ZooKeeper layer.
             return CompletableFuture.completedFuture(null);
         }
 
-        if (command instanceof RecoverRepositoryCommand) {
-            return (CompletableFuture<T>) recoverRepository((RecoverRepositoryCommand) command);
+        if (command instanceof ApplyRepositoryRecoveryCommand) {
+            return (CompletableFuture<T>) applyRepositoryRecovery((ApplyRepositoryRecoveryCommand) command);
         }
 
         throw new UnsupportedOperationException(command.toString());
@@ -442,7 +442,7 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
         return projectManager.get(c.projectName()).repos().get(c.repositoryName());
     }
 
-    private CompletableFuture<Revision> recoverRepository(RecoverRepositoryCommand c) {
+    private CompletableFuture<Revision> applyRepositoryRecovery(ApplyRepositoryRecoveryCommand c) {
         return CompletableFuture.supplyAsync(() -> {
             projectManager.get(c.projectName()).repos()
                           .recoverRepository(c.repositoryName(), c.resetToRevision(), c.commits());

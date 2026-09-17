@@ -54,7 +54,7 @@ import com.linecorp.centraldogma.common.Revision;
  * read-only failure blast radius) and is not rejected while the repository/project is read-only.
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
-public final class RecoverRepositoryCommand extends RepositoryCommand<Revision> {
+public final class ApplyRepositoryRecoveryCommand extends RepositoryCommand<Revision> {
 
     /**
      * The most revisions a single recovery may replay, including compatibility padding.
@@ -67,7 +67,7 @@ public final class RecoverRepositoryCommand extends RepositoryCommand<Revision> 
     private final List<ReplayCommit> commits;
 
     @JsonCreator
-    RecoverRepositoryCommand(@JsonProperty("timestamp") @Nullable Long timestamp,
+    ApplyRepositoryRecoveryCommand(@JsonProperty("timestamp") @Nullable Long timestamp,
                              @JsonProperty("author") @Nullable Author author,
                              @JsonProperty("projectName") String projectName,
                              @JsonProperty("repositoryName") String repositoryName,
@@ -75,7 +75,7 @@ public final class RecoverRepositoryCommand extends RepositoryCommand<Revision> 
                              @JsonProperty("resetToRevision") Revision resetToRevision,
                              @JsonProperty("toRevision") Revision toRevision,
                              @JsonProperty("commits") Iterable<ReplayCommit> commits) {
-        super(CommandType.RECOVER_REPOSITORY, timestamp, author, projectName, repositoryName);
+        super(CommandType.APPLY_REPOSITORY_RECOVERY, timestamp, author, projectName, repositoryName);
         this.sourceServerId = sourceServerId;
         this.resetToRevision = requireNonNull(resetToRevision, "resetToRevision");
         this.toRevision = requireNonNull(toRevision, "toRevision");
@@ -139,10 +139,10 @@ public final class RecoverRepositoryCommand extends RepositoryCommand<Revision> 
         if (this == obj) {
             return true;
         }
-        if (!(obj instanceof RecoverRepositoryCommand)) {
+        if (!(obj instanceof ApplyRepositoryRecoveryCommand)) {
             return false;
         }
-        final RecoverRepositoryCommand that = (RecoverRepositoryCommand) obj;
+        final ApplyRepositoryRecoveryCommand that = (ApplyRepositoryRecoveryCommand) obj;
         return super.equals(that) &&
                sourceServerId == that.sourceServerId &&
                resetToRevision.equals(that.resetToRevision) &&

@@ -187,7 +187,7 @@ class StandaloneCommandExecutorTest {
         executor.stop().join();
         executor.start().join();
 
-        executor.execute(Command.recoverRepository(
+        executor.execute(Command.applyRepositoryRecovery(
                 Author.SYSTEM, projectName, repoName, 0, Revision.INIT, new Revision(4),
                 recoveryCommits)).join();
         assertThat(repo.normalizeNow(Revision.HEAD)).isEqualTo(new Revision(4));

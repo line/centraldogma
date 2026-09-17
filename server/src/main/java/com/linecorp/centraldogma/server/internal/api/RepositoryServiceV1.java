@@ -346,7 +346,7 @@ public class RepositoryServiceV1 extends AbstractService {
 
         logger.info("Requesting a recovery of {}/{} from {} to {} to the source replica {}.",
                     projectName, repoName, fromRevision, toRevision, sourceServerId);
-        return execute(Command.recoverRepositoryRequest(author, projectName, repoName, sourceServerId,
+        return execute(Command.requestRepositoryRecovery(author, projectName, repoName, sourceServerId,
                                                         fromRevision, toRevision, maxRevision))
                 .thenApply(unused -> new RecoverRepositoryResponse(RecoveryStatus.REQUESTED,
                                                                    recoveryRevision));

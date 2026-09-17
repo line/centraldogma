@@ -57,8 +57,8 @@ import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.ShuttingDownException;
+import com.linecorp.centraldogma.server.command.ApplyRepositoryRecoveryCommand;
 import com.linecorp.centraldogma.server.command.CommitResult;
-import com.linecorp.centraldogma.server.command.RecoverRepositoryCommand;
 import com.linecorp.centraldogma.server.command.ReplayCommit;
 import com.linecorp.centraldogma.server.storage.StorageException;
 import com.linecorp.centraldogma.server.storage.encryption.EncryptionStorageManager;
@@ -221,10 +221,29 @@ class RecoverRepositoryTest {
         assertThat(mgr.recoverRepository(REPO, new Revision(2), firstPayload)).isTrue();
 
         final String recoveredTreeId = repo.head().treeId();
-        final List<ReplayCommit> secondPayload = withPaddingThrough(
-                mgr.buildRecoveryPayload(REPO, new Revision(5), new Revision(7)), new Revision(9));
-        assertThat(secondPayload.get(1).changes()).isEmpty();
-        assertThat(secondPayload.get(2).changes()).isEmpty();
+        final List<ReplayCommit> rawSecondPayload =
+                mgr.buildRecoveryPayload(REPO, new Revision(5), new Revision(7));
+        assertThat(rawSecondPayload).extracting(ReplayCommit::revision)
+                                    .containsExactly(new Revision(5), new Revision(6), new Revision(7));
+        final ReplayCommit sourceCommit = rawSecondPayload.get(0);
+        assertThat(sourceCommit.timestampMillis()).isEqualTo(5000L);
+        assertThat(sourceCommit.author()).isEqualTo(Author.SYSTEM);
+        assertThat(sourceCommit.summary()).isEqualTo("remove f");
+        assertThat(sourceCommit.detail()).isEqualTo("detail5");
+        assertThat(sourceCommit.markup()).isEqualTo(Markup.PLAINTEXT);
+        assertThat(sourceCommit.changes()).containsExactly(Change.ofRemoval("/f.txt"));
+        assertThat(sourceCommit.expectedTreeId()).isEqualTo(recoveredTreeId);
+        for (ReplayCommit padding : rawSecondPayload.subList(1, 3)) {
+            assertThat(padding.timestampMillis()).isZero();
+            assertThat(padding.author()).isEqualTo(Author.SYSTEM);
+            assertThat(padding.summary()).isEqualTo("Recovery padding");
+            assertThat(padding.detail()).isEmpty();
+            assertThat(padding.markup()).isEqualTo(Markup.PLAINTEXT);
+            assertThat(padding.changes()).isEmpty();
+            assertThat(padding.expectedTreeId()).isEqualTo(recoveredTreeId);
+        }
+        final List<ReplayCommit> secondPayload =
+                withPaddingThrough(rawSecondPayload, new Revision(9));
         repo.commit(new Revision(7), 8000L, Author.SYSTEM, "diverged again", "", Markup.PLAINTEXT,
                     ImmutableList.of(Change.ofTextUpsert("/g.txt", "diverged again")), false).join();
 
@@ -440,7 +459,7 @@ class RecoverRepositoryTest {
     void rejectsTooManyRevisions() {
         final GitRepositoryManager mgr = newRepositoryManager();
         final GitRepository repo = (GitRepository) mgr.create(REPO, Author.SYSTEM);
-        final int cap = RecoverRepositoryCommand.MAX_RECOVERY_COMMITS;
+        final int cap = ApplyRepositoryRecoveryCommand.MAX_RECOVERY_COMMITS;
         for (int i = 1; i <= cap + 1; i++) {
             repo.commit(new Revision(i), 1000L + i, Author.SYSTEM, "r" + i, "", Markup.PLAINTEXT,
                         ImmutableList.of(Change.ofTextUpsert("/f.txt", "v" + i)), false).join();

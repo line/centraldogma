@@ -32,13 +32,13 @@ import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Revision;
 
 /**
- * A {@link Command} which asks the source replica to originate a {@link RecoverRepositoryCommand}. It is
+ * A {@link Command} which asks the source replica to originate a {@link ApplyRepositoryRecoveryCommand}. It is
  * recorded by any replica that receives the recovery request and applied as a no-op on every replica; the
  * source replica reacts to it asynchronously by building and originating the actual
- * {@link RecoverRepositoryCommand}.
+ * {@link ApplyRepositoryRecoveryCommand}.
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
-public final class RecoverRepositoryRequestCommand extends RepositoryCommand<Void> {
+public final class RequestRepositoryRecoveryCommand extends RepositoryCommand<Void> {
 
     private final int sourceServerId;
     private final Revision fromRevision;
@@ -46,7 +46,7 @@ public final class RecoverRepositoryRequestCommand extends RepositoryCommand<Voi
     private final int maxRevision;
 
     @JsonCreator
-    RecoverRepositoryRequestCommand(@JsonProperty("timestamp") @Nullable Long timestamp,
+    RequestRepositoryRecoveryCommand(@JsonProperty("timestamp") @Nullable Long timestamp,
                                     @JsonProperty("author") @Nullable Author author,
                                     @JsonProperty("projectName") String projectName,
                                     @JsonProperty("repositoryName") String repositoryName,
@@ -54,7 +54,7 @@ public final class RecoverRepositoryRequestCommand extends RepositoryCommand<Voi
                                     @JsonProperty("fromRevision") Revision fromRevision,
                                     @JsonProperty("toRevision") Revision toRevision,
                                     @JsonProperty(value = "maxRevision", required = true) int maxRevision) {
-        super(CommandType.RECOVER_REPOSITORY_REQUEST, timestamp, author, projectName, repositoryName);
+        super(CommandType.REQUEST_REPOSITORY_RECOVERY, timestamp, author, projectName, repositoryName);
         this.sourceServerId = sourceServerId;
         this.fromRevision = requireNonNull(fromRevision, "fromRevision");
         this.toRevision = requireNonNull(toRevision, "toRevision");
@@ -63,9 +63,9 @@ public final class RecoverRepositoryRequestCommand extends RepositoryCommand<Voi
         checkArgument(maxRevision < Integer.MAX_VALUE,
                       "maxRevision: %s (expected: < %s)", maxRevision, Integer.MAX_VALUE);
         checkArgument((long) maxRevision - fromRevision.major() + 2 <=
-                      RecoverRepositoryCommand.MAX_RECOVERY_COMMITS,
+                      ApplyRepositoryRecoveryCommand.MAX_RECOVERY_COMMITS,
                       "recovery spans too many revisions (maximum: %s)",
-                      RecoverRepositoryCommand.MAX_RECOVERY_COMMITS);
+                      ApplyRepositoryRecoveryCommand.MAX_RECOVERY_COMMITS);
         this.maxRevision = maxRevision;
     }
 
@@ -106,10 +106,10 @@ public final class RecoverRepositoryRequestCommand extends RepositoryCommand<Voi
         if (this == obj) {
             return true;
         }
-        if (!(obj instanceof RecoverRepositoryRequestCommand)) {
+        if (!(obj instanceof RequestRepositoryRecoveryCommand)) {
             return false;
         }
-        final RecoverRepositoryRequestCommand that = (RecoverRepositoryRequestCommand) obj;
+        final RequestRepositoryRecoveryCommand that = (RequestRepositoryRecoveryCommand) obj;
         return super.equals(that) &&
                sourceServerId == that.sourceServerId &&
                fromRevision.equals(that.fromRevision) &&

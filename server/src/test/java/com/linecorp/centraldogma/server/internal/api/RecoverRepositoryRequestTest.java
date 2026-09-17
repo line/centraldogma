@@ -22,7 +22,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import org.junit.jupiter.api.Test;
 
 import com.linecorp.centraldogma.internal.Jackson;
-import com.linecorp.centraldogma.server.command.RecoverRepositoryCommand;
+import com.linecorp.centraldogma.server.command.ApplyRepositoryRecoveryCommand;
 
 class RecoverRepositoryRequestTest {
 
@@ -37,10 +37,10 @@ class RecoverRepositoryRequestTest {
     @Test
     void validatesCombinedReplayAndPaddingRevisions() {
         new RecoverRepositoryRequest(2, 3,
-                                     2 + RecoverRepositoryCommand.MAX_RECOVERY_COMMITS - 2, 1);
+                                     2 + ApplyRepositoryRecoveryCommand.MAX_RECOVERY_COMMITS - 2, 1);
 
         assertThatThrownBy(() -> new RecoverRepositoryRequest(
-                2, 3, 2 + RecoverRepositoryCommand.MAX_RECOVERY_COMMITS - 1, 1))
+                2, 3, 2 + ApplyRepositoryRecoveryCommand.MAX_RECOVERY_COMMITS - 1, 1))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("recovery");
     }

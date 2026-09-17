@@ -73,7 +73,7 @@ import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.api.v1.PushResultDto;
 import com.linecorp.centraldogma.internal.api.v1.RepositoryDto;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
-import com.linecorp.centraldogma.server.command.RecoverRepositoryCommand;
+import com.linecorp.centraldogma.server.command.ApplyRepositoryRecoveryCommand;
 import com.linecorp.centraldogma.server.credential.CreateCredentialRequest;
 import com.linecorp.centraldogma.server.internal.admin.auth.SessionUtil;
 import com.linecorp.centraldogma.server.internal.api.MetadataApiService.IdAndProjectRole;
@@ -348,13 +348,13 @@ class RepositoryServiceV1Test {
 
         // A range wider than the cap is refused by the request itself, so a recovery forwarded to the
         // source replica cannot be accepted with 200 only to die in that replica's log.
+        final int tooWideRevision = 2 + ApplyRepositoryRecoveryCommand.MAX_RECOVERY_COMMITS;
         final AggregatedHttpResponse tooWide =
                 systemAdminClient.blocking().prepare()
                                  .post(REPOS_PREFIX + '/' + repoName + "/recover")
                                  .content(MediaType.JSON, "{\"fromRevision\": 2, \"toRevision\": " +
-                                                          (2 + RecoverRepositoryCommand.MAX_RECOVERY_COMMITS) +
-                                                          ", \"maxRevision\": " +
-                                                          (2 + RecoverRepositoryCommand.MAX_RECOVERY_COMMITS) +
+                                                          tooWideRevision + ", \"maxRevision\": " +
+                                                          tooWideRevision +
                                                           ", \"sourceServerId\": 1}")
                                  .execute();
         assertThat(tooWide.status()).isEqualTo(HttpStatus.BAD_REQUEST);

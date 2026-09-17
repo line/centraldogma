@@ -38,8 +38,8 @@ import com.google.common.collect.ImmutableList;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Commit;
 import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.server.command.ApplyRepositoryRecoveryCommand;
 import com.linecorp.centraldogma.server.command.CommitResult;
-import com.linecorp.centraldogma.server.command.RecoverRepositoryCommand;
 import com.linecorp.centraldogma.server.command.ReplayCommit;
 import com.linecorp.centraldogma.server.storage.StorageException;
 import com.linecorp.centraldogma.server.storage.repository.DiffResultType;
@@ -188,9 +188,9 @@ final class RepositoryRecovery {
 
     private static void checkRecoveryRange(Revision resetToRevision, List<ReplayCommit> commits) {
         checkArgument(!commits.isEmpty(), "commits is empty (expected: the revisions to replay)");
-        checkArgument(commits.size() <= RecoverRepositoryCommand.MAX_RECOVERY_COMMITS,
+        checkArgument(commits.size() <= ApplyRepositoryRecoveryCommand.MAX_RECOVERY_COMMITS,
                       "commits: %s (expected: <= %s)", commits.size(),
-                      RecoverRepositoryCommand.MAX_RECOVERY_COMMITS);
+                      ApplyRepositoryRecoveryCommand.MAX_RECOVERY_COMMITS);
         checkArgument(!resetToRevision.isRelative() && resetToRevision.major() >= Revision.INIT.major(),
                       "resetToRevision: %s (expected: an absolute revision >= %s)",
                       resetToRevision, Revision.INIT);
@@ -290,7 +290,6 @@ final class RepositoryRecovery {
 
     private static List<ReplayCommit> buildPayload(GitRepository repo, String repoPath,
                                                    Revision fromRevision, Revision toRevision) {
-        final CommitIdDatabase commitIdDatabase = repo.commitIdDatabase();
         final Revision headRevision = repo.normalizeNow(Revision.HEAD);
         checkReplayRange(repoPath, fromRevision, toRevision, headRevision);
 
@@ -301,35 +300,29 @@ final class RepositoryRecovery {
 
         final ImmutableList.Builder<ReplayCommit> commits =
                 ImmutableList.builderWithExpectedSize(commitCount);
-        try (ObjectReader reader = repo.jGitRepository().newObjectReader();
-             RevWalk revWalk = newRevWalk(reader)) {
-            for (int i = from; i <= to; i++) {
-                final Revision revision = new Revision(i);
-                final org.eclipse.jgit.revwalk.RevCommit revCommit =
-                        revWalk.parseCommit(commitIdDatabase.get(revision));
-                revWalk.parseBody(revCommit);
-                final Commit commit = GitRepository.toCommit(revCommit);
-                final Map<String, Change<?>> changes =
-                        repo.blockingDiff(revision.backward(1), revision, Repository.ALL_PATH,
-                                          DiffResultType.PATCH_TO_TEXT_UPSERT);
-                final ReplayCommit replayCommit =
-                        new ReplayCommit(revision, commit.when(), commit.author(), commit.summary(),
-                                         commit.detail(), commit.markup(), changes.values(),
-                                         revCommit.getTree().getId().name());
-                commits.add(replayCommit);
-                revCommit.disposeBody();
-            }
-        } catch (IOException e) {
-            throw new StorageException("failed to build a recovery payload of " + repoPath, e);
+        final List<GitRepository.CommitWithTreeId> sourceCommits =
+                repo.readCommits(fromRevision, toRevision);
+        for (int i = 0; i < sourceCommits.size(); i++) {
+            final GitRepository.CommitWithTreeId sourceCommit = sourceCommits.get(i);
+            final Commit commit = sourceCommit.commit();
+            final Revision revision = fromRevision.forward(i);
+            final Map<String, Change<?>> changes =
+                    repo.blockingDiff(revision.backward(1), revision, Repository.ALL_PATH,
+                                      DiffResultType.PATCH_TO_TEXT_UPSERT);
+            final ReplayCommit replayCommit =
+                    new ReplayCommit(revision, commit.when(), commit.author(), commit.summary(),
+                                     commit.detail(), commit.markup(), changes.values(),
+                                     sourceCommit.treeId());
+            commits.add(replayCommit);
         }
         return commits.build();
     }
 
     private static void checkCommitCount(String name, int commitCount) {
-        if (commitCount > RecoverRepositoryCommand.MAX_RECOVERY_COMMITS) {
+        if (commitCount > ApplyRepositoryRecoveryCommand.MAX_RECOVERY_COMMITS) {
             throw new IllegalArgumentException(
                     "the recovery of " + name + " spans too many revisions: " + commitCount +
-                    " (maximum: " + RecoverRepositoryCommand.MAX_RECOVERY_COMMITS +
+                    " (maximum: " + ApplyRepositoryRecoveryCommand.MAX_RECOVERY_COMMITS +
                     "). Narrow the range.");
         }
     }

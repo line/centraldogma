@@ -26,15 +26,15 @@ import com.google.common.collect.ImmutableList;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.server.command.ApplyRepositoryRecoveryCommand;
 import com.linecorp.centraldogma.server.command.Command;
-import com.linecorp.centraldogma.server.command.RecoverRepositoryCommand;
-import com.linecorp.centraldogma.server.command.RecoverRepositoryRequestCommand;
 import com.linecorp.centraldogma.server.command.ReplayCommit;
+import com.linecorp.centraldogma.server.command.RequestRepositoryRecoveryCommand;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 import com.linecorp.centraldogma.server.storage.repository.RepositoryManager;
 
 /**
- * Creates a self-contained {@link RecoverRepositoryCommand} from the local storage. Invoked only on the
+ * Creates a self-contained {@link ApplyRepositoryRecoveryCommand} from the local storage. Invoked only on the
  * source replica of a recovery, whose repository is the single source of truth.
  */
 public final class RecoveryCommandFactory {
@@ -51,7 +51,7 @@ public final class RecoveryCommandFactory {
         this.projectManager = requireNonNull(projectManager, "projectManager");
     }
 
-    Command<Revision> blockingNewCommand(RecoverRepositoryRequestCommand request) {
+    Command<Revision> blockingNewCommand(RequestRepositoryRecoveryCommand request) {
         requireNonNull(request, "request");
         return blockingNewCommand(request.author(), request.projectName(), request.repositoryName(),
                                   request.sourceServerId(), request.fromRevision(), request.toRevision(),
@@ -78,9 +78,9 @@ public final class RecoveryCommandFactory {
                     ": source head " + sourceHead + " exceeds maxRevision " + maxRevision);
         }
         final long recoveryCommitCount = (long) maxRevision - fromRevision.major() + 2;
-        checkArgument(recoveryCommitCount <= RecoverRepositoryCommand.MAX_RECOVERY_COMMITS,
+        checkArgument(recoveryCommitCount <= ApplyRepositoryRecoveryCommand.MAX_RECOVERY_COMMITS,
                       "recovery spans too many revisions: %s (maximum: %s)", recoveryCommitCount,
-                      RecoverRepositoryCommand.MAX_RECOVERY_COMMITS);
+                      ApplyRepositoryRecoveryCommand.MAX_RECOVERY_COMMITS);
         final List<ReplayCommit> sourceCommits =
                 repositories.buildRecoveryPayload(repositoryName, fromRevision, toRevision);
         final Revision recoveryRevision = new Revision(maxRevision + 1);
@@ -98,11 +98,11 @@ public final class RecoveryCommandFactory {
                 break;
             }
         }
-        return Command.recoverRepository(author, projectName, repositoryName, sourceServerId,
+        return Command.applyRepositoryRecovery(author, projectName, repositoryName, sourceServerId,
                                          fromRevision.backward(1), recoveryRevision, commits.build());
     }
 
-    void validateRecoveryRevision(RecoverRepositoryCommand command) {
+    void validateRecoveryRevision(ApplyRepositoryRecoveryCommand command) {
         final Revision currentHead = projectManager.get(command.projectName()).repos()
                                                      .get(command.repositoryName()).head().revision();
         if (currentHead.compareTo(command.toRevision()) >= 0) {

@@ -73,6 +73,7 @@ import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.ReadOnlyException;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.server.command.ApplyRepositoryRecoveryCommand;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandType;
 import com.linecorp.centraldogma.server.command.CommitResult;
@@ -80,7 +81,6 @@ import com.linecorp.centraldogma.server.command.ContentTransformer;
 import com.linecorp.centraldogma.server.command.ForcePushCommand;
 import com.linecorp.centraldogma.server.command.NormalizingPushCommand;
 import com.linecorp.centraldogma.server.command.PushAsIsCommand;
-import com.linecorp.centraldogma.server.command.RecoverRepositoryCommand;
 import com.linecorp.centraldogma.server.command.ReplayCommit;
 import com.linecorp.centraldogma.server.command.TransformCommand;
 import com.linecorp.centraldogma.server.management.ServerStatus;
@@ -657,7 +657,7 @@ class ZooKeeperCommandExecutorTest {
         final Supplier<Function<Command<?>, CompletableFuture<?>>> delegateSupplier = () -> {
             final Function<Command<?>, CompletableFuture<?>> base = newMockDelegate();
             return command -> {
-                if (command instanceof RecoverRepositoryCommand) {
+                if (command instanceof ApplyRepositoryRecoveryCommand) {
                     applyEntered.countDown();
                     return CompletableFuture.supplyAsync(() -> {
                         try {
@@ -665,7 +665,7 @@ class ZooKeeperCommandExecutorTest {
                         } catch (InterruptedException e) {
                             throw new RuntimeException(e);
                         }
-                        return ((RecoverRepositoryCommand) command).toRevision();
+                        return ((ApplyRepositoryRecoveryCommand) command).toRevision();
                     }, CommonPools.blockingTaskExecutor());
                 }
                 return base.apply(command);
@@ -680,14 +680,14 @@ class ZooKeeperCommandExecutorTest {
                                      ImmutableList.of(Change.ofTextUpsert("/memo.txt", "v2")),
                                      "0123456789012345678901234567890123456789");
             final CompletableFuture<Revision> recovery = replica.commandExecutor().execute(
-                    Command.recoverRepository(Author.SYSTEM, "p", "r", 1, Revision.INIT,
+                    Command.applyRepositoryRecovery(Author.SYSTEM, "p", "r", 1, Revision.INIT,
                                               new Revision(2), ImmutableList.of(commit)));
 
             try {
                 assertThat(applyEntered.await(10, TimeUnit.SECONDS)).isTrue();
                 final ReplicationLog<?> log = replica.commandExecutor().loadLog(0).log();
                 assertThat(log).isNotNull();
-                assertThat(log.command()).isInstanceOf(RecoverRepositoryCommand.class);
+                assertThat(log.command()).isInstanceOf(ApplyRepositoryRecoveryCommand.class);
                 assertThat(log.result()).isEqualTo(new Revision(2));
                 assertThat(recovery).isNotDone();
             } finally {
@@ -712,7 +712,7 @@ class ZooKeeperCommandExecutorTest {
                 new ReplayCommit(recoveryRevision, 0, Author.SYSTEM, "Recovery padding", "",
                                  Markup.PLAINTEXT, ImmutableList.of(), commit.expectedTreeId());
         final Command<Revision> recovery =
-                Command.recoverRepository(Author.SYSTEM, "p", "r", 1, Revision.INIT,
+                Command.applyRepositoryRecovery(Author.SYSTEM, "p", "r", 1, Revision.INIT,
                                           recoveryRevision, ImmutableList.of(commit, padding));
         final RecoveryCommandFactory factory = mock(RecoveryCommandFactory.class);
         when(factory.blockingNewCommand(any())).thenReturn(recovery);
@@ -727,7 +727,7 @@ class ZooKeeperCommandExecutorTest {
                                       .build(delegateSupplier)) {
             final Replica source = cluster.get(0);
             final Replica origin = throughNonSource ? cluster.get(1) : source;
-            origin.commandExecutor().execute(Command.recoverRepositoryRequest(
+            origin.commandExecutor().execute(Command.requestRepositoryRecovery(
                     Author.SYSTEM, "p", "r", source.commandExecutor().replicaId(),
                     new Revision(2), new Revision(2), 2)).get(10, TimeUnit.SECONDS);
 
@@ -758,7 +758,7 @@ class ZooKeeperCommandExecutorTest {
                                      ImmutableList.of(Change.ofTextUpsert("/memo.txt", "v2")),
                                      "0123456789012345678901234567890123456789");
             final Command<Revision> recovery =
-                    Command.recoverRepository(Author.SYSTEM, "p", "r", 1, Revision.INIT,
+                    Command.applyRepositoryRecovery(Author.SYSTEM, "p", "r", 1, Revision.INIT,
                                               new Revision(2), ImmutableList.of(commit));
 
             assertThatThrownBy(() -> replica.commandExecutor().execute(recovery).join())

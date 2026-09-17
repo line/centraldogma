@@ -87,6 +87,7 @@ import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.ZooKeeperReplicationConfig;
 import com.linecorp.centraldogma.server.ZooKeeperServerConfig;
 import com.linecorp.centraldogma.server.command.AbstractCommandExecutor;
+import com.linecorp.centraldogma.server.command.ApplyRepositoryRecoveryCommand;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.command.CommandType;
@@ -95,9 +96,8 @@ import com.linecorp.centraldogma.server.command.ExecutionContext;
 import com.linecorp.centraldogma.server.command.ForcePushCommand;
 import com.linecorp.centraldogma.server.command.NormalizableCommit;
 import com.linecorp.centraldogma.server.command.ProjectCommand;
-import com.linecorp.centraldogma.server.command.RecoverRepositoryCommand;
-import com.linecorp.centraldogma.server.command.RecoverRepositoryRequestCommand;
 import com.linecorp.centraldogma.server.command.RepositoryCommand;
+import com.linecorp.centraldogma.server.command.RequestRepositoryRecoveryCommand;
 import com.linecorp.centraldogma.server.command.UpdateServerStatusCommand;
 import com.linecorp.centraldogma.server.internal.command.DefaultExecutionContext;
 import com.linecorp.centraldogma.server.management.ServerStatus;
@@ -852,7 +852,8 @@ public final class ZooKeeperCommandExecutor
                 final Object expectedResult = l.result();
                 // An interrupt here would split the local apply from updateLastReplayedRevision() below.
                 final Object actualResult;
-                if (command instanceof RecoverRepositoryRequestCommand) {
+                if (command instanceof RequestRepositoryRecoveryCommand) {
+                    // The source handles the request after this replay revision is recorded below.
                     actualResult = null;
                 } else {
                     actualResult =
@@ -871,8 +872,8 @@ public final class ZooKeeperCommandExecutor
                 if (command instanceof UpdateServerStatusCommand) {
                     updateZkCommandStatusLater((UpdateServerStatusCommand) command);
                 }
-                if (command instanceof RecoverRepositoryRequestCommand) {
-                    reactToRecoveryRequestLater((RecoverRepositoryRequestCommand) command);
+                if (command instanceof RequestRepositoryRecoveryCommand) {
+                    reactToRecoveryRequestLater((RequestRepositoryRecoveryCommand) command);
                 }
             } catch (Throwable t) {
                 try {
@@ -925,11 +926,11 @@ public final class ZooKeeperCommandExecutor
     }
 
     /**
-     * Reacts after a {@link RecoverRepositoryRequestCommand} is recorded. Only the source replica builds and
+     * Reacts after a {@link RequestRepositoryRecoveryCommand} is recorded. Only the source replica builds and
      * originates the self-contained recovery command. The work is submitted so the current request or replay
      * can finish before recovery origination uses the command executor again.
      */
-    private void reactToRecoveryRequestLater(RecoverRepositoryRequestCommand command) {
+    private void reactToRecoveryRequestLater(RequestRepositoryRecoveryCommand command) {
         if (command.sourceServerId() != replicaId()) {
             return;
         }
@@ -1329,9 +1330,9 @@ public final class ZooKeeperCommandExecutor
 
                 timings.startCommandExecution();
                 final T result;
-                if (command instanceof RecoverRepositoryCommand) {
-                    final RecoverRepositoryCommand recovery =
-                            (RecoverRepositoryCommand) command;
+                if (command instanceof ApplyRepositoryRecoveryCommand) {
+                    final ApplyRepositoryRecoveryCommand recovery =
+                            (ApplyRepositoryRecoveryCommand) command;
                     final ReplicationLog<Revision> log =
                             new ReplicationLog<>(replicaId(), recovery, recovery.toRevision());
                     final long revision;
@@ -1384,8 +1385,8 @@ public final class ZooKeeperCommandExecutor
                     timings.endLogStore();
                 }
 
-                if (command instanceof RecoverRepositoryRequestCommand) {
-                    reactToRecoveryRequestLater((RecoverRepositoryRequestCommand) command);
+                if (command instanceof RequestRepositoryRecoveryCommand) {
+                    reactToRecoveryRequestLater((RequestRepositoryRecoveryCommand) command);
                 }
 
                 // Update the ServerStatus to the CommandExecutor after the log is stored.

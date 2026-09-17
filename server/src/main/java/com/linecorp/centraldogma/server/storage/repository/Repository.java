@@ -87,12 +87,8 @@ public interface Repository {
      * Returns the head of this repository: its head {@link Revision} together with the ID of the commit
      * that revision points at, read as one so the two always describe the same commit. Blocks while a
      * recovery rewrites the repository, then returns the new head.
-     *
-     * @throws UnsupportedOperationException if this implementation does not support repository recovery
      */
-    default RepositoryHead head() {
-        throw new UnsupportedOperationException("repository head is not supported");
-    }
+    RepositoryHead head();
 
     /**
      * Returns the generation of this repository's cached results. It changes whenever the history is
@@ -100,16 +96,12 @@ public interface Repository {
      * different content, which makes everything derived from an earlier generation wrong. Appending a
      * commit does not change it. Cache keys must include this value; nothing else should depend on it.
      */
-    default int cacheGeneration() {
-        return 0;
-    }
+    int cacheGeneration();
 
     /**
      * Returns the final revision of the last recovery applied to this repository.
      */
-    default Revision lastRecoveryRevision() {
-        return Revision.INIT;
-    }
+    Revision lastRecoveryRevision();
 
     /**
      * Returns the parent {@link Project} of this {@link Repository}.

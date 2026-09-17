@@ -33,9 +33,10 @@ import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.Revision;
 
 /**
- * A single commit replayed onto a diverged replica during a {@link RecoverRepositoryCommand}. It carries the
- * original commit metadata and a self-contained set of {@link Change}s so that every replica reconstructs
- * the source's content - and thus the source's tree - when it is applied on top of the previous revision.
+ * A single commit replayed onto a diverged replica during an {@link ApplyRepositoryRecoveryCommand}. It
+ * carries the original commit metadata and a self-contained set of {@link Change}s so that every replica
+ * reconstructs the source's content - and thus the source's tree - when it is applied on top of the previous
+ * revision.
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public final class ReplayCommit {

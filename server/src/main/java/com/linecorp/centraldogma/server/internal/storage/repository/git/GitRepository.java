@@ -607,7 +607,60 @@ class GitRepository implements Repository {
         }
     }
 
-    static Commit toCommit(RevCommit revCommit) {
+    List<CommitWithTreeId> readCommits(Revision fromRevision, Revision toRevision) {
+        requireNonNull(fromRevision, "fromRevision");
+        requireNonNull(toRevision, "toRevision");
+        readLock();
+        try (RevWalk revWalk = newRevWalk()) {
+            final Revision from = normalizeNow(fromRevision);
+            final Revision to = normalizeNow(toRevision);
+            if (from.compareTo(to) > 0) {
+                throw new IllegalArgumentException(
+                        "fromRevision: " + fromRevision + " (expected: <= " + toRevision + ')');
+            }
+
+            final ImmutableList.Builder<CommitWithTreeId> commits =
+                    ImmutableList.builderWithExpectedSize(to.major() - from.major() + 1);
+            for (int i = from.major(); i <= to.major(); i++) {
+                final Revision revision = new Revision(i);
+                final RevCommit revCommit = revWalk.parseCommit(commitIdDatabase.get(revision));
+                revWalk.parseBody(revCommit);
+                commits.add(new CommitWithTreeId(toCommit(revCommit),
+                                                 revCommit.getTree().getId().name()));
+                revCommit.disposeBody();
+            }
+            return commits.build();
+        } catch (CentralDogmaException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new StorageException(
+                    "failed to read commits: " + parent.name() + '/' + name +
+                    " (" + fromRevision + ".." + toRevision + ')', e);
+        } finally {
+            readUnlock();
+        }
+    }
+
+    static final class CommitWithTreeId {
+
+        private final Commit commit;
+        private final String treeId;
+
+        CommitWithTreeId(Commit commit, String treeId) {
+            this.commit = commit;
+            this.treeId = treeId;
+        }
+
+        Commit commit() {
+            return commit;
+        }
+
+        String treeId() {
+            return treeId;
+        }
+    }
+
+    private static Commit toCommit(RevCommit revCommit) {
         final Author author;
         final PersonIdent committerIdent = revCommit.getCommitterIdent();
         final long when;

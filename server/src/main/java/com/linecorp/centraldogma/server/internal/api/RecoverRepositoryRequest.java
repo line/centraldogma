@@ -25,7 +25,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects;
 
-import com.linecorp.centraldogma.server.command.RecoverRepositoryCommand;
+import com.linecorp.centraldogma.server.command.ApplyRepositoryRecoveryCommand;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 public final class RecoverRepositoryRequest {
@@ -43,18 +43,18 @@ public final class RecoverRepositoryRequest {
         checkArgument(fromRevision >= 2, "fromRevision: %s (expected: >= 2)", fromRevision);
         checkArgument(toRevision >= fromRevision,
                       "toRevision: %s (expected: >= fromRevision %s)", toRevision, fromRevision);
-        checkArgument(toRevision - fromRevision + 1 <= RecoverRepositoryCommand.MAX_RECOVERY_COMMITS,
+        checkArgument(toRevision - fromRevision + 1 <= ApplyRepositoryRecoveryCommand.MAX_RECOVERY_COMMITS,
                       "%s..%s spans too many revisions (maximum: %s). Narrow the range.",
-                      fromRevision, toRevision, RecoverRepositoryCommand.MAX_RECOVERY_COMMITS);
+                      fromRevision, toRevision, ApplyRepositoryRecoveryCommand.MAX_RECOVERY_COMMITS);
         checkArgument(sourceServerId > 0, "sourceServerId: %s (expected: > 0)", sourceServerId);
         checkArgument(maxRevision >= toRevision,
                       "maxRevision: %s (expected: >= toRevision %s)", maxRevision, toRevision);
         checkArgument(maxRevision < Integer.MAX_VALUE,
                       "maxRevision: %s (expected: < %s)", maxRevision, Integer.MAX_VALUE);
         checkArgument((long) maxRevision - fromRevision + 2 <=
-                      RecoverRepositoryCommand.MAX_RECOVERY_COMMITS,
+                      ApplyRepositoryRecoveryCommand.MAX_RECOVERY_COMMITS,
                       "recovery spans too many revisions (maximum: %s)",
-                      RecoverRepositoryCommand.MAX_RECOVERY_COMMITS);
+                      ApplyRepositoryRecoveryCommand.MAX_RECOVERY_COMMITS);
         this.fromRevision = fromRevision;
         this.toRevision = toRevision;
         this.sourceServerId = sourceServerId;
