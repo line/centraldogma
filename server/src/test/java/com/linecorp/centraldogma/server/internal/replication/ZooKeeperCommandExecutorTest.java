@@ -47,6 +47,8 @@ import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
+import org.apache.curator.framework.recipes.cache.ChildData;
+import org.apache.curator.framework.recipes.cache.PathChildrenCacheEvent;
 import org.apache.zookeeper.KeeperException.NoNodeException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
@@ -636,6 +638,7 @@ class ZooKeeperCommandExecutorTest {
             replica.commandExecutor().execute(command1).join();
             replica.commandExecutor().execute(command2).join();
             replica.commandExecutor().execute(command3).join();
+            notifyLogAdded(replica, 2);
 
             // Progress advances contiguously and each command is applied exactly once.
             await().untilAsserted(() -> assertThat(replica.localRevision()).isEqualTo(2L));
@@ -698,9 +701,17 @@ class ZooKeeperCommandExecutorTest {
             assertThat(log).isNotNull();
             assertThat(log.command()).isEqualTo(recoveryCommand);
             assertThat(log.result()).isEqualTo(new Revision(2));
+            notifyLogAdded(replica, 0);
             assertThat(replica.localRevision()).isEqualTo(0L);
             assertThat(recoveryAttempts).hasValue(1);
         }
+    }
+
+    private static void notifyLogAdded(Replica replica, long revision) throws Exception {
+        final String path = String.format("/dogma/logs/%010d", revision);
+        replica.commandExecutor().childEvent(
+                null, new PathChildrenCacheEvent(PathChildrenCacheEvent.Type.CHILD_ADDED,
+                                                 new ChildData(path, null, null)));
     }
 
     @ParameterizedTest
