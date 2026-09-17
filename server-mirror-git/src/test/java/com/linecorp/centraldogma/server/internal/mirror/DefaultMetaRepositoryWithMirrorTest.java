@@ -248,6 +248,95 @@ class DefaultMetaRepositoryWithMirrorTest {
     }
 
     @Test
+    void repoLevelCredentialForOwnRepo_isAccepted() {
+        // A mirror may reference a repository-level credential that belongs to its own repository.
+        final String aliceCredential = credentialName(project.name(), "foo", "alice");
+        final List<Change<?>> changes = ImmutableList.of(
+                Change.ofJsonUpsert(
+                        "/repos/foo/mirrors/foo.json",
+                        '{' +
+                        "  \"id\": \"foo\"," +
+                        "  \"enabled\": true," +
+                        "  \"schedule\": \"" + DEFAULT_SCHEDULE + "\"," +
+                        "  \"direction\": \"LOCAL_TO_REMOTE\"," +
+                        "  \"localRepo\": \"foo\"," +
+                        "  \"remoteUri\": \"git+ssh://foo.com/foo.git\"," +
+                        "  \"credentialName\": \"" + aliceCredential + '"' +
+                        '}'),
+                rawCredential(aliceCredential, "alice"));
+        metaRepo.commit(Revision.HEAD, 0, Author.SYSTEM, "", changes).join();
+        project.repos().create("foo", Author.SYSTEM);
+
+        final List<Mirror> mirrors = findMirrors();
+        assertThat(mirrors).hasSize(1);
+        assertThat(mirrors.get(0).credential()).isInstanceOf(SshKeyCredential.class);
+        assertThat(((SshKeyCredential) mirrors.get(0).credential()).username()).isEqualTo("alice");
+        // The single-mirror lookup should also succeed.
+        assertThatCode(() -> metaRepo.mirror("foo", "foo").join()).doesNotThrowAnyException();
+    }
+
+    @Test
+    void repoLevelCredentialForAnotherRepo_isRejected() {
+        // A repository-level credential that belongs to the 'bar' repository.
+        final String barCredential = credentialName(project.name(), "bar", "alice");
+        // A mirror in the 'foo' repository must not be able to use it, even when written directly via the
+        // low-level commit API which bypasses the MirrorRequest validation.
+        final List<Change<?>> changes = ImmutableList.of(
+                Change.ofJsonUpsert(
+                        "/repos/foo/mirrors/foo.json",
+                        '{' +
+                        "  \"id\": \"foo\"," +
+                        "  \"enabled\": true," +
+                        "  \"schedule\": \"" + DEFAULT_SCHEDULE + "\"," +
+                        "  \"direction\": \"LOCAL_TO_REMOTE\"," +
+                        "  \"localRepo\": \"foo\"," +
+                        "  \"remoteUri\": \"git+ssh://foo.com/foo.git\"," +
+                        "  \"credentialName\": \"" + barCredential + '"' +
+                        '}'),
+                rawCredential(barCredential, "alice"));
+        metaRepo.commit(Revision.HEAD, 0, Author.SYSTEM, "", changes).join();
+        project.repos().create("foo", Author.SYSTEM);
+        project.repos().create("bar", Author.SYSTEM);
+
+        // The bad mirror is skipped when loading all mirrors, ...
+        assertThat(metaRepo.mirrors().join()).isEmpty();
+        // ... and the single-mirror lookup surfaces the scope violation.
+        assertThatThrownBy(() -> metaRepo.mirror("foo", "foo").join())
+                .isInstanceOf(CompletionException.class)
+                .hasCauseInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("repoName and credentialName do not match");
+    }
+
+    @Test
+    void projectLevelCredentialForAnotherProject_isRejected() {
+        // A project-level credential whose name points to a different project must be rejected.
+        // The credential file physically lives at '/credentials/alice.json' in this project's meta
+        // repository, but its embedded name claims to belong to 'other-project'.
+        final String otherProjectCredential = credentialName("other-project", "alice");
+        final List<Change<?>> changes = ImmutableList.of(
+                Change.ofJsonUpsert(
+                        "/repos/foo/mirrors/foo.json",
+                        '{' +
+                        "  \"id\": \"foo\"," +
+                        "  \"enabled\": true," +
+                        "  \"schedule\": \"" + DEFAULT_SCHEDULE + "\"," +
+                        "  \"direction\": \"LOCAL_TO_REMOTE\"," +
+                        "  \"localRepo\": \"foo\"," +
+                        "  \"remoteUri\": \"git+ssh://foo.com/foo.git\"," +
+                        "  \"credentialName\": \"" + otherProjectCredential + '"' +
+                        '}'),
+                rawCredential(otherProjectCredential, "alice"));
+        metaRepo.commit(Revision.HEAD, 0, Author.SYSTEM, "", changes).join();
+        project.repos().create("foo", Author.SYSTEM);
+
+        assertThat(metaRepo.mirrors().join()).isEmpty();
+        assertThatThrownBy(() -> metaRepo.mirror("foo", "foo").join())
+                .isInstanceOf(CompletionException.class)
+                .hasCauseInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("projectName and credentialName do not match");
+    }
+
+    @Test
     void xdsMirrorWithNonRootLocalPath_isRejected() {
         final MirrorRequest badMirror = new MirrorRequest(
                 "xds-mirror", true, INTERNAL_PROJECT_XDS, DEFAULT_SCHEDULE, "REMOTE_TO_LOCAL", "some-group",
@@ -298,6 +387,19 @@ class DefaultMetaRepositoryWithMirrorTest {
                         "  \"publicKey\": \"ssh-rsa BBBB\"," +
                         "  \"privateKey\": \"" + dummyKey + '"' +
                         '}'));
+    }
+
+    private static Change<?> rawCredential(String credentialName, String username) {
+        final String dummyKey = "-----BEGIN RSA PRIVATE KEY-----\\ntest\\n-----END RSA PRIVATE KEY-----";
+        return Change.ofJsonUpsert(
+                credentialFile(credentialName),
+                '{' +
+                "  \"name\": \"" + credentialName + "\"," +
+                "  \"type\": \"SSH_KEY\"," +
+                "  \"username\": \"" + username + "\"," +
+                "  \"publicKey\": \"ssh-rsa AAAA\"," +
+                "  \"privateKey\": \"" + dummyKey + '"' +
+                '}');
     }
 
     private static List<Credential> credentials(String projectName) {

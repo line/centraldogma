@@ -13,6 +13,7 @@ import { Loading } from 'dogma/common/components/Loading';
 import Head from 'next/head';
 import { useAppSelector } from 'dogma/hooks';
 import { ServerConfigLoader } from 'dogma/features/server-config/ServerConfigLoader';
+import { useMonacoPrefetch } from 'dogma/features/file/MonacoLoader';
 
 const WEB_AUTH_LOGIN = '/web/auth/login';
 
@@ -33,6 +34,11 @@ function GlobalCsrfMetaTag() {
 let urlRewrite = false;
 const DogmaApp = ({ Component, pageProps }: AppPropsWithLayout) => {
   const router = useRouter();
+  // Prefetch the Monaco editor bundle during idle time (skipped on the login page) so the first file
+  // view opens instantly instead of blocking on a multi-megabyte download. Gated on `router.isReady` so
+  // the decision uses the resolved pathname and never schedules a prefetch on the login page during the
+  // pre-hydration window when `router.pathname` may not yet be settled.
+  useMonacoPrefetch(router.isReady && router.pathname !== WEB_AUTH_LOGIN);
   if (!router.isReady) {
     return <Loading />;
   }

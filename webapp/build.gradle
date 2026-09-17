@@ -46,6 +46,7 @@ tasks.register('buildWeb', NpmTask) {
     inputs.file('package.json')
     inputs.file('package-lock.json')
     inputs.file('next.config.js')
+    inputs.file('scripts/compress-static.mjs')
 
     outputs.dir('build/web')
 }

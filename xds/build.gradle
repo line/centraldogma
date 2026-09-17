@@ -5,15 +5,23 @@ dependencies {
     implementation libs.kubernetes.client.impl
 
     implementation libs.armeria.grpc
-    implementation libs.controlplane.cache
-    implementation libs.controlplane.server
+    // The Envoy proto types (io.envoyproxy.envoy.*) are provided by armeria-xds-api rather than
+    // java-control-plane's own 'api' artifact, so Central Dogma parses and serves resources against the
+    // same (Armeria-customized, evolving) schema that the Armeria xDS stack uses. java-control-plane's
+    // cache/server run against these classes; their transitive controlplane:api is excluded to keep a
+    // single io.envoyproxy.envoy provider on the classpath (both jars ship the same FQCNs).
+    implementation libs.armeria.xds.api
+    implementation(libs.controlplane.cache) {
+        exclude group: 'io.envoyproxy.controlplane', module: 'api'
+    }
+    implementation(libs.controlplane.server) {
+        exclude group: 'io.envoyproxy.controlplane', module: 'api'
+    }
 
     implementation libs.reflections
 
     testImplementation libs.armeria.junit5
-    testImplementation (libs.armeria.xds) {
-        exclude group: 'com.linecorp.armeria', module: 'armeria-xds-api'
-    }
+    testImplementation libs.armeria.xds
     testImplementation libs.kubernetes.server.mock
     testImplementation libs.kubernetes.junit.jupiter
     testImplementation libs.logback15
