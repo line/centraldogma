@@ -45,7 +45,9 @@ final class ClusterBuilder {
     private ToIntBiFunction<Integer, Integer> weightMappingFunction = (groupId, serverId) -> 1;
     private int numReplicas = 5;
     private int numGroups = 1;
+    private int numWorkers = 16;
     private boolean autoStart = true;
+    private Supplier<RecoveryCommandFactory> recoveryCommandFactorySupplier;
 
     ClusterBuilder numReplicas(int numReplicas) {
         this.numReplicas = numReplicas;
@@ -59,6 +61,18 @@ final class ClusterBuilder {
 
     ClusterBuilder autoStart(boolean autoStart) {
         this.autoStart = autoStart;
+        return this;
+    }
+
+    ClusterBuilder numWorkers(int numWorkers) {
+        this.numWorkers = numWorkers;
+        return this;
+    }
+
+    ClusterBuilder recoveryCommandFactorySupplier(
+            Supplier<RecoveryCommandFactory> recoveryCommandFactorySupplier) {
+        this.recoveryCommandFactorySupplier =
+                requireNonNull(recoveryCommandFactorySupplier, "recoveryCommandFactorySupplier");
         return this;
     }
 
@@ -117,7 +131,13 @@ final class ClusterBuilder {
 
         final Builder<Replica> builder = ImmutableList.builder();
         for (InstanceSpec spec : specs) {
-            final Replica r = new Replica(spec, servers, commandExecutorSupplier.get(), autoStart);
+            final Replica r;
+            if (recoveryCommandFactorySupplier != null) {
+                r = new Replica(spec, servers, commandExecutorSupplier.get(), autoStart,
+                                recoveryCommandFactorySupplier.get(), numWorkers);
+            } else {
+                r = new Replica(spec, servers, commandExecutorSupplier.get(), autoStart, numWorkers);
+            }
             builder.add(r);
         }
 

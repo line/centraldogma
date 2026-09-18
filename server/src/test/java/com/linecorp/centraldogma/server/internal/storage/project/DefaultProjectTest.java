@@ -16,11 +16,19 @@
 package com.linecorp.centraldogma.server.internal.storage.project;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
+
+import java.util.ArrayList;
+import java.util.List;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
 import com.linecorp.centraldogma.common.Author;
+import com.linecorp.centraldogma.common.Markup;
+import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.server.command.ReplayCommit;
+import com.linecorp.centraldogma.server.metadata.MetadataService;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 import com.linecorp.centraldogma.testing.internal.ProjectManagerExtension;
@@ -46,5 +54,45 @@ class DefaultProjectTest {
 
         // No exception is raised while reopening the project.
         extension.recreateProjectManager();
+    }
+
+    /**
+     * A recovery rewrites {@code <project>/dogma} in place, so the metadata arrives again at a revision the
+     * project has already seen. Dropping it as stale would leave the project serving the roles and
+     * permissions from the diverged history for as long as the server runs.
+     */
+    @Test
+    void metadataFollowsARecoveredDogmaRepository() {
+        final ProjectManager projectManager = extension.projectManager();
+        final Project foo = projectManager.create("foo", Author.SYSTEM);
+        final MetadataService mds = new MetadataService(projectManager, extension.executor(),
+                                                        extension.internalProjectInitializer());
+
+        mds.addRepo(Author.SYSTEM, "foo", "kept").join();
+        final Revision keptRevision = foo.repos().get(Project.REPO_DOGMA).normalizeNow(Revision.HEAD);
+        await().untilAsserted(() -> assertThat(foo.metadata().repos()).containsKey("kept"));
+
+        mds.addRepo(Author.SYSTEM, "foo", "discarded").join();
+        await().untilAsserted(() -> assertThat(foo.metadata().repos()).containsKey("discarded"));
+
+        // Recover the metadata content that only knows "kept", padding beyond the old head.
+        final Revision recoveryRevision =
+                foo.repos().get(Project.REPO_DOGMA).normalizeNow(Revision.HEAD).forward(1);
+        final List<ReplayCommit> payload = new ArrayList<>(
+                foo.repos().buildRecoveryPayload(Project.REPO_DOGMA, keptRevision, keptRevision));
+        final String expectedTreeId = payload.get(0).expectedTreeId();
+        for (Revision revision = keptRevision.forward(1);; revision = revision.forward(1)) {
+            payload.add(new ReplayCommit(revision, 0, Author.SYSTEM, "Recovery padding", "",
+                                         Markup.PLAINTEXT, List.of(), expectedTreeId));
+            if (revision.equals(recoveryRevision)) {
+                break;
+            }
+        }
+        foo.repos().recoverRepository(Project.REPO_DOGMA, payload);
+
+        await().untilAsserted(() -> {
+            assertThat(foo.metadata().repos()).containsKey("kept");
+            assertThat(foo.metadata().repos()).doesNotContainKey("discarded");
+        });
     }
 }

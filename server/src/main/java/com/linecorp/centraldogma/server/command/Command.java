@@ -68,6 +68,8 @@ import com.linecorp.centraldogma.server.storage.repository.Repository;
         @Type(value = UpdateProjectStatusCommand.class, name = "UPDATE_PROJECT_STATUS"),
         @Type(value = UpdateRepositoryStatusCommand.class, name = "UPDATE_REPOSITORY_STATUS"),
         @Type(value = ForcePushCommand.class, name = "FORCE_PUSH_COMMAND"),
+        @Type(value = RequestRepositoryRecoveryCommand.class, name = "REQUEST_REPOSITORY_RECOVERY"),
+        @Type(value = ApplyRepositoryRecoveryCommand.class, name = "APPLY_REPOSITORY_RECOVERY"),
 })
 public interface Command<T> {
 
@@ -524,6 +526,35 @@ public interface Command<T> {
                       "(expected: CREATE_PROJECT, CREATE_REPOSITORY, NORMALIZING_PUSH, TRANSFORM or PUSH)",
                       delegate);
         return new ForcePushCommand<>(delegate);
+    }
+
+    /**
+     * Returns a new {@link Command} which applies a repository recovery by replaying {@code commits}.
+     */
+    static Command<Revision> applyRepositoryRecovery(Author author, String projectName,
+                                                     String repositoryName, Iterable<ReplayCommit> commits) {
+        requireNonNull(author, "author");
+        requireNonNull(projectName, "projectName");
+        requireNonNull(repositoryName, "repositoryName");
+        requireNonNull(commits, "commits");
+        return new ApplyRepositoryRecoveryCommand(null, author, projectName, repositoryName, commits);
+    }
+
+    /**
+     * Returns a new {@link Command} which asks the source replica to originate a repository recovery.
+     */
+    static Command<Void> requestRepositoryRecovery(Author author, String projectName, String repositoryName,
+                                                  int sourceServerId,
+                                                  Revision fromRevision, Revision toRevision,
+                                                  int maxRevision) {
+        requireNonNull(author, "author");
+        requireNonNull(projectName, "projectName");
+        requireNonNull(repositoryName, "repositoryName");
+        requireNonNull(fromRevision, "fromRevision");
+        requireNonNull(toRevision, "toRevision");
+        return new RequestRepositoryRecoveryCommand(
+                null, author, projectName, repositoryName,
+                sourceServerId, fromRevision, toRevision, maxRevision);
     }
 
     /**

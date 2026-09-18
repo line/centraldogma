@@ -96,6 +96,49 @@ class ServerStatusServiceTest {
     }
 
     @Test
+    void readOnlyRepositoryHiddenWhenRemovedAndPurged() {
+        final BlockingWebClient client = dogma.httpClient().blocking();
+
+        dogma.client().createProject("del").join();
+        dogma.client().createRepository("del", "ro").join();
+        final AggregatedHttpResponse updateRes =
+                client.prepare()
+                      .put(API_V1_PATH_PREFIX + "projects/del/repos/ro/status")
+                      .contentJson(new UpdateRepositoryStatusRequest(ReplicationStatus.READ_ONLY))
+                      .execute();
+        assertThat(updateRes.status()).isEqualTo(HttpStatus.OK);
+
+        // The repository is listed while read-only.
+        await().untilAsserted(() -> {
+            final AggregatedHttpResponse res = client.get(API_V1_PATH_PREFIX + "status/repos/read-only");
+            assertThat(res.status()).isEqualTo(HttpStatus.OK);
+            assertThatJson(res.contentUtf8()).isArray().ofLength(1);
+            assertThatJson(res.contentUtf8()).node("[0].projectName").isEqualTo("del");
+            assertThatJson(res.contentUtf8()).node("[0].repoName").isEqualTo("ro");
+        });
+
+        // Soft-removing the repository hides it from the read-only list.
+        dogma.client().removeRepository("del", "ro").join();
+        await().untilAsserted(() -> assertThat(
+                client.get(API_V1_PATH_PREFIX + "status/repos/read-only").status())
+                .isEqualTo(HttpStatus.NO_CONTENT));
+
+        // Purging the removed repository keeps it gone.
+        dogma.client().purgeRepository("del", "ro").join();
+        await().untilAsserted(() -> assertThat(
+                client.get(API_V1_PATH_PREFIX + "status/repos/read-only").status())
+                .isEqualTo(HttpStatus.NO_CONTENT));
+    }
+
+    @Test
+    void replicas_emptyInStandaloneMode() {
+        final BlockingWebClient client = dogma.httpClient().blocking();
+        // An empty list is returned as 204 No Content in standalone (non-replicated) mode.
+        assertThat(client.get(API_V1_PATH_PREFIX + "replicas").status())
+                .isEqualTo(HttpStatus.NO_CONTENT);
+    }
+
+    @Test
     void updateStatus_setUnwritable() {
         final AggregatedHttpResponse res = updateStatus(ServerStatus.REPLICATION_ONLY);
 

@@ -18,6 +18,7 @@ package com.linecorp.centraldogma.server.internal.storage.repository.git;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static com.linecorp.centraldogma.server.internal.storage.repository.git.GitRepository.R_HEADS_MASTER;
+import static java.util.Objects.requireNonNull;
 import static org.eclipse.jgit.lib.ConfigConstants.CONFIG_CORE_SECTION;
 
 import java.io.EOFException;
@@ -212,6 +213,28 @@ final class DefaultCommitIdDatabase implements CommitIdDatabase {
                 this.headRevision = revision;
             }
         }
+    }
+
+    @Override
+    public synchronized void truncateTo(Revision revision) {
+        requireNonNull(revision, "revision");
+        checkArgument(!revision.isRelative(), "revision: %s (expected: an absolute revision)", revision);
+        final Revision headRevision = this.headRevision;
+        checkState(headRevision != null, "not initialized yet: %s", path);
+        checkArgument(revision.major() <= headRevision.major(),
+                      "revision: %s (expected: <= the head revision %s)", revision, headRevision);
+
+        // Each revision is a fixed-length record at (revision - 1) * RECORD_LEN, and the head is derived
+        // from the record count, so dropping the tail is all it takes.
+        try {
+            channel.truncate((long) revision.major() * RECORD_LEN);
+            if (fsync) {
+                channel.force(true);
+            }
+        } catch (IOException e) {
+            throw new StorageException("failed to truncate the commit ID database: " + path, e);
+        }
+        this.headRevision = revision;
     }
 
     @Override

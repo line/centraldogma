@@ -52,6 +52,7 @@ import org.eclipse.jgit.lib.ObjectReader;
 import org.eclipse.jgit.lib.PersonIdent;
 import org.eclipse.jgit.lib.RefUpdate;
 import org.eclipse.jgit.lib.RefUpdate.Result;
+import org.eclipse.jgit.lib.StoredConfig;
 import org.eclipse.jgit.revwalk.RevCommit;
 import org.eclipse.jgit.revwalk.RevTree;
 import org.eclipse.jgit.revwalk.RevWalk;
@@ -106,6 +107,7 @@ import com.linecorp.centraldogma.server.storage.repository.DiffResultType;
 import com.linecorp.centraldogma.server.storage.repository.FindOption;
 import com.linecorp.centraldogma.server.storage.repository.FindOptions;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
+import com.linecorp.centraldogma.server.storage.repository.RepositoryHead;
 import com.linecorp.centraldogma.server.storage.repository.RepositoryListener;
 
 /**
@@ -116,6 +118,8 @@ class GitRepository implements Repository {
     private static final Logger logger = LoggerFactory.getLogger(GitRepository.class);
 
     static final String R_HEADS_MASTER = Constants.R_HEADS + Constants.MASTER;
+    private static final String RECOVERY_CONFIG_SECTION = "centraldogma";
+    private static final String LAST_RECOVERY_REVISION_CONFIG_KEY = "lastRecoveryRevision";
 
     private static final Pattern CR = Pattern.compile("\r", Pattern.LITERAL);
 
@@ -180,6 +184,8 @@ class GitRepository implements Repository {
      * The current head revision. Initialized by the constructor and updated by commit().
      */
     private volatile Revision headRevision;
+    private volatile int cacheGeneration;
+    private volatile Revision lastRecoveryRevision;
 
     /**
      * Creates a new Git repository.
@@ -195,6 +201,7 @@ class GitRepository implements Repository {
         this.author = author;
         this.cache = cache;
         this.jGitRepository = jGitRepository;
+        lastRecoveryRevision = lastRecoveryRevisionOf(jGitRepository);
         isEncrypted = jGitRepository instanceof RocksDbRepository;
         this.commitIdDatabase = commitIdDatabase;
         new CommitExecutor(this, creationTimeMillis, author, "Create a new repository", "",
@@ -216,6 +223,7 @@ class GitRepository implements Repository {
         this.repositoryWorker = requireNonNull(repositoryWorker, "repositoryWorker");
         this.cache = cache;
         this.jGitRepository = requireNonNull(jGitRepository, "jGitRepository");
+        lastRecoveryRevision = lastRecoveryRevisionOf(jGitRepository);
         isEncrypted = jGitRepository instanceof RocksDbRepository;
         this.commitIdDatabase = requireNonNull(commitIdDatabase, "commitIdDatabase");
         this.headRevision = requireNonNull(headRevision, "headRevision");
@@ -234,7 +242,6 @@ class GitRepository implements Repository {
         requireNonNull(failureCauseSupplier, "failureCauseSupplier");
         if (closePending.compareAndSet(null, failureCauseSupplier)) {
             repositoryWorker.execute(() -> {
-                // MUST acquire gcLock first to prevent a dead lock
                 rwLock.writeLock().lock();
                 try {
                     closeRepository(commitIdDatabase, jGitRepository);
@@ -282,6 +289,25 @@ class GitRepository implements Repository {
     @Override
     public org.eclipse.jgit.lib.Repository jGitRepository() {
         return jGitRepository;
+    }
+
+    @Override
+    public RepositoryHead head() {
+        readLock();
+        try {
+            // A recovery force-moves master and rebuilds the commit-id database of the directory this
+            // instance is open on, so the pair is only coherent under the read lock.
+            final Revision headRevision = this.headRevision;
+            final ObjectId commitId = commitIdDatabase.get(headRevision);
+            try (RevWalk revWalk = newRevWalk()) {
+                return new RepositoryHead(headRevision, commitId.name(),
+                                          revWalk.parseCommit(commitId).getTree().getId().name());
+            } catch (IOException e) {
+                throw new StorageException("failed to read the tree of " + commitId.name(), e);
+            }
+        } finally {
+            readUnlock();
+        }
     }
 
     @Override
@@ -578,6 +604,59 @@ class GitRepository implements Repository {
         }
     }
 
+    List<CommitWithTreeId> readCommits(Revision fromRevision, Revision toRevision) {
+        requireNonNull(fromRevision, "fromRevision");
+        requireNonNull(toRevision, "toRevision");
+        readLock();
+        try (RevWalk revWalk = newRevWalk()) {
+            final Revision from = normalizeNow(fromRevision);
+            final Revision to = normalizeNow(toRevision);
+            if (from.compareTo(to) > 0) {
+                throw new IllegalArgumentException(
+                        "fromRevision: " + fromRevision + " (expected: <= " + toRevision + ')');
+            }
+
+            final ImmutableList.Builder<CommitWithTreeId> commits =
+                    ImmutableList.builderWithExpectedSize(to.major() - from.major() + 1);
+            for (int i = from.major(); i <= to.major(); i++) {
+                final Revision revision = new Revision(i);
+                final RevCommit revCommit = revWalk.parseCommit(commitIdDatabase.get(revision));
+                revWalk.parseBody(revCommit);
+                commits.add(new CommitWithTreeId(toCommit(revCommit),
+                                                 revCommit.getTree().getId().name()));
+                revCommit.disposeBody();
+            }
+            return commits.build();
+        } catch (CentralDogmaException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new StorageException(
+                    "failed to read commits: " + parent.name() + '/' + name +
+                    " (" + fromRevision + ".." + toRevision + ')', e);
+        } finally {
+            readUnlock();
+        }
+    }
+
+    static final class CommitWithTreeId {
+
+        private final Commit commit;
+        private final String treeId;
+
+        CommitWithTreeId(Commit commit, String treeId) {
+            this.commit = commit;
+            this.treeId = treeId;
+        }
+
+        Commit commit() {
+            return commit;
+        }
+
+        String treeId() {
+            return treeId;
+        }
+    }
+
     private static Commit toCommit(RevCommit revCommit) {
         final Author author;
         final PersonIdent committerIdent = revCommit.getCommitterIdent();
@@ -602,30 +681,52 @@ class GitRepository implements Repository {
                                                           DiffResultType diffResultType) {
         final ServiceRequestContext ctx = context();
         return CompletableFuture.supplyAsync(() -> {
-            requireNonNull(from, "from");
-            requireNonNull(to, "to");
-            requireNonNull(pathPattern, "pathPattern");
-
             failFastIfTimedOut(this, logger, ctx, "diff", from, to, pathPattern);
-
-            final RevisionRange range = normalizeNow(from, to).toAscending();
-            readLock();
-            try (RevWalk rw = newRevWalk()) {
-                final RevTree treeA = rw.parseTree(commitIdDatabase.get(range.from()));
-                final RevTree treeB = rw.parseTree(commitIdDatabase.get(range.to()));
-
-                // Compare the two Git trees.
-                // Note that we do not cache here because CachingRepository caches the final result already.
-                return toChangeMap(blockingCompareTreesUncached(
-                        treeA, treeB, pathPatternFilterOrTreeFilter(pathPattern)), diffResultType);
-            } catch (StorageException e) {
-                throw e;
-            } catch (Exception e) {
-                throw new StorageException("failed to parse two trees: range=" + range, e);
-            } finally {
-                readUnlock();
-            }
+            return blockingDiff(from, to, pathPattern, diffResultType);
         }, repositoryWorker);
+    }
+
+    /**
+     * Diffs on the calling thread instead of dispatching to the repository worker, so that a caller which
+     * already holds this repository's read lock does not queue a task back to the pool it may be running on.
+     */
+    Map<String, Change<?>> blockingDiff(Revision from, Revision to, String pathPattern,
+                                        DiffResultType diffResultType) {
+        requireNonNull(from, "from");
+        requireNonNull(to, "to");
+        requireNonNull(pathPattern, "pathPattern");
+
+        final RevisionRange range = normalizeNow(from, to).toAscending();
+        readLock();
+        try (RevWalk rw = newRevWalk()) {
+            final RevTree treeA = rw.parseTree(commitIdDatabase.get(range.from()));
+            final RevTree treeB = rw.parseTree(commitIdDatabase.get(range.to()));
+
+            // Compare the two Git trees.
+            // Note that we do not cache here because CachingRepository caches the final result already.
+            return toChangeMap(blockingCompareTreesUncached(
+                    treeA, treeB, pathPatternFilterOrTreeFilter(pathPattern)), diffResultType);
+        } catch (StorageException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new StorageException("failed to parse two trees: range=" + range, e);
+        } finally {
+            readUnlock();
+        }
+    }
+
+    /**
+     * Runs the specified {@code supplier} under this repository's read lock, so that everything it reads
+     * describes one history. A recovery rewrites the history in place, so a build that reads the history,
+     * the diffs and the tree IDs under separate locks can splice two of them together.
+     */
+    <T> T withReadLock(Supplier<T> supplier) {
+        readLock();
+        try {
+            return supplier.get();
+        } finally {
+            readUnlock();
+        }
     }
 
     private static TreeFilter pathPatternFilterOrTreeFilter(@Nullable String pathPattern) {
@@ -1074,6 +1175,10 @@ class GitRepository implements Repository {
             failFastIfTimedOut(this, logger, ctx, "watch", lastKnownRevision, pathPattern);
             readLock();
             try {
+                if (tryCompleteWatchAfterRecovery(normLastKnownRevision, pathPattern,
+                                                  errorOnEntryNotFound, future)) {
+                    return;
+                }
                 // If lastKnownRevision is outdated already and the recent changes match,
                 // there's no need to watch.
                 final Revision latestRevision = blockingFindLatestRevision(normLastKnownRevision, pathPattern,
@@ -1092,6 +1197,24 @@ class GitRepository implements Repository {
         });
 
         return future;
+    }
+
+    private boolean tryCompleteWatchAfterRecovery(Revision lastKnownRevision, String pathPattern,
+                                                  boolean errorOnEntryNotFound,
+                                                  CompletableFuture<Revision> future) {
+        final Revision currentHeadRevision = headRevision;
+        final Revision recoveryRevision = lastRecoveryRevision;
+        if (recoveryRevision.compareTo(currentHeadRevision) <= 0 &&
+            lastKnownRevision.compareTo(recoveryRevision) < 0) {
+            if (errorOnEntryNotFound &&
+                blockingFind(currentHeadRevision, pathPattern,
+                             FindOptions.FIND_ONE_WITHOUT_CONTENT).isEmpty()) {
+                throw new EntryNotFoundException(lastKnownRevision, pathPattern);
+            }
+            future.complete(currentHeadRevision);
+            return true;
+        }
+        return false;
     }
 
     private void recursiveWatch(String pathPattern, WatchListener listener) {
@@ -1169,6 +1292,46 @@ class GitRepository implements Repository {
 
     Revision cachedHeadRevision() {
         return headRevision;
+    }
+
+    @Override
+    public int cacheGeneration() {
+        return cacheGeneration;
+    }
+
+    @Override
+    public Revision lastRecoveryRevision() {
+        return lastRecoveryRevision;
+    }
+
+    private static Revision lastRecoveryRevisionOf(org.eclipse.jgit.lib.Repository repository) {
+        return new Revision(repository.getConfig().getInt(
+                RECOVERY_CONFIG_SECTION, null, LAST_RECOVERY_REVISION_CONFIG_KEY,
+                Revision.INIT.major()));
+    }
+
+    void setLastRecoveryRevision(Revision revision) {
+        requireNonNull(revision, "revision");
+        if (revision.major() <= lastRecoveryRevision.major()) {
+            return;
+        }
+        final StoredConfig config = jGitRepository.getConfig();
+        config.setInt(RECOVERY_CONFIG_SECTION, null, LAST_RECOVERY_REVISION_CONFIG_KEY, revision.major());
+        try {
+            config.save();
+        } catch (IOException e) {
+            throw new StorageException("failed to persist the last recovery revision of " +
+                                       parent.name() + '/' + name, e);
+        }
+        lastRecoveryRevision = revision;
+    }
+
+    /**
+     * Records that the history was rewritten in place, so that nothing cached against the previous
+     * generation can be served again. Called under the write lock, which is where a rewrite happens.
+     */
+    void nextCacheGeneration() {
+        cacheGeneration++;
     }
 
     void setHeadRevision(Revision headRevision) {

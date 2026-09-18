@@ -58,6 +58,7 @@ import com.linecorp.centraldogma.common.Commit;
 import com.linecorp.centraldogma.common.RepositoryExistsException;
 import com.linecorp.centraldogma.common.RepositoryNotFoundException;
 import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.server.command.ReplayCommit;
 import com.linecorp.centraldogma.server.internal.JGitUtil;
 import com.linecorp.centraldogma.server.internal.storage.DirectoryBasedStorageManager;
 import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryCache;
@@ -107,7 +108,7 @@ public final class GitRepositoryManager extends DirectoryBasedStorageManager<Rep
         postMigrationCallback = callback;
     }
 
-    private String projectRepositoryName(String name) {
+    String projectRepositoryName(String name) {
         return parent.name() + '/' + name;
     }
 
@@ -267,6 +268,17 @@ public final class GitRepositoryManager extends DirectoryBasedStorageManager<Rep
             logger.warn("Failed to delete the encrypted repository data for the repository '{}' " +
                         "after fallback. ", projectRepositoryName(repositoryName), t);
         }
+    }
+
+    @Override
+    public void recoverRepository(String repositoryName, List<ReplayCommit> commits) {
+        new RepositoryRecovery(this).recoverRepository(repositoryName, commits);
+    }
+
+    @Override
+    public List<ReplayCommit> buildRecoveryPayload(String repositoryName, Revision fromRevision,
+                                                   Revision toRevision) {
+        return new RepositoryRecovery(this).buildRecoveryPayload(repositoryName, fromRevision, toRevision);
     }
 
     @Override

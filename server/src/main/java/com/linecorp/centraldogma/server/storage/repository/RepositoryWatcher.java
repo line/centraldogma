@@ -17,6 +17,7 @@
 package com.linecorp.centraldogma.server.storage.repository;
 
 import static com.linecorp.armeria.common.util.Functions.voidFunction;
+import static java.util.Objects.requireNonNull;
 
 import java.util.Objects;
 import java.util.concurrent.CancellationException;
@@ -76,44 +77,68 @@ final class RepositoryWatcher<T> {
     }
 
     CompletableFuture<Entry<T>> watch() {
+        final Revision baselineRevision;
+        try {
+            baselineRevision = lastKnownRev.isRelative() ? repo.normalizeNow(lastKnownRev) : lastKnownRev;
+        } catch (Throwable cause) {
+            watchResult.completeExceptionally(cause);
+            return watchResult;
+        }
+
         Revision templateRevision = lastKnownTemplateRev;
         if (templateRevision == null) {
             // For the first watch, read the latest variable revision.
             templateRevision = Revision.HEAD;
         }
-        final EntryTransformer<T> transformer;
-        if (transformerFactory != null) {
-            transformer = transformerFactory.apply(templateRevision);
-        } else {
-            transformer = EntryTransformer.identity();
-        }
-        repo.getOrNull(lastKnownRev, query, transformer)
+        final EntryTransformer<T> transformer = newTransformer(templateRevision);
+        repo.getOrNull(baselineRevision, query, transformer)
             .handle((oldResult, cause) -> {
                 if (cause != null) {
                     watchResult.completeExceptionally(cause);
                 } else {
                     final Revision oldTempRev =
                             oldResult != null ? oldResult.templateRevision() : lastKnownTemplateRev;
-                    watch(lastKnownRev, oldResult, oldTempRev);
+                    watchNext(baselineRevision, oldResult, oldTempRev);
                 }
                 return null;
             });
         return watchResult;
     }
 
-    private void watch(Revision lastKnownRev, @Nullable Entry<T> oldResult,
-                       @Nullable Revision lastKnownTemplateRev) {
+    private EntryTransformer<T> newTransformer(@Nullable Revision templateRevision) {
+        if (transformerFactory == null) {
+            return EntryTransformer.identity();
+        }
+        return transformerFactory.apply(requireNonNull(templateRevision, "templateRevision"));
+    }
+
+    private boolean wasRecoveredSince(Revision revision, @Nullable Revision templateRevision) {
+        if (isBeforeLastRecovery(repo, revision)) {
+            return true;
+        }
+        return templateRevision != null && isBeforeLastRecovery(dogmaRepo, templateRevision);
+    }
+
+    private static boolean isBeforeLastRecovery(@Nullable Repository repository, Revision revision) {
+        if (repository == null || revision.isRelative()) {
+            return false;
+        }
+        final Revision recoveryRevision = repository.lastRecoveryRevision();
+        return revision.compareTo(recoveryRevision) < 0 &&
+               recoveryRevision.compareTo(repository.normalizeNow(Revision.HEAD)) <= 0;
+    }
+
+    private void watchNext(Revision lastKnownRev, @Nullable Entry<T> oldResult,
+                           @Nullable Revision lastKnownTemplateRev) {
         watchRepos(lastKnownRev, lastKnownTemplateRev).thenCompose(pair -> {
-            final EntryTransformer<T> transformer;
             final Revision templateRevision;
             if (transformerFactory != null) {
                 templateRevision = pair.tempRev == null ? dogmaRepo.normalizeNow(Revision.HEAD)
                                                         : pair.tempRev;
-                transformer = transformerFactory.apply(templateRevision);
             } else {
                 templateRevision = null;
-                transformer = EntryTransformer.identity();
             }
+            final EntryTransformer<T> transformer = newTransformer(templateRevision);
 
             final Revision repoRevision = pair.repoRev == null ? repo.normalizeNow(Revision.HEAD)
                                                                      : pair.repoRev;
@@ -125,12 +150,13 @@ final class RepositoryWatcher<T> {
                     return;
                 }
 
-                if (newResult == null ||
-                    oldResult != null && Objects.equals(oldResult.content(), newResult.content())) {
+                final boolean recovered = wasRecoveredSince(lastKnownRev, lastKnownTemplateRev);
+                if (newResult == null || !recovered && oldResult != null &&
+                                         Objects.equals(oldResult.content(), newResult.content())) {
                     // Entry does not exist or did not change; watch again for more changes.
                     if (!watchResult.isDone()) {
                         // ... only when the parent future has not been cancelled.
-                        watch(repoRevision, oldResult, templateRevision);
+                        watchNext(repoRevision, recovered ? null : oldResult, templateRevision);
                     }
                 } else {
                     watchResult.complete(newResult);

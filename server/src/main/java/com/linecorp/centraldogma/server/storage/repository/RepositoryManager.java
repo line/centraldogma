@@ -16,8 +16,12 @@
 
 package com.linecorp.centraldogma.server.storage.repository;
 
+import java.util.List;
 import java.util.function.BiConsumer;
 
+import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.server.command.ApplyRepositoryRecoveryCommand;
+import com.linecorp.centraldogma.server.command.ReplayCommit;
 import com.linecorp.centraldogma.server.storage.StorageManager;
 import com.linecorp.centraldogma.server.storage.project.Project;
 
@@ -39,6 +43,22 @@ public interface RepositoryManager extends StorageManager<Repository> {
      * Falls back the specified encrypted repository to a file-based repository.
      */
     void fallbackToFileRepository(String repositoryName);
+
+    /**
+     * Recovers the specified repository by resetting it to the revision before the first commit and replaying
+     * the given {@code commits} on top of it, in place. Used to reconcile a diverged replica with a source
+     * replica. See {@link ApplyRepositoryRecoveryCommand}.
+     */
+    void recoverRepository(String repositoryName, List<ReplayCommit> commits);
+
+    /**
+     * Builds the {@link ReplayCommit}s of {@code fromRevision..toRevision} of the specified repository, to
+     * be carried by a {@link ApplyRepositoryRecoveryCommand}. Invoked only on the source replica of a recovery.
+     * Both revisions must be absolute, {@code fromRevision} greater than 1 and {@code toRevision} between
+     * {@code fromRevision} and the HEAD revision.
+     */
+    List<ReplayCommit> buildRecoveryPayload(String repositoryName, Revision fromRevision,
+                                            Revision toRevision);
 
     /**
      * Sets a callback that is invoked after a repository is migrated or fallen back.
