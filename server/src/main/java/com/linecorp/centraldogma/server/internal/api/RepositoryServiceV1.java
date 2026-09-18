@@ -372,10 +372,10 @@ public class RepositoryServiceV1 extends AbstractService {
                     project.name() + '/' + repository.name());
         }
         final ZooKeeperCommandExecutor zkExecutor = (ZooKeeperCommandExecutor) executor();
-        if (!zkExecutor.replicationConfig().servers().containsKey(request.sourceServerId())) {
+        if (!zkExecutor.replicas().containsKey(request.sourceServerId())) {
             throw new IllegalArgumentException(
                     "sourceServerId: " + request.sourceServerId() + " (expected: one of " +
-                    zkExecutor.replicationConfig().servers().keySet() + ')');
+                    zkExecutor.replicas().keySet() + ')');
         }
         if (getReplicationStatus(repository) != ReplicationStatus.READ_ONLY) {
             HttpApiUtil.throwResponse(

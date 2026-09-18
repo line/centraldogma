@@ -88,7 +88,7 @@ public final class ServerStatusService extends AbstractService {
             return ImmutableList.of();
         }
         final ZooKeeperCommandExecutor zkExecutor = (ZooKeeperCommandExecutor) executor();
-        return zkExecutor.replicationConfig().servers().entrySet().stream()
+        return zkExecutor.replicas().entrySet().stream()
                          .map(entry -> new ReplicaInfo(entry.getKey(), entry.getValue().host(),
                                                        entry.getKey() == zkExecutor.replicaId()))
                          .collect(toImmutableList());

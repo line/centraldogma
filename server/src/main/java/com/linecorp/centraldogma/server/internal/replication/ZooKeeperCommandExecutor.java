@@ -437,10 +437,10 @@ public final class ZooKeeperCommandExecutor
     }
 
     /**
-     * Returns the replication configuration of this cluster.
+     * Returns the configured replicas of this cluster.
      */
-    public ZooKeeperReplicationConfig replicationConfig() {
-        return cfg;
+    public Map<Integer, ZooKeeperServerConfig> replicas() {
+        return cfg.servers();
     }
 
     public CommandExecutor unwrap() {
@@ -703,7 +703,6 @@ public final class ZooKeeperCommandExecutor
     protected void doStop(@Nullable Runnable onReleaseLeadership,
                           @Nullable Runnable onReleaseZoneLeadership) throws Exception {
         canReplicate = false;
-        retryPolicy = RETRY_POLICY_NEVER;
         // Stop accepting new replay logs.
         listenerInfo = null;
 
@@ -723,6 +722,7 @@ public final class ZooKeeperCommandExecutor
         } catch (Exception e) {
             logger.warn("Failed to stop the delegate command executor {}: {}", delegate, e.getMessage(), e);
         } finally {
+            retryPolicy = RETRY_POLICY_NEVER;
             try {
                 if (leaderSelector != null) {
                     logger.info("Closing the leader selector");
@@ -1126,6 +1126,7 @@ public final class ZooKeeperCommandExecutor
     @VisibleForTesting
     void handleReplicationFailure(ReplicationException exception, boolean directExecution,
                                   @Nullable CompletableFuture<?> future) {
+        // Settle the original command future even if the read-only transition cannot be scheduled.
         final ReplicationLogContext logContext = exception.logContext();
         if (logContext == null) {
             // No log context, so we can't determine which project/repo failed;
