@@ -41,6 +41,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
@@ -77,6 +78,7 @@ import com.google.common.escape.Escapers;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.Uninterruptibles;
 
+import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.armeria.common.util.SafeCloseable;
 import com.linecorp.centraldogma.common.LockAcquireTimeoutException;
 import com.linecorp.centraldogma.common.ReplicationStatus;
@@ -94,6 +96,7 @@ import com.linecorp.centraldogma.server.command.ForcePushCommand;
 import com.linecorp.centraldogma.server.command.NormalizableCommit;
 import com.linecorp.centraldogma.server.command.ProjectCommand;
 import com.linecorp.centraldogma.server.command.RepositoryCommand;
+import com.linecorp.centraldogma.server.command.RequestRepositoryRecoveryCommand;
 import com.linecorp.centraldogma.server.command.UpdateServerStatusCommand;
 import com.linecorp.centraldogma.server.internal.command.DefaultExecutionContext;
 import com.linecorp.centraldogma.server.management.ServerStatus;
@@ -147,6 +150,8 @@ public final class ZooKeeperCommandExecutor
 
     @Nullable
     private final String zone;
+
+    private final RecoveryCommandFactory recoveryCommandFactory;
 
     // Failing to acquire a lock is a critical problem, so we wait as much as we can.
     private long lockTimeoutNanos = TimeUnit.MINUTES.toNanos(1);
@@ -377,12 +382,14 @@ public final class ZooKeeperCommandExecutor
                                     File dataDir, CommandExecutor delegate,
                                     MeterRegistry meterRegistry,
                                     @Nullable String zone,
+                                    RecoveryCommandFactory recoveryCommandFactory,
                                     @Nullable Consumer<CommandExecutor> onTakeLeadership,
                                     @Nullable Consumer<CommandExecutor> onReleaseLeadership,
                                     @Nullable Consumer<CommandExecutor> onTakeZoneLeadership,
                                     @Nullable Consumer<CommandExecutor> onReleaseZoneLeadership) {
         super(onTakeLeadership, onReleaseLeadership, onTakeZoneLeadership, onReleaseZoneLeadership);
 
+        this.recoveryCommandFactory = requireNonNull(recoveryCommandFactory, "recoveryCommandFactory");
         this.cfg = requireNonNull(cfg, "cfg");
         requireNonNull(dataDir, "dataDir");
         revisionFile = new File(dataDir.getAbsolutePath() + File.separatorChar + "last_revision");
@@ -427,6 +434,13 @@ public final class ZooKeeperCommandExecutor
     @Override
     public int replicaId() {
         return cfg.serverId();
+    }
+
+    /**
+     * Returns the configured replicas of this cluster.
+     */
+    public Map<Integer, ZooKeeperServerConfig> replicas() {
+        return cfg.servers();
     }
 
     public CommandExecutor unwrap() {
@@ -851,6 +865,10 @@ public final class ZooKeeperCommandExecutor
                 if (command instanceof UpdateServerStatusCommand) {
                     updateZkCommandStatusLater((UpdateServerStatusCommand) command);
                 }
+                if (command instanceof RequestRepositoryRecoveryCommand) {
+                    // React only after recording this revision; recovery origination re-enters replay.
+                    reactToRecoveryRequestLater((RequestRepositoryRecoveryCommand) command);
+                }
             } catch (Throwable t) {
                 try {
                     // Skip the failed log so the remaining logs can still be replayed.
@@ -898,6 +916,42 @@ public final class ZooKeeperCommandExecutor
             });
         } else {
             statusManager().updateStatus(command);
+        }
+    }
+
+    /**
+     * Reacts after a {@link RequestRepositoryRecoveryCommand} is recorded. Only the source replica builds and
+     * originates the self-contained recovery command. The work is submitted so the current request or replay
+     * can finish before recovery origination uses the command executor again.
+     */
+    private void reactToRecoveryRequestLater(RequestRepositoryRecoveryCommand command) {
+        if (command.sourceServerId() != replicaId()) {
+            return;
+        }
+
+        final String repoPath = command.projectName() + '/' + command.repositoryName();
+        if (!isStarted()) {
+            logger.warn("Failed to schedule a recovery of {}; the source replica is not running. " +
+                        "Submit the recovery request again.", repoPath);
+            return;
+        }
+        final ExecutorService executor = this.executor;
+        try {
+            CompletableFuture.supplyAsync(() -> recoveryCommandFactory.blockingNewCommand(command), executor)
+                             .thenCompose(this::execute)
+                             .whenComplete((revision, cause) -> {
+                                 if (cause != null) {
+                                     logger.error("Failed to recover {}. Submit the recovery request again.",
+                                                  repoPath, Exceptions.peel(cause));
+                                 } else {
+                                     logger.info("Applied recovery of {} on the source replica and " +
+                                                 "published its log. head: {}. Verify every replica.",
+                                                 repoPath, revision);
+                                 }
+                             });
+        } catch (RejectedExecutionException e) {
+            logger.warn("Failed to schedule a recovery of {}. Submit the recovery request again.",
+                        repoPath, e);
         }
     }
 
@@ -1069,13 +1123,18 @@ public final class ZooKeeperCommandExecutor
         }
     }
 
-    private void handleReplicationFailure(ReplicationException exception, boolean directExecution,
-                                          @Nullable CompletableFuture<?> future) {
+    @VisibleForTesting
+    void handleReplicationFailure(ReplicationException exception, boolean directExecution,
+                                  @Nullable CompletableFuture<?> future) {
+        // Settle the original command future even if the read-only transition cannot be scheduled.
         final ReplicationLogContext logContext = exception.logContext();
         if (logContext == null) {
             // No log context, so we can't determine which project/repo failed;
             // fall back to a global read-only mode.
             logger.error("Failed to replicate a log; entering read-only mode.", exception);
+            if (future != null) {
+                future.completeExceptionally(exception);
+            }
             stopLater();
             return;
         }
@@ -1118,19 +1177,27 @@ public final class ZooKeeperCommandExecutor
                 stopLater();
             }
         } else {
-            execute(command).handle((unused, cause) -> {
+            try {
+                execute(command).handle((unused, cause) -> {
+                    if (future != null) {
+                        future.completeExceptionally(exception);
+                    }
+                    if (cause != null) {
+                        logger.error("Failed to apply read-only mode for {}; stopping command executor...",
+                                     scope, cause);
+                        stopLater();
+                    } else {
+                        logger.info("Successfully applied read-only mode to {}", scope);
+                    }
+                    return null;
+                });
+            } catch (Throwable t) {
                 if (future != null) {
                     future.completeExceptionally(exception);
                 }
-                if (cause != null) {
-                    logger.error("Failed to apply read-only mode for {}; stopping command executor...",
-                                 scope, cause);
-                    stopLater();
-                } else {
-                    logger.info("Successfully applied read-only mode to {}", scope);
-                }
-                return null;
-            });
+                logger.error("Failed to apply read-only mode for {}; stopping command executor...", scope, t);
+                stopLater();
+            }
         }
     }
 
@@ -1279,6 +1346,10 @@ public final class ZooKeeperCommandExecutor
                     revision = storeLog(log);
                 } finally {
                     timings.endLogStore();
+                }
+
+                if (command instanceof RequestRepositoryRecoveryCommand) {
+                    reactToRecoveryRequestLater((RequestRepositoryRecoveryCommand) command);
                 }
 
                 // Update the ServerStatus to the CommandExecutor after the log is stored.

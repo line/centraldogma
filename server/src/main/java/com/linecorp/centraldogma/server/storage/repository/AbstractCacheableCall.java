@@ -26,12 +26,14 @@ import com.google.common.base.MoreObjects;
 public abstract class AbstractCacheableCall<T> implements CacheableCall<T> {
 
     private final Repository repo;
+    private final int cacheGeneration;
 
     /**
      * Creates a new instance.
      */
     protected AbstractCacheableCall(Repository repo) {
         this.repo = requireNonNull(repo, "repo");
+        cacheGeneration = repo.cacheGeneration();
     }
 
     /**
@@ -43,7 +45,7 @@ public abstract class AbstractCacheableCall<T> implements CacheableCall<T> {
 
     @Override
     public int hashCode() {
-        return System.identityHashCode(repo);
+        return System.identityHashCode(repo) * 31 + cacheGeneration;
     }
 
     @Override
@@ -61,7 +63,7 @@ public abstract class AbstractCacheableCall<T> implements CacheableCall<T> {
         }
 
         final AbstractCacheableCall<?> that = (AbstractCacheableCall<?>) obj;
-        return repo == that.repo;
+        return repo == that.repo && cacheGeneration == that.cacheGeneration;
     }
 
     @Override

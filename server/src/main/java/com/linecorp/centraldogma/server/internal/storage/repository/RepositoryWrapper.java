@@ -39,12 +39,14 @@ import com.linecorp.centraldogma.common.RevisionRange;
 import com.linecorp.centraldogma.internal.Util;
 import com.linecorp.centraldogma.server.command.CommitResult;
 import com.linecorp.centraldogma.server.command.ContentTransformer;
+import com.linecorp.centraldogma.server.command.ReplayCommit;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.repository.CacheableCall;
 import com.linecorp.centraldogma.server.storage.repository.DiffResultType;
 import com.linecorp.centraldogma.server.storage.repository.EntryTransformer;
 import com.linecorp.centraldogma.server.storage.repository.FindOption;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
+import com.linecorp.centraldogma.server.storage.repository.RepositoryHead;
 import com.linecorp.centraldogma.server.storage.repository.RepositoryListener;
 
 public class RepositoryWrapper implements Repository {
@@ -58,6 +60,26 @@ public class RepositoryWrapper implements Repository {
     @SuppressWarnings("unchecked")
     public final <T extends Repository> T unwrap() {
         return (T) repo;
+    }
+
+    @Override
+    public RepositoryHead head() {
+        return unwrap().head();
+    }
+
+    @Override
+    public List<ReplayCommit> buildRecoveryPayload(Revision fromRevision, Revision toRevision) {
+        return unwrap().buildRecoveryPayload(fromRevision, toRevision);
+    }
+
+    @Override
+    public int cacheGeneration() {
+        return unwrap().cacheGeneration();
+    }
+
+    @Override
+    public Revision lastRecoveryRevision() {
+        return unwrap().lastRecoveryRevision();
     }
 
     @Override

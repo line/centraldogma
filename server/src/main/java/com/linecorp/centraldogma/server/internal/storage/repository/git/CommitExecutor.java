@@ -87,6 +87,12 @@ final class CommitExecutor {
 
     CommitResult execute(Revision baseRevision,
                          Function<Revision, Iterable<Change<?>>> applyingChangesProvider) {
+        return execute(baseRevision, applyingChangesProvider, true);
+    }
+
+    CommitResult execute(Revision baseRevision,
+                         Function<Revision, Iterable<Change<?>>> applyingChangesProvider,
+                         boolean notifyWatchers) {
         final RevisionAndEntries res;
         final Iterable<Change<?>> applyingChanges;
         gitRepository.writeLock();
@@ -107,8 +113,10 @@ final class CommitExecutor {
             gitRepository.writeUnLock();
         }
 
-        // Note that the notification is made while no lock is held to avoid the risk of a dead lock.
-        gitRepository.notifyWatchers(res.revision, res.diffEntries);
+        if (notifyWatchers) {
+            // Note that the notification is made while no lock is held to avoid the risk of a dead lock.
+            gitRepository.notifyWatchers(res.revision, res.diffEntries);
+        }
         return CommitResult.of(res.revision, applyingChanges);
     }
 

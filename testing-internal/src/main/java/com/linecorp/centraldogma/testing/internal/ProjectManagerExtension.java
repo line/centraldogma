@@ -97,10 +97,10 @@ public class ProjectManagerExtension extends AbstractAllOrEachExtension {
      */
     @Override
     public void after(ExtensionContext context) throws Exception {
-        tempDir.delete();
-        executor.stop();
+        executor.stop().get();
         purgeWorker.shutdownNow();
         projectManager.close(ShuttingDownException::new);
+        tempDir.delete();
     }
 
     /**

@@ -278,7 +278,6 @@ public class DefaultProject implements Project {
             final Revision lastMetadataRevision = this.lastMetadataRevision;
             assert lastMetadataRevision != null;
             if (lastRevision.compareTo(lastMetadataRevision) <= 0) {
-                // An old data.
                 return;
             }
 

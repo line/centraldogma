@@ -33,6 +33,16 @@ import com.linecorp.centraldogma.common.Revision;
 class PushCommandTest {
 
     @Test
+    void forcePushUsesDelegateExecutionPath() {
+        final Command<Revision> push =
+                Command.push(Author.SYSTEM, "myProject", "myRepo", Revision.HEAD,
+                             "summary", "detail", Markup.PLAINTEXT,
+                             Change.ofTextUpsert("/a.txt", "Hello"));
+
+        assertThat(Command.forcePush(push).executionPath()).isEqualTo(push.executionPath());
+    }
+
+    @Test
     void shouldNotContainRawContentInToString() {
         final Change<JsonNode> json = Change.ofJsonUpsert("/a.json", "{ \"foo\": \"bar\" }");
         final Change<String> text = Change.ofTextUpsert("/a.txt", "Hello");

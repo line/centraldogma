@@ -41,6 +41,7 @@ import com.linecorp.armeria.common.logging.RequestOnlyLog;
 import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.armeria.common.util.UnmodifiableFuture;
 import com.linecorp.armeria.server.ServiceRequestContext;
+import com.linecorp.armeria.server.annotation.Blocking;
 import com.linecorp.armeria.server.annotation.Consumes;
 import com.linecorp.armeria.server.annotation.Delete;
 import com.linecorp.armeria.server.annotation.Get;
@@ -66,6 +67,7 @@ import com.linecorp.centraldogma.server.internal.api.auth.RequiresSystemAdminist
 import com.linecorp.centraldogma.server.internal.api.converter.CreateApiResponseConverter;
 import com.linecorp.centraldogma.server.internal.management.RepoStatusManager;
 import com.linecorp.centraldogma.server.internal.management.RepositoryState;
+import com.linecorp.centraldogma.server.internal.replication.ZooKeeperCommandExecutor;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
 import com.linecorp.centraldogma.server.metadata.User;
 import com.linecorp.centraldogma.server.storage.encryption.EncryptionStorageManager;
@@ -146,10 +148,7 @@ public class RepositoryServiceV1 extends AbstractService {
     }
 
     private ReplicationStatus getReplicationStatus(String projectName, String repoName) {
-        if (repoName.equals(Project.REPO_META)) {
-            repoName = Project.REPO_DOGMA;
-        }
-        return repoStatusManager.getRepoStatus(projectName, repoName).status();
+        return repoStatusManager.replicationStatus(projectName, repoName);
     }
 
     private static ImmutableList<RepositoryDto> removedRepositories(Project project) {
@@ -292,6 +291,99 @@ public class RepositoryServiceV1 extends AbstractService {
         final ReplicationStatus newStatus = statusRequest.status();
         return updateRepositoryStatus(author, project, repository, newStatus)
                 .thenApply(state -> newRepositoryDto(repository, newStatus));
+    }
+
+    /**
+     * GET /projects/{projectName}/repos/{repoName}/head
+     *
+     * <p>Returns the head of the repository <em>on the replica that served the request</em>: that
+     * replica's server ID, and the head's revision, commit ID and tree ID. A matching revision alone does
+     * not prove convergence. Commit IDs can also differ between replicas of a metadata repository because
+     * their early commits were written locally. The tree ID fingerprints the content alone, so it is what
+     * an administrator compares before making the repository writable again.
+     *
+     * <p>A system administrator calls this while the repository is read-only, so no commit moves the head
+     * between the replicas being compared.
+     */
+    @Get("/projects/{projectName}/repos/{repoName}/head")
+    @RequiresSystemAdministrator
+    @Blocking
+    public RepositoryHeadResponse head(Repository repository) {
+        final Integer serverId =
+                executor() instanceof ZooKeeperCommandExecutor ?
+                executor().replicaId() : null;
+        return new RepositoryHeadResponse(serverId, repository.head());
+    }
+
+    /**
+     * POST /projects/{projectName}/repos/{repoName}/recover
+     *
+     * <p>Rewrites the repository on every replica with {@code fromRevision..toRevision} of the replica whose
+     * server ID is {@code sourceServerId}. {@code toRevision} is the last source commit; the repository is
+     * padded with empty commits through {@code maxRevision + 1}, which becomes the new head. Replicated
+     * (ZooKeeper) mode only, and the repository must be read-only first.
+     *
+     * <p>The response only means the request was recorded. The source replica must be running when it
+     * replays the request. Confirm convergence with {@code GET .../head} on every replica, and submit a new
+     * request if they do not converge.
+     */
+    @Post("/projects/{projectName}/repos/{repoName}/recover")
+    @Consumes("application/json")
+    @RequiresSystemAdministrator
+    public CompletableFuture<RecoverRepositoryResponse> recover(ServiceRequestContext ctx,
+                                                                Project project,
+                                                                Repository repository,
+                                                                Author author,
+                                                                RecoverRepositoryRequest request) {
+        validateRecoveryPrerequisites(ctx, project, repository, request);
+        final String projectName = project.name();
+        final String repoName = repository.name();
+        final int sourceServerId = request.sourceServerId();
+        final Revision fromRevision = new Revision(request.fromRevision());
+        final Revision toRevision = new Revision(request.toRevision());
+        final int maxRevision = request.maxRevision();
+        final Revision recoveryRevision = new Revision(maxRevision + 1);
+
+        logger.info("Requesting a recovery of {}/{} from {} to {} to the source replica {}.",
+                    projectName, repoName, fromRevision, toRevision, sourceServerId);
+        return execute(Command.requestRepositoryRecovery(author, projectName, repoName, sourceServerId,
+                                                        fromRevision, toRevision, maxRevision))
+                .thenApply(unused -> new RecoverRepositoryResponse(recoveryRevision));
+    }
+
+    private void validateRecoveryPrerequisites(ServiceRequestContext ctx, Project project,
+                                               Repository repository,
+                                               RecoverRepositoryRequest request) {
+        if (InternalProjectInitializer.INTERNAL_PROJECT_DOGMA.equals(project.name())) {
+            // The internal project has no repository status to make read-only, so the precondition below is
+            // unreachable for it.
+            HttpApiUtil.throwResponse(
+                    ctx, HttpStatus.FORBIDDEN,
+                    "Cannot recover a repository of the internal project: %s/%s",
+                    project.name(), repository.name());
+        }
+        if (!(executor() instanceof ZooKeeperCommandExecutor)) {
+            throw new IllegalArgumentException(
+                    "Repository recovery is only supported in replicated (ZooKeeper) mode.");
+        }
+        if (repository.isEncrypted()) {
+            throw new IllegalArgumentException(
+                    "Recovery is not supported for an encrypted repository: " +
+                    project.name() + '/' + repository.name());
+        }
+        final ZooKeeperCommandExecutor zkExecutor = (ZooKeeperCommandExecutor) executor();
+        if (!zkExecutor.replicas().containsKey(request.sourceServerId())) {
+            throw new IllegalArgumentException(
+                    "sourceServerId: " + request.sourceServerId() + " (expected: one of " +
+                    zkExecutor.replicas().keySet() + ')');
+        }
+        if (getReplicationStatus(repository) != ReplicationStatus.READ_ONLY) {
+            HttpApiUtil.throwResponse(
+                    ctx, HttpStatus.CONFLICT,
+                    "The repository must be read-only before recovery so that no new commit can be " +
+                    "originated while the recovery is in flight: %s/%s. Change the status to READ_ONLY " +
+                    "first.", project.name(), repository.name());
+        }
     }
 
     /**

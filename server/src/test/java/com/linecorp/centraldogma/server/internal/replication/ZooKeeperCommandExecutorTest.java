@@ -21,6 +21,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.awaitility.Awaitility.await;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
@@ -28,6 +29,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -45,6 +47,9 @@ import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
+import org.apache.curator.framework.recipes.cache.ChildData;
+import org.apache.curator.framework.recipes.cache.PathChildrenCacheEvent;
+import org.apache.zookeeper.KeeperException.NoNodeException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.function.ThrowingConsumer;
@@ -69,6 +74,7 @@ import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.ReadOnlyException;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.server.command.ApplyRepositoryRecoveryCommand;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandType;
 import com.linecorp.centraldogma.server.command.CommitResult;
@@ -76,6 +82,7 @@ import com.linecorp.centraldogma.server.command.ContentTransformer;
 import com.linecorp.centraldogma.server.command.ForcePushCommand;
 import com.linecorp.centraldogma.server.command.NormalizingPushCommand;
 import com.linecorp.centraldogma.server.command.PushAsIsCommand;
+import com.linecorp.centraldogma.server.command.ReplayCommit;
 import com.linecorp.centraldogma.server.command.TransformCommand;
 import com.linecorp.centraldogma.server.management.ServerStatus;
 import com.linecorp.centraldogma.testing.internal.FlakyTest;
@@ -631,6 +638,7 @@ class ZooKeeperCommandExecutorTest {
             replica.commandExecutor().execute(command1).join();
             replica.commandExecutor().execute(command2).join();
             replica.commandExecutor().execute(command3).join();
+            notifyLogAdded(replica, 2);
 
             // Progress advances contiguously and each command is applied exactly once.
             await().untilAsserted(() -> assertThat(replica.localRevision()).isEqualTo(2L));
@@ -638,6 +646,183 @@ class ZooKeeperCommandExecutorTest {
             verify(replica.delegate(), times(1)).apply(eq(command2));
             verify(replica.delegate(), times(1)).apply(eq(command3));
             assertThat(replica.commandExecutor().isWritable()).isTrue();
+        }
+    }
+
+    @Test
+    @Timeout(60)
+    void recoveryIsAppliedBeforeItsLogIsStored() throws Exception {
+        final CountDownLatch applyEntered = new CountDownLatch(1);
+        final CountDownLatch proceed = new CountDownLatch(1);
+        final AtomicInteger recoveryAttempts = new AtomicInteger();
+        final Supplier<Function<Command<?>, CompletableFuture<?>>> delegateSupplier = () -> {
+            final Function<Command<?>, CompletableFuture<?>> base = newMockDelegate();
+            return command -> {
+                if (command instanceof ApplyRepositoryRecoveryCommand) {
+                    recoveryAttempts.incrementAndGet();
+                    applyEntered.countDown();
+                    return CompletableFuture.supplyAsync(() -> {
+                        try {
+                            proceed.await();
+                        } catch (InterruptedException e) {
+                            throw new RuntimeException(e);
+                        }
+                        final List<ReplayCommit> commits =
+                                ((ApplyRepositoryRecoveryCommand) command).commits();
+                        return commits.get(commits.size() - 1).revision();
+                    }, CommonPools.blockingTaskExecutor());
+                }
+                return base.apply(command);
+            };
+        };
+
+        try (Cluster cluster = Cluster.builder().numReplicas(1).build(delegateSupplier)) {
+            final Replica replica = cluster.get(0);
+            final ReplayCommit commit =
+                    new ReplayCommit(new Revision(2), 1234L, Author.SYSTEM, "summary", "",
+                                     Markup.PLAINTEXT,
+                                     ImmutableList.of(Change.ofTextUpsert("/memo.txt", "v2")),
+                                     "0123456789012345678901234567890123456789");
+            final Command<Revision> recoveryCommand =
+                    Command.applyRepositoryRecovery(Author.SYSTEM, "p", "r", ImmutableList.of(commit));
+            final CompletableFuture<Revision> recoveryFuture =
+                    replica.commandExecutor().execute(recoveryCommand);
+
+            try {
+                assertThat(applyEntered.await(10, TimeUnit.SECONDS)).isTrue();
+                assertThatThrownBy(() -> replica.commandExecutor().loadLog(0))
+                        .hasRootCauseInstanceOf(NoNodeException.class);
+                assertThat(replica.existsLocalRevision()).isFalse();
+                assertThat(recoveryFuture).isNotDone();
+            } finally {
+                proceed.countDown();
+            }
+            assertThat(recoveryFuture.join()).isEqualTo(new Revision(2));
+            final ReplicationLog<?> log = replica.commandExecutor().loadLog(0).log();
+            assertThat(log).isNotNull();
+            assertThat(log.command()).isEqualTo(recoveryCommand);
+            assertThat(log.result()).isEqualTo(new Revision(2));
+            notifyLogAdded(replica, 0);
+            assertThat(replica.localRevision()).isEqualTo(0L);
+            assertThat(recoveryAttempts).hasValue(1);
+        }
+    }
+
+    private static void notifyLogAdded(Replica replica, long revision) throws Exception {
+        final String path = String.format("/dogma/logs/%010d", revision);
+        replica.commandExecutor().childEvent(
+                null, new PathChildrenCacheEvent(PathChildrenCacheEvent.Type.CHILD_ADDED,
+                                                 new ChildData(path, null, null)));
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = { false, true })
+    @Timeout(60)
+    void recoveryRequestOriginatesWithOneCommandWorker(boolean throughNonSource) throws Exception {
+        final Revision recoveryRevision = new Revision(3);
+        final ReplayCommit commit =
+                new ReplayCommit(new Revision(2), 1234L, Author.SYSTEM, "summary", "",
+                                 Markup.PLAINTEXT,
+                                 ImmutableList.of(Change.ofTextUpsert("/memo.txt", "v2")),
+                                 "0123456789012345678901234567890123456789");
+        final ReplayCommit padding =
+                new ReplayCommit(recoveryRevision, 0, Author.SYSTEM, "Recovery padding", "",
+                                 Markup.PLAINTEXT, ImmutableList.of(), commit.expectedTreeId());
+        final Command<Revision> recovery =
+                Command.applyRepositoryRecovery(Author.SYSTEM, "p", "r",
+                                                ImmutableList.of(commit, padding));
+        final RecoveryCommandFactory factory = mock(RecoveryCommandFactory.class);
+        when(factory.blockingNewCommand(any())).thenReturn(recovery);
+        final Supplier<Function<Command<?>, CompletableFuture<?>>> delegateSupplier = () -> {
+            final Function<Command<?>, CompletableFuture<?>> delegate = newMockDelegate();
+            when(delegate.apply(eq(recovery))).thenAnswer(unused -> completedFuture(recoveryRevision));
+            return delegate;
+        };
+
+        try (Cluster cluster = Cluster.builder().numReplicas(3).numWorkers(1)
+                                      .recoveryCommandFactorySupplier(() -> factory)
+                                      .build(delegateSupplier)) {
+            final Replica source = cluster.get(0);
+            final Replica origin = throughNonSource ? cluster.get(1) : source;
+            origin.commandExecutor().execute(Command.requestRepositoryRecovery(
+                    Author.SYSTEM, "p", "r", source.commandExecutor().replicaId(),
+                    new Revision(2), new Revision(2), 2)).get(10, TimeUnit.SECONDS);
+
+            for (int i = 0; i < cluster.size(); i++) {
+                final Replica replica = cluster.get(i);
+                verify(replica.delegate(), timeout(30000)).apply(eq(recovery));
+                await().untilAsserted(() -> assertThat(replica.localRevision()).isEqualTo(1L));
+            }
+            verify(factory, times(1)).blockingNewCommand(any());
+        }
+    }
+
+    @Test
+    void failedRecoveryIsNotPublished() throws Exception {
+        final AtomicInteger recoveryAttempts = new AtomicInteger();
+        final Supplier<Function<Command<?>, CompletableFuture<?>>> delegateSupplier = () -> {
+            final Function<Command<?>, CompletableFuture<?>> delegate = newMockDelegate();
+            return command -> {
+                if (command instanceof ApplyRepositoryRecoveryCommand) {
+                    recoveryAttempts.incrementAndGet();
+                    final CompletableFuture<Revision> future = new CompletableFuture<>();
+                    future.completeExceptionally(new IllegalStateException("failed to apply recovery"));
+                    return future;
+                }
+                return delegate.apply(command);
+            };
+        };
+
+        try (Cluster cluster = Cluster.builder().numReplicas(1).build(delegateSupplier)) {
+            final Replica replica = cluster.get(0);
+            final ReplayCommit commit =
+                    new ReplayCommit(new Revision(2), 1234L, Author.SYSTEM, "summary", "",
+                                     Markup.PLAINTEXT,
+                                     ImmutableList.of(Change.ofTextUpsert("/memo.txt", "v2")),
+                                     "0123456789012345678901234567890123456789");
+            final Command<Revision> recovery =
+                    Command.applyRepositoryRecovery(Author.SYSTEM, "p", "r", ImmutableList.of(commit));
+
+            assertThatThrownBy(() -> replica.commandExecutor().execute(recovery).join())
+                    .hasRootCauseInstanceOf(IllegalStateException.class)
+                    .hasStackTraceContaining("failed to apply recovery");
+            assertThatThrownBy(() -> replica.commandExecutor().loadLog(0))
+                    .hasRootCauseInstanceOf(NoNodeException.class);
+            assertThat(recoveryAttempts).hasValue(1);
+            assertThat(replica.existsLocalRevision()).isFalse();
+        }
+    }
+
+    @Test
+    void replicationFailureWithoutLogContextCompletesCallerFuture() throws Exception {
+        try (Cluster cluster = Cluster.builder().numReplicas(1).build(
+                ZooKeeperCommandExecutorTest::newMockDelegate)) {
+            final ZooKeeperCommandExecutor executor = cluster.get(0).commandExecutor();
+            final CompletableFuture<Void> future = new CompletableFuture<>();
+            final ReplicationException failure = new ReplicationException("failed before loading a log",
+                                                                            new IllegalStateException());
+
+            executor.handleReplicationFailure(failure, false, future);
+
+            assertThatThrownBy(() -> future.get(10, TimeUnit.SECONDS))
+                    .hasCause(failure);
+        }
+    }
+
+    @Test
+    void replicationFailureCompletesCallerFutureIfReadOnlyTransitionCannotStart() throws Exception {
+        try (Cluster cluster = Cluster.builder().numReplicas(1).build(
+                ZooKeeperCommandExecutorTest::newMockDelegate)) {
+            final ZooKeeperCommandExecutor executor = cluster.get(0).commandExecutor();
+            executor.stop().join();
+            final CompletableFuture<Void> future = new CompletableFuture<>();
+            final ReplicationException failure =
+                    new ReplicationException("failed with a loaded log", new ReplicationLogContext());
+
+            executor.handleReplicationFailure(failure, false, future);
+
+            assertThatThrownBy(() -> future.get(10, TimeUnit.SECONDS))
+                    .hasCause(failure);
         }
     }
 
