@@ -1,6 +1,6 @@
 ---
 title: Configuration
-description: Every property of conf/dogma.json, from ports and TLS to replication, plugins and management.
+description: Every property of conf/dogma.json, from ports, TLS and encryption to replication, plugins and management.
 ---
 
 # Configuration
@@ -23,6 +23,7 @@ defaults:
     }
   ],
   "tls": null,
+  "encryption": null,
   "trustedProxyAddresses": null,
   "clientAddressSources": null,
   "numWorkers": null,
@@ -93,6 +94,23 @@ defaults:
 
   - the configuration for Transport Layer Security(TLS) support. Specify `null` to disable TLS.
     See [Configuring TLS](#configuring-tls) for more information.
+
+- `encryption`
+
+  - the configuration for repository encryption at rest. Defaults to `null` (disabled).
+    Requires a `KeyWrapper` implementation. Once enabled for a data directory, encryption must remain
+    enabled. See [Encryption at rest](encryption-at-rest.mdx) for setup, migration and key management.
+  - `enabled` (boolean)
+
+    - whether to enable encrypted repository storage. Defaults to `false`.
+
+  - `kekId` (string)
+
+    - the key encryption key (KEK) identifier. Required when `enabled` is `true`.
+
+  - `encryptSessionCookie` (boolean)
+
+    - whether to encrypt session cookies. Defaults to `false` and takes effect only when `enabled` is `true`.
 
 - `trustedProxyAddresses` (string array)
 
