@@ -29,6 +29,7 @@ import static org.mockito.Mockito.when;
 
 import java.io.File;
 import java.net.InetSocketAddress;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -49,7 +50,9 @@ import com.linecorp.armeria.common.auth.AuthToken;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
+import com.linecorp.centraldogma.common.Commit;
 import com.linecorp.centraldogma.common.Entry;
+import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.RepositoryStatus;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.server.CentralDogma;
@@ -70,6 +73,7 @@ class FallbackFromReadOnlyTest {
 
     private static final String PROJECT_NAME = "myProject";
     private static final String REPO_NAME = "myRepo";
+    private static final String UPSTREAM_COMMIT_ID = "0123456789abcdef0123456789abcdef01234567";
 
     @TempDir
     File dataDir;
@@ -93,6 +97,13 @@ class FallbackFromReadOnlyTest {
         createRepository(client, PROJECT_NAME, REPO_NAME);
 
         assertThat(dogma.projectManager().get(PROJECT_NAME).repos().get(REPO_NAME).isEncrypted()).isFalse();
+        dogma.projectManager().get(PROJECT_NAME).repos().get(REPO_NAME)
+             .commit(Revision.HEAD, System.currentTimeMillis(), Author.SYSTEM,
+                     "Mirrored commit", "Mirrored detail", Markup.MARKDOWN,
+                     List.of(Change.ofTextUpsert("/foo.txt", "foo")), true,
+                     UPSTREAM_COMMIT_ID, false)
+             .join();
+        createHistoryMirror(dogma, PROJECT_NAME, REPO_NAME, false);
         dogma.stop().join();
 
         // 2. Restart the server WITH encryption enabled and migrate the repo.
@@ -112,19 +123,22 @@ class FallbackFromReadOnlyTest {
         // Migrate the non-encrypted repo to an encrypted repo.
         AggregatedHttpResponse response = postApi(client, PROJECT_NAME, REPO_NAME, "/migrate/encrypted");
         assertThat(response.status()).isEqualTo(HttpStatus.OK);
+        assertThat(response.contentUtf8()).contains("\"encrypted\":true");
         assertThat(dogma.projectManager().get(PROJECT_NAME).repos().get(REPO_NAME).isEncrypted()).isTrue();
+        final Commit migratedCommit = dogma.projectManager().get(PROJECT_NAME).repos().get(REPO_NAME)
+                                            .history(Revision.HEAD, Revision.HEAD, "/**").join().get(0);
+        assertThat(migratedCommit.upstreamCommitId()).isEqualTo(UPSTREAM_COMMIT_ID);
+        assertThat(migratedCommit.detail()).isEqualTo("Mirrored detail");
+        assertThat(migratedCommit.markup()).isEqualTo(Markup.MARKDOWN);
 
-        createPreservingMirror(dogma, PROJECT_NAME, REPO_NAME);
+        createHistoryMirror(dogma, PROJECT_NAME, REPO_NAME, true);
         final CentralDogma encryptedDogma = dogma;
-        assertThat(encryptedDogma.projectManager().get(PROJECT_NAME).metaRepo()
-                                  .mirrors(REPO_NAME, true).join())
-                .isEmpty();
         assertThatThrownBy(() -> encryptedDogma.projectManager().get(PROJECT_NAME).metaRepo()
                                                .mirror(REPO_NAME, "history").join())
                 .isInstanceOf(CompletionException.class)
                 .hasCauseInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining(
-                        "preserveRemoteCommitHistory is not supported for the encrypted repository");
+                        "publishRemoteCommitTags is not supported for the encrypted repository");
 
         // Set the repository to read-only.
         response = updateRepositoryStatus(client, PROJECT_NAME, REPO_NAME, "READ_ONLY");
@@ -141,7 +155,7 @@ class FallbackFromReadOnlyTest {
     }
 
     @Test
-    void preservingMirrorPreventsEncryptionMigration() throws Exception {
+    void tagPublishingMirrorPreventsEncryptionMigration() throws Exception {
         CentralDogma dogma = new CentralDogmaBuilder(dataDir)
                 .port(0, SessionProtocol.HTTP)
                 .webAppEnabled(false)
@@ -153,7 +167,7 @@ class FallbackFromReadOnlyTest {
         WebClient client = newClient(dogma.activePort().localAddress());
         createProject(client, PROJECT_NAME);
         createRepository(client, PROJECT_NAME, REPO_NAME);
-        createPreservingMirror(dogma, PROJECT_NAME, REPO_NAME);
+        createHistoryMirror(dogma, PROJECT_NAME, REPO_NAME, true);
         dogma.stop().join();
 
         dogma = new CentralDogmaBuilder(dataDir)
@@ -173,7 +187,7 @@ class FallbackFromReadOnlyTest {
                     postApi(client, PROJECT_NAME, REPO_NAME, "/migrate/encrypted");
             assertThat(response.status()).isEqualTo(HttpStatus.BAD_REQUEST);
             assertThat(response.contentUtf8())
-                    .contains("Cannot encrypt a repository with a mirror that preserves remote commit history");
+                    .contains("Cannot encrypt a repository with a mirror that publishes remote commit tags");
             assertThat(dogma.projectManager().get(PROJECT_NAME).repos().get(REPO_NAME).isEncrypted())
                     .isFalse();
             assertThat(dogma.projectManager().get(PROJECT_NAME).metadata().repo(REPO_NAME).status())
@@ -184,7 +198,7 @@ class FallbackFromReadOnlyTest {
     }
 
     @Test
-    void preservingMirrorCreatedDuringMigrationRestoresActiveStatus() throws Exception {
+    void tagPublishingMirrorCreatedDuringMigrationRestoresActiveStatus() throws Exception {
         final CommandExecutor executor = mock(CommandExecutor.class);
         final MetadataService metadataService = mock(MetadataService.class);
         final EncryptionStorageManager encryptionStorageManager = mock(EncryptionStorageManager.class);
@@ -197,9 +211,9 @@ class FallbackFromReadOnlyTest {
         final String mirrorPath = "/repos/" + REPO_NAME + "/mirrors/history.json";
         final String mirrorPattern = "/repos/" + REPO_NAME + "/mirrors/*.json";
         final Map<String, Entry<?>> noMirrors = Map.of();
-        final Map<String, Entry<?>> preservingMirror = Map.of(
+        final Map<String, Entry<?>> tagPublishingMirror = Map.of(
                 mirrorPath, Entry.ofJson(Revision.INIT, mirrorPath,
-                                         "{\"preserveRemoteCommitHistory\":true}"));
+                                         "{\"publishRemoteCommitTags\":true}"));
 
         when(project.name()).thenReturn(PROJECT_NAME);
         when(project.metadata()).thenReturn(projectMetadata);
@@ -212,7 +226,7 @@ class FallbackFromReadOnlyTest {
         when(repository.isEncrypted()).thenReturn(false);
         when(metaRepository.find(Revision.HEAD, mirrorPattern))
                 .thenReturn(CompletableFuture.completedFuture(noMirrors))
-                .thenReturn(CompletableFuture.completedFuture(preservingMirror));
+                .thenReturn(CompletableFuture.completedFuture(tagPublishingMirror));
         when(encryptionStorageManager.enabled()).thenReturn(true);
         when(encryptionStorageManager.generateWdek())
                 .thenReturn(CompletableFuture.completedFuture("wrapped-dek"));
@@ -229,7 +243,7 @@ class FallbackFromReadOnlyTest {
                 .isInstanceOf(CompletionException.class)
                 .hasCauseInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining(
-                        "Cannot encrypt a repository with a mirror that preserves remote commit history");
+                        "Cannot encrypt a repository with a mirror that publishes remote commit tags");
 
         final InOrder statusUpdates = inOrder(metadataService);
         statusUpdates.verify(metadataService).updateRepositoryStatus(
@@ -269,7 +283,8 @@ class FallbackFromReadOnlyTest {
         assertThat(response.status()).isEqualTo(HttpStatus.CREATED);
     }
 
-    private static void createPreservingMirror(CentralDogma dogma, String projectName, String repoName) {
+    private static void createHistoryMirror(CentralDogma dogma, String projectName, String repoName,
+                                            boolean publishRemoteCommitTags) {
         final String mirrorPath = "/repos/" + repoName + "/mirrors/history.json";
         dogma.projectManager().get(projectName).metaRepo()
              .commit(Revision.HEAD, System.currentTimeMillis(), Author.SYSTEM, "Add a mirror",
@@ -279,7 +294,8 @@ class FallbackFromReadOnlyTest {
                              " \"direction\": \"REMOTE_TO_LOCAL\", \"localRepo\": \"" + repoName +
                              "\", \"localPath\": \"/\"," +
                              " \"remoteUri\": \"git+https://example.com/repo.git\"," +
-                             " \"credentialName\": \"\", \"preserveRemoteCommitHistory\": true }"))
+                             " \"credentialName\": \"\", \"preserveRemoteCommitHistory\": true," +
+                             " \"publishRemoteCommitTags\": " + publishRemoteCommitTags + " }"))
              .join();
     }
 

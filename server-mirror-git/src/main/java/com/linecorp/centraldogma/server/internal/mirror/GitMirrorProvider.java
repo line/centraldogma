@@ -61,6 +61,7 @@ public final class GitMirrorProvider implements MirrorProvider {
                                         repositoryUri,
                                         context.gitignore(), context.zone(),
                                         context.preserveRemoteCommitHistory(),
+                                        context.publishRemoteCommitTags(),
                                         context.trustedHostKeys());
             }
             case SCHEME_GIT_HTTP:
@@ -72,7 +73,8 @@ public final class GitMirrorProvider implements MirrorProvider {
                                             context.direction(), context.credential(),
                                             context.localRepo(), context.localPath(),
                                             repositoryUri, context.gitignore(), context.zone(),
-                                            context.preserveRemoteCommitHistory());
+                                            context.preserveRemoteCommitHistory(),
+                                            context.publishRemoteCommitTags());
             }
         }
 

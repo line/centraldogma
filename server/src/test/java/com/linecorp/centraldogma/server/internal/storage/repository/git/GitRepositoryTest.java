@@ -72,6 +72,7 @@ import com.linecorp.centraldogma.common.ChangeType;
 import com.linecorp.centraldogma.common.Commit;
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.EntryType;
+import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.RedundantChangeException;
 import com.linecorp.centraldogma.common.Revision;
@@ -479,6 +480,23 @@ class GitRepositoryTest {
                 .commit(new Revision(rev.major() - 1), 0L, Author.UNKNOWN, SUMMARY, jsonUpserts[1]).join())
                 .isInstanceOf(CompletionException.class)
                 .hasCauseInstanceOf(ChangeConflictException.class);
+    }
+
+    @Test
+    void rejectsTagPublishingBeforeMutatingEncryptedRepository() throws IOException {
+        final Revision head = encryptedRepo.normalizeNow(HEAD);
+        final ObjectId master = encryptedRepo.jGitRepository().resolve(R_HEADS_MASTER);
+
+        assertThatThrownBy(() -> encryptedRepo.commit(
+                head, 0L, Author.UNKNOWN, SUMMARY, "", Markup.PLAINTEXT,
+                List.of(jsonUpserts[0]), true,
+                "0123456789abcdef0123456789abcdef01234567", true).join())
+                .isInstanceOf(CompletionException.class)
+                .hasCauseInstanceOf(StorageException.class)
+                .hasMessageContaining("upstream commit tags are not supported for encrypted repositories");
+
+        assertThat(encryptedRepo.normalizeNow(HEAD)).isEqualTo(head);
+        assertThat(encryptedRepo.jGitRepository().resolve(R_HEADS_MASTER)).isEqualTo(master);
     }
 
     @Test

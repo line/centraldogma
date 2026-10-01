@@ -428,7 +428,7 @@ public class RepositoryServiceV1 extends AbstractService {
         final boolean isDogmaProject =
                 InternalProjectInitializer.INTERNAL_PROJECT_DOGMA.equals(project.name());
 
-        return validateNoPreservingMirrors(project, repository)
+        return validateNoTagPublishingMirrors(project, repository)
                 .thenCompose(unused -> encryptionStorageManager.generateWdek())
                 .thenCompose(wdek -> {
                     final WrappedDekDetails wdekDetails = new WrappedDekDetails(
@@ -437,22 +437,22 @@ public class RepositoryServiceV1 extends AbstractService {
                     if (isDogmaProject) {
                         // The dogma project does not have project metadata, so the repository
                         // status cannot be changed. Migrate directly without changing the status.
-                        return validateNoPreservingMirrors(project, repository)
+                        return validateNoTagPublishingMirrors(project, repository)
                                 .thenCompose(unused ->
                                         migrate(author, project, repository, wdekDetails, true));
                     }
                     return setRepositoryStatus(author, project, repository.name(),
                                                RepositoryStatus.READ_ONLY)
-                            .thenCompose(unused -> validateNoPreservingMirrorsOrRestoreStatus(
+                            .thenCompose(unused -> validateNoTagPublishingMirrorsOrRestoreStatus(
                                     author, project, repository))
                             .thenCompose(unused -> migrate(author, project, repository,
                                                            wdekDetails, false));
                 });
     }
 
-    private CompletableFuture<Void> validateNoPreservingMirrorsOrRestoreStatus(
+    private CompletableFuture<Void> validateNoTagPublishingMirrorsOrRestoreStatus(
             Author author, Project project, Repository repository) {
-        return validateNoPreservingMirrors(project, repository)
+        return validateNoTagPublishingMirrors(project, repository)
                 .handle((unused, cause) -> {
                     if (cause == null) {
                         return CompletableFuture.<Void>completedFuture(null);
@@ -463,21 +463,21 @@ public class RepositoryServiceV1 extends AbstractService {
                 .thenCompose(Function.identity());
     }
 
-    private static CompletableFuture<Void> validateNoPreservingMirrors(Project project,
-                                                                       Repository repository) {
+    private static CompletableFuture<Void> validateNoTagPublishingMirrors(Project project,
+                                                                          Repository repository) {
         if (InternalProjectInitializer.INTERNAL_PROJECT_DOGMA.equals(project.name())) {
             return CompletableFuture.completedFuture(null);
         }
         final String pattern = "/repos/" + repository.name() + "/mirrors/*.json";
         return project.metaRepo().find(Revision.HEAD, pattern).thenAccept(entries -> {
-            final boolean hasPreservingMirror = entries.values().stream()
-                                                       .map(entry -> (JsonNode) entry.content())
-                                                       .anyMatch(config ->
-                                                               config.path("preserveRemoteCommitHistory")
-                                                                     .asBoolean(false));
-            if (hasPreservingMirror) {
+            final boolean hasTagPublishingMirror = entries.values().stream()
+                                                          .map(entry -> (JsonNode) entry.content())
+                                                          .anyMatch(config ->
+                                                                  config.path("publishRemoteCommitTags")
+                                                                        .asBoolean(false));
+            if (hasTagPublishingMirror) {
                 throw new IllegalArgumentException(
-                        "Cannot encrypt a repository with a mirror that preserves remote commit history.");
+                        "Cannot encrypt a repository with a mirror that publishes remote commit tags.");
             }
         });
     }

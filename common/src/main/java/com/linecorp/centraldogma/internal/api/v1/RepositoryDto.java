@@ -60,6 +60,8 @@ public class RepositoryDto {
     @Nullable
     private final RepositoryStatus status;
 
+    private final boolean encrypted;
+
     RepositoryDto(String name) {
         this.name = requireNonNull(name, "name");
         creator = null;
@@ -67,6 +69,7 @@ public class RepositoryDto {
         url = null;
         createdAt = null;
         status = null;
+        encrypted = false;
     }
 
     public RepositoryDto(String projectName, String repoName, Author creator, Revision headRevision,
@@ -74,7 +77,23 @@ public class RepositoryDto {
         this(requireNonNull(repoName, "repoName"), requireNonNull(creator, "creator"),
              requireNonNull(headRevision, "headRevision"),
              PROJECTS_PREFIX + '/' + requireNonNull(projectName, "projectName") + REPOS + '/' + repoName,
-             ISO_INSTANT.format(Instant.ofEpochMilli(creationTimeMillis)), requireNonNull(status, "status"));
+             ISO_INSTANT.format(Instant.ofEpochMilli(creationTimeMillis)), requireNonNull(status, "status"),
+             false);
+    }
+
+    public RepositoryDto(String projectName, String repoName, Author creator, Revision headRevision,
+                         long creationTimeMillis, RepositoryStatus status, boolean encrypted) {
+        this(requireNonNull(repoName, "repoName"), requireNonNull(creator, "creator"),
+             requireNonNull(headRevision, "headRevision"),
+             PROJECTS_PREFIX + '/' + requireNonNull(projectName, "projectName") + REPOS + '/' + repoName,
+             ISO_INSTANT.format(Instant.ofEpochMilli(creationTimeMillis)), requireNonNull(status, "status"),
+             encrypted);
+    }
+
+    public RepositoryDto(String name, @Nullable Author creator, @Nullable Revision headRevision,
+                         @Nullable String url, @Nullable String createdAt,
+                         @Nullable RepositoryStatus status) {
+        this(name, creator, headRevision, url, createdAt, status, false);
     }
 
     @JsonCreator
@@ -83,13 +102,15 @@ public class RepositoryDto {
                          @JsonProperty("headRevision") @Nullable Revision headRevision,
                          @JsonProperty("url") @Nullable String url,
                          @JsonProperty("createdAt") @Nullable String createdAt,
-                         @JsonProperty("status") @Nullable RepositoryStatus status) {
+                         @JsonProperty("status") @Nullable RepositoryStatus status,
+                         @JsonProperty("encrypted") boolean encrypted) {
         this.name = requireNonNull(name, "name");
         this.creator = creator;
         this.headRevision = headRevision;
         this.url = url;
         this.createdAt = createdAt;
         this.status = status;
+        this.encrypted = encrypted;
     }
 
     @JsonProperty("name")
@@ -127,6 +148,12 @@ public class RepositoryDto {
         return status;
     }
 
+    @JsonInclude(Include.NON_DEFAULT)
+    @JsonProperty("encrypted")
+    public boolean encrypted() {
+        return encrypted;
+    }
+
     @Override
     public String toString() {
         return MoreObjects.toStringHelper(this).omitNullValues()
@@ -136,6 +163,7 @@ public class RepositoryDto {
                           .add("url", url())
                           .add("createdAt", createdAt())
                           .add("status", status())
+                          .add("encrypted", encrypted())
                           .toString();
     }
 }

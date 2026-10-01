@@ -55,20 +55,25 @@ class MirrorRequestTest {
     }
 
     @Test
-    void serializesPreserveRemoteCommitHistoryOnlyWhenEnabled() throws Exception {
+    void serializesHistoryAndTagOptionsOnlyWhenEnabled() throws Exception {
         final String credentialName = credentialName("foo", "credential-id");
 
-        assertThat(Jackson.writeValueAsString(newMirror(credentialName, false)))
+        assertThat(Jackson.writeValueAsString(newMirror(credentialName, false, false)))
+                .doesNotContain("preserveRemoteCommitHistory", "publishRemoteCommitTags");
+        assertThat(Jackson.writeValueAsString(newMirror(credentialName, true, false)))
+                .contains("\"preserveRemoteCommitHistory\":true")
+                .doesNotContain("publishRemoteCommitTags");
+        assertThat(Jackson.writeValueAsString(newMirror(credentialName, false, true)))
+                .contains("\"publishRemoteCommitTags\":true")
                 .doesNotContain("preserveRemoteCommitHistory");
-        assertThat(Jackson.writeValueAsString(newMirror(credentialName, true)))
-                .contains("\"preserveRemoteCommitHistory\":true");
     }
 
     private static MirrorRequest newMirror(String credentialName) {
-        return newMirror(credentialName, false);
+        return newMirror(credentialName, false, false);
     }
 
-    private static MirrorRequest newMirror(String credentialName, boolean preserveRemoteCommitHistory) {
+    private static MirrorRequest newMirror(String credentialName, boolean preserveRemoteCommitHistory,
+                                           boolean publishRemoteCommitTags) {
         return new MirrorRequest("mirror-id",
                                  true,
                                  "foo",
@@ -83,6 +88,7 @@ class MirrorRequestTest {
                                  null,
                                  credentialName,
                                  null,
-                                 preserveRemoteCommitHistory);
+                                 preserveRemoteCommitHistory,
+                                 publishRemoteCommitTags);
     }
 }

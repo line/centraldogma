@@ -14,6 +14,7 @@ export interface MirrorRequest {
   enabled: boolean;
   zone?: string;
   preserveRemoteCommitHistory?: boolean;
+  publishRemoteCommitTags?: boolean;
 }
 
 const GIT_MIRROR_SCHEMES = new Set(['git', 'git+file', 'git+http', 'git+https', 'git+ssh']);

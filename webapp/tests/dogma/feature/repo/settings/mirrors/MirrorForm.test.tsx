@@ -2,6 +2,7 @@ import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { renderWithProviders } from 'dogma/util/test-utils';
 import MirrorForm from 'dogma/features/repo/settings/mirrors/MirrorForm';
 import { MirrorRequest } from 'dogma/features/repo/settings/mirrors/MirrorRequest';
+import { useGetReposQuery } from 'dogma/features/api/apiSlice';
 
 jest.mock('next/router', () => ({
   useRouter: () => ({
@@ -19,6 +20,9 @@ jest.mock('dogma/features/api/apiSlice', () => ({
   }),
   useGetRepoCredentialsQuery: jest.fn().mockReturnValue({
     data: [],
+  }),
+  useGetReposQuery: jest.fn().mockReturnValue({
+    data: [{ name: 'myRepo', encrypted: false }],
   }),
   useGetMirrorConfigQuery: jest.fn().mockReturnValue({
     data: { zonePinned: false },
@@ -73,6 +77,7 @@ const emptyMirror: MirrorRequest = {
   gitignore: null,
   enabled: false,
   preserveRemoteCommitHistory: false,
+  publishRemoteCommitTags: false,
 };
 
 const mockOnSubmit = jest.fn().mockResolvedValue(undefined);
@@ -92,6 +97,9 @@ function renderMirrorForm(defaultValue: MirrorRequest = emptyMirror) {
 describe('MirrorForm', () => {
   beforeEach(() => {
     mockOnSubmit.mockClear();
+    (useGetReposQuery as jest.Mock).mockReturnValue({
+      data: [{ name: 'myRepo', encrypted: false }],
+    });
   });
 
   it('renders dogma and dogma+https in the scheme dropdown', () => {
@@ -156,18 +164,32 @@ describe('MirrorForm', () => {
     renderMirrorForm({ ...emptyMirror, remoteScheme: 'git+https' });
 
     expect(screen.getByRole('checkbox', { name: 'Preserve upstream commit history?' })).toBeEnabled();
+    expect(screen.getByRole('checkbox', { name: 'Publish upstream commit tags?' })).toBeEnabled();
   });
 
   it('disables commit history preservation until a supported scheme is selected', () => {
     renderMirrorForm();
 
     expect(screen.getByRole('checkbox', { name: 'Preserve upstream commit history?' })).toBeDisabled();
+    expect(screen.getByRole('checkbox', { name: 'Publish upstream commit tags?' })).toBeDisabled();
   });
 
   it('disables commit history preservation for Central Dogma mirrors', () => {
     renderMirrorForm({ ...emptyMirror, remoteScheme: 'dogma' });
 
     expect(screen.getByRole('checkbox', { name: 'Preserve upstream commit history?' })).toBeDisabled();
+    expect(screen.getByRole('checkbox', { name: 'Publish upstream commit tags?' })).toBeDisabled();
+  });
+
+  it('allows history preservation but disables tag publishing for encrypted repositories', () => {
+    (useGetReposQuery as jest.Mock).mockReturnValue({
+      data: [{ name: 'myRepo', encrypted: true }],
+    });
+    renderMirrorForm({ ...emptyMirror, remoteScheme: 'git+https' });
+
+    expect(screen.getByRole('checkbox', { name: 'Preserve upstream commit history?' })).toBeEnabled();
+    expect(screen.getByRole('checkbox', { name: 'Publish upstream commit tags?' })).toBeDisabled();
+    expect(screen.getByText('Unavailable for encrypted repositories.')).toBeInTheDocument();
   });
 
   it('clears commit history preservation when the direction becomes local-to-remote', async () => {
@@ -175,18 +197,25 @@ describe('MirrorForm', () => {
       ...emptyMirror,
       remoteScheme: 'git+https',
       preserveRemoteCommitHistory: true,
+      publishRemoteCommitTags: true,
     });
 
     const preserve = screen.getByRole('checkbox', {
       name: 'Preserve upstream commit history?',
     }) as HTMLInputElement;
+    const publishTags = screen.getByRole('checkbox', {
+      name: 'Publish upstream commit tags?',
+    }) as HTMLInputElement;
     expect(preserve).toBeChecked();
+    expect(publishTags).toBeChecked();
 
     fireEvent.click(screen.getByRole('radio', { name: 'Central Dogma to Remote' }));
 
     await waitFor(() => {
       expect(preserve).toBeDisabled();
       expect(preserve).not.toBeChecked();
+      expect(publishTags).toBeDisabled();
+      expect(publishTags).not.toBeChecked();
     });
   });
 });

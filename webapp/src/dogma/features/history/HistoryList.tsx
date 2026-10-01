@@ -70,11 +70,7 @@ const HistoryList = ({
                   <CommitSha label="Central Dogma" sha={info.row.original.commitId} />
                 )}
                 {info.row.original.upstreamCommitId && (
-                  <CommitSha
-                    label="Upstream"
-                    sha={info.row.original.upstreamCommitId}
-                    copyValue={`dogma-${info.row.original.upstreamCommitId}`}
-                  />
+                  <CommitSha label="Upstream" sha={info.row.original.upstreamCommitId} />
                 )}
               </Stack>
             )}

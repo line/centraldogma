@@ -45,8 +45,10 @@ public final class PushAsIsCommand extends AbstractPushCommand<Revision> {
                     @JsonProperty("detail") String detail,
                     @JsonProperty("markup") Markup markup,
                     @JsonProperty("changes") Iterable<Change<?>> changes,
-                    @JsonProperty("upstreamCommitId") @Nullable String upstreamCommitId) {
+                    @JsonProperty("upstreamCommitId") @Nullable String upstreamCommitId,
+                    @JsonProperty("publishUpstreamCommitTag")
+                    @Nullable Boolean publishUpstreamCommitTag) {
         super(CommandType.PUSH, timestamp, author, projectName, repositoryName,
-              baseRevision, summary, detail, markup, changes, upstreamCommitId);
+              baseRevision, summary, detail, markup, changes, upstreamCommitId, publishUpstreamCommitTag);
     }
 }

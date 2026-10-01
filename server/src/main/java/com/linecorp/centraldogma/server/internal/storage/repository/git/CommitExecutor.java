@@ -15,6 +15,7 @@
  */
 package com.linecorp.centraldogma.server.internal.storage.repository.git;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.linecorp.centraldogma.internal.HistoryConstants.UPSTREAM_TAG_PREFIX;
 import static com.linecorp.centraldogma.server.internal.storage.repository.git.GitRepository.R_HEADS_MASTER;
 import static com.linecorp.centraldogma.server.internal.storage.repository.git.GitRepository.doRefUpdate;
@@ -23,6 +24,7 @@ import static com.linecorp.centraldogma.server.internal.storage.repository.git.G
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.requireNonNull;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.function.Function;
 
@@ -30,24 +32,18 @@ import org.eclipse.jgit.diff.DiffEntry;
 import org.eclipse.jgit.diff.DiffFormatter;
 import org.eclipse.jgit.dircache.DirCache;
 import org.eclipse.jgit.dircache.DirCacheIterator;
-import org.eclipse.jgit.internal.storage.file.RefDirectory;
-import org.eclipse.jgit.lib.BatchRefUpdate;
 import org.eclipse.jgit.lib.CommitBuilder;
 import org.eclipse.jgit.lib.Constants;
-import org.eclipse.jgit.lib.NullProgressMonitor;
 import org.eclipse.jgit.lib.ObjectId;
 import org.eclipse.jgit.lib.ObjectInserter;
 import org.eclipse.jgit.lib.ObjectReader;
 import org.eclipse.jgit.lib.PersonIdent;
 import org.eclipse.jgit.lib.RefDatabase;
+import org.eclipse.jgit.lib.RefUpdate;
 import org.eclipse.jgit.lib.Repository;
 import org.eclipse.jgit.revwalk.RevWalk;
-import org.eclipse.jgit.transport.ReceiveCommand;
-import org.eclipse.jgit.transport.ReceiveCommand.Result;
 import org.eclipse.jgit.treewalk.CanonicalTreeParser;
 import org.jspecify.annotations.Nullable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
@@ -64,8 +60,6 @@ import com.linecorp.centraldogma.server.storage.StorageException;
 
 final class CommitExecutor {
 
-    private static final Logger logger = LoggerFactory.getLogger(CommitExecutor.class);
-
     final GitRepository gitRepository;
     private final long commitTimeMillis;
     private final Author author;
@@ -75,15 +69,16 @@ final class CommitExecutor {
     private final boolean allowEmptyCommit;
     @Nullable
     private final String upstreamCommitId;
+    private final boolean publishUpstreamCommitTag;
 
     CommitExecutor(GitRepository gitRepository, long commitTimeMillis, Author author,
                    String summary, String detail, Markup markup, boolean allowEmptyCommit) {
-        this(gitRepository, commitTimeMillis, author, summary, detail, markup, allowEmptyCommit, null);
+        this(gitRepository, commitTimeMillis, author, summary, detail, markup, allowEmptyCommit, null, false);
     }
 
     CommitExecutor(GitRepository gitRepository, long commitTimeMillis, Author author,
                    String summary, String detail, Markup markup, boolean allowEmptyCommit,
-                   @Nullable String upstreamCommitId) {
+                   @Nullable String upstreamCommitId, boolean publishUpstreamCommitTag) {
         this.gitRepository = gitRepository;
         this.commitTimeMillis = commitTimeMillis;
         this.author = author;
@@ -92,6 +87,9 @@ final class CommitExecutor {
         this.markup = markup;
         this.allowEmptyCommit = allowEmptyCommit;
         this.upstreamCommitId = upstreamCommitId;
+        checkArgument(!publishUpstreamCommitTag || upstreamCommitId != null,
+                      "publishUpstreamCommitTag requires upstreamCommitId");
+        this.publishUpstreamCommitTag = publishUpstreamCommitTag;
     }
 
     Author author() {
@@ -108,6 +106,9 @@ final class CommitExecutor {
 
     CommitResult execute(Revision baseRevision,
                          Function<Revision, Iterable<Change<?>>> applyingChangesProvider) {
+        if (publishUpstreamCommitTag && gitRepository.isEncrypted()) {
+            throw new StorageException("upstream commit tags are not supported for encrypted repositories");
+        }
         final RevisionAndEntries res;
         final Iterable<Change<?>> applyingChanges;
         gitRepository.writeLock();
@@ -213,9 +214,7 @@ final class CommitExecutor {
             // tagging the revision object, for history lookup purpose.
             commitIdDatabase.put(nextRevision, nextCommitId);
             doRefUpdate(jGitRepository, revWalk, R_HEADS_MASTER, nextCommitId);
-            // Publish the commit first so a crash cannot expose a tag whose commit is unreachable from master.
-            maybeTagUpstreamCommit(jGitRepository, revWalk, nextRevision, nextCommitId,
-                                   upstreamCommitId);
+            maybeTagUpstreamCommit(jGitRepository, revWalk, nextRevision, nextCommitId);
 
             return new RevisionAndEntries(nextRevision, diffEntries);
         } catch (CentralDogmaException | IllegalArgumentException e) {
@@ -227,38 +226,24 @@ final class CommitExecutor {
     }
 
     private void maybeTagUpstreamCommit(Repository jGitRepository, RevWalk revWalk, Revision revision,
-                                        ObjectId commitId, @Nullable String upstreamCommitId) {
-        if (upstreamCommitId == null) {
+                                        ObjectId commitId) throws IOException {
+        if (!publishUpstreamCommitTag) {
             return;
         }
-        if (gitRepository.isEncrypted()) {
-            // Encrypted repositories cannot store or advertise tags.
-            return;
-        }
+        final String upstreamCommitId = requireNonNull(this.upstreamCommitId, "upstreamCommitId");
 
         final RefDatabase refDatabase = jGitRepository.getRefDatabase();
         final String refName = Constants.R_TAGS + UPSTREAM_TAG_PREFIX + upstreamCommitId;
-        try {
-            final BatchRefUpdate batchRefUpdate = refDatabase.newBatchUpdate();
-            // A create-only update keeps an existing tag immutable.
-            batchRefUpdate.addCommand(new ReceiveCommand(ObjectId.zeroId(), commitId, refName));
-            batchRefUpdate.execute(revWalk, NullProgressMonitor.INSTANCE);
-            final ReceiveCommand command = batchRefUpdate.getCommands().get(0);
-            if (command.getResult() != Result.OK) {
-                logger.warn("Failed to create {} for {}/{} at {}: {} ({})",
-                            refName, gitRepository.parent().name(), gitRepository.name(), revision,
-                            command.getResult(), command.getMessage());
-                return;
-            }
-
-            // JGit writes a single-ref batch loosely, so pack only the new immutable tag immediately.
-            if (refDatabase instanceof RefDirectory) {
-                ((RefDirectory) refDatabase).pack(ImmutableList.of(refName));
-            }
-        } catch (Exception e) {
-            // The commit is already published, so report a tag failure without failing the push.
-            logger.warn("Failed to create {} for {}/{} at {}.",
-                        refName, gitRepository.parent().name(), gitRepository.name(), revision, e);
+        if (refDatabase.exactRef(refName) != null) {
+            return;
+        }
+        final RefUpdate refUpdate = jGitRepository.updateRef(refName);
+        refUpdate.setExpectedOldObjectId(ObjectId.zeroId());
+        refUpdate.setNewObjectId(commitId);
+        final RefUpdate.Result result = refUpdate.update(revWalk);
+        if (result != RefUpdate.Result.NEW) {
+            throw new StorageException("failed to create " + refName + ": " + result +
+                                       " at " + revision);
         }
     }
 

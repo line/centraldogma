@@ -53,6 +53,7 @@ public class MirrorRequest {
     @Nullable
     private final String zone;
     private final boolean preserveRemoteCommitHistory;
+    private final boolean publishRemoteCommitTags;
 
     public MirrorRequest(String id, @Nullable Boolean enabled, String projectName,
                          @Nullable String schedule, String direction, String localRepo,
@@ -60,7 +61,7 @@ public class MirrorRequest {
                          String remoteBranch, @Nullable String gitignore, String credentialName,
                          @Nullable String zone) {
         this(id, enabled, projectName, schedule, direction, localRepo, localPath, remoteScheme, remoteUrl,
-             remotePath, remoteBranch, gitignore, credentialName, zone, null);
+             remotePath, remoteBranch, gitignore, credentialName, zone, null, null);
     }
 
     @JsonCreator
@@ -79,7 +80,9 @@ public class MirrorRequest {
                          @JsonProperty("credentialName") String credentialName,
                          @JsonProperty("zone") @Nullable String zone,
                          @JsonProperty("preserveRemoteCommitHistory")
-                         @Nullable Boolean preserveRemoteCommitHistory) {
+                         @Nullable Boolean preserveRemoteCommitHistory,
+                         @JsonProperty("publishRemoteCommitTags")
+                         @Nullable Boolean publishRemoteCommitTags) {
         this.id = requireNonNull(id, "id");
         this.enabled = firstNonNull(enabled, true);
         this.projectName = requireNonNull(projectName, "projectName");
@@ -96,6 +99,7 @@ public class MirrorRequest {
         this.credentialName = validateCredentialName(projectName, localRepo, credentialName);
         this.zone = zone;
         this.preserveRemoteCommitHistory = firstNonNull(preserveRemoteCommitHistory, false);
+        this.publishRemoteCommitTags = firstNonNull(publishRemoteCommitTags, false);
     }
 
     @JsonProperty("id")
@@ -178,6 +182,12 @@ public class MirrorRequest {
         return preserveRemoteCommitHistory;
     }
 
+    @JsonInclude(Include.NON_DEFAULT)
+    @JsonProperty("publishRemoteCommitTags")
+    public boolean publishRemoteCommitTags() {
+        return publishRemoteCommitTags;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) {
@@ -201,14 +211,15 @@ public class MirrorRequest {
                Objects.equals(gitignore, mirrorRequest.gitignore) &&
                credentialName.equals(mirrorRequest.credentialName) &&
                Objects.equals(zone, mirrorRequest.zone) &&
-               preserveRemoteCommitHistory == mirrorRequest.preserveRemoteCommitHistory;
+               preserveRemoteCommitHistory == mirrorRequest.preserveRemoteCommitHistory &&
+               publishRemoteCommitTags == mirrorRequest.publishRemoteCommitTags;
     }
 
     @Override
     public int hashCode() {
         return Objects.hash(id, projectName, schedule, direction, localRepo, localPath, remoteScheme, remoteUrl,
                             remotePath, remoteBranch, gitignore, credentialName, enabled, zone,
-                            preserveRemoteCommitHistory);
+                            preserveRemoteCommitHistory, publishRemoteCommitTags);
     }
 
     protected ToStringHelper toStringHelper() {
@@ -228,7 +239,8 @@ public class MirrorRequest {
                           .add("gitignore", gitignore)
                           .add("credentialName", credentialName)
                           .add("zone", zone)
-                          .add("preserveRemoteCommitHistory", preserveRemoteCommitHistory);
+                          .add("preserveRemoteCommitHistory", preserveRemoteCommitHistory)
+                          .add("publishRemoteCommitTags", publishRemoteCommitTags);
     }
 
     @Override

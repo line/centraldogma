@@ -193,9 +193,10 @@ public class RepositoryWrapper implements Repository {
     public CompletableFuture<CommitResult> commit(Revision baseRevision, long commitTimeMillis,
                                                   Author author, String summary, String detail, Markup markup,
                                                   Iterable<Change<?>> changes, boolean normalizing,
-                                                  @Nullable String upstreamCommitId) {
+                                                  @Nullable String upstreamCommitId,
+                                                  boolean publishUpstreamCommitTag) {
         return unwrap().commit(baseRevision, commitTimeMillis, author, summary, detail, markup, changes,
-                               normalizing, upstreamCommitId);
+                               normalizing, upstreamCommitId, publishUpstreamCommitTag);
     }
 
     @Override

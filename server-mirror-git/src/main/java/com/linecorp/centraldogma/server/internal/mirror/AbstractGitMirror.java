@@ -113,9 +113,9 @@ abstract class AbstractGitMirror extends AbstractMirror {
     AbstractGitMirror(String id, boolean enabled, @Nullable Cron schedule, MirrorDirection direction,
                       Credential credential, Repository localRepo, String localPath,
                       RepositoryUri remoteUri, @Nullable String gitignore, @Nullable String zone,
-                      boolean preserveRemoteCommitHistory) {
+                      boolean preserveRemoteCommitHistory, boolean publishRemoteCommitTags) {
         super(id, enabled, schedule, direction, credential, localRepo, localPath, remoteUri, gitignore, zone,
-              preserveRemoteCommitHistory);
+              preserveRemoteCommitHistory, publishRemoteCommitTags);
     }
 
     GitWithAuth openGit(File workDir,
@@ -351,12 +351,7 @@ abstract class AbstractGitMirror extends AbstractMirror {
             headCommitId = fetchRemoteHeadAndGetCommitId(git, headBranchRef.getName(),
                                                          fetchDepth(oldMirrorState));
         } catch (Exception e) {
-            String message = "Failed to fetch the remote repository '" + git.remoteUri() +
-                             "' to the local repository '" + localPath() + "'.";
-            if (e.getMessage() != null) {
-                message += " (reason: " + e.getMessage();
-            }
-            throw new GitMirrorException(message, e);
+            throw newFetchException(git, e);
         }
 
         if (preserveRemoteCommitHistory()) {
@@ -402,7 +397,8 @@ abstract class AbstractGitMirror extends AbstractMirror {
         try {
             final Revision revision = executor.execute(Command.push(
                     null, MIRROR_AUTHOR, localRepo().parent().name(), localRepo().name(),
-                    localRev, summary, detail, Markup.PLAINTEXT, upstreamCommitId, changes.values())).join();
+                    localRev, summary, detail, Markup.PLAINTEXT, upstreamCommitId,
+                    publishRemoteCommitTags() && upstreamCommitId != null, changes.values())).join();
             final String description = summary + ", revision: " + revision.text();
             return newMirrorResult(MirrorStatus.SUCCESS, description, triggeredTime);
         } catch (CompletionException e) {
@@ -411,6 +407,15 @@ abstract class AbstractGitMirror extends AbstractMirror {
             }
             throw e;
         }
+    }
+
+    private GitMirrorException newFetchException(GitWithAuth git, Exception cause) {
+        String message = "Failed to fetch the remote repository '" + git.remoteUri() +
+                         "' to the local repository '" + localPath() + "'.";
+        if (cause.getMessage() != null) {
+            message += " (reason: " + cause.getMessage() + ')';
+        }
+        return new GitMirrorException(message, cause);
     }
 
     // Fetch one more generation so a linear history can include the previously mirrored commit.
@@ -516,7 +521,7 @@ abstract class AbstractGitMirror extends AbstractMirror {
                 revision = executor.execute(Command.push(
                         null, upstreamAuthor(commit), localRepo().parent().name(), localRepo().name(),
                         localRev, summary, commit.getFullMessage(), Markup.PLAINTEXT, upstreamCommitId,
-                        changes.values())).join();
+                        publishRemoteCommitTags() && upstreamCommitId != null, changes.values())).join();
                 replayed++;
             } catch (CompletionException e) {
                 if (e.getCause() instanceof RedundantChangeException) {
@@ -537,8 +542,11 @@ abstract class AbstractGitMirror extends AbstractMirror {
 
     @Nullable
     private String upstreamCommitIdToRecord(ObjectId commitId) throws IOException {
-        if (!preserveRemoteCommitHistory()) {
+        if (!preserveRemoteCommitHistory() && !publishRemoteCommitTags()) {
             return null;
+        }
+        if (!publishRemoteCommitTags()) {
+            return commitId.name();
         }
         final String refName = Constants.R_TAGS + UPSTREAM_TAG_PREFIX + commitId.name();
         return localRepo().jGitRepository().exactRef(refName) == null ? commitId.name() : null;

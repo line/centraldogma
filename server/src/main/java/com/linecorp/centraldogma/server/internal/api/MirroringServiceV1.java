@@ -309,7 +309,7 @@ public class MirroringServiceV1 extends AbstractService {
                              mirror.remoteBranch(),
                              mirror.gitignore(),
                              mirror.credential().name(), mirror.zone(),
-                             mirror.preserveRemoteCommitHistory(), allowed);
+                             mirror.preserveRemoteCommitHistory(), mirror.publishRemoteCommitTags(), allowed);
     }
 
     private MetaRepository metaRepo(String projectName) {

@@ -75,6 +75,9 @@ public final class MirrorConverter {
         validateCredentialName(parent.name(), mirrorConfig.localRepo(), mirrorConfig.credentialName());
         validatePreserveRemoteCommitHistory(
                 mirrorConfig.preserveRemoteCommitHistory(), mirrorConfig.direction(),
+                mirrorConfig.rawRemoteUri().getScheme());
+        validatePublishRemoteCommitTags(
+                mirrorConfig.publishRemoteCommitTags(), mirrorConfig.direction(),
                 mirrorConfig.rawRemoteUri().getScheme(), mirrorConfig.localRepo(), parent);
 
         final MirrorContext mirrorContext = new MirrorContext(
@@ -82,7 +85,8 @@ public final class MirrorConverter {
                 mirrorConfig.direction(),
                 credential, parent.repos().get(mirrorConfig.localRepo()), mirrorConfig.localPath(),
                 mirrorConfig.rawRemoteUri(), mirrorConfig.gitignore(), mirrorConfig.zone(),
-                mirrorConfig.preserveRemoteCommitHistory(), trustedHostKeys);
+                mirrorConfig.preserveRemoteCommitHistory(), mirrorConfig.publishRemoteCommitTags(),
+                trustedHostKeys);
         for (MirrorProvider mirrorProvider : MIRROR_PROVIDERS) {
             final Mirror mirror = mirrorProvider.newMirror(mirrorContext);
             if (mirror != null) {
@@ -94,20 +98,32 @@ public final class MirrorConverter {
     }
 
     static void validatePreserveRemoteCommitHistory(boolean preserveRemoteCommitHistory,
-                                                    MirrorDirection direction, String remoteScheme,
-                                                    String localRepo, Project parent) {
+                                                    MirrorDirection direction, String remoteScheme) {
         if (!preserveRemoteCommitHistory) {
             return;
         }
-        checkArgument(direction == MirrorDirection.REMOTE_TO_LOCAL,
-                      "preserveRemoteCommitHistory is only supported for %s mirrors, but got: %s",
-                      MirrorDirection.REMOTE_TO_LOCAL, direction);
-        checkArgument(GIT_SCHEMES.contains(remoteScheme),
-                      "preserveRemoteCommitHistory is only supported for Git mirrors, but got: %s",
-                      remoteScheme);
+        validateRemoteGitOption("preserveRemoteCommitHistory", direction, remoteScheme);
+    }
+
+    static void validatePublishRemoteCommitTags(boolean publishRemoteCommitTags,
+                                                MirrorDirection direction, String remoteScheme,
+                                                String localRepo, Project parent) {
+        if (!publishRemoteCommitTags) {
+            return;
+        }
+        validateRemoteGitOption("publishRemoteCommitTags", direction, remoteScheme);
         checkArgument(!parent.repos().exists(localRepo) || !parent.repos().get(localRepo).isEncrypted(),
-                      "preserveRemoteCommitHistory is not supported for the encrypted repository '%s'",
+                      "publishRemoteCommitTags is not supported for the encrypted repository '%s'",
                       localRepo);
+    }
+
+    private static void validateRemoteGitOption(String option, MirrorDirection direction,
+                                                String remoteScheme) {
+        checkArgument(direction == MirrorDirection.REMOTE_TO_LOCAL,
+                      "%s is only supported for %s mirrors, but got: %s",
+                      option, MirrorDirection.REMOTE_TO_LOCAL, direction);
+        checkArgument(GIT_SCHEMES.contains(remoteScheme),
+                      "%s is only supported for Git mirrors, but got: %s", option, remoteScheme);
     }
 
     private static Credential findCredential(MirrorConfig mirrorConfig, List<Credential> credentials) {
@@ -137,7 +153,8 @@ public final class MirrorConverter {
                 null,
                 mirrorRequest.credentialName(),
                 mirrorRequest.zone(),
-                mirrorRequest.preserveRemoteCommitHistory());
+                mirrorRequest.preserveRemoteCommitHistory(),
+                mirrorRequest.publishRemoteCommitTags());
     }
 
     private MirrorConverter() {}

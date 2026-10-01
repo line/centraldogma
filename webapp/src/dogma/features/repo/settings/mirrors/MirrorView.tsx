@@ -23,7 +23,7 @@ import { IoBanSharp } from 'react-icons/io5';
 import { EditIcon } from '@chakra-ui/icons';
 import React, { ReactNode } from 'react';
 import { IconType } from 'react-icons';
-import { VscGitCommit, VscMirror, VscRepoClone } from 'react-icons/vsc';
+import { VscGitCommit, VscMirror, VscRepoClone, VscTag } from 'react-icons/vsc';
 import { isGitMirrorScheme, MirrorRequest } from 'dogma/features/repo/settings/mirrors/MirrorRequest';
 import cronstrue from 'cronstrue';
 import { RunMirror } from 'dogma/features/mirror/RunMirrorButton';
@@ -177,9 +177,23 @@ const MirrorView = ({ projectName, repoName, mirror, editHref }: MirrorViewProps
                   </HeadRow>
                   <Td>
                     {mirror.preserveRemoteCommitHistory ? (
-                      <Badge colorScheme={'green'}>Preserved</Badge>
+                      <Badge colorScheme={'green'}>Enabled</Badge>
                     ) : (
-                      <Badge colorScheme={'gray'}>Squashed</Badge>
+                      <Badge colorScheme={'gray'}>Disabled</Badge>
+                    )}
+                  </Td>
+                </Tr>
+              )}
+              {mirror.direction === 'REMOTE_TO_LOCAL' && isGitMirrorScheme(mirror.remoteScheme) && (
+                <Tr>
+                  <HeadRow>
+                    <AlignedIcon as={VscTag} /> Upstream commit tags
+                  </HeadRow>
+                  <Td>
+                    {mirror.publishRemoteCommitTags ? (
+                      <Badge colorScheme={'green'}>Enabled</Badge>
+                    ) : (
+                      <Badge colorScheme={'gray'}>Disabled</Badge>
                     )}
                   </Td>
                 </Tr>

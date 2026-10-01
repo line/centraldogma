@@ -23,8 +23,6 @@ import static com.linecorp.centraldogma.server.internal.storage.InternalProjectC
 import static com.linecorp.centraldogma.server.internal.storage.repository.MirrorConverter.converterToMirrorConfig;
 import static com.linecorp.centraldogma.server.metadata.MetadataService.METADATA_JSON;
 import static java.util.Objects.requireNonNull;
-import static java.util.stream.Collectors.counting;
-import static java.util.stream.Collectors.groupingBy;
 
 import java.util.HashMap;
 import java.util.List;
@@ -152,19 +150,16 @@ public final class DefaultMetaRepository extends RepositoryWrapper implements Me
                 throw new RepositoryMetadataException("failed to load the mirror configuration", e);
             }
 
-            return validateUniquePreservingMirror(c, revision).thenCompose(unused -> {
-                if (c.credentialName().isEmpty()) {
-                    if (!parent().repos().exists(repoName)) {
-                        throw mirrorNotFound(revision, mirrorFile);
-                    }
-                    return CompletableFuture.completedFuture(
-                            MirrorConverter.convertToMirror(c, parent(), Credential.NONE, trustedHostKeys));
+            if (c.credentialName().isEmpty()) {
+                if (!parent().repos().exists(repoName)) {
+                    throw mirrorNotFound(revision, mirrorFile);
                 }
+                return CompletableFuture.completedFuture(
+                        MirrorConverter.convertToMirror(c, parent(), Credential.NONE, trustedHostKeys));
+            }
 
-                return credential(c.credentialName()).thenApply(
-                        credential -> MirrorConverter.convertToMirror(
-                                c, parent(), credential, trustedHostKeys));
-            });
+            return credential(c.credentialName()).thenApply(
+                    credential -> MirrorConverter.convertToMirror(c, parent(), credential, trustedHostKeys));
         });
     }
 
@@ -190,17 +185,9 @@ public final class DefaultMetaRepository extends RepositoryWrapper implements Me
         final CompletableFuture<List<Credential>> future = allCredentials();
         return future.thenApply(credentials -> {
             final List<MirrorConfig> mirrorConfigs = toMirrorConfigs(entries);
-            final Map<String, Long> preservingMirrorCounts =
-                    mirrorConfigs.stream()
-                                 .filter(MirrorConfig::preserveRemoteCommitHistory)
-                                 .collect(groupingBy(MirrorConfig::localRepo, counting()));
             return mirrorConfigs.stream()
                                 .map(mirrorConfig -> {
                                     try {
-                                        validateUniquePreservingMirror(
-                                                mirrorConfig,
-                                                preservingMirrorCounts.getOrDefault(
-                                                        mirrorConfig.localRepo(), 0L));
                                         return MirrorConverter.convertToMirror(
                                                 mirrorConfig, parent(), credentials, trustedHostKeys);
                                     } catch (Exception e) {
@@ -238,47 +225,38 @@ public final class DefaultMetaRepository extends RepositoryWrapper implements Me
                       .collect(toImmutableList());
     }
 
-    private CompletableFuture<Void> validateUniquePreservingMirror(MirrorConfig mirrorConfig,
-                                                                   Revision revision) {
-        if (!mirrorConfig.preserveRemoteCommitHistory()) {
-            return UnmodifiableFuture.completedFuture(null);
-        }
-        return find(revision, "/repos/" + mirrorConfig.localRepo() + "/mirrors/*.json", ImmutableMap.of())
-                .thenAccept(entries -> {
-                    final List<MirrorConfig> mirrorConfigs = toMirrorConfigs(entries);
-                    final long count = mirrorConfigs.stream()
-                                                    .filter(MirrorConfig::preserveRemoteCommitHistory)
-                                                    .count();
-                    validateUniquePreservingMirror(mirrorConfig, count);
-                });
-    }
-
-    private static void validateUniquePreservingMirror(MirrorConfig mirrorConfig, long count) {
-        if (!mirrorConfig.preserveRemoteCommitHistory()) {
-            return;
-        }
-        checkArgument(count == 1,
-                      "Only one mirror may preserve remote commit history for repository '%s'",
-                      mirrorConfig.localRepo());
-    }
-
-    private CompletableFuture<Revision> validatePreservingMirrorRequest(MirrorRequest mirrorRequest) {
-        if (!mirrorRequest.preserveRemoteCommitHistory()) {
+    private CompletableFuture<Revision> validateHistoryOptionsRequest(MirrorRequest mirrorRequest) {
+        final boolean preserveRemoteCommitHistory = mirrorRequest.preserveRemoteCommitHistory();
+        final boolean publishRemoteCommitTags = mirrorRequest.publishRemoteCommitTags();
+        if (!preserveRemoteCommitHistory && !publishRemoteCommitTags) {
             return UnmodifiableFuture.completedFuture(Revision.HEAD);
         }
         return normalize(Revision.HEAD).thenCompose(revision ->
                 find(revision, METADATA_JSON + ",/repos/" + mirrorRequest.localRepo() +
                                "/mirrors/*.json", ImmutableMap.of())
                         .thenApply(entries -> {
-                            validateActiveRepository(mirrorRequest, entries);
+                            if (publishRemoteCommitTags) {
+                                validateActiveRepository(mirrorRequest, entries);
+                            }
                             final Map<String, Entry<?>> mirrorEntries = new HashMap<>(entries);
                             mirrorEntries.remove(METADATA_JSON);
-                            final boolean duplicate = toMirrorConfigs(mirrorEntries).stream()
-                                    .anyMatch(candidate -> candidate.preserveRemoteCommitHistory() &&
-                                                           !candidate.id().equals(mirrorRequest.id()));
-                            checkArgument(!duplicate,
-                                          "Only one mirror may preserve remote commit history for " +
-                                          "repository '%s'", mirrorRequest.localRepo());
+                            final List<MirrorConfig> mirrorConfigs = toMirrorConfigs(mirrorEntries);
+                            if (preserveRemoteCommitHistory) {
+                                final boolean duplicate = mirrorConfigs.stream()
+                                        .anyMatch(candidate -> candidate.preserveRemoteCommitHistory() &&
+                                                               !candidate.id().equals(mirrorRequest.id()));
+                                checkArgument(!duplicate,
+                                              "Only one mirror may preserve remote commit history for " +
+                                              "repository '%s'", mirrorRequest.localRepo());
+                            }
+                            if (publishRemoteCommitTags) {
+                                final boolean duplicate = mirrorConfigs.stream()
+                                        .anyMatch(candidate -> candidate.publishRemoteCommitTags() &&
+                                                               !candidate.id().equals(mirrorRequest.id()));
+                                checkArgument(!duplicate,
+                                              "Only one mirror may publish remote commit tags for " +
+                                              "repository '%s'", mirrorRequest.localRepo());
+                            }
                             return revision;
                         }));
     }
@@ -301,7 +279,7 @@ public final class DefaultMetaRepository extends RepositoryWrapper implements Me
             return;
         }
         checkArgument(repositoryMetadata.status() == RepositoryStatus.ACTIVE,
-                      "preserveRemoteCommitHistory is only supported for ACTIVE repositories, but '%s' is %s",
+                      "publishRemoteCommitTags is only supported for ACTIVE repositories, but '%s' is %s",
                       mirrorRequest.localRepo(), repositoryMetadata.status());
     }
 
@@ -396,7 +374,7 @@ public final class DefaultMetaRepository extends RepositoryWrapper implements Me
             @Nullable ZoneConfig zoneConfig, boolean update) {
         validateMirror(mirrorRequest, zoneConfig);
         final CompletableFuture<Revision> baseRevisionFuture = validateCredentialType(mirrorRequest)
-                .thenCompose(unused -> validatePreservingMirrorRequest(mirrorRequest));
+                .thenCompose(unused -> validateHistoryOptionsRequest(mirrorRequest));
         if (update) {
             final String summary = "Update the mirror '" + mirrorRequest.id() + "' in " + repoName;
             return baseRevisionFuture.thenCompose(
@@ -513,10 +491,18 @@ public final class DefaultMetaRepository extends RepositoryWrapper implements Me
         if (mirror.preserveRemoteCommitHistory()) {
             validatePreserveRemoteCommitHistory(mirror);
         }
+        if (mirror.publishRemoteCommitTags()) {
+            validatePublishRemoteCommitTags(mirror);
+        }
     }
 
     private void validatePreserveRemoteCommitHistory(MirrorRequest mirror) {
         MirrorConverter.validatePreserveRemoteCommitHistory(
+                true, MirrorDirection.valueOf(mirror.direction()), mirror.remoteScheme());
+    }
+
+    private void validatePublishRemoteCommitTags(MirrorRequest mirror) {
+        MirrorConverter.validatePublishRemoteCommitTags(
                 true, MirrorDirection.valueOf(mirror.direction()), mirror.remoteScheme(), mirror.localRepo(),
                 parent());
     }

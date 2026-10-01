@@ -30,13 +30,13 @@ describe('CommitSha', () => {
     });
   });
 
-  it('copies the upstream commit as a Spring Cloud Config label', async () => {
-    renderWithProviders(<CommitSha label="Upstream" sha={sha} copyValue={`dogma-${sha}`} />);
+  it('copies the upstream commit SHA', async () => {
+    renderWithProviders(<CommitSha label="Upstream" sha={sha} />);
 
     expect(screen.getByText('0123456')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Copy Spring label' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Copy Upstream SHA' }));
 
-    await waitFor(() => expect(writeText).toHaveBeenCalledWith(`dogma-${sha}`));
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith(sha));
   });
 
   it('shows the full commit ID when abbreviation is disabled', () => {

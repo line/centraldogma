@@ -100,6 +100,7 @@ public abstract class AbstractMirror implements Mirror {
     @Nullable
     private final String zone;
     private final boolean preserveRemoteCommitHistory;
+    private final boolean publishRemoteCommitTags;
     @Nullable
     private final Cron schedule;
     @Nullable
@@ -116,14 +117,14 @@ public abstract class AbstractMirror implements Mirror {
                              Credential credential, Repository localRepo, String localPath,
                              RepositoryUri remoteUri, @Nullable String gitignore, @Nullable String zone) {
         this(id, enabled, schedule, direction, credential, localRepo, localPath, remoteUri, gitignore, zone,
-             false);
+             false, false);
     }
 
     protected AbstractMirror(String id, boolean enabled, @Nullable Cron schedule, MirrorDirection direction,
                              Credential credential, Repository localRepo, String localPath,
                              RepositoryUri remoteUri,
                              @Nullable String gitignore, @Nullable String zone,
-                             boolean preserveRemoteCommitHistory) {
+                             boolean preserveRemoteCommitHistory, boolean publishRemoteCommitTags) {
         this.id = requireNonNull(id, "id");
         this.enabled = enabled;
         this.direction = requireNonNull(direction, "direction");
@@ -134,6 +135,7 @@ public abstract class AbstractMirror implements Mirror {
         this.gitignore = gitignore;
         this.zone = zone;
         this.preserveRemoteCommitHistory = preserveRemoteCommitHistory;
+        this.publishRemoteCommitTags = publishRemoteCommitTags;
 
         if (gitignore != null) {
             ignoreNode = new IgnoreNode();
@@ -236,6 +238,11 @@ public abstract class AbstractMirror implements Mirror {
     @Override
     public boolean preserveRemoteCommitHistory() {
         return preserveRemoteCommitHistory;
+    }
+
+    @Override
+    public boolean publishRemoteCommitTags() {
+        return publishRemoteCommitTags;
     }
 
     @Override
@@ -373,6 +380,9 @@ public abstract class AbstractMirror implements Mirror {
         if (preserveRemoteCommitHistory) {
             // Keep existing mirror hashes unchanged while the option is disabled.
             helper.add("preserveRemoteCommitHistory", true);
+        }
+        if (publishRemoteCommitTags) {
+            helper.add("publishRemoteCommitTags", true);
         }
         return helper.toString();
     }

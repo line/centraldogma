@@ -184,7 +184,7 @@ class RemoteToLocalMirrorFetchTest {
         return (DefaultGitMirror) new GitMirrorProvider().newMirror(
                 new MirrorContext("mirror-id", true, EVERY_MINUTE, MirrorDirection.REMOTE_TO_LOCAL,
                                   Credential.NONE, localRepo, localPath, URI.create(gitUri), null, null,
-                                  preserveRemoteCommitHistory, ImmutableMap.of()));
+                                  preserveRemoteCommitHistory, false, ImmutableMap.of()));
     }
 
     private MirrorResult mirrorRemoteToLocal(DefaultGitMirror mirror) throws Exception {

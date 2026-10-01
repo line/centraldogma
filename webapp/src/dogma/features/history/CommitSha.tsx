@@ -22,14 +22,12 @@ import { useAppDispatch } from 'dogma/hooks';
 export type CommitShaProps = {
   label: string;
   sha: string;
-  copyValue?: string;
   abbreviated?: boolean;
 };
 
-export const CommitSha = ({ label, sha, copyValue, abbreviated = true }: CommitShaProps) => {
+export const CommitSha = ({ label, sha, abbreviated = true }: CommitShaProps) => {
   const dispatch = useAppDispatch();
-  const copied = copyValue ?? sha;
-  const copyLabel = copyValue ? 'Spring label' : `${label} SHA`;
+  const copyLabel = `${label} SHA`;
   return (
     <HStack spacing={1} maxWidth="100%" align="flex-start">
       <Text fontSize="sm" color="gray.500" flexShrink={0}>
@@ -59,7 +57,7 @@ export const CommitSha = ({ label, sha, copyValue, abbreviated = true }: CommitS
           variant="ghost"
           flexShrink={0}
           onClick={async () => {
-            await navigator.clipboard.writeText(copied);
+            await navigator.clipboard.writeText(sha);
             dispatch(newNotification('', `${copyLabel} copied to clipboard`, 'success'));
           }}
         />

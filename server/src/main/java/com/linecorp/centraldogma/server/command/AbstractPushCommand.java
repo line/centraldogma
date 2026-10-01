@@ -48,11 +48,12 @@ public abstract class AbstractPushCommand<T> extends RepositoryCommand<T> {
     private final List<Change<?>> changes;
     @Nullable
     private final String upstreamCommitId;
+    private final boolean publishUpstreamCommitTag;
 
     AbstractPushCommand(CommandType type, @Nullable Long timestamp, @Nullable Author author,
                         String projectName, String repositoryName, Revision baseRevision,
                         String summary, String detail, Markup markup, Iterable<Change<?>> changes,
-                        @Nullable String upstreamCommitId) {
+                        @Nullable String upstreamCommitId, @Nullable Boolean publishUpstreamCommitTag) {
         super(type, timestamp, author, projectName, repositoryName);
 
         if (upstreamCommitId != null) {
@@ -61,6 +62,9 @@ public abstract class AbstractPushCommand<T> extends RepositoryCommand<T> {
                           "invalid upstreamCommitId: %s", upstreamCommitId);
         }
         this.upstreamCommitId = upstreamCommitId;
+        this.publishUpstreamCommitTag = Boolean.TRUE.equals(publishUpstreamCommitTag);
+        checkArgument(!this.publishUpstreamCommitTag || upstreamCommitId != null,
+                      "publishUpstreamCommitTag requires upstreamCommitId");
 
         this.baseRevision = requireNonNull(baseRevision, "baseRevision");
         this.summary = requireNonNull(summary, "summary");
@@ -123,6 +127,15 @@ public abstract class AbstractPushCommand<T> extends RepositoryCommand<T> {
         return upstreamCommitId;
     }
 
+    /**
+     * Returns whether the upstream commit is published as a Git tag.
+     */
+    @JsonInclude(Include.NON_DEFAULT)
+    @JsonProperty
+    public boolean publishUpstreamCommitTag() {
+        return publishUpstreamCommitTag;
+    }
+
     @Override
     public boolean equals(Object obj) {
         if (this == obj) {
@@ -140,12 +153,14 @@ public abstract class AbstractPushCommand<T> extends RepositoryCommand<T> {
                detail.equals(that.detail) &&
                markup == that.markup &&
                changes.equals(that.changes) &&
-               Objects.equals(upstreamCommitId, that.upstreamCommitId);
+               Objects.equals(upstreamCommitId, that.upstreamCommitId) &&
+               publishUpstreamCommitTag == that.publishUpstreamCommitTag;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(baseRevision, summary, detail, markup, changes, upstreamCommitId) * 31 +
+        return Objects.hash(baseRevision, summary, detail, markup, changes, upstreamCommitId,
+                            publishUpstreamCommitTag) * 31 +
                super.hashCode();
     }
 

@@ -126,6 +126,13 @@ public interface Mirror {
     }
 
     /**
+     * Returns whether tags for remote commits are published.
+     */
+    default boolean publishRemoteCommitTags() {
+        return false;
+    }
+
+    /**
      * Performs the mirroring task.
      *
      * @param workDir the local directory where keeps the mirrored files

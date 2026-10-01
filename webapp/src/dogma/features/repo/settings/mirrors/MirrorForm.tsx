@@ -47,6 +47,7 @@ import {
   useGetMirrorConfigQuery,
   useGetProjectCredentialsQuery,
   useGetRepoCredentialsQuery,
+  useGetReposQuery,
 } from 'dogma/features/api/apiSlice';
 import React, { useEffect, useMemo, useState } from 'react';
 import FieldErrorMessage from 'dogma/common/components/form/FieldErrorMessage';
@@ -54,7 +55,7 @@ import { isGitMirrorScheme, MirrorRequest } from 'dogma/features/repo/settings/m
 import { CredentialDto } from 'dogma/features/project/settings/credentials/CredentialDto';
 import cronstrue from 'cronstrue';
 import { CiLocationOn } from 'react-icons/ci';
-import { VscGitCommit } from 'react-icons/vsc';
+import { VscGitCommit, VscTag } from 'react-icons/vsc';
 
 interface MirrorFormProps {
   projectName: string;
@@ -85,7 +86,7 @@ function isDogmaScheme(scheme: string): boolean {
   return scheme === 'dogma' || scheme === 'dogma+https';
 }
 
-function canPreserveRemoteCommitHistory(direction: string, remoteScheme: string): boolean {
+function supportsRemoteCommitOptions(direction: string, remoteScheme: string): boolean {
   return direction === 'REMOTE_TO_LOCAL' && isGitMirrorScheme(remoteScheme);
 }
 
@@ -123,6 +124,7 @@ const MirrorForm = ({
     projectName: projectName as string,
     repoName,
   });
+  const { data: repositories } = useGetReposQuery(projectName, { skip: !projectName });
   const { data: zoneConfig } = useGetMirrorConfigQuery();
 
   const [isScheduleEnabled, setScheduleEnabled] = useState<boolean>(defaultValue.schedule != null);
@@ -130,14 +132,32 @@ const MirrorForm = ({
   const direction = watch('direction');
   const remoteScheme = watch('remoteScheme');
   const preserveRemoteCommitHistory = watch('preserveRemoteCommitHistory');
+  const publishRemoteCommitTags = watch('publishRemoteCommitTags');
   const isDogma = isDogmaScheme(remoteScheme);
-  const canPreserveCommitHistory = canPreserveRemoteCommitHistory(direction, remoteScheme);
+  const canConfigureRemoteCommitOptions = supportsRemoteCommitOptions(direction, remoteScheme);
+  const repository = repositories?.find((candidate) => candidate.name === repoName);
+  const canPublishRemoteCommitTags =
+    canConfigureRemoteCommitOptions && repository != null && !repository.encrypted;
 
   useEffect(() => {
-    if (!canPreserveCommitHistory && preserveRemoteCommitHistory) {
-      setValue('preserveRemoteCommitHistory', false, { shouldDirty: true });
+    if (!canConfigureRemoteCommitOptions) {
+      if (preserveRemoteCommitHistory) {
+        setValue('preserveRemoteCommitHistory', false, { shouldDirty: true });
+      }
     }
-  }, [canPreserveCommitHistory, preserveRemoteCommitHistory, setValue]);
+    if (
+      publishRemoteCommitTags &&
+      (!canConfigureRemoteCommitOptions || (repository != null && repository.encrypted))
+    ) {
+      setValue('publishRemoteCommitTags', false, { shouldDirty: true });
+    }
+  }, [
+    canConfigureRemoteCommitOptions,
+    preserveRemoteCommitHistory,
+    publishRemoteCommitTags,
+    repository,
+    setValue,
+  ]);
 
   const repoCredentialOptions: OptionType[] = (repoCredentials || [])
     .filter((credential: CredentialDto) => credential.id)
@@ -210,8 +230,11 @@ const MirrorForm = ({
         if (isDogmaScheme(mirror.remoteScheme)) {
           mirror.remoteBranch = '';
         }
-        if (!canPreserveRemoteCommitHistory(mirror.direction, mirror.remoteScheme)) {
+        if (!supportsRemoteCommitOptions(mirror.direction, mirror.remoteScheme)) {
           mirror.preserveRemoteCommitHistory = false;
+          mirror.publishRemoteCommitTags = false;
+        } else if (repository?.encrypted) {
+          mirror.publishRemoteCommitTags = false;
         }
         return onSubmit(mirror, () => {}, setError);
       })}
@@ -544,19 +567,48 @@ const MirrorForm = ({
                   name={name}
                   ref={ref}
                   isChecked={Boolean(value)}
-                  isDisabled={!canPreserveCommitHistory}
+                  isDisabled={!canConfigureRemoteCommitOptions}
                   onChange={onChange}
                 />
               )}
             />
             <FormHelperText ml={4}>
-              {canPreserveCommitHistory ? (
-                <>
-                  Mirror each upstream commit as its own revision, tagged <Code>dogma-&lt;commit SHA&gt;</Code>.
-                  Guaranteed for fast-forward pushes only.
-                </>
-              ) : (
+              {canConfigureRemoteCommitOptions
+                ? 'Mirror each upstream commit as its own revision. Guaranteed for fast-forward pushes only.'
+                : 'Available only for remote-to-Central Dogma Git mirrors.'}
+            </FormHelperText>
+          </FormControl>
+          <Spacer />
+
+          <FormControl display="flex" alignItems="center">
+            <FormLabel htmlFor="publishRemoteCommitTags" mb="0">
+              <LabelledIcon icon={VscTag} text={'Publish upstream commit tags?'} />
+            </FormLabel>
+            <Controller
+              name="publishRemoteCommitTags"
+              control={control}
+              render={({ field: { onChange, value, name, ref } }) => (
+                <Switch
+                  id="publishRemoteCommitTags"
+                  name={name}
+                  ref={ref}
+                  isChecked={Boolean(value)}
+                  isDisabled={!canPublishRemoteCommitTags}
+                  onChange={onChange}
+                />
+              )}
+            />
+            <FormHelperText ml={4}>
+              {!canConfigureRemoteCommitOptions ? (
                 'Available only for remote-to-Central Dogma Git mirrors.'
+              ) : repository == null ? (
+                'Loading repository information.'
+              ) : repository.encrypted ? (
+                'Unavailable for encrypted repositories.'
+              ) : (
+                <>
+                  Publish recorded upstream commits as <Code>dogma-&lt;commit SHA&gt;</Code> Git tags.
+                </>
               )}
             </FormHelperText>
           </FormControl>

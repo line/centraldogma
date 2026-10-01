@@ -38,7 +38,7 @@ class PushAsIsCommandTest {
                 new PushAsIsCommand(1234L, new Author("Marge Simpson", "marge@simpsonsworld.com"),
                                     "foo", "bar", new Revision(42), "baz", "qux", Markup.MARKDOWN,
                                     ImmutableList.of(Change.ofTextUpsert("/memo.txt", "Bon voyage!")),
-                                    null),
+                                    null, false),
                 Command.class,
                 '{' +
                 "  \"type\": \"PUSH\"," +
@@ -64,24 +64,42 @@ class PushAsIsCommandTest {
     @Test
     void upstreamCommitIdJsonRoundTrip() throws Exception {
         final String upstreamCommitId = "0123456789abcdef0123456789abcdef01234567";
-        final PushAsIsCommand command = newCommand(upstreamCommitId);
+        final PushAsIsCommand command = newCommand(upstreamCommitId, true);
 
         final String json = Jackson.writeValueAsString(command);
         assertThat(json).contains("\"upstreamCommitId\":\"" + upstreamCommitId + '\"');
+        assertThat(json).contains("\"publishUpstreamCommitTag\":true");
+        assertThat(Jackson.readValue(json, Command.class)).isEqualTo(command);
+    }
+
+    @Test
+    void tagPublishingDefaultsToFalse() throws Exception {
+        final String upstreamCommitId = "0123456789abcdef0123456789abcdef01234567";
+        final PushAsIsCommand command = newCommand(upstreamCommitId, false);
+
+        final String json = Jackson.writeValueAsString(command);
+        assertThat(json).doesNotContain("publishUpstreamCommitTag");
         assertThat(Jackson.readValue(json, Command.class)).isEqualTo(command);
     }
 
     @Test
     void rejectsInvalidUpstreamCommitId() {
-        assertThatThrownBy(() -> newCommand("not-a-commit-id"))
+        assertThatThrownBy(() -> newCommand("not-a-commit-id", false))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("upstreamCommitId");
     }
 
-    private static PushAsIsCommand newCommand(String upstreamCommitId) {
+    @Test
+    void tagPublishingRequiresUpstreamCommitId() {
+        assertThatThrownBy(() -> newCommand(null, true))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("publishUpstreamCommitTag");
+    }
+
+    private static PushAsIsCommand newCommand(String upstreamCommitId, boolean publishUpstreamCommitTag) {
         return new PushAsIsCommand(1234L, new Author("Marge Simpson", "marge@simpsonsworld.com"),
                                    "foo", "bar", new Revision(42), "baz", "qux", Markup.MARKDOWN,
                                    ImmutableList.of(Change.ofTextUpsert("/memo.txt", "Bon voyage!")),
-                                   upstreamCommitId);
+                                   upstreamCommitId, publishUpstreamCommitTag);
     }
 }

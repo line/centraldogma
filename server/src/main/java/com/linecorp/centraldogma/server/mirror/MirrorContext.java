@@ -50,6 +50,7 @@ public final class MirrorContext {
     @Nullable
     private final String zone;
     private final boolean preserveRemoteCommitHistory;
+    private final boolean publishRemoteCommitTags;
     private final Map<String, List<String>> trustedHostKeys;
 
     /**
@@ -59,7 +60,7 @@ public final class MirrorContext {
                          Credential credential, Repository localRepo,
                          String localPath, URI remoteUri, @Nullable String gitignore, @Nullable String zone) {
         this(id, enabled, schedule, direction, credential, localRepo, localPath, remoteUri,
-             gitignore, zone, false, ImmutableMap.of());
+             gitignore, zone, false, false, ImmutableMap.of());
     }
 
     /**
@@ -70,7 +71,7 @@ public final class MirrorContext {
                          String localPath, URI remoteUri, @Nullable String gitignore, @Nullable String zone,
                          Map<String, List<String>> trustedHostKeys) {
         this(id, enabled, schedule, direction, credential, localRepo, localPath, remoteUri,
-             gitignore, zone, false, trustedHostKeys);
+             gitignore, zone, false, false, trustedHostKeys);
     }
 
     /**
@@ -80,6 +81,7 @@ public final class MirrorContext {
                          Credential credential, Repository localRepo,
                          String localPath, URI remoteUri, @Nullable String gitignore, @Nullable String zone,
                          boolean preserveRemoteCommitHistory,
+                         boolean publishRemoteCommitTags,
                          Map<String, List<String>> trustedHostKeys) {
         this.id = requireNonNull(id, "id");
         this.enabled = enabled;
@@ -92,6 +94,7 @@ public final class MirrorContext {
         this.gitignore = gitignore;
         this.zone = zone;
         this.preserveRemoteCommitHistory = preserveRemoteCommitHistory;
+        this.publishRemoteCommitTags = publishRemoteCommitTags;
         this.trustedHostKeys = ImmutableMap.copyOf(requireNonNull(trustedHostKeys, "trustedHostKeys"));
     }
 
@@ -177,6 +180,13 @@ public final class MirrorContext {
     }
 
     /**
+     * Returns whether tags for remote commits are published.
+     */
+    public boolean publishRemoteCommitTags() {
+        return publishRemoteCommitTags;
+    }
+
+    /**
      * Returns the globally trusted SSH host key fingerprints, keyed by hostname.
      */
     public Map<String, List<String>> trustedHostKeys() {
@@ -197,6 +207,7 @@ public final class MirrorContext {
                           .add("gitignore", gitignore)
                           .add("zone", zone)
                           .add("preserveRemoteCommitHistory", preserveRemoteCommitHistory)
+                          .add("publishRemoteCommitTags", publishRemoteCommitTags)
                           .add("trustedHostKeys", trustedHostKeys)
                           .toString();
     }

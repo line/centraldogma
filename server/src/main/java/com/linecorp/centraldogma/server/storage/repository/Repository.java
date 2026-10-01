@@ -504,17 +504,14 @@ public interface Repository {
                                            Iterable<Change<?>> changes, boolean directExecution);
 
     /**
-     * Adds the specified changes to this {@link Repository} and records the upstream Git commit ID.
-     *
-     * @param upstreamCommitId the SHA-1 of the upstream Git commit this {@link Commit} is mirrored from,
-     *                         or {@code null} if this {@link Commit} did not come from a mirror
-     * @return the {@link Revision} of the new {@link Commit}
+     * Adds the specified changes and records the upstream Git commit ID.
      */
     default CompletableFuture<CommitResult> commit(Revision baseRevision, long commitTimeMillis,
                                                    Author author, String summary, String detail, Markup markup,
                                                    Iterable<Change<?>> changes, boolean directExecution,
-                                                   @Nullable String upstreamCommitId) {
-        if (upstreamCommitId != null) {
+                                                   @Nullable String upstreamCommitId,
+                                                   boolean publishUpstreamCommitTag) {
+        if (upstreamCommitId != null || publishUpstreamCommitTag) {
             throw new UnsupportedOperationException("upstream commit IDs are not supported");
         }
         return commit(baseRevision, commitTimeMillis, author, summary, detail, markup, changes,

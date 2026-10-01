@@ -115,6 +115,13 @@ Here is the properties of the mirroring task:
 
   - See `Preserving the upstream commit history`_ below.
 
+- ``Publish upstream commit tags``
+
+  - whether the upstream commit recorded by a mirrored revision is published as a Git tag. The option is
+    disabled by default.
+
+  - See `Publishing upstream commit tags`_ below.
+
 - ``Enable mirror``
 
   - whether the mirroring task is enabled.
@@ -127,9 +134,18 @@ revision, so several remote commits merged in quick succession end up in one rev
 ``Preserve upstream commit history`` replays them one by one instead, which lets you pin the state where
 only one pull request has been applied.
 
-Each revision created this way records the SHA-1 of the remote commit it came from, shows it in the commit
-history next to Central Dogma's own commit SHA-1, and is tagged ``refs/tags/dogma-<remote SHA-1>``. Because
-Central Dogma serves its repositories over the Git HTTP protocol, that tag can be used as a Git label:
+Each revision created this way records the SHA-1 of the remote commit it came from and shows it in the commit
+history next to Central Dogma's own commit SHA-1.
+
+Publishing upstream commit tags
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Turning on ``Publish upstream commit tags`` creates a lightweight
+``refs/tags/dogma-<remote SHA-1>`` tag for each upstream commit recorded by a mirrored revision. This option
+is independent of history preservation. Without history preservation, a snapshot revision can publish a tag
+for the current remote head.
+
+Central Dogma serves these tags over the Git HTTP protocol, so they can be used as Git labels:
 
 .. code-block:: yaml
 
@@ -149,25 +165,28 @@ Note the following limitations:
 - **A single run replays at most 100 commits.** If more than 100 commits are reachable from the remote head,
   the run creates one snapshot revision instead. This limit also applies to histories with merge commits.
 
-- Tags are immutable. If a reconciliation snapshot refers to an upstream commit that was tagged by an earlier
-  revision, the existing tag does not move and the new snapshot is left without an upstream mapping.
+- Published tags are immutable. If a reconciliation snapshot refers to an upstream commit that was tagged by
+  an earlier revision, the existing tag does not move.
 
 - **A remote commit that changes nothing within the mirrored path still creates a revision**, because the
   revision records which remote commit the repository is at. Expect this if ``remote path`` covers only a
   part of a busy repository.
 
-- Only one mirror targeting a repository may enable this option. The ``dogma-<remote SHA-1>`` tag belongs to
-  the target repository, so two preserving mirrors could otherwise assign the same tag to different states.
+- Only one mirror targeting a repository may preserve remote commit history.
 
-- The option is unavailable for:
+- Only one mirror targeting a repository may publish upstream commit tags. The
+  ``dogma-<remote SHA-1>`` tag belongs to the target repository, so two mirrors could otherwise assign the
+  same tag to different states.
+
+- Both options are unavailable for:
 
   - ``LOCAL_TO_REMOTE`` mirrors
   - Central Dogma to Central Dogma mirrors
-  - encrypted repositories
 
-- A repository with this option configured cannot be migrated to encrypted storage.
+- Tag publishing is unavailable for encrypted repositories. A repository with tag publishing configured
+  cannot be migrated to encrypted storage. History preservation remains available.
 
-- During an upgrade, enable this option only after every replica is running a version that supports it.
+- During an upgrade, enable either option only after every replica is running a version that supports it.
 
 Central Dogma to Central Dogma mirroring
 ----------------------------------------

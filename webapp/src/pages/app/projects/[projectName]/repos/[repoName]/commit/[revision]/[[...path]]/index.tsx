@@ -160,12 +160,7 @@ const CommitViewPage = () => {
                   <CommitSha label="Central Dogma" sha={historyData[0].commitId} abbreviated={false} />
                 )}
                 {historyData[0].upstreamCommitId && (
-                  <CommitSha
-                    label="Upstream"
-                    sha={historyData[0].upstreamCommitId}
-                    copyValue={`dogma-${historyData[0].upstreamCommitId}`}
-                    abbreviated={false}
-                  />
+                  <CommitSha label="Upstream" sha={historyData[0].upstreamCommitId} abbreviated={false} />
                 )}
               </Stack>
             )}

@@ -192,8 +192,12 @@ class DefaultMetaRepositoryWithMirrorTest {
         assertThat(bar.direction()).isEqualTo(MirrorDirection.REMOTE_TO_LOCAL);
         assertThat(foo.preserveRemoteCommitHistory()).isFalse();
         assertThat(bar.preserveRemoteCommitHistory()).isFalse();
+        assertThat(foo.publishRemoteCommitTags()).isFalse();
+        assertThat(bar.publishRemoteCommitTags()).isFalse();
         assertThat(foo.toString()).doesNotContain("preserveRemoteCommitHistory");
         assertThat(bar.toString()).doesNotContain("preserveRemoteCommitHistory");
+        assertThat(foo.toString()).doesNotContain("publishRemoteCommitTags");
+        assertThat(bar.toString()).doesNotContain("publishRemoteCommitTags");
 
         assertThat(foo.schedule().equivalent(cronParser.parse("0 * * * * ?"))).isTrue();
         assertThat(bar.schedule().equivalent(cronParser.parse("0 */10 * * * ?"))).isTrue();
@@ -365,21 +369,19 @@ class DefaultMetaRepositoryWithMirrorTest {
     }
 
     @Test
-    void multiplePreservingMirrorsForOneRepository_areRejected() {
+    void preservingAndTagPublishingMirrorsCanCoexist() {
         metaRepo.commit(
                 Revision.HEAD, 0, Author.SYSTEM, "",
-                ImmutableList.of(preservingMirror("foo", "/one", "git+https://example.com/one.git"),
-                                 preservingMirror("bar", "/two", "git+https://example.com/two.git")))
+                ImmutableList.of(preservingMirror("history", "/history",
+                                                  "git+https://example.com/history.git"),
+                                 tagPublishingMirror("tags", "/tags",
+                                                     "git+https://example.com/tags.git")))
                 .join();
         project.repos().create("repo", Author.SYSTEM);
 
-        assertThat(metaRepo.mirrors().join()).isEmpty();
-        for (String mirrorId : ImmutableList.of("foo", "bar")) {
-            assertThatThrownBy(() -> metaRepo.mirror("repo", mirrorId).join())
-                    .isInstanceOf(CompletionException.class)
-                    .hasCauseInstanceOf(IllegalArgumentException.class)
-                    .hasMessageContaining("Only one mirror may preserve remote commit history");
-        }
+        assertThat(metaRepo.mirrors().join())
+                .extracting(Mirror::id)
+                .containsExactlyInAnyOrder("history", "tags");
     }
 
     @Test
@@ -395,6 +397,21 @@ class DefaultMetaRepositoryWithMirrorTest {
                 .isInstanceOf(CompletionException.class)
                 .hasCauseInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Only one mirror may preserve remote commit history");
+    }
+
+    @Test
+    void mirrorApiRejectsSecondTagPublishingMirrorForOneRepository() {
+        project.repos().create("repo", Author.SYSTEM);
+        final MirrorRequest first = tagPublishingMirrorRequest("first", "example.com/one.git");
+        pmExtension.executor().execute(
+                metaRepo.createMirrorPushCommand("repo", first, Author.SYSTEM, null, false).join()).join();
+
+        final MirrorRequest second = tagPublishingMirrorRequest("second", "example.com/two.git");
+        assertThatThrownBy(() ->
+                metaRepo.createMirrorPushCommand("repo", second, Author.SYSTEM, null, false).join())
+                .isInstanceOf(CompletionException.class)
+                .hasCauseInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Only one mirror may publish remote commit tags");
     }
 
     @Test
@@ -415,7 +432,7 @@ class DefaultMetaRepositoryWithMirrorTest {
     }
 
     @Test
-    void preservingMirrorCannotRaceRepositoryEncryption() {
+    void tagPublishingMirrorCannotRaceRepositoryEncryption() {
         project.repos().create("repo", Author.SYSTEM);
         final MetadataService metadataService =
                 new MetadataService(pm, pmExtension.executor(), pmExtension.internalProjectInitializer());
@@ -423,7 +440,7 @@ class DefaultMetaRepositoryWithMirrorTest {
                                 ProjectRoles.of(RepositoryRole.WRITE, RepositoryRole.WRITE)).join();
 
         final Command<Revision> command = metaRepo.createMirrorPushCommand(
-                "repo", preservingMirrorRequest("first", "example.com/one.git"),
+                "repo", tagPublishingMirrorRequest("first", "example.com/one.git"),
                 Author.SYSTEM, null, false).join();
         metadataService.updateRepositoryStatus(
                 Author.SYSTEM, project.name(), "repo", RepositoryStatus.READ_ONLY).join();
@@ -432,7 +449,7 @@ class DefaultMetaRepositoryWithMirrorTest {
                 .isInstanceOf(CompletionException.class)
                 .hasCauseInstanceOf(ChangeConflictException.class);
         assertThatThrownBy(() -> metaRepo.createMirrorPushCommand(
-                "repo", preservingMirrorRequest("second", "example.com/two.git"),
+                "repo", tagPublishingMirrorRequest("second", "example.com/two.git"),
                 Author.SYSTEM, null, false).join())
                 .isInstanceOf(CompletionException.class)
                 .hasCauseInstanceOf(IllegalArgumentException.class)
@@ -549,9 +566,29 @@ class DefaultMetaRepositoryWithMirrorTest {
                 '}');
     }
 
+    private static Change<?> tagPublishingMirror(String id, String localPath, String remoteUri) {
+        return Change.ofJsonUpsert(
+                "/repos/repo/mirrors/" + id + ".json",
+                '{' +
+                "  \"id\": \"" + id + "\"," +
+                "  \"enabled\": true," +
+                "  \"direction\": \"REMOTE_TO_LOCAL\"," +
+                "  \"localRepo\": \"repo\"," +
+                "  \"localPath\": \"" + localPath + "\"," +
+                "  \"remoteUri\": \"" + remoteUri + "\"," +
+                "  \"credentialName\": \"\"," +
+                "  \"publishRemoteCommitTags\": true" +
+                '}');
+    }
+
     private MirrorRequest preservingMirrorRequest(String id, String remoteUrl) {
         return new MirrorRequest(id, true, project.name(), null, "REMOTE_TO_LOCAL", "repo", "/",
-                                 "git+https", remoteUrl, "/", "main", null, "", null, true);
+                                 "git+https", remoteUrl, "/", "main", null, "", null, true, false);
+    }
+
+    private MirrorRequest tagPublishingMirrorRequest(String id, String remoteUrl) {
+        return new MirrorRequest(id, true, project.name(), null, "REMOTE_TO_LOCAL", "repo", "/",
+                                 "git+https", remoteUrl, "/", "main", null, "", null, false, true);
     }
 
     private static List<Credential> credentials(String projectName) {

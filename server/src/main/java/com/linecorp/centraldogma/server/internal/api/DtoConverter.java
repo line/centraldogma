@@ -74,7 +74,7 @@ final class DtoConverter {
         final Revision headRevision = repository.normalizeNow(Revision.HEAD);
         final String projectName = repository.parent().name();
         return new RepositoryDto(projectName, repository.name(), repository.author(), headRevision,
-                                 repository.creationTimeMillis(), status);
+                                 repository.creationTimeMillis(), status, repository.isEncrypted());
     }
 
     public static <T> EntryDto<?> newEntryDto(Repository repository, Revision revision,

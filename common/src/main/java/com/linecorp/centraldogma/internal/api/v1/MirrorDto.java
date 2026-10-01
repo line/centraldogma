@@ -36,7 +36,7 @@ public final class MirrorDto extends MirrorRequest {
                      String remoteUrl, String remotePath, String remoteBranch, @Nullable String gitignore,
                      @Nullable String credentialName, @Nullable String zone, boolean allow) {
         this(id, enabled, projectName, schedule, direction, localRepo, localPath, remoteScheme, remoteUrl,
-             remotePath, remoteBranch, gitignore, credentialName, zone, null, allow);
+             remotePath, remoteBranch, gitignore, credentialName, zone, null, null, allow);
     }
 
     @JsonCreator
@@ -56,9 +56,12 @@ public final class MirrorDto extends MirrorRequest {
                      @JsonProperty("zone") @Nullable String zone,
                      @JsonProperty("preserveRemoteCommitHistory")
                      @Nullable Boolean preserveRemoteCommitHistory,
+                     @JsonProperty("publishRemoteCommitTags")
+                     @Nullable Boolean publishRemoteCommitTags,
                      @JsonProperty("allow") boolean allow) {
         super(id, enabled, projectName, schedule, direction, localRepo, localPath, remoteScheme, remoteUrl,
-              remotePath, remoteBranch, gitignore, credentialName, zone, preserveRemoteCommitHistory);
+              remotePath, remoteBranch, gitignore, credentialName, zone, preserveRemoteCommitHistory,
+              publishRemoteCommitTags);
         this.allow = allow;
     }
 
