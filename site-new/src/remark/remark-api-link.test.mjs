@@ -61,6 +61,10 @@ test('generates normalized method keys and omits ambiguous aliases', () => {
     /#createProject\(java\.lang\.String\)$/,
   );
   assert.match(
+    generatedIndex[`${centralDogma}#createProject(java.lang.String)`],
+    /#createProject\(java\.lang\.String\)$/,
+  );
+  assert.match(
     generatedIndex[`${centralDogma}#createRepository(String,String)`],
     /#createRepository\(java\.lang\.String,java\.lang\.String\)$/,
   );

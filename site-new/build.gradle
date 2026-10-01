@@ -142,6 +142,7 @@ abstract class ApiIndexTask extends DefaultTask {
                               .field-details .member-list .detail,
                               .method-details .member-list .detail""").each {
                     def methodSignature = it.attr('id')
+                    def originalMethodSignature = methodSignature
                     def hrefWithMethod = href + '#' + methodSignature
                     def openParen = methodSignature.indexOf('(')
                     if (openParen >= 0) {
@@ -156,6 +157,7 @@ abstract class ApiIndexTask extends DefaultTask {
                         methodSignature = methodSignature.substring(0, openParen) + "(${parameters})"
                     }
 
+                    result.add([fqcn + '#' + originalMethodSignature, hrefWithMethod])
                     result.add([fqcn + '#' + methodSignature, hrefWithMethod])
                     result.add([simpleClassName + '#' + methodSignature, hrefWithMethod])
                 }
