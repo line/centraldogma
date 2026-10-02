@@ -1,16 +1,111 @@
 ---
-title: Overview
-description: Central Dogma is a highly-available version-controlled service configuration repository.
+title: Welcome to Central Dogma
+description: Central Dogma is an open-source highly-available version-controlled service configuration repository based on Git, ZooKeeper and HTTP/2.
+slug: /
 ---
+
+import CodeBlock from '@theme/CodeBlock';
+import { release, downloadUrl } from '@site/src/version';
 
 # Welcome to Central Dogma
 
-_Central Dogma_ is an open-source highly-available version-controlled service configuration repository
-based on Git, ZooKeeper and HTTP/2.
+_Central Dogma_ is an open-source highly-available version-controlled service configuration repository based on
+Git, ZooKeeper and HTTP/2. With Central Dogma, you can:
 
-:::note
+- Store your configuration files such as `.json`, `.yaml` and `.xml` into a centralized, multi-master
+  replicated, version-controlled repository.
+- Retrieve your configuration using RESTful API, Java library and command-line client.
+- Let your servers get notified immediately when the configuration files are updated and the new settings are
+  applied without server restarts.
+- Send a pull request for configuration changes and get it reviewed and merged by teammates;
+  much less chance of making a bad configuration change!
 
-This site is being migrated from Sphinx to Docusaurus. Until the migration completes, the published
-documentation lives at [line.github.io/centraldogma](https://line.github.io/centraldogma/).
+## Want a quick tour?
 
-:::
+Check out [the introductory slides](https://speakerdeck.com/trustin/central-dogma-lines-git-based-highly-available-service-configuration-repository):
+
+<iframe
+  title="Central Dogma introductory slides"
+  src="https://speakerdeck.com/player/a7b66c82136e494595cc06507adef5a4"
+  width="512"
+  height="288"
+  style={{ border: 0, maxWidth: '100%', marginBottom: '1em' }}
+  allowFullScreen
+/>
+
+## Give it a try!
+
+<a href={downloadUrl}>Download</a> now and give it a try ([Java](https://adoptopenjdk.net/) required):
+
+<CodeBlock language="shell">{`$ tar zxvf centraldogma-${release}.tgz
+$ cd centraldogma-${release}/
+$ bin/startup
+<Open http://127.0.0.1:36462/ in your browser for administrative console.>`}</CodeBlock>
+
+Using Docker? Launch our image at [Github Packages registry](https://github.com/line/centraldogma/pkgs/container/centraldogma):
+
+```shell
+$ docker run -p 36462:36462 ghcr.io/line/centraldogma
+```
+
+## Repository service for textual configuration
+
+- Primarily designed for storing JSON
+
+  - Also supports any text formats such as YAML, XML, INI and even JavaScript
+
+- Store your start-time and run-time settings, such as:
+
+  - Application parameters and bean properties
+  - User and IP blacklists
+  - Scheduled maintenance notice
+  - Roll-out and A/B experiment parameters
+  - Rule engine scripts
+
+## Highly-available
+
+- Multi-master replicated
+
+  - Using [Apache ZooKeeper](https://zookeeper.apache.org/) as a replication log queue
+
+## Version-controlled
+
+- Keeps full history of configuration changes in Git repositories.
+- Can hold a lot more information than in-memory competitors.
+
+## Query and notification mechanism
+
+- Query your JSON files with [JSON path](https://github.com/json-path/JsonPath).
+- Watch your files and get notified immediately when they are modified.
+
+## Fine-grained access control
+
+- Pluggable authentication layer
+- Role-based per-repository permissions
+- See [Authentication and access control](auth.mdx) for more information.
+
+## Automated mirroring from an external Git repository
+
+- Keep your settings in a GitHub or GitLab repository.
+- Send a [pull request](https://help.github.com/articles/about-pull-requests/) to modify the settings and get it reviewed and merged.
+- Let Central Dogma mirror your settings so they are:
+
+  - Highly-available
+  - Queryable
+  - Watchable
+  - Access-controlled
+
+## Dynamic configuration with templates and variables
+
+- Use `${vars.varName}` syntax to interpolate variables in your configuration files
+- Access nested JSON object properties with dot notation (e.g., `${vars.database.host}`)
+- Define variables at project, repository, or file level with automatic precedence resolution
+- Manage environment-specific configurations with variable files (`/vars/dev.json`, `/vars/prod.json`)
+- Preview rendered templates in real-time through the Web UI
+
+## Envoy xDS v3 control plane
+
+- Manage Envoy Listeners, Routes, Clusters and Endpoints as version-controlled YAML.
+- Edit resources through the Web UI or a YAML-over-HTTP REST API.
+- Serve them to Envoy and Armeria clients over the gRPC xDS discovery services from the same server port.
+- See [the xDS control plane guide](xds.mdx) for more information.

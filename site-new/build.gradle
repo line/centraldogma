@@ -16,13 +16,21 @@ tasks.clean.delete(project.file("${project.projectDir}/.docusaurus"))
 tasks.clean.delete(project.file("${project.projectDir}/build"))
 tasks.clean.delete(project.file("${project.projectDir}/node_modules/.cache"))
 
-tasks.register('develop', NpmTask) {
+// Replaces Sphinx's `|release|` substitution, which conf.py built from gradle.properties.
+tasks.register('versionIndex', VersionIndexTask)
+
+tasks.register('generateSiteSources') {
     dependsOn tasks.npmInstall
+    dependsOn tasks.versionIndex
+}
+
+tasks.register('develop', NpmTask) {
+    dependsOn tasks.generateSiteSources
     args = ['run', 'start']
 }
 
 tasks.register('eslint', NpmTask) {
-    dependsOn tasks.npmInstall
+    dependsOn tasks.generateSiteSources
     args = ['run', 'lint']
     inputs.dir('src')
     inputs.file('.eslintrc.js')
@@ -38,13 +46,14 @@ tasks.register('siteLint') {
 // Note that this task is not triggered by the 'build' task
 // because it takes long to build a site.
 tasks.register('site', NpmTask) {
-    dependsOn tasks.npmInstall
+    dependsOn tasks.generateSiteSources
     if (!rootProject.hasProperty('noLint')) {
         dependsOn tasks.siteLint
     }
     args = ['run', 'build']
     inputs.dir('src')
     inputs.dir('static')
+    inputs.dir('gen-src')
     inputs.file('docusaurus.config.ts')
     inputs.file('sidebars.ts')
     inputs.file('package.json')
@@ -52,4 +61,21 @@ tasks.register('site', NpmTask) {
     inputs.file('tsconfig.json')
     outputs.dir('.docusaurus')
     outputs.dir('build')
+}
+
+class VersionIndexTask extends DefaultTask {
+
+    @Input
+    final def version = "${project.version}"
+    @OutputFile
+    final def versionIndexFile = project.file("${project.projectDir}/gen-src/versions.json")
+
+    @TaskAction
+    def run() {
+        versionIndexFile.parentFile.mkdirs()
+        versionIndexFile.withPrintWriter('UTF-8') { out ->
+            out.println(groovy.json.JsonOutput.prettyPrint(
+                    groovy.json.JsonOutput.toJson([release: version])))
+        }
+    }
 }
