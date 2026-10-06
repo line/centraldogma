@@ -79,8 +79,8 @@ public class Commit {
      * @param summary the human-readable summary of this {@link Commit}
      * @param detail the human-readable detailed description of this {@link Commit}
      * @param markup the {@link Markup} language of {@code summary} and {@code detail}
-     * @param upstreamCommitId the SHA-1 of the upstream Git commit this {@link Commit} was mirrored from,
-     *                         or {@code null} if this {@link Commit} did not come from a mirror
+     * @param upstreamCommitId the SHA-1 of the upstream Git commit recorded for this {@link Commit},
+     *                         or {@code null} if no upstream commit ID was recorded
      */
     public Commit(Revision revision, Author author, long when, String summary, String detail, Markup markup,
                   @Nullable String upstreamCommitId) {
@@ -150,10 +150,9 @@ public class Commit {
     }
 
     /**
-     * Returns the SHA-1 of the upstream Git commit this {@link Commit} was mirrored from.
+     * Returns the SHA-1 of the upstream Git commit recorded for this {@link Commit}.
      *
-     * @return the 40-character hexadecimal SHA-1, or {@code null} if this {@link Commit} did not come from
-     *         a mirror
+     * @return the 40-character hexadecimal SHA-1, or {@code null} if no upstream commit ID was recorded
      */
     @Nullable
     public String upstreamCommitId() {

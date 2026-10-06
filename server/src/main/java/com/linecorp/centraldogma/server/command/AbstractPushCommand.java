@@ -116,8 +116,8 @@ public abstract class AbstractPushCommand<T> extends RepositoryCommand<T> {
     }
 
     /**
-     * Returns the SHA-1 of the upstream Git commit this commit is mirrored from, or {@code null} if this
-     * commit does not come from a mirror.
+     * Returns the SHA-1 of the upstream Git commit recorded for this commit, or {@code null} if none was
+     * recorded.
      */
     // NON_NULL so that the replication log of a normal push is unchanged.
     @Nullable

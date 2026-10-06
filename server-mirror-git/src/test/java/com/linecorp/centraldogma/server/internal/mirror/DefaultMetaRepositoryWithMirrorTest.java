@@ -194,10 +194,10 @@ class DefaultMetaRepositoryWithMirrorTest {
         assertThat(bar.preserveRemoteCommitHistory()).isFalse();
         assertThat(foo.publishRemoteCommitTags()).isFalse();
         assertThat(bar.publishRemoteCommitTags()).isFalse();
-        assertThat(foo.toString()).doesNotContain("preserveRemoteCommitHistory");
-        assertThat(bar.toString()).doesNotContain("preserveRemoteCommitHistory");
-        assertThat(foo.toString()).doesNotContain("publishRemoteCommitTags");
-        assertThat(bar.toString()).doesNotContain("publishRemoteCommitTags");
+        assertThat(foo.toString()).contains("preserveRemoteCommitHistory=false",
+                                            "publishRemoteCommitTags=false");
+        assertThat(bar.toString()).contains("preserveRemoteCommitHistory=false",
+                                            "publishRemoteCommitTags=false");
 
         assertThat(foo.schedule().equivalent(cronParser.parse("0 * * * * ?"))).isTrue();
         assertThat(bar.schedule().equivalent(cronParser.parse("0 */10 * * * ?"))).isTrue();

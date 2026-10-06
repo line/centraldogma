@@ -73,7 +73,6 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.TreeNode;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.google.common.collect.ImmutableList;
-import com.google.common.hash.Hashing;
 
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
@@ -296,7 +295,7 @@ abstract class AbstractGitMirror extends AbstractMirror {
                 }
 
                 // Add the mirror state file.
-                final String configHash = Hashing.sha256().hashString(toString(), UTF_8).toString();
+                final String configHash = hashString();
                 final MirrorState newMirrorState = new MirrorState(localHead.text(),
                                                                    headCommitId.name(),
                                                                    localHead.text(),

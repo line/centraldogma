@@ -21,6 +21,7 @@ import static java.util.Objects.requireNonNull;
 
 import org.jspecify.annotations.Nullable;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonSubTypes.Type;
@@ -44,6 +45,7 @@ import com.linecorp.centraldogma.server.storage.repository.Repository;
  *
  * @param <T> the result type of a {@link Command}
  */
+@JsonIgnoreProperties(ignoreUnknown = true)
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
 @JsonSubTypes({
         @Type(value = CreateProjectCommand.class, name = "CREATE_PROJECT"),

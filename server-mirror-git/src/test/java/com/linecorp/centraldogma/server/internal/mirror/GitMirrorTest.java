@@ -18,6 +18,7 @@ package com.linecorp.centraldogma.server.internal.mirror;
 import static com.linecorp.centraldogma.server.internal.mirror.MirroringTestUtils.EVERY_MINUTE;
 import static com.linecorp.centraldogma.server.internal.mirror.MirroringTestUtils.assertMirrorNull;
 import static com.linecorp.centraldogma.server.internal.mirror.MirroringTestUtils.newMirror;
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
@@ -26,6 +27,8 @@ import static org.mockito.Mockito.when;
 import java.time.ZonedDateTime;
 
 import org.junit.jupiter.api.Test;
+
+import com.google.common.hash.Hashing;
 
 import com.linecorp.centraldogma.server.mirror.Mirror;
 import com.linecorp.centraldogma.server.storage.project.Project;
@@ -95,6 +98,19 @@ class GitMirrorTest {
     void testUnknownScheme() {
         assertMirrorNull("magma://a.com/b.magma");
         assertMirrorNull("git+foo://a.com/b.git");
+    }
+
+    @Test
+    void historyOptionsAreVisibleWithoutChangingLegacyHash() {
+        final AbstractMirror mirror = assertMirror("git://a.com/b.git", AbstractMirror.class,
+                                                   "git://a.com/b.git", "/", "");
+
+        final String string = mirror.toString();
+        assertThat(string).contains("preserveRemoteCommitHistory=false", "publishRemoteCommitTags=false");
+        final String legacyHashInput = string.replace(", preserveRemoteCommitHistory=false", "")
+                                             .replace(", publishRemoteCommitTags=false", "");
+        assertThat(mirror.hashString())
+                .isEqualTo(Hashing.sha256().hashString(legacyHashInput, UTF_8).toString());
     }
 
     @Test

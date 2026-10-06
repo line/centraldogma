@@ -188,7 +188,8 @@ class FallbackFromReadOnlyTest {
             assertThat(response.status()).isEqualTo(HttpStatus.BAD_REQUEST);
             assertThat(response.contentUtf8())
                     .contains(
-                            "Cannot encrypt a repository with a mirror that publishes tags for upstream commits");
+                            "Cannot encrypt a repository with a mirror that publishes tags for " +
+                            "upstream commits");
             assertThat(dogma.projectManager().get(PROJECT_NAME).repos().get(REPO_NAME).isEncrypted())
                     .isFalse();
             assertThat(dogma.projectManager().get(PROJECT_NAME).metadata().repo(REPO_NAME).status())

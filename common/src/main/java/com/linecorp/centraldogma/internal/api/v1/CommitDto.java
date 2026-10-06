@@ -93,7 +93,8 @@ public class CommitDto {
     }
 
     /**
-     * Returns the SHA-1 of the upstream Git commit this commit was mirrored from.
+     * Returns the SHA-1 of the upstream Git commit recorded for this commit, or {@code null} if none was
+     * recorded.
      */
     @Nullable
     @JsonProperty("upstreamCommitId")
