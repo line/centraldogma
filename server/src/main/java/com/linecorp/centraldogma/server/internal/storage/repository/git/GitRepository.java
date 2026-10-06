@@ -591,8 +591,7 @@ class GitRepository implements Repository {
         }
 
         try {
-            return CommitUtil.newCommit(author, when, revCommit.getId().name(),
-                                        revCommit.getFullMessage());
+            return CommitUtil.newCommit(author, when, revCommit.getFullMessage());
         } catch (Exception e) {
             throw new StorageException("failed to create a Commit", e);
         }

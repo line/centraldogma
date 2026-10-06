@@ -1261,7 +1261,7 @@ public final class ArmeriaCentralDogma extends AbstractCentralDogma {
             final long pushedAt = Instant.parse(commit.pushedAt()).toEpochMilli();
             return new Commit(commit.revision(), commit.author(), pushedAt,
                               commitMessage.summary(), commitMessage.detail(), commitMessage.markup(),
-                              commit.commitId(), commit.upstreamCommitId());
+                              commit.upstreamCommitId());
         } catch (JsonParseException | JsonMappingException e) {
             throw new IllegalStateException("Failed to parse a JSON node into Commit.", e);
         }

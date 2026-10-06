@@ -477,7 +477,7 @@ public class RepositoryServiceV1 extends AbstractService {
                                                                         .asBoolean(false));
             if (hasTagPublishingMirror) {
                 throw new IllegalArgumentException(
-                        "Cannot encrypt a repository with a mirror that publishes remote commit tags.");
+                        "Cannot encrypt a repository with a mirror that publishes tags for upstream commits.");
             }
         });
     }

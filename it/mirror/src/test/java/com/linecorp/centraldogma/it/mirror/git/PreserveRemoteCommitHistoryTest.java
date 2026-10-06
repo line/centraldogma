@@ -133,20 +133,45 @@ class PreserveRemoteCommitHistoryTest {
     }
 
     @Test
-    void firstRunPushesASingleSnapshot() throws Exception {
-        commitFile("a.txt", "1", "Add a");
+    void firstRunReplaysRemoteHistory() throws Exception {
+        final RevCommit initial = git.log().setMaxCount(1).call().iterator().next();
+        final RevCommit first = commitFile("a.txt", "1", "Add a");
         final RevCommit head = commitFile("b.txt", "2", "Add b");
 
         pushMirrorSettings(true);
         final Revision before = headRevision();
         mirroringService.mirror().join();
 
-        // Nothing to replay from, so the whole remote history collapses into one revision.
-        assertThat(headRevision()).isEqualTo(before.forward(1));
+        assertThat(headRevision()).isEqualTo(before.forward(3));
+        assertThat(client.getFiles(projName, REPO_FOO, before.forward(1), PathPattern.all()).join())
+                .doesNotContainKeys("/a.txt", "/b.txt");
+        assertThat(fileContent(before.forward(2), "/a.txt")).isEqualTo("1");
+        assertThat(client.getFiles(projName, REPO_FOO, before.forward(2), PathPattern.all()).join())
+                .doesNotContainKey("/b.txt");
         assertThat(fileContent(headRevision(), "/a.txt")).isEqualTo("1");
         assertThat(fileContent(headRevision(), "/b.txt")).isEqualTo("2");
         assertThat(tagNames()).isEmpty();
-        assertThat(history(headRevision(), headRevision()).get(0).upstreamCommitId()).isEqualTo(head.name());
+        assertThat(history(headRevision(), before.forward(1))).extracting(Commit::upstreamCommitId)
+                                                                .containsExactly(head.name(), first.name(),
+                                                                                 initial.name());
+    }
+
+    @Test
+    void firstRunFallsBackToSnapshotWhenHistoryExceedsLimit() throws Exception {
+        RevCommit head = git.log().setMaxCount(1).call().iterator().next();
+        for (int i = 0; i < 100; i++) {
+            head = commitFile("counter.txt", Integer.toString(i), "Update counter " + i);
+        }
+
+        pushMirrorSettings(true);
+        final Revision before = headRevision();
+        mirroringService.mirror().join();
+
+        assertThat(headRevision()).isEqualTo(before.forward(1));
+        assertThat(fileContent(headRevision(), "/counter.txt")).isEqualTo("99");
+        assertThat(history(headRevision(), headRevision()).get(0).upstreamCommitId())
+                .isEqualTo(head.name());
+        assertThat(tagNames()).isEmpty();
     }
 
     @Test
@@ -181,7 +206,6 @@ class PreserveRemoteCommitHistoryTest {
         // Every revision records the remote commit it came from without publishing tags.
         assertThat(commits).extracting(Commit::upstreamCommitId)
                            .containsExactly(third.name(), second.name(), first.name());
-        assertThat(commits).extracting(Commit::commitId).doesNotContainNull();
         assertThat(tagNames()).isEmpty();
     }
 
@@ -265,7 +289,7 @@ class PreserveRemoteCommitHistoryTest {
         final Path repoDir = dogma.dataDir().resolve(projName).resolve(REPO_FOO);
         final Path looseTag = repoDir.resolve(TAG_PREFIX + commit.name());
         assertThat(new String(Files.readAllBytes(looseTag), StandardCharsets.UTF_8).trim())
-                .isEqualTo(history(headRevision(), headRevision()).get(0).commitId());
+                .isEqualTo(repositoryHeadObjectId().name());
         final Path packedRefs = repoDir.resolve("packed-refs");
         if (Files.exists(packedRefs)) {
             assertThat(new String(Files.readAllBytes(packedRefs), StandardCharsets.UTF_8))
@@ -292,12 +316,11 @@ class PreserveRemoteCommitHistoryTest {
              .join();
 
         assertThat(tagObjectId(upstream.name())).isEqualTo(originalTag);
-        assertThat(history(headRevision(), headRevision()).get(0).commitId())
-                .isNotEqualTo(originalTag.name());
+        assertThat(repositoryHeadObjectId()).isNotEqualTo(originalTag);
     }
 
     @Test
-    void reconfiguredSnapshotDoesNotClaimAnExistingUpstreamTag() throws Exception {
+    void reconfiguredReplayDoesNotClaimExistingUpstreamTags() throws Exception {
         final RevCommit upstream = commitFile("a.txt", "1", "Add a");
         pushMirrorSettings(true, true);
         mirroringService.mirror().join();
@@ -307,7 +330,7 @@ class PreserveRemoteCommitHistoryTest {
         pushMirrorSettings(true, true, "/nested/", "/");
         mirroringService.mirror().join();
 
-        assertThat(headRevision()).isEqualTo(baseline.forward(1));
+        assertThat(headRevision()).isEqualTo(baseline.forward(2));
         assertThat(fileContent(headRevision(), "/nested/a.txt")).isEqualTo("1");
         assertThat(history(headRevision(), headRevision()).get(0).upstreamCommitId()).isNull();
         assertThat(tagObjectId(upstream.name())).isEqualTo(originalTag);
@@ -326,7 +349,7 @@ class PreserveRemoteCommitHistoryTest {
         mirroringService.mirror().join();
         final RevCommit upstream = commitFile("a.txt", "pinned", "Add a");
         mirroringService.mirror().join();
-        final Commit mirrored = history(headRevision(), headRevision()).get(0);
+        final ObjectId tagObjectId = tagObjectId(upstream.name());
 
         final File cloneDir = gitRepoDir.getRoot().resolve("clone").toFile();
         try (Git clone = Git.cloneRepository()
@@ -338,9 +361,9 @@ class PreserveRemoteCommitHistoryTest {
                                     new UsernamePasswordCredentialsProvider("dogma", "anonymous"))
                             .call()) {
             assertThat(clone.getRepository().resolve(Constants.HEAD).name())
-                    .isEqualTo(mirrored.commitId());
+                    .isEqualTo(tagObjectId.name());
             assertThat(clone.getRepository().exactRef(TAG_PREFIX + upstream.name()).getObjectId().name())
-                    .isEqualTo(mirrored.commitId());
+                    .isEqualTo(tagObjectId.name());
             assertThat(new String(Files.readAllBytes(cloneDir.toPath().resolve("a.txt")),
                                   StandardCharsets.UTF_8).trim())
                     .isEqualTo("pinned");
@@ -442,6 +465,13 @@ class PreserveRemoteCommitHistoryTest {
         final Path repoDir = dogma.dataDir().resolve(projName).resolve(REPO_FOO);
         try (Repository repository = new FileRepositoryBuilder().setGitDir(repoDir.toFile()).build()) {
             return repository.exactRef(TAG_PREFIX + upstreamCommitId).getObjectId();
+        }
+    }
+
+    private ObjectId repositoryHeadObjectId() throws IOException {
+        final Path repoDir = dogma.dataDir().resolve(projName).resolve(REPO_FOO);
+        try (Repository repository = new FileRepositoryBuilder().setGitDir(repoDir.toFile()).build()) {
+            return repository.exactRef(Constants.R_HEADS + Constants.MASTER).getObjectId();
         }
     }
 

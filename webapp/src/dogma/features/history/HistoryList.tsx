@@ -59,19 +59,14 @@ const HistoryList = ({
                 <Box>{info.row.original.commitMessage.summary}</Box>
               </HStack>
             </ChakraLink>
-            {(info.row.original.commitId || info.row.original.upstreamCommitId) && (
+            {info.row.original.upstreamCommitId && (
               <Stack
                 direction={{ base: 'column', md: 'row' }}
                 align="flex-start"
                 spacing={{ base: 1, md: 3 }}
                 paddingLeft={6}
               >
-                {info.row.original.commitId && (
-                  <CommitSha label="Central Dogma" sha={info.row.original.commitId} />
-                )}
-                {info.row.original.upstreamCommitId && (
-                  <CommitSha label="Upstream" sha={info.row.original.upstreamCommitId} />
-                )}
+                <CommitSha label="Upstream" sha={info.row.original.upstreamCommitId} />
               </Stack>
             )}
           </VStack>

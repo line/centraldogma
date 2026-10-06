@@ -121,10 +121,7 @@ class CentralDogmaRepositoryTest {
         assertThat(commits.stream()
                           .map(Commit::summary)
                           .collect(toImmutableList())).containsExactly("commit3", "commit2");
-        assertThat(commits).allSatisfy(commit -> {
-            assertThat(commit.commitId()).matches("[0-9a-f]{40}");
-            assertThat(commit.upstreamCommitId()).isNull();
-        });
+        assertThat(commits).allSatisfy(commit -> assertThat(commit.upstreamCommitId()).isNull());
         assertThat(centralDogmaRepo.diff("/foo.json")
                                    .get(Revision.INIT, Revision.HEAD)
                                    .join())
@@ -150,7 +147,7 @@ class CentralDogmaRepositoryTest {
     }
 
     @Test
-    void readsHistoryFromOldServerWithoutCommitIds() throws Exception {
+    void readsHistoryFromOldServerWithoutUpstreamCommitIds() throws Exception {
         try (CentralDogma client = new ArmeriaCentralDogmaBuilder()
                 .host("127.0.0.1", oldServer.httpPort())
                 .healthCheckIntervalMillis(0)
@@ -170,7 +167,6 @@ class CentralDogmaRepositoryTest {
                 assertThat(commit.summary()).isEqualTo("summary");
                 assertThat(commit.detail()).isEqualTo("detail");
                 assertThat(commit.markup()).isEqualTo(Markup.MARKDOWN);
-                assertThat(commit.commitId()).isNull();
                 assertThat(commit.upstreamCommitId()).isNull();
             });
         }

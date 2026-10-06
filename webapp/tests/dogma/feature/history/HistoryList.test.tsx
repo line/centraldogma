@@ -13,7 +13,6 @@ const mockHistoryList: HistoryDto[] = [
     author: { name: 'System', email: 'system@localhost.localdomain' },
     commitMessage: { summary: 'Update repository', detail: '', markup: 'PLAINTEXT' },
     pushedAt: '2023-01-11T08:17:22Z',
-    commitId: '0123456789abcdef0123456789abcdef01234567',
     upstreamCommitId: '89abcdef0123456789abcdef0123456789abcdef',
   },
   {
@@ -35,13 +34,12 @@ const expectedProps = {
   isDirectory: false,
 };
 
-describe('HistoryList commit IDs', () => {
-  it('renders both commit IDs in the revision cell instead of a separate column', () => {
+describe('HistoryList upstream commit ID', () => {
+  it('renders the upstream commit ID in the revision cell instead of a separate column', () => {
     renderWithProviders(<HistoryList {...expectedProps} filePath="/config.yaml" />);
 
     const firstRow = screen.getAllByTestId('table-row')[0];
     const revisionCell = within(firstRow).getAllByRole('cell')[0];
-    expect(within(revisionCell).getByText('Central Dogma')).toBeInTheDocument();
     expect(within(revisionCell).getByText('Upstream')).toBeInTheDocument();
     expect(screen.queryByRole('columnheader', { name: 'Commit' })).not.toBeInTheDocument();
   });

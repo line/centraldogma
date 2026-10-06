@@ -341,7 +341,8 @@ class DefaultMetaRepositoryWithMirrorTest {
         assertThatThrownBy(() -> metaRepo.mirror("foo", "foo").join())
                 .isInstanceOf(CompletionException.class)
                 .hasCauseInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("preserveRemoteCommitHistory is only supported for REMOTE_TO_LOCAL");
+                .hasMessageContaining(
+                        "'Preserve upstream commit history' is only supported for REMOTE_TO_LOCAL");
     }
 
     @Test
@@ -365,7 +366,7 @@ class DefaultMetaRepositoryWithMirrorTest {
         assertThatThrownBy(() -> metaRepo.mirror("foo", "foo").join())
                 .isInstanceOf(CompletionException.class)
                 .hasCauseInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("preserveRemoteCommitHistory is only supported for Git mirrors");
+                .hasMessageContaining("'Preserve upstream commit history' is only supported for Git mirrors");
     }
 
     @Test
@@ -396,7 +397,7 @@ class DefaultMetaRepositoryWithMirrorTest {
                 metaRepo.createMirrorPushCommand("repo", second, Author.SYSTEM, null, false).join())
                 .isInstanceOf(CompletionException.class)
                 .hasCauseInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("Only one mirror may preserve remote commit history");
+                .hasMessageContaining("Only one mirror may preserve upstream commit history");
     }
 
     @Test
@@ -411,7 +412,7 @@ class DefaultMetaRepositoryWithMirrorTest {
                 metaRepo.createMirrorPushCommand("repo", second, Author.SYSTEM, null, false).join())
                 .isInstanceOf(CompletionException.class)
                 .hasCauseInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("Only one mirror may publish remote commit tags");
+                .hasMessageContaining("Only one mirror may publish tags for upstream commits");
     }
 
     @Test

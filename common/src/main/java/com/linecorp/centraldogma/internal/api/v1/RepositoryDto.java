@@ -148,7 +148,6 @@ public class RepositoryDto {
         return status;
     }
 
-    @JsonInclude(Include.NON_DEFAULT)
     @JsonProperty("encrypted")
     public boolean encrypted() {
         return encrypted;

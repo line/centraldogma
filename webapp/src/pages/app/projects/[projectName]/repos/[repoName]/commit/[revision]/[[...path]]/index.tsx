@@ -149,19 +149,14 @@ const CommitViewPage = () => {
                 <Box>Commit {revision}</Box>
               </HStack>
             </Heading>
-            {historyData?.[0] && (historyData[0].commitId || historyData[0].upstreamCommitId) && (
+            {historyData?.[0]?.upstreamCommitId && (
               <Stack
                 direction={{ base: 'column', lg: 'row' }}
                 align="flex-start"
                 marginBottom={4}
                 spacing={{ base: 2, lg: 6 }}
               >
-                {historyData[0].commitId && (
-                  <CommitSha label="Central Dogma" sha={historyData[0].commitId} abbreviated={false} />
-                )}
-                {historyData[0].upstreamCommitId && (
-                  <CommitSha label="Upstream" sha={historyData[0].upstreamCommitId} abbreviated={false} />
-                )}
+                <CommitSha label="Upstream" sha={historyData[0].upstreamCommitId} abbreviated={false} />
               </Stack>
             )}
             <Flex

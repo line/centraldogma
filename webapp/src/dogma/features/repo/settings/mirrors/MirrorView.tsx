@@ -173,7 +173,7 @@ const MirrorView = ({ projectName, repoName, mirror, editHref }: MirrorViewProps
               {mirror.direction === 'REMOTE_TO_LOCAL' && isGitMirrorScheme(mirror.remoteScheme) && (
                 <Tr>
                   <HeadRow>
-                    <AlignedIcon as={VscGitCommit} /> Upstream commit history
+                    <AlignedIcon as={VscGitCommit} /> Preserve upstream commit history
                   </HeadRow>
                   <Td>
                     {mirror.preserveRemoteCommitHistory ? (
@@ -187,7 +187,7 @@ const MirrorView = ({ projectName, repoName, mirror, editHref }: MirrorViewProps
               {mirror.direction === 'REMOTE_TO_LOCAL' && isGitMirrorScheme(mirror.remoteScheme) && (
                 <Tr>
                   <HeadRow>
-                    <AlignedIcon as={VscTag} /> Upstream commit tags
+                    <AlignedIcon as={VscTag} /> Publish tags for upstream commits
                   </HeadRow>
                   <Td>
                     {mirror.publishRemoteCommitTags ? (

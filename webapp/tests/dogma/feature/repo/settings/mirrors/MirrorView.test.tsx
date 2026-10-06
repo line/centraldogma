@@ -53,8 +53,8 @@ describe('MirrorView', () => {
     expect(remotePathCodes.length).toBe(1);
     expect(remotePathCodes[0].textContent).toContain('dogma://my-cd.com/myproject/myrepo.dogma');
     expect(remotePathCodes[0].textContent).not.toContain('#');
-    expect(container).not.toHaveTextContent('Upstream commit history');
-    expect(container).not.toHaveTextContent('Upstream commit tags');
+    expect(container).not.toHaveTextContent('Preserve upstream commit history');
+    expect(container).not.toHaveTextContent('Publish tags for upstream commits');
   });
 
   it('renders remote path without branch for dogma+https mirrors', () => {
@@ -92,8 +92,12 @@ describe('MirrorView', () => {
     );
 
     const rows = Array.from(container.querySelectorAll('tr')).map((row) => row.textContent);
-    expect(rows).toEqual(expect.arrayContaining([expect.stringContaining('Upstream commit historyEnabled')]));
-    expect(rows).toEqual(expect.arrayContaining([expect.stringContaining('Upstream commit tagsDisabled')]));
+    expect(rows).toEqual(
+      expect.arrayContaining([expect.stringContaining('Preserve upstream commit historyEnabled')]),
+    );
+    expect(rows).toEqual(
+      expect.arrayContaining([expect.stringContaining('Publish tags for upstream commitsDisabled')]),
+    );
   });
 
   it('hides the upstream history options for local-to-remote mirrors', () => {
@@ -105,7 +109,7 @@ describe('MirrorView', () => {
       />,
     );
 
-    expect(container).not.toHaveTextContent('Upstream commit history');
-    expect(container).not.toHaveTextContent('Upstream commit tags');
+    expect(container).not.toHaveTextContent('Preserve upstream commit history');
+    expect(container).not.toHaveTextContent('Publish tags for upstream commits');
   });
 });

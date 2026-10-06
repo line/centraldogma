@@ -246,7 +246,7 @@ public final class DefaultMetaRepository extends RepositoryWrapper implements Me
                                         .anyMatch(candidate -> candidate.preserveRemoteCommitHistory() &&
                                                                !candidate.id().equals(mirrorRequest.id()));
                                 checkArgument(!duplicate,
-                                              "Only one mirror may preserve remote commit history for " +
+                                              "Only one mirror may preserve upstream commit history for " +
                                               "repository '%s'", mirrorRequest.localRepo());
                             }
                             if (publishRemoteCommitTags) {
@@ -254,7 +254,7 @@ public final class DefaultMetaRepository extends RepositoryWrapper implements Me
                                         .anyMatch(candidate -> candidate.publishRemoteCommitTags() &&
                                                                !candidate.id().equals(mirrorRequest.id()));
                                 checkArgument(!duplicate,
-                                              "Only one mirror may publish remote commit tags for " +
+                                              "Only one mirror may publish tags for upstream commits in " +
                                               "repository '%s'", mirrorRequest.localRepo());
                             }
                             return revision;
@@ -278,9 +278,10 @@ public final class DefaultMetaRepository extends RepositoryWrapper implements Me
         if (repositoryMetadata == null) {
             return;
         }
-        checkArgument(repositoryMetadata.status() == RepositoryStatus.ACTIVE,
-                      "publishRemoteCommitTags is only supported for ACTIVE repositories, but '%s' is %s",
-                      mirrorRequest.localRepo(), repositoryMetadata.status());
+        checkArgument(
+                repositoryMetadata.status() == RepositoryStatus.ACTIVE,
+                "'Publish tags for upstream commits' is only supported for ACTIVE repositories, " +
+                "but '%s' is %s", mirrorRequest.localRepo(), repositoryMetadata.status());
     }
 
     @Override

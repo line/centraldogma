@@ -63,7 +63,6 @@ class ListCommitsAndDiffTest {
                 "           \"email\": \"${json-unit.ignore}\"" +
                 "       }," +
                 "       \"pushedAt\": \"${json-unit.ignore}\"," +
-                "       \"commitId\": \"${json-unit.ignore}\"," +
                 "       \"commitMessage\" : {" +
                 "           \"summary\" : \"Add foo1.json\"," +
                 "           \"detail\": \"Add because we need it.\"," +
@@ -77,7 +76,6 @@ class ListCommitsAndDiffTest {
                 "           \"email\": \"${json-unit.ignore}\"" +
                 "       }," +
                 "       \"pushedAt\": \"${json-unit.ignore}\"," +
-                "       \"commitId\": \"${json-unit.ignore}\"," +
                 "       \"commitMessage\" : {" +
                 "           \"summary\" : \"Add foo0.json\"," +
                 "           \"detail\": \"Add because we need it.\"," +
@@ -101,7 +99,6 @@ class ListCommitsAndDiffTest {
                 "       \"email\": \"${json-unit.ignore}\"" +
                 "   }," +
                 "   \"pushedAt\": \"${json-unit.ignore}\"," +
-                "   \"commitId\": \"${json-unit.ignore}\"," +
                 "   \"commitMessage\" : {" +
                 "       \"summary\" : \"Add foo0.json\"," +
                 "       \"detail\": \"Add because we need it.\"," +
@@ -125,7 +122,6 @@ class ListCommitsAndDiffTest {
                 "           \"email\": \"${json-unit.ignore}\"" +
                 "       }," +
                 "       \"pushedAt\": \"${json-unit.ignore}\"," +
-                "       \"commitId\": \"${json-unit.ignore}\"," +
                 "       \"commitMessage\" : {" +
                 "           \"summary\" : \"Add foo0.json\"," +
                 "           \"detail\": \"Add because we need it.\"," +
@@ -225,7 +221,6 @@ class ListCommitsAndDiffTest {
                     "           \"email\": \"${json-unit.ignore}\"" +
                     "       }," +
                     "       \"pushedAt\": \"${json-unit.ignore}\"," +
-                    "       \"commitId\": \"${json-unit.ignore}\"," +
                     "       \"commitMessage\" : {" +
                     "           \"summary\" : \"Add foo1.json\"," +
                     "           \"detail\": \"Add because we need it.\"," +
@@ -239,7 +234,6 @@ class ListCommitsAndDiffTest {
                     "           \"email\": \"${json-unit.ignore}\"" +
                     "       }," +
                     "       \"pushedAt\": \"${json-unit.ignore}\"," +
-                    "       \"commitId\": \"${json-unit.ignore}\"," +
                     "       \"commitMessage\" : {" +
                     "           \"summary\" : \"Add foo0.json\"," +
                     "           \"detail\": \"Add because we need it.\"," +
@@ -253,7 +247,6 @@ class ListCommitsAndDiffTest {
                     "           \"email\": \"admin@localhost.localdomain\"" +
                     "       }," +
                     "       \"pushedAt\": \"${json-unit.ignore}\"," +
-                    "       \"commitId\": \"${json-unit.ignore}\"," +
                     "       \"commitMessage\" : {" +
                     "           \"summary\" : \"Create a new repository\"," +
                     "           \"detail\": \"\"," +
@@ -278,7 +271,6 @@ class ListCommitsAndDiffTest {
                     "           \"email\": \"${json-unit.ignore}\"" +
                     "       }," +
                     "       \"pushedAt\": \"${json-unit.ignore}\"," +
-                    "       \"commitId\": \"${json-unit.ignore}\"," +
                     "       \"commitMessage\" : {" +
                     "           \"summary\" : \"Add foo1.json\"," +
                     "           \"detail\": \"Add because we need it.\"," +
@@ -292,7 +284,6 @@ class ListCommitsAndDiffTest {
                     "           \"email\": \"${json-unit.ignore}\"" +
                     "       }," +
                     "       \"pushedAt\": \"${json-unit.ignore}\"," +
-                    "       \"commitId\": \"${json-unit.ignore}\"," +
                     "       \"commitMessage\" : {" +
                     "           \"summary\" : \"Add foo0.json\"," +
                     "           \"detail\": \"Add because we need it.\"," +

@@ -493,7 +493,7 @@ class GitRepositoryTest {
                 "0123456789abcdef0123456789abcdef01234567", true).join())
                 .isInstanceOf(CompletionException.class)
                 .hasCauseInstanceOf(StorageException.class)
-                .hasMessageContaining("upstream commit tags are not supported for encrypted repositories");
+                .hasMessageContaining("tags for upstream commits are not supported for encrypted repositories");
 
         assertThat(encryptedRepo.normalizeNow(HEAD)).isEqualTo(head);
         assertThat(encryptedRepo.jGitRepository().resolve(R_HEADS_MASTER)).isEqualTo(master);

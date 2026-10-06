@@ -39,8 +39,8 @@ describe('CommitSha', () => {
     await waitFor(() => expect(writeText).toHaveBeenCalledWith(sha));
   });
 
-  it('shows the full commit ID when abbreviation is disabled', () => {
-    renderWithProviders(<CommitSha label="Central Dogma" sha={sha} abbreviated={false} />);
+  it('shows the full upstream commit ID when abbreviation is disabled', () => {
+    renderWithProviders(<CommitSha label="Upstream" sha={sha} abbreviated={false} />);
 
     expect(screen.getByText(sha)).toBeInTheDocument();
   });

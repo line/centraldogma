@@ -138,7 +138,7 @@ class FallbackFromReadOnlyTest {
                 .isInstanceOf(CompletionException.class)
                 .hasCauseInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining(
-                        "publishRemoteCommitTags is not supported for the encrypted repository");
+                        "'Publish tags for upstream commits' is not supported for encrypted repository");
 
         // Set the repository to read-only.
         response = updateRepositoryStatus(client, PROJECT_NAME, REPO_NAME, "READ_ONLY");
@@ -187,7 +187,8 @@ class FallbackFromReadOnlyTest {
                     postApi(client, PROJECT_NAME, REPO_NAME, "/migrate/encrypted");
             assertThat(response.status()).isEqualTo(HttpStatus.BAD_REQUEST);
             assertThat(response.contentUtf8())
-                    .contains("Cannot encrypt a repository with a mirror that publishes remote commit tags");
+                    .contains(
+                            "Cannot encrypt a repository with a mirror that publishes tags for upstream commits");
             assertThat(dogma.projectManager().get(PROJECT_NAME).repos().get(REPO_NAME).isEncrypted())
                     .isFalse();
             assertThat(dogma.projectManager().get(PROJECT_NAME).metadata().repo(REPO_NAME).status())
@@ -243,7 +244,7 @@ class FallbackFromReadOnlyTest {
                 .isInstanceOf(CompletionException.class)
                 .hasCauseInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining(
-                        "Cannot encrypt a repository with a mirror that publishes remote commit tags");
+                        "Cannot encrypt a repository with a mirror that publishes tags for upstream commits");
 
         final InOrder statusUpdates = inOrder(metadataService);
         statusUpdates.verify(metadataService).updateRepositoryStatus(

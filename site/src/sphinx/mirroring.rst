@@ -115,12 +115,12 @@ Here is the properties of the mirroring task:
 
   - See `Preserving the upstream commit history`_ below.
 
-- ``Publish upstream commit tags``
+- ``Publish tags for upstream commits``
 
   - whether the upstream commit recorded by a mirrored revision is published as a Git tag. The option is
     disabled by default.
 
-  - See `Publishing upstream commit tags`_ below.
+  - See `Publishing tags for upstream commits`_ below.
 
 - ``Enable mirror``
 
@@ -135,12 +135,12 @@ revision, so several remote commits merged in quick succession end up in one rev
 only one pull request has been applied.
 
 Each revision created this way records the SHA-1 of the remote commit it came from and shows it in the commit
-history next to Central Dogma's own commit SHA-1.
+history.
 
-Publishing upstream commit tags
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Publishing tags for upstream commits
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Turning on ``Publish upstream commit tags`` creates a lightweight
+Turning on ``Publish tags for upstream commits`` creates a lightweight
 ``refs/tags/dogma-<remote SHA-1>`` tag for each upstream commit recorded by a mirrored revision. This option
 is independent of history preservation. Without history preservation, a snapshot revision can publish a tag
 for the current remote head.
@@ -158,12 +158,13 @@ Central Dogma serves these tags over the Git HTTP protocol, so they can be used 
 
 Note the following limitations:
 
-- **One revision per remote commit is guaranteed only for fast-forward pushes.** A new mirror's first run
-  creates one snapshot revision. Any non-fast-forward update also creates one snapshot revision at the new
+- **One revision per remote commit is guaranteed only for fast-forward pushes.** The first run replays the
+  remote history up to the per-run limit. A non-fast-forward update creates one snapshot revision at the new
   remote head. A snapshot receives a tag for the remote head only.
 
-- **A single run replays at most 100 commits.** If more than 100 commits are reachable from the remote head,
-  the run creates one snapshot revision instead. This limit also applies to histories with merge commits.
+- **A single run replays at most 100 commits.** If the initial history or the commits added since the previous
+  run exceed 100, the run creates one snapshot revision instead. This limit also applies to histories with
+  merge commits.
 
 - Published tags are immutable. If a reconciliation snapshot refers to an upstream commit that was tagged by
   an earlier revision, the existing tag does not move.
@@ -172,9 +173,9 @@ Note the following limitations:
   revision records which remote commit the repository is at. Expect this if ``remote path`` covers only a
   part of a busy repository.
 
-- Only one mirror targeting a repository may preserve remote commit history.
+- Only one mirror targeting a repository may preserve upstream commit history.
 
-- Only one mirror targeting a repository may publish upstream commit tags. The
+- Only one mirror targeting a repository may publish tags for upstream commits. The
   ``dogma-<remote SHA-1>`` tag belongs to the target repository, so two mirrors could otherwise assign the
   same tag to different states.
 

@@ -371,7 +371,8 @@ class RepositoryServiceV1Test {
                     "       \"headRevision\": \"${json-unit.ignore}\"," +
                     "       \"url\": \"/api/v1/projects/myPro/repos/dogma\"," +
                     "       \"createdAt\": \"${json-unit.ignore}\"," +
-                    "       \"status\": \"ACTIVE\"" +
+                    "       \"status\": \"ACTIVE\"," +
+                    "       \"encrypted\": false" +
                     "   }," +
                     "   {" +
                     "       \"name\": \"myRepo\"," +
@@ -382,7 +383,8 @@ class RepositoryServiceV1Test {
                     "       \"headRevision\": \"${json-unit.ignore}\"," +
                     "       \"url\": \"/api/v1/projects/myPro/repos/myRepo\"," +
                     "       \"createdAt\": \"${json-unit.ignore}\"," +
-                    "       \"status\": \"ACTIVE\"" +
+                    "       \"status\": \"ACTIVE\"," +
+                    "       \"encrypted\": false" +
                     "   }" +
                     ']';
             assertThatJson(aRes.contentUtf8()).isEqualTo(expectedJson);
@@ -403,10 +405,12 @@ class RepositoryServiceV1Test {
             final String expectedJson =
                     '[' +
                     "   {" +
-                    "       \"name\": \"hyangtack\"" +
+                    "       \"name\": \"hyangtack\"," +
+                    "       \"encrypted\": false" +
                     "   }," +
                     "   {" +
-                    "       \"name\": \"minwoox\"" +
+                    "       \"name\": \"minwoox\"," +
+                    "       \"encrypted\": false" +
                     "   }" +
                     ']';
             assertThatJson(removedRes.contentUtf8()).isEqualTo(expectedJson);
@@ -441,7 +445,8 @@ class RepositoryServiceV1Test {
                     "   \"headRevision\": 1," +
                     "   \"url\": \"/api/v1/projects/myPro/repos/foo\"," +
                     "   \"createdAt\": \"${json-unit.ignore}\"," +
-                    "   \"status\": \"ACTIVE\"" +
+                    "   \"status\": \"ACTIVE\"," +
+                    "   \"encrypted\": false" +
                     '}';
             assertThatJson(aRes.contentUtf8()).isEqualTo(expectedJson);
         }

@@ -12,16 +12,17 @@ jest.mock('next/router', () => ({
 }));
 
 describe('RepoList', () => {
-  let expectedProps: JSX.IntrinsicAttributes & RepoListProps<object>;
+  let expectedProps: JSX.IntrinsicAttributes & RepoListProps<RepoDto>;
 
   beforeEach(() => {
-    const mockRepos = [
+    const mockRepos: RepoDto[] = [
       {
         name: 'meta',
         creator: { name: 'System', email: 'system@localhost.localdomain' },
         headRevision: 1,
         url: '/api/v1/projects/abcd/repos/meta',
         createdAt: '2022-11-23T03:13:49.581Z',
+        encrypted: false,
       },
       {
         name: 'repo1',
@@ -29,6 +30,7 @@ describe('RepoList', () => {
         headRevision: 6,
         url: '/api/v1/projects/abcd/repos/repo1',
         createdAt: '2022-11-23T03:16:17.880Z',
+        encrypted: false,
       },
       {
         name: 'repo2',
@@ -36,6 +38,7 @@ describe('RepoList', () => {
         headRevision: 1,
         url: '/api/v1/projects/abcd/repos/repo2',
         createdAt: '2022-11-28T03:01:47.262Z',
+        encrypted: false,
       },
     ];
     expectedProps = {

@@ -102,7 +102,7 @@ public final class MirrorConverter {
         if (!preserveRemoteCommitHistory) {
             return;
         }
-        validateRemoteGitOption("preserveRemoteCommitHistory", direction, remoteScheme);
+        validateRemoteGitOption("'Preserve upstream commit history'", direction, remoteScheme);
     }
 
     static void validatePublishRemoteCommitTags(boolean publishRemoteCommitTags,
@@ -111,9 +111,9 @@ public final class MirrorConverter {
         if (!publishRemoteCommitTags) {
             return;
         }
-        validateRemoteGitOption("publishRemoteCommitTags", direction, remoteScheme);
+        validateRemoteGitOption("'Publish tags for upstream commits'", direction, remoteScheme);
         checkArgument(!parent.repos().exists(localRepo) || !parent.repos().get(localRepo).isEncrypted(),
-                      "publishRemoteCommitTags is not supported for the encrypted repository '%s'",
+                      "'Publish tags for upstream commits' is not supported for encrypted repository '%s'",
                       localRepo);
     }
 

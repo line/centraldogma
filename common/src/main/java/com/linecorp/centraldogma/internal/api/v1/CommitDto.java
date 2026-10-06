@@ -46,20 +46,17 @@ public class CommitDto {
     private final String pushedAt;
 
     @Nullable
-    private final String commitId;
-
-    @Nullable
     private final String upstreamCommitId;
 
     public CommitDto(Revision revision, Author author, CommitMessageDto commitMessage,
                      long commitTimeMillis) {
-        this(revision, author, commitMessage, commitTimeMillis, null, null);
+        this(revision, author, commitMessage, commitTimeMillis, null);
     }
 
     public CommitDto(Revision revision, Author author, CommitMessageDto commitMessage, long commitTimeMillis,
-                     @Nullable String commitId, @Nullable String upstreamCommitId) {
+                     @Nullable String upstreamCommitId) {
         this(revision, author, commitMessage, ISO_INSTANT.format(Instant.ofEpochMilli(commitTimeMillis)),
-             commitId, upstreamCommitId);
+             upstreamCommitId);
     }
 
     @JsonCreator
@@ -67,13 +64,11 @@ public class CommitDto {
                      @JsonProperty("author") Author author,
                      @JsonProperty("commitMessage") CommitMessageDto commitMessage,
                      @JsonProperty("pushedAt") String pushedAt,
-                     @JsonProperty("commitId") @Nullable String commitId,
                      @JsonProperty("upstreamCommitId") @Nullable String upstreamCommitId) {
         this.revision = requireNonNull(revision, "revision");
         this.author = requireNonNull(author, "author");
         this.commitMessage = requireNonNull(commitMessage, "commitMessage");
         this.pushedAt = ISO_INSTANT.format(Instant.parse(requireNonNull(pushedAt, "pushedAt")));
-        this.commitId = commitId;
         this.upstreamCommitId = upstreamCommitId;
     }
 
@@ -98,15 +93,6 @@ public class CommitDto {
     }
 
     /**
-     * Returns the SHA-1 of the Git commit that stores this commit.
-     */
-    @Nullable
-    @JsonProperty("commitId")
-    public String commitId() {
-        return commitId;
-    }
-
-    /**
      * Returns the SHA-1 of the upstream Git commit this commit was mirrored from.
      */
     @Nullable
@@ -122,7 +108,6 @@ public class CommitDto {
                           .add("author", author())
                           .add("commitMessage", commitMessage())
                           .add("pushedAt", pushedAt())
-                          .add("commitId", commitId())
                           .add("upstreamCommitId", upstreamCommitId())
                           .toString();
     }

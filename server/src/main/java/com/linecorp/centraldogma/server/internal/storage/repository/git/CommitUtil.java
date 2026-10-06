@@ -72,7 +72,7 @@ final class CommitUtil {
         }
     }
 
-    static Commit newCommit(Author author, long when, @Nullable String commitId, String jsonString) {
+    static Commit newCommit(Author author, long when, String jsonString) {
         requireNonNull(author, "author");
         when = when / 1000L * 1000L; // Drop the milliseconds
         try {
@@ -97,7 +97,7 @@ final class CommitUtil {
             final String upstreamCommitId =
                     Jackson.textValue(jsonNode.get(FIELD_NAME_UPSTREAM_COMMIT_ID), null);
 
-            return new Commit(revision, author, when, summary, detail, markup, commitId, upstreamCommitId);
+            return new Commit(revision, author, when, summary, detail, markup, upstreamCommitId);
         } catch (Exception e) {
             throw new StorageException("failed to create a Commit", e);
         }

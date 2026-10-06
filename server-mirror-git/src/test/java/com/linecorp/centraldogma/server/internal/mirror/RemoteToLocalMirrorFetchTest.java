@@ -165,8 +165,26 @@ class RemoteToLocalMirrorFetchTest {
     }
 
     @Test
-    void snapshotUsesTheRevisionItReadAsItsBase() throws Exception {
+    void replayedCommitsUseLatestRevisionAfterInterveningLocalCommit() throws Exception {
         final DefaultGitMirror mirror = newMirror("/", true);
+        commitToRemote("initial.txt", "0");
+        assertThat(mirrorRemoteToLocal(mirror).mirrorStatus()).isEqualTo(MirrorStatus.SUCCESS);
+        final Revision baseline = localRepo.normalizeNow(Revision.HEAD);
+
+        commitToRemote("first.txt", "1");
+        commitToRemote("second.txt", "2");
+        final List<Revision> baseRevisions = new ArrayList<>();
+        final CommandExecutor executor =
+                new InterveningCommitExecutor(pmExtension.executor(), baseRevisions);
+
+        assertThat(mirrorRemoteToLocal(mirror, executor).mirrorStatus()).isEqualTo(MirrorStatus.SUCCESS);
+        assertThat(baseRevisions).containsExactly(baseline, baseline.forward(2));
+        assertThat(localRepo.normalizeNow(Revision.HEAD)).isEqualTo(baseline.forward(3));
+    }
+
+    @Test
+    void snapshotUsesTheRevisionItReadAsItsBase() throws Exception {
+        final DefaultGitMirror mirror = newMirror("/");
         commitToRemote("initial.txt", "0");
         final Revision baseline = localRepo.normalizeNow(Revision.HEAD);
         final List<Revision> baseRevisions = new ArrayList<>();
@@ -210,7 +228,7 @@ class RemoteToLocalMirrorFetchTest {
         remoteGit.commit().setMessage("Add " + path).call();
     }
 
-    private static final class CapturingCommandExecutor implements CommandExecutor {
+    private static class CapturingCommandExecutor implements CommandExecutor {
 
         private final CommandExecutor delegate;
         private final List<Revision> baseRevisions;
@@ -261,6 +279,30 @@ class RemoteToLocalMirrorFetchTest {
         @Override
         public CommandExecutorStatusManager statusManager() {
             return delegate.statusManager();
+        }
+    }
+
+    private final class InterveningCommitExecutor extends CapturingCommandExecutor {
+
+        private boolean insertedLocalCommit;
+
+        private InterveningCommitExecutor(CommandExecutor delegate, List<Revision> baseRevisions) {
+            super(delegate, baseRevisions);
+        }
+
+        @Override
+        public <T> CompletableFuture<T> execute(ExecutionContext ctx, Command<T> command) {
+            final CompletableFuture<T> result = super.execute(ctx, command);
+            if (insertedLocalCommit || !(command instanceof AbstractPushCommand)) {
+                return result;
+            }
+            insertedLocalCommit = true;
+            return result.thenCompose(value ->
+                    pmExtension.executor().execute(
+                            Command.push(Author.SYSTEM, projectName, REPO_FOO, Revision.HEAD,
+                                         "Local change", "", Markup.PLAINTEXT,
+                                         Change.ofTextUpsert("/outside.txt", "local")))
+                               .thenApply(unused -> value));
         }
     }
 }

@@ -24,12 +24,14 @@ import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
+import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Markup;
+import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.Jackson;
 
 class CommitDtoTest {
 
-    private static final String COMMIT_ID = "1111111111111111111111111111111111111111";
+    private static final String LEGACY_COMMIT_ID = "1111111111111111111111111111111111111111";
     private static final String UPSTREAM_COMMIT_ID = "2222222222222222222222222222222222222222";
 
     @Test
@@ -43,24 +45,33 @@ class CommitDtoTest {
         assertThat(commit.commitMessage().detail()).isEqualTo("detail");
         assertThat(commit.commitMessage().markup()).isEqualTo(Markup.MARKDOWN);
         assertThat(commit.pushedAt()).isEqualTo("2026-09-16T00:00:00Z");
-        assertThat(commit.commitId()).isEqualTo(COMMIT_ID);
         assertThat(commit.upstreamCommitId()).isEqualTo(UPSTREAM_COMMIT_ID);
     }
 
     @Test
-    void deserializesCommitWithoutCommitIds() throws Exception {
+    void deserializesCommitWithoutUpstreamCommitId() throws Exception {
         final CommitDto commit = Jackson.readValue(commitJson(false, false), CommitDto.class);
 
-        assertThat(commit.commitId()).isNull();
         assertThat(commit.upstreamCommitId()).isNull();
     }
 
     @Test
-    void deserializesCommitWithoutUpstreamCommitId() throws Exception {
+    void ignoresLegacyCommitId() throws Exception {
         final CommitDto commit = Jackson.readValue(commitJson(true, false), CommitDto.class);
 
-        assertThat(commit.commitId()).isEqualTo(COMMIT_ID);
         assertThat(commit.upstreamCommitId()).isNull();
+    }
+
+    @Test
+    void doesNotSerializeInternalCommitId() {
+        final CommitDto commit = new CommitDto(
+                new Revision(42), new Author("Alice", "alice@example.com"),
+                new CommitMessageDto("summary", "detail", Markup.MARKDOWN),
+                1789516800000L, UPSTREAM_COMMIT_ID);
+
+        final JsonNode json = Jackson.valueToTree(commit);
+        assertThat(json.has("commitId")).isFalse();
+        assertThat(json.get("upstreamCommitId").textValue()).isEqualTo(UPSTREAM_COMMIT_ID);
     }
 
     @Test
@@ -78,7 +89,6 @@ class CommitDtoTest {
         final CommitDto commit = Jackson.readValue(json.substring(0, json.length() - 1) +
                                                    ",\"futureField\":true}", CommitDto.class);
 
-        assertThat(commit.commitId()).isEqualTo(COMMIT_ID);
         assertThat(commit.upstreamCommitId()).isEqualTo(UPSTREAM_COMMIT_ID);
     }
 
@@ -104,7 +114,7 @@ class CommitDtoTest {
                "\"commitMessage\":{\"summary\":\"summary\",\"detail\":\"detail\"," +
                "\"markup\":\"MARKDOWN\"}," +
                "\"pushedAt\":\"2026-09-16T00:00:00Z\"" +
-               (withCommitId ? ",\"commitId\":\"" + COMMIT_ID + "\"" : "") +
+               (withCommitId ? ",\"commitId\":\"" + LEGACY_COMMIT_ID + "\"" : "") +
                (withUpstreamCommitId ? ",\"upstreamCommitId\":\"" + UPSTREAM_COMMIT_ID + "\"" : "") +
                '}';
     }
