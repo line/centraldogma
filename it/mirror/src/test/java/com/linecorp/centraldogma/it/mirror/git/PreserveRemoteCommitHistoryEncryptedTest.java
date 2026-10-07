@@ -106,16 +106,24 @@ class PreserveRemoteCommitHistoryEncryptedTest {
     void preservesHistoryWithoutPublishingTags() throws Exception {
         mirroringService.mirror().join();
         final Revision baseline = headRevision();
-        final RevCommit upstream = commitFile("encrypted.txt", "secret", "Update encrypted repository");
+        final RevCommit first = commitFile(
+                "encrypted.txt", "secret-1", "Update encrypted repository once");
+        final RevCommit second = commitFile(
+                "encrypted.txt", "secret-2", "Update encrypted repository twice");
 
         mirroringService.mirror().join();
 
-        assertThat(headRevision()).isEqualTo(baseline.forward(1));
-        final Commit mirrored = client.getHistory(PROJECT_NAME, REPOSITORY_NAME, Revision.HEAD,
-                                                  Revision.HEAD, PathPattern.all(), 0).join().get(0);
-        assertThat(mirrored.upstreamCommitId()).isEqualTo(upstream.name());
-        assertThat(dogma.projectManager().get(PROJECT_NAME).repos().get(REPOSITORY_NAME).jGitRepository()
-                       .exactRef(TAG_PREFIX + upstream.name())).isNull();
+        assertThat(headRevision()).isEqualTo(baseline.forward(2));
+        assertThat(fileContent(baseline.forward(1))).isEqualTo("secret-1");
+        assertThat(fileContent(baseline.forward(2))).isEqualTo("secret-2");
+        assertThat(client.getHistory(PROJECT_NAME, REPOSITORY_NAME, Revision.HEAD,
+                                     baseline.forward(1), PathPattern.all(), 0).join())
+                .extracting(Commit::upstreamCommitId)
+                .containsOnlyNulls();
+        final Repository repository =
+                dogma.projectManager().get(PROJECT_NAME).repos().get(REPOSITORY_NAME).jGitRepository();
+        assertThat(repository.exactRef(TAG_PREFIX + first.name())).isNull();
+        assertThat(repository.exactRef(TAG_PREFIX + second.name())).isNull();
     }
 
     private RevCommit commitFile(String path, String content, String message) throws Exception {
@@ -128,6 +136,15 @@ class PreserveRemoteCommitHistoryEncryptedTest {
 
     private Revision headRevision() {
         return client.normalizeRevision(PROJECT_NAME, REPOSITORY_NAME, Revision.HEAD).join();
+    }
+
+    private String fileContent(Revision revision) {
+        return client.forRepo(PROJECT_NAME, REPOSITORY_NAME)
+                     .file("/encrypted.txt")
+                     .get(revision)
+                     .join()
+                     .contentAsText()
+                     .trim();
     }
 
     private void pushMirrorSettings() {

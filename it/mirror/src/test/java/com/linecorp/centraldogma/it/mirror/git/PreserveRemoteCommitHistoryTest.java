@@ -134,9 +134,8 @@ class PreserveRemoteCommitHistoryTest {
 
     @Test
     void firstRunReplaysRemoteHistory() throws Exception {
-        final RevCommit initial = git.log().setMaxCount(1).call().iterator().next();
-        final RevCommit first = commitFile("a.txt", "1", "Add a");
-        final RevCommit head = commitFile("b.txt", "2", "Add b");
+        commitFile("a.txt", "1", "Add a");
+        commitFile("b.txt", "2", "Add b");
 
         pushMirrorSettings(true);
         final Revision before = headRevision();
@@ -152,15 +151,13 @@ class PreserveRemoteCommitHistoryTest {
         assertThat(fileContent(headRevision(), "/b.txt")).isEqualTo("2");
         assertThat(tagNames()).isEmpty();
         assertThat(history(headRevision(), before.forward(1))).extracting(Commit::upstreamCommitId)
-                                                                .containsExactly(head.name(), first.name(),
-                                                                                 initial.name());
+                                                                .containsOnlyNulls();
     }
 
     @Test
     void firstRunFallsBackToSnapshotWhenHistoryExceedsLimit() throws Exception {
-        RevCommit head = git.log().setMaxCount(1).call().iterator().next();
         for (int i = 0; i < 100; i++) {
-            head = commitFile("counter.txt", Integer.toString(i), "Update counter " + i);
+            commitFile("counter.txt", Integer.toString(i), "Update counter " + i);
         }
 
         pushMirrorSettings(true);
@@ -169,8 +166,7 @@ class PreserveRemoteCommitHistoryTest {
 
         assertThat(headRevision()).isEqualTo(before.forward(1));
         assertThat(fileContent(headRevision(), "/counter.txt")).isEqualTo("99");
-        assertThat(history(headRevision(), headRevision()).get(0).upstreamCommitId())
-                .isEqualTo(head.name());
+        assertThat(history(headRevision(), headRevision()).get(0).upstreamCommitId()).isNull();
         assertThat(tagNames()).isEmpty();
     }
 
@@ -180,9 +176,9 @@ class PreserveRemoteCommitHistoryTest {
         mirroringService.mirror().join();
         final Revision baseline = headRevision();
 
-        final RevCommit first = commitFile("a.txt", "1", "Add a", "Alice", "alice@example.com");
-        final RevCommit second = commitFile("b.txt", "2", "Add b", "Bob", "bob@example.com");
-        final RevCommit third = commitFile("c.txt", "3", "Add c", "Carol", "carol@example.com");
+        commitFile("a.txt", "1", "Add a", "Alice", "alice@example.com");
+        commitFile("b.txt", "2", "Add b", "Bob", "bob@example.com");
+        commitFile("c.txt", "3", "Add c", "Carol", "carol@example.com");
 
         mirroringService.mirror().join();
 
@@ -203,9 +199,8 @@ class PreserveRemoteCommitHistoryTest {
         assertThat(commits).extracting(commit -> commit.author().email())
                            .containsExactly("carol@example.com", "bob@example.com", "alice@example.com");
 
-        // Every revision records the remote commit it came from without publishing tags.
-        assertThat(commits).extracting(Commit::upstreamCommitId)
-                           .containsExactly(third.name(), second.name(), first.name());
+        // History preservation alone does not expose upstream commit IDs.
+        assertThat(commits).extracting(Commit::upstreamCommitId).containsOnlyNulls();
         assertThat(tagNames()).isEmpty();
     }
 
@@ -216,13 +211,13 @@ class PreserveRemoteCommitHistoryTest {
         mirroringService.mirror().join();
         final Revision baseline = headRevision();
 
-        final RevCommit outside = commitFile("outside.txt", "2", "Update outside path");
+        commitFile("outside.txt", "2", "Update outside path");
         mirroringService.mirror().join();
 
         assertThat(headRevision()).isEqualTo(baseline.forward(1));
         assertThat(fileContent(headRevision(), "/value.txt")).isEqualTo("1");
         final Commit mirrored = history(headRevision(), headRevision()).get(0);
-        assertThat(mirrored.upstreamCommitId()).isEqualTo(outside.name());
+        assertThat(mirrored.upstreamCommitId()).isNull();
         assertThat(tagNames()).isEmpty();
     }
 
@@ -238,6 +233,35 @@ class PreserveRemoteCommitHistoryTest {
         mirroringService.mirror().join();
 
         assertThat(headRevision()).isEqualTo(baseline.forward(100));
+        assertThat(tagNames()).isEmpty();
+    }
+
+    @Test
+    void mergeGraphFallsBackToSingleSnapshot() throws Exception {
+        pushMirrorSettings(true);
+        mirroringService.mirror().join();
+        final Revision baseline = headRevision();
+        final RevCommit base = git.log().setMaxCount(1).call().iterator().next();
+
+        git.checkout().setCreateBranch(true).setName("left").setStartPoint(base).call();
+        final RevCommit left = commitFile("left.txt", "left", "Update left");
+        git.checkout().setCreateBranch(true).setName("right").setStartPoint(base).call();
+        final RevCommit right = commitFile("right.txt", "right", "Update right");
+
+        git.checkout().setName("master").call();
+        MergeResult result = git.merge().include(left).setFastForward(FastForwardMode.NO_FF)
+                                .setMessage("Merge left").call();
+        assertThat(result.getMergeStatus().isSuccessful()).isTrue();
+        result = git.merge().include(right).setFastForward(FastForwardMode.NO_FF)
+                    .setMessage("Merge right").call();
+        assertThat(result.getMergeStatus().isSuccessful()).isTrue();
+
+        mirroringService.mirror().join();
+
+        assertThat(headRevision()).isEqualTo(baseline.forward(1));
+        assertThat(fileContent(headRevision(), "/left.txt")).isEqualTo("left");
+        assertThat(fileContent(headRevision(), "/right.txt")).isEqualTo("right");
+        assertThat(history(headRevision(), headRevision()).get(0).upstreamCommitId()).isNull();
         assertThat(tagNames()).isEmpty();
     }
 
@@ -267,21 +291,18 @@ class PreserveRemoteCommitHistoryTest {
         result = git.merge().include(right).setFastForward(FastForwardMode.NO_FF)
                     .setMessage("Merge right").call();
         assertThat(result.getMergeStatus().isSuccessful()).isTrue();
-        final RevCommit mergedHead = git.log().setMaxCount(1).call().iterator().next();
-
         mirroringService.mirror().join();
 
         assertThat(headRevision()).isEqualTo(baseline.forward(1));
         assertThat(fileContent(headRevision(), "/left.txt")).isEqualTo("49");
         assertThat(fileContent(headRevision(), "/right.txt")).isEqualTo("49");
-        assertThat(history(headRevision(), headRevision()).get(0).upstreamCommitId())
-                .isEqualTo(mergedHead.name());
+        assertThat(history(headRevision(), headRevision()).get(0).upstreamCommitId()).isNull();
         assertThat(tagNames()).isEmpty();
     }
 
     @Test
     void publishedTagsRemainLoose() throws Exception {
-        pushMirrorSettings(false, true);
+        pushMirrorSettings(true, true);
         mirroringService.mirror().join();
         final RevCommit commit = commitFile("a.txt", "1", "Add a");
         mirroringService.mirror().join();
@@ -302,25 +323,31 @@ class PreserveRemoteCommitHistoryTest {
     }
 
     @Test
-    void upstreamTagsAreImmutable() throws Exception {
+    void revertAndRemirrorMovesTagToRestoredRevision() throws Exception {
         pushMirrorSettings(true, true);
         mirroringService.mirror().join();
         final RevCommit upstream = commitFile("a.txt", "1", "Add a");
         mirroringService.mirror().join();
         final ObjectId originalTag = tagObjectId(upstream.name());
+        final Revision mirroredRevision = headRevision();
 
         dogma.projectManager().get(projName).repos().get(REPO_FOO)
              .commit(Revision.HEAD, System.currentTimeMillis(), Author.SYSTEM,
-                     "Unrelated change", "", Markup.PLAINTEXT,
-                     List.of(Change.ofTextUpsert("/other.txt", "2")), true, upstream.name(), true)
+                     "Revert mirrored content", "", Markup.PLAINTEXT,
+                     Change.ofRemoval("/a.txt"))
              .join();
+        mirroringService.mirror().join();
 
-        assertThat(tagObjectId(upstream.name())).isEqualTo(originalTag);
-        assertThat(repositoryHeadObjectId()).isNotEqualTo(originalTag);
+        assertThat(headRevision()).isEqualTo(mirroredRevision.forward(2));
+        assertThat(fileContent(headRevision(), "/a.txt")).isEqualTo("1");
+        assertThat(history(headRevision(), headRevision()).get(0).upstreamCommitId())
+                .isEqualTo(upstream.name());
+        assertThat(tagObjectId(upstream.name())).isEqualTo(repositoryHeadObjectId())
+                                                       .isNotEqualTo(originalTag);
     }
 
     @Test
-    void reconfiguredReplayDoesNotClaimExistingUpstreamTags() throws Exception {
+    void reconfiguredReplayMovesExistingUpstreamTags() throws Exception {
         final RevCommit upstream = commitFile("a.txt", "1", "Add a");
         pushMirrorSettings(true, true);
         mirroringService.mirror().join();
@@ -332,8 +359,10 @@ class PreserveRemoteCommitHistoryTest {
 
         assertThat(headRevision()).isEqualTo(baseline.forward(2));
         assertThat(fileContent(headRevision(), "/nested/a.txt")).isEqualTo("1");
-        assertThat(history(headRevision(), headRevision()).get(0).upstreamCommitId()).isNull();
-        assertThat(tagObjectId(upstream.name())).isEqualTo(originalTag);
+        assertThat(history(headRevision(), headRevision()).get(0).upstreamCommitId())
+                .isEqualTo(upstream.name());
+        assertThat(tagObjectId(upstream.name())).isEqualTo(repositoryHeadObjectId())
+                                                       .isNotEqualTo(originalTag);
 
         final Revision reconfiguredRevision = headRevision();
         deleteTag(upstream.name());
@@ -345,7 +374,7 @@ class PreserveRemoteCommitHistoryTest {
 
     @Test
     void tagCanBeClonedAndCheckedOutOverGitHttp() throws Exception {
-        pushMirrorSettings(false, true);
+        pushMirrorSettings(true, true);
         mirroringService.mirror().join();
         final RevCommit upstream = commitFile("a.txt", "pinned", "Add a");
         mirroringService.mirror().join();
@@ -389,8 +418,10 @@ class PreserveRemoteCommitHistoryTest {
         assertThat(fileContent(headRevision(), "/a.txt")).isEqualTo("1");
         assertThat(client.getFiles(projName, REPO_FOO, headRevision(), PathPattern.all()).join())
                 .doesNotContainKey("/b.txt");
-        assertThat(history(headRevision(), headRevision()).get(0).upstreamCommitId()).isNull();
-        assertThat(tagObjectId(rewoundHead.name())).isEqualTo(originalTag);
+        assertThat(history(headRevision(), headRevision()).get(0).upstreamCommitId())
+                .isEqualTo(rewoundHead.name());
+        assertThat(tagObjectId(rewoundHead.name())).isEqualTo(repositoryHeadObjectId())
+                                                          .isNotEqualTo(originalTag);
     }
 
     @Test
@@ -404,7 +435,7 @@ class PreserveRemoteCommitHistoryTest {
 
         // Rewrite history: drop the tip and commit something else in its place.
         git.reset().setMode(ResetType.HARD).setRef("HEAD~1").call();
-        final RevCommit divergedHead = commitFile("c.txt", "3", "Add c");
+        commitFile("c.txt", "3", "Add c");
         mirroringService.mirror().join();
 
         assertThat(headRevision()).isEqualTo(replayed.forward(1));
@@ -412,21 +443,19 @@ class PreserveRemoteCommitHistoryTest {
         assertThat(client.getFiles(projName, REPO_FOO, headRevision(), PathPattern.all()).join())
                 .doesNotContainKey("/b.txt");
         final Commit mirrored = history(headRevision(), headRevision()).get(0);
-        assertThat(mirrored.upstreamCommitId()).isEqualTo(divergedHead.name());
+        assertThat(mirrored.upstreamCommitId()).isNull();
         assertThat(tagNames()).isEmpty();
     }
 
     @ParameterizedTest
     @CsvSource({
             "false, false, 1, false, false",
-            "true,  false, 2, true,  false",
-            "false, true,  1, true,  true",
+            "true,  false, 2, false, false",
             "true,  true,  2, true,  true"
     })
-    void historyAndTagOptionsAreIndependent(boolean preserveRemoteCommitHistory,
-                                            boolean publishRemoteCommitTags,
-                                            int expectedRevisions, boolean expectUpstreamCommitId,
-                                            boolean expectTags) throws Exception {
+    void historyAndTagOptions(boolean preserveRemoteCommitHistory, boolean publishRemoteCommitTags,
+                              int expectedRevisions, boolean expectUpstreamCommitId,
+                              boolean expectTags) throws Exception {
         pushMirrorSettings(preserveRemoteCommitHistory, publishRemoteCommitTags);
         mirroringService.mirror().join();
         final Revision baseline = headRevision();
@@ -436,17 +465,17 @@ class PreserveRemoteCommitHistoryTest {
         mirroringService.mirror().join();
 
         assertThat(headRevision()).isEqualTo(baseline.forward(expectedRevisions));
-        final Commit head = history(headRevision(), headRevision()).get(0);
+        final List<Commit> mirroredCommits = history(headRevision(), baseline.forward(1));
         if (expectUpstreamCommitId) {
-            assertThat(head.upstreamCommitId()).isEqualTo(second.name());
+            assertThat(mirroredCommits).extracting(Commit::upstreamCommitId)
+                                       .containsExactly(second.name(), first.name());
         } else {
-            assertThat(head.upstreamCommitId()).isNull();
+            assertThat(mirroredCommits).extracting(Commit::upstreamCommitId).containsOnlyNulls();
         }
         if (expectTags) {
-            assertThat(tagNames()).contains(TAG_PREFIX + second.name());
-            if (preserveRemoteCommitHistory) {
-                assertThat(tagNames()).contains(TAG_PREFIX + first.name());
-            }
+            assertThat(tagNames()).contains(TAG_PREFIX + first.name(), TAG_PREFIX + second.name());
+            assertThat(tagObjectId(first.name())).isNotEqualTo(tagObjectId(second.name()));
+            assertThat(tagObjectId(second.name())).isEqualTo(repositoryHeadObjectId());
         } else {
             assertThat(tagNames()).isEmpty();
         }

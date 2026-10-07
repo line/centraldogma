@@ -23,18 +23,26 @@ export type CommitShaProps = {
   label: string;
   sha: string;
   abbreviated?: boolean;
+  showLabel?: boolean;
 };
 
-export const CommitSha = ({ label, sha, abbreviated = true }: CommitShaProps) => {
+export const CommitSha = ({ label, sha, abbreviated = true, showLabel = true }: CommitShaProps) => {
   const dispatch = useAppDispatch();
   const copyLabel = `${label} SHA`;
   return (
-    <HStack spacing={1} maxWidth="100%" align="flex-start">
-      <Text fontSize="sm" color="gray.500" flexShrink={0}>
-        {label}
-      </Text>
-      <Tooltip label={sha}>
-        <Code fontSize="sm">
+    <HStack spacing={1} maxWidth="100%" align={showLabel ? 'flex-start' : 'center'}>
+      {showLabel && (
+        <Text fontSize="sm" color="gray.500" flexShrink={0}>
+          {label}
+        </Text>
+      )}
+      <Tooltip
+        label={showLabel ? sha : `${label}: ${sha}`}
+        placement={showLabel ? undefined : 'top'}
+        whiteSpace={showLabel ? undefined : { base: 'normal', md: 'nowrap' }}
+        maxWidth={showLabel ? undefined : { base: 'xs', md: 'none' }}
+      >
+        <Code fontSize="sm" aria-label={showLabel ? undefined : `${label}: ${sha}`}>
           {abbreviated ? (
             sha.substring(0, 7)
           ) : (

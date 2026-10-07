@@ -194,10 +194,10 @@ class DefaultMetaRepositoryWithMirrorTest {
         assertThat(bar.preserveRemoteCommitHistory()).isFalse();
         assertThat(foo.publishRemoteCommitTags()).isFalse();
         assertThat(bar.publishRemoteCommitTags()).isFalse();
-        assertThat(foo.toString()).contains("preserveRemoteCommitHistory=false",
-                                            "publishRemoteCommitTags=false");
-        assertThat(bar.toString()).contains("preserveRemoteCommitHistory=false",
-                                            "publishRemoteCommitTags=false");
+        assertThat(foo.toString()).doesNotContain("preserveRemoteCommitHistory");
+        assertThat(bar.toString()).doesNotContain("preserveRemoteCommitHistory");
+        assertThat(foo.toString()).doesNotContain("publishRemoteCommitTags");
+        assertThat(bar.toString()).doesNotContain("publishRemoteCommitTags");
 
         assertThat(foo.schedule().equivalent(cronParser.parse("0 * * * * ?"))).isTrue();
         assertThat(bar.schedule().equivalent(cronParser.parse("0 */10 * * * ?"))).isTrue();
@@ -370,19 +370,28 @@ class DefaultMetaRepositoryWithMirrorTest {
     }
 
     @Test
-    void preservingAndTagPublishingMirrorsCanCoexist() {
+    void rawTagPublishingWithoutHistory_isRejected() {
         metaRepo.commit(
                 Revision.HEAD, 0, Author.SYSTEM, "",
-                ImmutableList.of(preservingMirror("history", "/history",
-                                                  "git+https://example.com/history.git"),
-                                 tagPublishingMirror("tags", "/tags",
-                                                     "git+https://example.com/tags.git")))
-                .join();
+                Change.ofJsonUpsert(
+                        "/repos/repo/mirrors/tags.json",
+                        '{' +
+                        "  \"id\": \"tags\"," +
+                        "  \"enabled\": true," +
+                        "  \"direction\": \"REMOTE_TO_LOCAL\"," +
+                        "  \"localRepo\": \"repo\"," +
+                        "  \"remoteUri\": \"git+https://example.com/tags.git\"," +
+                        "  \"credentialName\": \"\"," +
+                        "  \"publishRemoteCommitTags\": true" +
+                        '}')).join();
         project.repos().create("repo", Author.SYSTEM);
 
-        assertThat(metaRepo.mirrors().join())
-                .extracting(Mirror::id)
-                .containsExactlyInAnyOrder("history", "tags");
+        assertThat(metaRepo.mirrors().join()).isEmpty();
+        assertThatThrownBy(() -> metaRepo.mirror("repo", "tags").join())
+                .isInstanceOf(CompletionException.class)
+                .hasCauseInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining(
+                        "'Publish tags for upstream commits' requires 'Preserve upstream commit history'");
     }
 
     @Test
@@ -401,18 +410,17 @@ class DefaultMetaRepositoryWithMirrorTest {
     }
 
     @Test
-    void mirrorApiRejectsSecondTagPublishingMirrorForOneRepository() {
+    void mirrorApiRejectsTagPublishingWithoutHistory() {
         project.repos().create("repo", Author.SYSTEM);
-        final MirrorRequest first = tagPublishingMirrorRequest("first", "example.com/one.git");
-        pmExtension.executor().execute(
-                metaRepo.createMirrorPushCommand("repo", first, Author.SYSTEM, null, false).join()).join();
+        final MirrorRequest request = new MirrorRequest(
+                "tags", true, project.name(), null, "REMOTE_TO_LOCAL", "repo", "/",
+                "git+https", "example.com/tags.git", "/", "main", null, "", null, false, true);
 
-        final MirrorRequest second = tagPublishingMirrorRequest("second", "example.com/two.git");
-        assertThatThrownBy(() ->
-                metaRepo.createMirrorPushCommand("repo", second, Author.SYSTEM, null, false).join())
-                .isInstanceOf(CompletionException.class)
-                .hasCauseInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("Only one mirror may publish tags for upstream commits");
+        assertThatThrownBy(() -> metaRepo.createMirrorPushCommand(
+                "repo", request, Author.SYSTEM, null, false))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining(
+                        "'Publish tags for upstream commits' requires 'Preserve upstream commit history'");
     }
 
     @Test
@@ -567,21 +575,6 @@ class DefaultMetaRepositoryWithMirrorTest {
                 '}');
     }
 
-    private static Change<?> tagPublishingMirror(String id, String localPath, String remoteUri) {
-        return Change.ofJsonUpsert(
-                "/repos/repo/mirrors/" + id + ".json",
-                '{' +
-                "  \"id\": \"" + id + "\"," +
-                "  \"enabled\": true," +
-                "  \"direction\": \"REMOTE_TO_LOCAL\"," +
-                "  \"localRepo\": \"repo\"," +
-                "  \"localPath\": \"" + localPath + "\"," +
-                "  \"remoteUri\": \"" + remoteUri + "\"," +
-                "  \"credentialName\": \"\"," +
-                "  \"publishRemoteCommitTags\": true" +
-                '}');
-    }
-
     private MirrorRequest preservingMirrorRequest(String id, String remoteUrl) {
         return new MirrorRequest(id, true, project.name(), null, "REMOTE_TO_LOCAL", "repo", "/",
                                  "git+https", remoteUrl, "/", "main", null, "", null, true, false);
@@ -589,7 +582,7 @@ class DefaultMetaRepositoryWithMirrorTest {
 
     private MirrorRequest tagPublishingMirrorRequest(String id, String remoteUrl) {
         return new MirrorRequest(id, true, project.name(), null, "REMOTE_TO_LOCAL", "repo", "/",
-                                 "git+https", remoteUrl, "/", "main", null, "", null, false, true);
+                                 "git+https", remoteUrl, "/", "main", null, "", null, true, true);
     }
 
     private static List<Credential> credentials(String projectName) {

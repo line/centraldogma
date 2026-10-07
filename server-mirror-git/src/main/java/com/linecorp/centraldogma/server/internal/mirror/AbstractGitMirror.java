@@ -16,7 +16,6 @@
 
 package com.linecorp.centraldogma.server.internal.mirror;
 
-import static com.linecorp.centraldogma.internal.HistoryConstants.UPSTREAM_TAG_PREFIX;
 import static com.linecorp.centraldogma.server.storage.repository.FindOptions.FIND_ALL_WITHOUT_CONTENT;
 import static com.linecorp.centraldogma.server.storage.repository.FindOptions.FIND_ALL_WITH_CONTENT;
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -452,13 +451,22 @@ abstract class AbstractGitMirror extends AbstractMirror {
             }
             final ImmutableList.Builder<RevCommit> commits = ImmutableList.builder();
             int numCommits = 0;
+            RevCommit expectedParent = previousCommit;
             for (RevCommit commit : revWalk) {
                 if (++numCommits > MAX_REPLAY_COMMITS) {
                     logger.info("More than {} commits are reachable from the remote head. " +
                                 "Falling back to a single snapshot.", MAX_REPLAY_COMMITS);
                     return null;
                 }
+                final int expectedParentCount = expectedParent == null ? 0 : 1;
+                final boolean hasUnexpectedParent =
+                        expectedParent != null && !commit.getParent(0).equals(expectedParent);
+                if (commit.getParentCount() != expectedParentCount || hasUnexpectedParent) {
+                    logger.info("Remote history is not linear. Falling back to a single snapshot.");
+                    return null;
+                }
                 commits.add(commit);
+                expectedParent = commit;
             }
             final ImmutableList<RevCommit> commitsToReplay = commits.build();
             return commitsToReplay.isEmpty() ? null : commitsToReplay;
@@ -498,7 +506,7 @@ abstract class AbstractGitMirror extends AbstractMirror {
         validateChanges(changes);
 
         logger.info(upstreamCommit.summary());
-        final String upstreamCommitId = upstreamCommitIdToRecord(upstreamCommit.id());
+        final String upstreamCommitId = upstreamCommitIdToPublish(upstreamCommit.id());
         try {
             return executor.execute(Command.push(
                     null, upstreamCommit.author(), localRepo().parent().name(), localRepo().name(),
@@ -514,15 +522,11 @@ abstract class AbstractGitMirror extends AbstractMirror {
     }
 
     @Nullable
-    private String upstreamCommitIdToRecord(ObjectId commitId) throws IOException {
-        if (!preserveRemoteCommitHistory() && !publishRemoteCommitTags()) {
+    private String upstreamCommitIdToPublish(ObjectId commitId) {
+        if (!preserveRemoteCommitHistory() || !publishRemoteCommitTags()) {
             return null;
         }
-        if (!publishRemoteCommitTags()) {
-            return commitId.name();
-        }
-        final String refName = Constants.R_TAGS + UPSTREAM_TAG_PREFIX + commitId.name();
-        return localRepo().jGitRepository().exactRef(refName) == null ? commitId.name() : null;
+        return commitId.name();
     }
 
     private String commitSummary(RevCommit commit) {

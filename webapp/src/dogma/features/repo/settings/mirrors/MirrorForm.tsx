@@ -145,7 +145,10 @@ const MirrorForm = ({
   const canConfigureRemoteCommitOptions = supportsRemoteCommitOptions(direction, remoteScheme);
   const repository = repositories?.find((candidate) => candidate.name === repoName);
   const canPublishRemoteCommitTags =
-    canConfigureRemoteCommitOptions && repository != null && !repository.encrypted;
+    canConfigureRemoteCommitOptions &&
+    preserveRemoteCommitHistory &&
+    repository != null &&
+    !repository.encrypted;
 
   useEffect(() => {
     if (!canConfigureRemoteCommitOptions) {
@@ -155,7 +158,9 @@ const MirrorForm = ({
     }
     if (
       publishRemoteCommitTags &&
-      (!canConfigureRemoteCommitOptions || (repository != null && repository.encrypted))
+      (!canConfigureRemoteCommitOptions ||
+        !preserveRemoteCommitHistory ||
+        (repository != null && repository.encrypted))
     ) {
       setValue('publishRemoteCommitTags', false, { shouldDirty: true });
     }
@@ -245,7 +250,7 @@ const MirrorForm = ({
         if (!supportsRemoteCommitOptions(mirror.direction, mirror.remoteScheme)) {
           mirror.preserveRemoteCommitHistory = false;
           mirror.publishRemoteCommitTags = false;
-        } else if (repository?.encrypted) {
+        } else if (!mirror.preserveRemoteCommitHistory || repository?.encrypted) {
           mirror.publishRemoteCommitTags = false;
         }
         return onSubmit(mirror, () => {}, setError);
@@ -620,7 +625,7 @@ const MirrorForm = ({
                 />
               )}
             />
-            <FormHelperText gridColumn={{ base: '1 / -1', md: '3' }} mt={{ base: 1, md: 0 }}>
+            <FormHelperText gridColumn="1 / -1" mt={1}>
               {canConfigureRemoteCommitOptions
                 ? 'Mirror each upstream commit as its own revision. Guaranteed for fast-forward pushes only.'
                 : 'Available only for remote-to-Central Dogma Git mirrors.'}
@@ -652,9 +657,11 @@ const MirrorForm = ({
                 />
               )}
             />
-            <FormHelperText gridColumn={{ base: '1 / -1', md: '3' }} mt={{ base: 1, md: 0 }}>
+            <FormHelperText gridColumn="1 / -1" mt={1}>
               {!canConfigureRemoteCommitOptions ? (
                 'Available only for remote-to-Central Dogma Git mirrors.'
+              ) : !preserveRemoteCommitHistory ? (
+                'Enable upstream commit history first.'
               ) : repository == null ? (
                 'Loading repository information.'
               ) : repository.encrypted ? (

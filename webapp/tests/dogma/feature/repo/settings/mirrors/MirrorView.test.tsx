@@ -78,7 +78,7 @@ describe('MirrorView', () => {
     expect(remotePathCode.textContent).not.toContain('#');
   });
 
-  it('shows history and tag publishing as independent options', () => {
+  it('shows history and tag publishing states separately', () => {
     const { container } = renderWithProviders(
       <MirrorView
         projectName="myProject"

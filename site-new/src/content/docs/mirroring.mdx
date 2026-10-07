@@ -111,7 +111,8 @@ Here is the properties of the mirroring task:
 
 - `Publish tags for upstream commits`
 
-  - disabled by default. See [Upstream commit options](#upstream-commit-options).
+  - disabled by default. Requires `Preserve upstream commit history`. See
+    [Upstream commit options](#upstream-commit-options).
 
 - `Zone` (Displayed only if `zone` in the [configuration](setup-configuration.mdx) is configured)
 
@@ -133,13 +134,14 @@ Here is the properties of the mirroring task:
 - **Default snapshot**: Central Dogma mirrors the HEAD of the configured branch as one revision instead
   of replaying individual commits.
 - **Preserved history**: Each upstream commit becomes one Central Dogma revision, including commits
-  discovered on the first run. Each revision records its upstream commit SHA-1.
+  discovered on the first run.
 
 #### Publish tags for upstream commits
 
-`Publish tags for upstream commits` creates a lightweight `refs/tags/dogma-<remote SHA-1>` tag for each
-recorded upstream commit. This option is independent of history preservation. Without history
-preservation, the snapshot revision can publish a tag for the current HEAD of the configured branch.
+`Publish tags for upstream commits` records the upstream SHA-1 on each mirrored revision and publishes
+it as a lightweight `refs/tags/dogma-<remote SHA-1>` tag. It requires `Preserve upstream commit history`
+to be enabled on the same mirror. If the tag already exists, it moves to the latest revision mirrored
+from that upstream commit.
 
 Central Dogma serves these tags over Git HTTP, so applications can use them as Git labels:
 
@@ -154,15 +156,14 @@ spring.cloud.config.label: dogma-3f2a1c9e8b7d6540a1b2c3d4e5f60718293a4b5c
 
 #### Limitations
 
-- One revision per upstream commit is guaranteed only for fast-forward histories. A non-fast-forward
-  update creates one snapshot revision at the new HEAD of the configured branch.
+- One revision per upstream commit is guaranteed only for linear, fast-forward histories. A merge graph
+  or non-fast-forward update creates one snapshot revision at the new HEAD of the configured branch.
 - A run replays at most 100 commits. If the initial history or the commits added since the previous run
   exceed 100, the run creates one snapshot revision instead.
-- Published tags are immutable. An existing tag never moves to a different Central Dogma revision.
 - With history preservation enabled, a remote commit outside the mirrored path still creates a revision
-  because it advances the recorded upstream commit.
-- Only one mirror targeting a repository may preserve upstream commit history.
-- Only one mirror targeting a repository may publish tags for upstream commits.
+  because it advances the mirror state to that upstream commit.
+- Only one mirror targeting a repository may preserve upstream commit history. If tag publishing is
+  enabled, it must be enabled on that same mirror.
 - Both options are available only for remote-to-local Git mirrors.
 - Encrypted repositories support history preservation but not tag publishing. A repository with tag
   publishing configured cannot be migrated to encrypted storage.

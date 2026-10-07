@@ -35,13 +35,16 @@ const expectedProps = {
 };
 
 describe('HistoryList upstream commit ID', () => {
-  it('renders the upstream commit ID in the revision cell instead of a separate column', () => {
+  it('renders an unlabeled upstream commit ID in the revision cell', () => {
     renderWithProviders(<HistoryList {...expectedProps} filePath="/config.yaml" />);
 
     const firstRow = screen.getAllByTestId('table-row')[0];
     const revisionCell = within(firstRow).getAllByRole('cell')[0];
-    expect(within(revisionCell).getByText('Upstream')).toBeInTheDocument();
-    expect(screen.queryByRole('columnheader', { name: 'Commit' })).not.toBeInTheDocument();
+    const sha = within(revisionCell).getByText('89abcde');
+    expect(sha).toBeInTheDocument();
+    expect(sha).toHaveAttribute('aria-label', `Upstream commit: ${mockHistoryList[0].upstreamCommitId}`);
+    expect(within(revisionCell).queryByText(/Upstream/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('columnheader', { name: 'Upstream commit' })).not.toBeInTheDocument();
   });
 });
 

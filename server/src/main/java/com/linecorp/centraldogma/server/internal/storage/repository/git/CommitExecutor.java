@@ -38,6 +38,7 @@ import org.eclipse.jgit.lib.ObjectId;
 import org.eclipse.jgit.lib.ObjectInserter;
 import org.eclipse.jgit.lib.ObjectReader;
 import org.eclipse.jgit.lib.PersonIdent;
+import org.eclipse.jgit.lib.Ref;
 import org.eclipse.jgit.lib.RefDatabase;
 import org.eclipse.jgit.lib.RefUpdate;
 import org.eclipse.jgit.lib.Repository;
@@ -235,16 +236,21 @@ final class CommitExecutor {
 
         final RefDatabase refDatabase = jGitRepository.getRefDatabase();
         final String refName = Constants.R_TAGS + UPSTREAM_TAG_PREFIX + upstreamCommitId;
-        if (refDatabase.exactRef(refName) != null) {
-            return;
-        }
+        final Ref oldRef = refDatabase.exactRef(refName);
         final RefUpdate refUpdate = jGitRepository.updateRef(refName);
-        refUpdate.setExpectedOldObjectId(ObjectId.zeroId());
+        refUpdate.setExpectedOldObjectId(oldRef == null ? ObjectId.zeroId() : oldRef.getObjectId());
         refUpdate.setNewObjectId(commitId);
+        refUpdate.setForceUpdate(oldRef != null);
         final RefUpdate.Result result = refUpdate.update(revWalk);
-        if (result != RefUpdate.Result.NEW) {
-            throw new StorageException("failed to create " + refName + ": " + result +
-                                       " at " + revision);
+        switch (result) {
+            case NEW:
+            case FAST_FORWARD:
+            case FORCED:
+            case NO_CHANGE:
+                break;
+            default:
+                throw new StorageException("failed to update " + refName + ": " + result +
+                                           " at " + revision);
         }
     }
 

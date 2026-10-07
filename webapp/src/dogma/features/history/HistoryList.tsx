@@ -1,6 +1,6 @@
 import { createColumnHelper, PaginationState } from '@tanstack/react-table';
 import { HistoryDto } from 'dogma/features/history/HistoryDto';
-import { Badge, Box, Button, HStack, Icon, Stack, useDisclosure, VStack } from '@chakra-ui/react';
+import { Badge, Box, Button, Divider, HStack, Icon, useDisclosure } from '@chakra-ui/react';
 import { ChakraLink } from 'dogma/common/components/ChakraLink';
 import { DateWithTooltip } from 'dogma/common/components/DateWithTooltip';
 import { ReactElement, useMemo, useState } from 'react';
@@ -45,7 +45,7 @@ const HistoryList = ({
     () => [
       columnHelper.accessor((row: HistoryDto) => `${row.revision} ${row.commitMessage.summary}`, {
         cell: (info) => (
-          <VStack align="start" spacing={2}>
+          <HStack spacing={3} flexWrap="wrap" rowGap={1}>
             <ChakraLink
               fontWeight="semibold"
               disabled={info.row.original.revision <= 1}
@@ -60,16 +60,12 @@ const HistoryList = ({
               </HStack>
             </ChakraLink>
             {info.row.original.upstreamCommitId && (
-              <Stack
-                direction={{ base: 'column', md: 'row' }}
-                align="flex-start"
-                spacing={{ base: 1, md: 3 }}
-                paddingLeft={6}
-              >
-                <CommitSha label="Upstream" sha={info.row.original.upstreamCommitId} />
-              </Stack>
+              <HStack spacing={3}>
+                <Divider orientation="vertical" height={4} />
+                <CommitSha label="Upstream commit" sha={info.row.original.upstreamCommitId} showLabel={false} />
+              </HStack>
             )}
-          </VStack>
+          </HStack>
         ),
         header: 'Revision',
       }),

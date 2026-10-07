@@ -212,7 +212,18 @@ describe('MirrorForm', () => {
     renderMirrorForm({ ...emptyMirror, remoteScheme: 'git+https' });
 
     expect(screen.getByRole('checkbox', { name: 'Preserve upstream commit history?' })).toBeEnabled();
-    expect(screen.getByRole('checkbox', { name: 'Publish tags for upstream commits?' })).toBeEnabled();
+    expect(screen.getByRole('checkbox', { name: 'Publish tags for upstream commits?' })).toBeDisabled();
+    expect(screen.getByText('Enable upstream commit history first.')).toBeInTheDocument();
+  });
+
+  it('enables tag publishing only after commit history preservation is enabled', async () => {
+    renderMirrorForm({ ...emptyMirror, remoteScheme: 'git+https' });
+
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Preserve upstream commit history?' }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('checkbox', { name: 'Publish tags for upstream commits?' })).toBeEnabled();
+    });
   });
 
   it('disables commit history preservation until a supported scheme is selected', () => {
@@ -233,11 +244,39 @@ describe('MirrorForm', () => {
     (useGetReposQuery as jest.Mock).mockReturnValue({
       data: [{ name: 'myRepo', encrypted: true }],
     });
-    renderMirrorForm({ ...emptyMirror, remoteScheme: 'git+https' });
+    renderMirrorForm({
+      ...emptyMirror,
+      remoteScheme: 'git+https',
+      preserveRemoteCommitHistory: true,
+    });
 
     expect(screen.getByRole('checkbox', { name: 'Preserve upstream commit history?' })).toBeEnabled();
     expect(screen.getByRole('checkbox', { name: 'Publish tags for upstream commits?' })).toBeDisabled();
     expect(screen.getByText('Unavailable for encrypted repositories.')).toBeInTheDocument();
+  });
+
+  it('clears and disables tag publishing when commit history preservation is disabled', async () => {
+    renderMirrorForm({
+      ...emptyMirror,
+      remoteScheme: 'git+https',
+      preserveRemoteCommitHistory: true,
+      publishRemoteCommitTags: true,
+    });
+
+    const preserve = screen.getByRole('checkbox', {
+      name: 'Preserve upstream commit history?',
+    }) as HTMLInputElement;
+    const publishTags = screen.getByRole('checkbox', {
+      name: 'Publish tags for upstream commits?',
+    }) as HTMLInputElement;
+    expect(publishTags).toBeChecked();
+
+    fireEvent.click(preserve);
+
+    await waitFor(() => {
+      expect(publishTags).toBeDisabled();
+      expect(publishTags).not.toBeChecked();
+    });
   });
 
   it('clears commit history preservation when the direction becomes local-to-remote', async () => {

@@ -360,22 +360,11 @@ public abstract class AbstractMirror implements Mirror {
         if (hashString != null) {
             return hashString;
         }
-        return hashString = Hashing.sha256().hashString(hashStringInput(), UTF_8).toString();
+        return hashString = Hashing.sha256().hashString(toString(), UTF_8).toString();
     }
 
-    private String hashStringInput() {
-        final ToStringHelper helper = toStringHelper();
-        // Keep hashes created before these options were introduced unchanged.
-        if (preserveRemoteCommitHistory) {
-            helper.add("preserveRemoteCommitHistory", true);
-        }
-        if (publishRemoteCommitTags) {
-            helper.add("publishRemoteCommitTags", true);
-        }
-        return helper.toString();
-    }
-
-    private ToStringHelper toStringHelper() {
+    @Override
+    public String toString() {
         final ToStringHelper helper = MoreObjects.toStringHelper("")
                                                  .omitNullValues()
                                                  .add("direction", direction)
@@ -388,13 +377,13 @@ public abstract class AbstractMirror implements Mirror {
         if (schedule != null) {
             helper.add("schedule", CronDescriptor.instance().describe(schedule));
         }
-        return helper;
-    }
-
-    @Override
-    public String toString() {
-        return toStringHelper().add("preserveRemoteCommitHistory", preserveRemoteCommitHistory)
-                               .add("publishRemoteCommitTags", publishRemoteCommitTags)
-                               .toString();
+        // Omit disabled options because changing the existing configuration hash triggers mirroring.
+        if (preserveRemoteCommitHistory) {
+            helper.add("preserveRemoteCommitHistory", true);
+        }
+        if (publishRemoteCommitTags) {
+            helper.add("publishRemoteCommitTags", true);
+        }
+        return helper.toString();
     }
 }

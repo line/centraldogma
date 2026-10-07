@@ -249,14 +249,6 @@ public final class DefaultMetaRepository extends RepositoryWrapper implements Me
                                               "Only one mirror may preserve upstream commit history for " +
                                               "repository '%s'", mirrorRequest.localRepo());
                             }
-                            if (publishRemoteCommitTags) {
-                                final boolean duplicate = mirrorConfigs.stream()
-                                        .anyMatch(candidate -> candidate.publishRemoteCommitTags() &&
-                                                               !candidate.id().equals(mirrorRequest.id()));
-                                checkArgument(!duplicate,
-                                              "Only one mirror may publish tags for upstream commits in " +
-                                              "repository '%s'", mirrorRequest.localRepo());
-                            }
                             return revision;
                         }));
     }
@@ -504,7 +496,7 @@ public final class DefaultMetaRepository extends RepositoryWrapper implements Me
 
     private void validatePublishRemoteCommitTags(MirrorRequest mirror) {
         MirrorConverter.validatePublishRemoteCommitTags(
-                true, MirrorDirection.valueOf(mirror.direction()), mirror.remoteScheme(), mirror.localRepo(),
-                parent());
+                true, mirror.preserveRemoteCommitHistory(), MirrorDirection.valueOf(mirror.direction()),
+                mirror.remoteScheme(), mirror.localRepo(), parent());
     }
 }
