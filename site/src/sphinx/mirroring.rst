@@ -109,9 +109,75 @@ Here is the properties of the mirroring task:
      - a mirroring task is executed in the first zone of ``zone.allZones`` configuration.
      - if ``zone.allZones`` is not configured, a mirroring task is executed in the leader replica.
 
+- ``Preserve upstream commit history``
+
+  - whether each remote commit becomes its own revision. The option is disabled by default.
+
+  - See `Preserving the upstream commit history`_ below.
+
+- ``Publish tags for upstream commits``
+
+  - whether to record the upstream commit SHA-1 and publish it as a Git tag. The option requires
+    ``Preserve upstream commit history`` and is disabled by default.
+
+  - See `Publishing tags for upstream commits`_ below.
+
 - ``Enable mirror``
 
   - whether the mirroring task is enabled.
+
+Preserving the upstream commit history
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+By default a mirroring run pushes whatever the remote repository looks like at that moment as a single
+revision, so several remote commits merged in quick succession end up in one revision. Turning on
+``Preserve upstream commit history`` replays them one by one instead, which lets you pin the state where
+only one pull request has been applied.
+
+Publishing tags for upstream commits
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Turning on ``Publish tags for upstream commits`` records the upstream SHA-1 on each mirrored revision and
+publishes it as a lightweight ``refs/tags/dogma-<remote SHA-1>`` tag. It requires
+``Preserve upstream commit history`` to be enabled on the same mirror. If the tag already exists, it moves
+to the latest revision mirrored from that upstream commit.
+
+Central Dogma serves these tags over the Git HTTP protocol, so they can be used as Git labels:
+
+.. code-block:: yaml
+
+    # Spring Cloud Config Server -> Central Dogma
+    spring.cloud.config.server.git.uri: https://centraldogma.example.com/myproject/config-repo.git
+    spring.cloud.config.server.git.username: dogma        # Use this literal. The password is an access token.
+
+    # Client
+    spring.cloud.config.label: dogma-3f2a1c9e8b7d6540a1b2c3d4e5f60718293a4b5c
+
+Note the following limitations:
+
+- **One revision per remote commit is guaranteed only for linear, fast-forward histories.** The first run
+  replays a linear remote history up to the per-run limit. A merge graph or non-fast-forward update creates
+  one snapshot revision at the new remote head. A snapshot receives a tag for the remote head only.
+
+- **A single run replays at most 100 commits.** If the initial history or the commits added since the previous
+  run exceed 100, the run creates one snapshot revision instead.
+
+- **A remote commit that changes nothing within the mirrored path still creates a revision**, because the
+  mirror state advances to that upstream commit. Expect this if ``remote path`` covers only a part of a busy
+  repository.
+
+- Only one mirror targeting a repository may preserve upstream commit history. If tag publishing is
+  enabled, it must be enabled on that same mirror.
+
+- Both options are unavailable for:
+
+  - ``LOCAL_TO_REMOTE`` mirrors
+  - Central Dogma to Central Dogma mirrors
+
+- Tag publishing is unavailable for encrypted repositories. A repository with tag publishing configured
+  cannot be migrated to encrypted storage. History preservation remains available.
+
+- During an upgrade, enable either option only after every replica is running a version that supports it.
 
 Central Dogma to Central Dogma mirroring
 ----------------------------------------

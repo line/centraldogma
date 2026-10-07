@@ -15,6 +15,8 @@
  */
 package com.linecorp.centraldogma.server.internal.storage.repository.git;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.linecorp.centraldogma.internal.HistoryConstants.UPSTREAM_TAG_PREFIX;
 import static com.linecorp.centraldogma.server.internal.storage.repository.git.GitRepository.R_HEADS_MASTER;
 import static com.linecorp.centraldogma.server.internal.storage.repository.git.GitRepository.doRefUpdate;
 import static com.linecorp.centraldogma.server.internal.storage.repository.git.GitRepository.newRevWalk;
@@ -22,6 +24,7 @@ import static com.linecorp.centraldogma.server.internal.storage.repository.git.G
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.requireNonNull;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.function.Function;
 
@@ -30,10 +33,14 @@ import org.eclipse.jgit.diff.DiffFormatter;
 import org.eclipse.jgit.dircache.DirCache;
 import org.eclipse.jgit.dircache.DirCacheIterator;
 import org.eclipse.jgit.lib.CommitBuilder;
+import org.eclipse.jgit.lib.Constants;
 import org.eclipse.jgit.lib.ObjectId;
 import org.eclipse.jgit.lib.ObjectInserter;
 import org.eclipse.jgit.lib.ObjectReader;
 import org.eclipse.jgit.lib.PersonIdent;
+import org.eclipse.jgit.lib.Ref;
+import org.eclipse.jgit.lib.RefDatabase;
+import org.eclipse.jgit.lib.RefUpdate;
 import org.eclipse.jgit.lib.Repository;
 import org.eclipse.jgit.revwalk.RevWalk;
 import org.eclipse.jgit.treewalk.CanonicalTreeParser;
@@ -61,9 +68,18 @@ final class CommitExecutor {
     private final String detail;
     private final Markup markup;
     private final boolean allowEmptyCommit;
+    @Nullable
+    private final String upstreamCommitId;
+    private final boolean publishUpstreamCommitTag;
 
     CommitExecutor(GitRepository gitRepository, long commitTimeMillis, Author author,
                    String summary, String detail, Markup markup, boolean allowEmptyCommit) {
+        this(gitRepository, commitTimeMillis, author, summary, detail, markup, allowEmptyCommit, null, false);
+    }
+
+    CommitExecutor(GitRepository gitRepository, long commitTimeMillis, Author author,
+                   String summary, String detail, Markup markup, boolean allowEmptyCommit,
+                   @Nullable String upstreamCommitId, boolean publishUpstreamCommitTag) {
         this.gitRepository = gitRepository;
         this.commitTimeMillis = commitTimeMillis;
         this.author = author;
@@ -71,6 +87,10 @@ final class CommitExecutor {
         this.detail = detail;
         this.markup = markup;
         this.allowEmptyCommit = allowEmptyCommit;
+        this.upstreamCommitId = upstreamCommitId;
+        checkArgument(!publishUpstreamCommitTag || upstreamCommitId != null,
+                      "publishUpstreamCommitTag requires upstreamCommitId");
+        this.publishUpstreamCommitTag = publishUpstreamCommitTag;
     }
 
     Author author() {
@@ -87,6 +107,10 @@ final class CommitExecutor {
 
     CommitResult execute(Revision baseRevision,
                          Function<Revision, Iterable<Change<?>>> applyingChangesProvider) {
+        if (publishUpstreamCommitTag && gitRepository.isEncrypted()) {
+            throw new StorageException(
+                    "tags for upstream commits are not supported for encrypted repositories");
+        }
         final RevisionAndEntries res;
         final Iterable<Change<?>> applyingChanges;
         gitRepository.writeLock();
@@ -178,7 +202,8 @@ final class CommitExecutor {
             commitBuilder.setEncoding(UTF_8);
 
             // Write summary, detail and revision to commit's message as JSON format.
-            commitBuilder.setMessage(CommitUtil.toJsonString(summary, detail, markup, nextRevision));
+            commitBuilder.setMessage(
+                    CommitUtil.toJsonString(summary, detail, markup, nextRevision, upstreamCommitId));
 
             // if the head commit exists, use it as the parent commit.
             if (headRevision != null) {
@@ -191,6 +216,7 @@ final class CommitExecutor {
             // tagging the revision object, for history lookup purpose.
             commitIdDatabase.put(nextRevision, nextCommitId);
             doRefUpdate(jGitRepository, revWalk, R_HEADS_MASTER, nextCommitId);
+            maybeTagUpstreamCommit(jGitRepository, revWalk, nextRevision, nextCommitId);
 
             return new RevisionAndEntries(nextRevision, diffEntries);
         } catch (CentralDogmaException | IllegalArgumentException e) {
@@ -198,6 +224,33 @@ final class CommitExecutor {
         } catch (Exception e) {
             throw new StorageException("failed to push at '" + gitRepository.parent().name() + '/' +
                                        gitRepository.name() + '\'', e);
+        }
+    }
+
+    private void maybeTagUpstreamCommit(Repository jGitRepository, RevWalk revWalk, Revision revision,
+                                        ObjectId commitId) throws IOException {
+        if (!publishUpstreamCommitTag) {
+            return;
+        }
+        final String upstreamCommitId = requireNonNull(this.upstreamCommitId, "upstreamCommitId");
+
+        final RefDatabase refDatabase = jGitRepository.getRefDatabase();
+        final String refName = Constants.R_TAGS + UPSTREAM_TAG_PREFIX + upstreamCommitId;
+        final Ref oldRef = refDatabase.exactRef(refName);
+        final RefUpdate refUpdate = jGitRepository.updateRef(refName);
+        refUpdate.setExpectedOldObjectId(oldRef == null ? ObjectId.zeroId() : oldRef.getObjectId());
+        refUpdate.setNewObjectId(commitId);
+        refUpdate.setForceUpdate(oldRef != null);
+        final RefUpdate.Result result = refUpdate.update(revWalk);
+        switch (result) {
+            case NEW:
+            case FAST_FORWARD:
+            case FORCED:
+            case NO_CHANGE:
+                break;
+            default:
+                throw new StorageException("failed to update " + refName + ": " + result +
+                                           " at " + revision);
         }
     }
 

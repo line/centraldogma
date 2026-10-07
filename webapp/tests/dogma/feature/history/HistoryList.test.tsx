@@ -1,4 +1,4 @@
-import { render, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import { HistoryDto } from 'dogma/features/history/HistoryDto';
 import HistoryList from 'dogma/features/history/HistoryList';
 // Disabled to due to https://github.com/mswjs/msw/issues/1786
@@ -6,12 +6,14 @@ import HistoryList from 'dogma/features/history/HistoryList';
 // import { http, HttpResponse } from 'msw';
 import { apiSlice } from 'dogma/features/api/apiSlice';
 import { ApiProvider } from '@reduxjs/toolkit/query/react';
+import { renderWithProviders } from 'dogma/util/test-utils';
 const mockHistoryList: HistoryDto[] = [
   {
     revision: 2,
     author: { name: 'System', email: 'system@localhost.localdomain' },
     commitMessage: { summary: 'Update repository', detail: '', markup: 'PLAINTEXT' },
     pushedAt: '2023-01-11T08:17:22Z',
+    upstreamCommitId: '89abcdef0123456789abcdef0123456789abcdef',
   },
   {
     revision: 1,
@@ -31,6 +33,20 @@ const expectedProps = {
   pageCount: 1,
   isDirectory: false,
 };
+
+describe('HistoryList upstream commit ID', () => {
+  it('renders an unlabeled upstream commit ID in the revision cell', () => {
+    renderWithProviders(<HistoryList {...expectedProps} filePath="/config.yaml" />);
+
+    const firstRow = screen.getAllByTestId('table-row')[0];
+    const revisionCell = within(firstRow).getAllByRole('cell')[0];
+    const sha = within(revisionCell).getByText('89abcde');
+    expect(sha).toBeInTheDocument();
+    expect(sha).toHaveAttribute('aria-label', `Upstream commit: ${mockHistoryList[0].upstreamCommitId}`);
+    expect(within(revisionCell).queryByText(/Upstream/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('columnheader', { name: 'Upstream commit' })).not.toBeInTheDocument();
+  });
+});
 
 // const handlers = [
 //   http.get(

@@ -16,18 +16,21 @@
  */
 package com.linecorp.centraldogma.server.internal.storage.repository;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.linecorp.centraldogma.internal.CredentialUtil.validateCredentialName;
 
 import java.net.URI;
 import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
+import java.util.Set;
 
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
 
 import com.linecorp.centraldogma.internal.api.v1.MirrorRequest;
 import com.linecorp.centraldogma.server.credential.Credential;
@@ -35,6 +38,7 @@ import com.linecorp.centraldogma.server.mirror.Mirror;
 import com.linecorp.centraldogma.server.mirror.MirrorContext;
 import com.linecorp.centraldogma.server.mirror.MirrorDirection;
 import com.linecorp.centraldogma.server.mirror.MirrorProvider;
+import com.linecorp.centraldogma.server.mirror.MirrorSchemes;
 import com.linecorp.centraldogma.server.mirror.MirrorUtil;
 import com.linecorp.centraldogma.server.storage.project.Project;
 
@@ -43,6 +47,10 @@ public final class MirrorConverter {
     private static final Logger logger = LoggerFactory.getLogger(MirrorConverter.class);
 
     public static final List<MirrorProvider> MIRROR_PROVIDERS;
+
+    private static final Set<String> GIT_SCHEMES = ImmutableSet.of(
+            MirrorSchemes.SCHEME_GIT, MirrorSchemes.SCHEME_GIT_FILE, MirrorSchemes.SCHEME_GIT_HTTP,
+            MirrorSchemes.SCHEME_GIT_HTTPS, MirrorSchemes.SCHEME_GIT_SSH);
 
     static {
         MIRROR_PROVIDERS = ImmutableList.copyOf(ServiceLoader.load(MirrorProvider.class));
@@ -65,12 +73,20 @@ public final class MirrorConverter {
         // Defense-in-depth: ensure the mirror only references a credential that belongs to its own
         // repository or its project.
         validateCredentialName(parent.name(), mirrorConfig.localRepo(), mirrorConfig.credentialName());
+        validatePreserveRemoteCommitHistory(
+                mirrorConfig.preserveRemoteCommitHistory(), mirrorConfig.direction(),
+                mirrorConfig.rawRemoteUri().getScheme());
+        validatePublishRemoteCommitTags(
+                mirrorConfig.publishRemoteCommitTags(), mirrorConfig.preserveRemoteCommitHistory(),
+                mirrorConfig.direction(),
+                mirrorConfig.rawRemoteUri().getScheme(), mirrorConfig.localRepo(), parent);
 
         final MirrorContext mirrorContext = new MirrorContext(
                 mirrorConfig.id(), mirrorConfig.enabled(), mirrorConfig.cronSchedule(),
                 mirrorConfig.direction(),
                 credential, parent.repos().get(mirrorConfig.localRepo()), mirrorConfig.localPath(),
                 mirrorConfig.rawRemoteUri(), mirrorConfig.gitignore(), mirrorConfig.zone(),
+                mirrorConfig.preserveRemoteCommitHistory(), mirrorConfig.publishRemoteCommitTags(),
                 trustedHostKeys);
         for (MirrorProvider mirrorProvider : MIRROR_PROVIDERS) {
             final Mirror mirror = mirrorProvider.newMirror(mirrorContext);
@@ -80,6 +96,38 @@ public final class MirrorConverter {
         }
 
         throw new IllegalArgumentException("could not find a mirror provider for " + mirrorContext);
+    }
+
+    static void validatePreserveRemoteCommitHistory(boolean preserveRemoteCommitHistory,
+                                                    MirrorDirection direction, String remoteScheme) {
+        if (!preserveRemoteCommitHistory) {
+            return;
+        }
+        validateRemoteGitOption("'Preserve upstream commit history'", direction, remoteScheme);
+    }
+
+    static void validatePublishRemoteCommitTags(boolean publishRemoteCommitTags,
+                                                boolean preserveRemoteCommitHistory,
+                                                MirrorDirection direction, String remoteScheme,
+                                                String localRepo, Project parent) {
+        if (!publishRemoteCommitTags) {
+            return;
+        }
+        checkArgument(preserveRemoteCommitHistory,
+                      "'Publish tags for upstream commits' requires 'Preserve upstream commit history'");
+        validateRemoteGitOption("'Publish tags for upstream commits'", direction, remoteScheme);
+        checkArgument(!parent.repos().exists(localRepo) || !parent.repos().get(localRepo).isEncrypted(),
+                      "'Publish tags for upstream commits' is not supported for encrypted repository '%s'",
+                      localRepo);
+    }
+
+    private static void validateRemoteGitOption(String option, MirrorDirection direction,
+                                                String remoteScheme) {
+        checkArgument(direction == MirrorDirection.REMOTE_TO_LOCAL,
+                      "%s is only supported for %s mirrors, but got: %s",
+                      option, MirrorDirection.REMOTE_TO_LOCAL, direction);
+        checkArgument(GIT_SCHEMES.contains(remoteScheme),
+                      "%s is only supported for Git mirrors, but got: %s", option, remoteScheme);
     }
 
     private static Credential findCredential(MirrorConfig mirrorConfig, List<Credential> credentials) {
@@ -108,7 +156,9 @@ public final class MirrorConverter {
                 mirrorRequest.gitignore(),
                 null,
                 mirrorRequest.credentialName(),
-                mirrorRequest.zone());
+                mirrorRequest.zone(),
+                mirrorRequest.preserveRemoteCommitHistory(),
+                mirrorRequest.publishRemoteCommitTags());
     }
 
     private MirrorConverter() {}

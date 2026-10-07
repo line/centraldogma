@@ -146,7 +146,8 @@ public final class GitRepositoryManager extends DirectoryBasedStorageManager<Rep
                 assert commits.size() == 1;
                 final Commit commit = commits.get(0);
                 encryptedRepository.commit(baseRevision, commit.when(), commit.author(), commit.summary(),
-                                           changesFuture.join().values()).join();
+                                           commit.detail(), commit.markup(), changesFuture.join().values(),
+                                           true, commit.upstreamCommitId(), false).join();
             }
         } catch (Throwable t) {
             encryptedRepository.internalClose();

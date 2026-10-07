@@ -74,7 +74,7 @@ final class DtoConverter {
         final Revision headRevision = repository.normalizeNow(Revision.HEAD);
         final String projectName = repository.parent().name();
         return new RepositoryDto(projectName, repository.name(), repository.author(), headRevision,
-                                 repository.creationTimeMillis(), status);
+                                 repository.creationTimeMillis(), status, repository.isEncrypted());
     }
 
     public static <T> EntryDto<?> newEntryDto(Repository repository, Revision revision,
@@ -141,9 +141,9 @@ final class DtoConverter {
     public static CommitDto newCommitDto(Commit commit) {
         requireNonNull(commit, "commit");
 
-        return newCommitDto(commit.revision(), commit.author(),
-                            new CommitMessageDto(commit.summary(), commit.detail(), commit.markup()),
-                            commit.when());
+        return new CommitDto(commit.revision(), commit.author(),
+                             new CommitMessageDto(commit.summary(), commit.detail(), commit.markup()),
+                             commit.when(), commit.upstreamCommitId());
     }
 
     public static CommitDto newCommitDto(Revision revision, Author author, CommitMessageDto commitMessage,

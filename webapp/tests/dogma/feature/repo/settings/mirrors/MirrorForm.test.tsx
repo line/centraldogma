@@ -1,7 +1,12 @@
-import { screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { renderWithProviders } from 'dogma/util/test-utils';
 import MirrorForm from 'dogma/features/repo/settings/mirrors/MirrorForm';
 import { MirrorRequest } from 'dogma/features/repo/settings/mirrors/MirrorRequest';
+import {
+  useGetProjectCredentialsQuery,
+  useGetRepoCredentialsQuery,
+  useGetReposQuery,
+} from 'dogma/features/api/apiSlice';
 
 jest.mock('next/router', () => ({
   useRouter: () => ({
@@ -19,6 +24,9 @@ jest.mock('dogma/features/api/apiSlice', () => ({
   }),
   useGetRepoCredentialsQuery: jest.fn().mockReturnValue({
     data: [],
+  }),
+  useGetReposQuery: jest.fn().mockReturnValue({
+    data: [{ name: 'myRepo', encrypted: false }],
   }),
   useGetMirrorConfigQuery: jest.fn().mockReturnValue({
     data: { zonePinned: false },
@@ -72,6 +80,8 @@ const emptyMirror: MirrorRequest = {
   credentialName: null,
   gitignore: null,
   enabled: false,
+  preserveRemoteCommitHistory: false,
+  publishRemoteCommitTags: false,
 };
 
 const mockOnSubmit = jest.fn().mockResolvedValue(undefined);
@@ -91,6 +101,19 @@ function renderMirrorForm(defaultValue: MirrorRequest = emptyMirror) {
 describe('MirrorForm', () => {
   beforeEach(() => {
     mockOnSubmit.mockClear();
+    (useGetProjectCredentialsQuery as jest.Mock).mockReturnValue({
+      data: [{ id: 'test-credential', name: 'projects/myProject/credentials/test-credential' }],
+      isLoading: false,
+      isError: false,
+    });
+    (useGetRepoCredentialsQuery as jest.Mock).mockReturnValue({
+      data: [],
+      isLoading: false,
+      isError: false,
+    });
+    (useGetReposQuery as jest.Mock).mockReturnValue({
+      data: [{ name: 'myRepo', encrypted: false }],
+    });
   });
 
   it('renders dogma and dogma+https in the scheme dropdown', () => {
@@ -149,5 +172,137 @@ describe('MirrorForm', () => {
     };
     renderMirrorForm(gitMirror);
     expect(screen.getByPlaceholderText('my.git.com/org/myrepo.git')).toBeInTheDocument();
+  });
+
+  it('shows credential loading without claiming that no credentials exist', () => {
+    (useGetProjectCredentialsQuery as jest.Mock).mockReturnValue({
+      isLoading: true,
+      isError: false,
+    });
+    (useGetRepoCredentialsQuery as jest.Mock).mockReturnValue({
+      data: [],
+      isLoading: false,
+      isError: false,
+    });
+
+    renderMirrorForm();
+
+    expect(screen.getByRole('option', { name: 'Loading credentials ...' })).toBeInTheDocument();
+    expect(screen.queryByText(/Create a project or repository credential/)).not.toBeInTheDocument();
+  });
+
+  it('reports credential loading failures instead of claiming that no credentials exist', () => {
+    (useGetProjectCredentialsQuery as jest.Mock).mockReturnValue({
+      isLoading: false,
+      isError: true,
+    });
+    (useGetRepoCredentialsQuery as jest.Mock).mockReturnValue({
+      data: [],
+      isLoading: false,
+      isError: false,
+    });
+
+    renderMirrorForm();
+
+    expect(screen.getByRole('option', { name: 'Failed to load credentials.' })).toBeInTheDocument();
+    expect(screen.getByText('Could not load credentials. Refresh the page and try again.')).toBeInTheDocument();
+  });
+
+  it('enables commit history preservation for remote-to-local Git mirrors', () => {
+    renderMirrorForm({ ...emptyMirror, remoteScheme: 'git+https' });
+
+    expect(screen.getByRole('checkbox', { name: 'Preserve upstream commit history?' })).toBeEnabled();
+    expect(screen.getByRole('checkbox', { name: 'Publish tags for upstream commits?' })).toBeDisabled();
+    expect(screen.getByText('Enable upstream commit history first.')).toBeInTheDocument();
+  });
+
+  it('enables tag publishing only after commit history preservation is enabled', async () => {
+    renderMirrorForm({ ...emptyMirror, remoteScheme: 'git+https' });
+
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Preserve upstream commit history?' }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('checkbox', { name: 'Publish tags for upstream commits?' })).toBeEnabled();
+    });
+  });
+
+  it('disables commit history preservation until a supported scheme is selected', () => {
+    renderMirrorForm();
+
+    expect(screen.getByRole('checkbox', { name: 'Preserve upstream commit history?' })).toBeDisabled();
+    expect(screen.getByRole('checkbox', { name: 'Publish tags for upstream commits?' })).toBeDisabled();
+  });
+
+  it('disables commit history preservation for Central Dogma mirrors', () => {
+    renderMirrorForm({ ...emptyMirror, remoteScheme: 'dogma' });
+
+    expect(screen.getByRole('checkbox', { name: 'Preserve upstream commit history?' })).toBeDisabled();
+    expect(screen.getByRole('checkbox', { name: 'Publish tags for upstream commits?' })).toBeDisabled();
+  });
+
+  it('allows history preservation but disables tag publishing for encrypted repositories', () => {
+    (useGetReposQuery as jest.Mock).mockReturnValue({
+      data: [{ name: 'myRepo', encrypted: true }],
+    });
+    renderMirrorForm({
+      ...emptyMirror,
+      remoteScheme: 'git+https',
+      preserveRemoteCommitHistory: true,
+    });
+
+    expect(screen.getByRole('checkbox', { name: 'Preserve upstream commit history?' })).toBeEnabled();
+    expect(screen.getByRole('checkbox', { name: 'Publish tags for upstream commits?' })).toBeDisabled();
+    expect(screen.getByText('Unavailable for encrypted repositories.')).toBeInTheDocument();
+  });
+
+  it('clears and disables tag publishing when commit history preservation is disabled', async () => {
+    renderMirrorForm({
+      ...emptyMirror,
+      remoteScheme: 'git+https',
+      preserveRemoteCommitHistory: true,
+      publishRemoteCommitTags: true,
+    });
+
+    const preserve = screen.getByRole('checkbox', {
+      name: 'Preserve upstream commit history?',
+    }) as HTMLInputElement;
+    const publishTags = screen.getByRole('checkbox', {
+      name: 'Publish tags for upstream commits?',
+    }) as HTMLInputElement;
+    expect(publishTags).toBeChecked();
+
+    fireEvent.click(preserve);
+
+    await waitFor(() => {
+      expect(publishTags).toBeDisabled();
+      expect(publishTags).not.toBeChecked();
+    });
+  });
+
+  it('clears commit history preservation when the direction becomes local-to-remote', async () => {
+    renderMirrorForm({
+      ...emptyMirror,
+      remoteScheme: 'git+https',
+      preserveRemoteCommitHistory: true,
+      publishRemoteCommitTags: true,
+    });
+
+    const preserve = screen.getByRole('checkbox', {
+      name: 'Preserve upstream commit history?',
+    }) as HTMLInputElement;
+    const publishTags = screen.getByRole('checkbox', {
+      name: 'Publish tags for upstream commits?',
+    }) as HTMLInputElement;
+    expect(preserve).toBeChecked();
+    expect(publishTags).toBeChecked();
+
+    fireEvent.click(screen.getByRole('radio', { name: 'Central Dogma to Remote' }));
+
+    await waitFor(() => {
+      expect(preserve).toBeDisabled();
+      expect(preserve).not.toBeChecked();
+      expect(publishTags).toBeDisabled();
+      expect(publishTags).not.toBeChecked();
+    });
   });
 });

@@ -105,6 +105,15 @@ Here is the properties of the mirroring task:
     The type of gitignore can either be a string containing the entire file (e.g. `/filename.txt\ndirectory`) or an array
     of strings where each line represents a single pattern.
 
+- `Preserve upstream commit history`
+
+  - disabled by default. See [Upstream commit options](#upstream-commit-options).
+
+- `Publish tags for upstream commits`
+
+  - disabled by default. Requires `Preserve upstream commit history`. See
+    [Upstream commit options](#upstream-commit-options).
+
 - `Zone` (Displayed only if `zone` in the [configuration](setup-configuration.mdx) is configured)
 
   - the zone where the mirroring task is executed.
@@ -117,6 +126,48 @@ Here is the properties of the mirroring task:
 - `Enable mirror`
 
   - whether the mirroring task is enabled.
+
+### Upstream commit options
+
+#### Preserve upstream commit history
+
+- **Default snapshot**: Central Dogma mirrors the HEAD of the configured branch as one revision instead
+  of replaying individual commits.
+- **Preserved history**: Each upstream commit becomes one Central Dogma revision, including commits
+  discovered on the first run.
+
+#### Publish tags for upstream commits
+
+`Publish tags for upstream commits` records the upstream SHA-1 on each mirrored revision and publishes
+it as a lightweight `refs/tags/dogma-<remote SHA-1>` tag. It requires `Preserve upstream commit history`
+to be enabled on the same mirror. If the tag already exists, it moves to the latest revision mirrored
+from that upstream commit.
+
+Central Dogma serves these tags over Git HTTP, so applications can use them as Git labels:
+
+```yaml
+# Spring Cloud Config Server -> Central Dogma
+spring.cloud.config.server.git.uri: https://centraldogma.example.com/myproject/config-repo.git
+spring.cloud.config.server.git.username: dogma # Use this literal. The password is an access token.
+
+# Client
+spring.cloud.config.label: dogma-3f2a1c9e8b7d6540a1b2c3d4e5f60718293a4b5c
+```
+
+#### Limitations
+
+- One revision per upstream commit is guaranteed only for linear, fast-forward histories. A merge graph
+  or non-fast-forward update creates one snapshot revision at the new HEAD of the configured branch.
+- A run replays at most 100 commits. If the initial history or the commits added since the previous run
+  exceed 100, the run creates one snapshot revision instead.
+- With history preservation enabled, a remote commit outside the mirrored path still creates a revision
+  because it advances the mirror state to that upstream commit.
+- Only one mirror targeting a repository may preserve upstream commit history. If tag publishing is
+  enabled, it must be enabled on that same mirror.
+- Both options are available only for remote-to-local Git mirrors.
+- Encrypted repositories support history preservation but not tag publishing. A repository with tag
+  publishing configured cannot be migrated to encrypted storage.
+- During an upgrade, enable either option only after every replica supports it.
 
 ## Central Dogma to Central Dogma mirroring
 

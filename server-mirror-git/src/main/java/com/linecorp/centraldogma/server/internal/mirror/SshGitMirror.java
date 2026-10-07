@@ -97,9 +97,10 @@ final class SshGitMirror extends AbstractGitMirror {
     SshGitMirror(String id, boolean enabled, @Nullable Cron schedule, MirrorDirection direction,
                  Credential credential, Repository localRepo, String localPath,
                  RepositoryUri remoteUri, @Nullable String gitignore, @Nullable String zone,
+                 boolean preserveRemoteCommitHistory, boolean publishRemoteCommitTags,
                  Map<String, List<String>> trustedHostKeys) {
         super(id, enabled, schedule, direction, credential, localRepo, localPath,
-              remoteUri, gitignore, zone);
+              remoteUri, gitignore, zone, preserveRemoteCommitHistory, publishRemoteCommitTags);
         this.trustedHostKeys = requireNonNull(trustedHostKeys, "trustedHostKeys");
     }
 

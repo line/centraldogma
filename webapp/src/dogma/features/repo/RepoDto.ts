@@ -9,4 +9,5 @@ export interface RepoDto {
   headRevision: number;
   url: string;
   createdAt: string;
+  encrypted: boolean;
 }
