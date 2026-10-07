@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 LY Corporation
+ *
+ * LY Corporation licenses this file to you under the Apache License,
+ * version 2.0 (the "License"); you may not use this file except in compliance
+ * with the License. You may obtain a copy of the License at:
+ *
+ *   https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
+ */
 /* eslint-disable react/no-children-prop */
 import {
   Box,
@@ -17,9 +32,10 @@ import {
   Stack,
   Textarea,
   useColorMode,
+  useDisclosure,
   VStack,
 } from '@chakra-ui/react';
-import { usePushFileChangesMutation } from 'dogma/features/api/apiSlice';
+import { useLazyGetFileContentQuery, usePushFileChangesMutation } from 'dogma/features/api/apiSlice';
 import { newNotification } from 'dogma/features/notification/notificationSlice';
 import { useAppDispatch } from 'dogma/hooks';
 import Router from 'next/router';
@@ -34,8 +50,18 @@ import { registerJson5Language } from 'dogma/features/file/Json5Language';
 import { detectChangeType } from 'dogma/features/file/StructuredFileSupport';
 import { useLocalMonaco } from 'dogma/features/file/MonacoLoader';
 import { Loading } from 'dogma/common/components/Loading';
+import { OverwriteFileModal } from 'dogma/features/file/OverwriteFileModal';
 
 const FILE_PATH_PATTERN = /^[-_.0-9a-zA-Z]*[-_0-9a-zA-Z]+$/;
+
+type PushData = {
+  commitMessage: {
+    summary: string;
+    detail: string;
+    markup: string;
+  };
+  changes: { path: string; type: string; rawContent: string }[];
+};
 
 type FormData = {
   name: string;
@@ -54,6 +80,13 @@ export const NewFile = ({
 }) => {
   const { colorMode } = useColorMode();
   const [addNewFle, { isLoading }] = usePushFileChangesMutation();
+  const [getFileContent, { isFetching: isCheckingFile }] = useLazyGetFileContentQuery();
+  const {
+    isOpen: isOverwriteModalOpen,
+    onOpen: onOverwriteModalOpen,
+    onClose: onOverwriteModalClose,
+  } = useDisclosure();
+  const [pendingData, setPendingData] = useState<PushData>(null);
   const {
     register,
     handleSubmit,
@@ -62,8 +95,21 @@ export const NewFile = ({
   } = useForm<FormData>();
   const dispatch = useAppDispatch();
   const [prefixes] = useState(initialPrefixes);
+  const pushNewFile = async (data: PushData) => {
+    try {
+      const response = await addNewFle({ projectName, repoName, data }).unwrap();
+      if ((response as { error: FetchBaseQueryError | SerializedError }).error) {
+        throw (response as { error: FetchBaseQueryError | SerializedError }).error;
+      }
+      Router.push(`/app/projects/${projectName}/repos/${repoName}/tree/head/${prefixes.join('/')}`);
+      reset();
+      dispatch(newNotification('New file created', `Successfully created ${data.changes[0].path}`, 'success'));
+    } catch (error) {
+      dispatch(newNotification('Failed to create a new file', ErrorMessageParser.parse(error), 'error'));
+    }
+  };
   const onSubmit = async (formData: FormData) => {
-    const path = `${prefixes.join('/')}/${formData.name}`;
+    const path = `/${[...prefixes, formData.name].join('/')}`;
     const content = editorRef.current.getValue();
     let changeType;
     try {
@@ -81,23 +127,38 @@ export const NewFile = ({
       },
       changes: [
         {
-          path: path.startsWith('/') ? path : `/${path}`,
+          path: path,
           type: changeType,
           rawContent: content,
         },
       ],
     };
+
+    // UPSERT silently overwrites an existing file, so ask the user before overwriting it.
     try {
-      const response = await addNewFle({ projectName, repoName, data }).unwrap();
-      if ((response as { error: FetchBaseQueryError | SerializedError }).error) {
-        throw (response as { error: FetchBaseQueryError | SerializedError }).error;
+      const existing = await getFileContent({
+        projectName,
+        repoName,
+        filePath: path,
+        revision: 'head',
+      }).unwrap();
+      if (!existing) {
+        // A directory at the path returns no content. Pushing a file there replaces the whole directory.
+        dispatch(
+          newNotification('Failed to create a new file', `A directory already exists at ${path}`, 'error'),
+        );
+        return;
       }
-      Router.push(`/app/projects/${projectName}/repos/${repoName}/tree/head${`/${prefixes.join('/')}`}`);
-      reset();
-      dispatch(newNotification('New file created', `Successfully created ${formData.name}`, 'success'));
+      setPendingData(data);
+      onOverwriteModalOpen();
+      return;
     } catch (error) {
-      dispatch(newNotification('Failed to create a new file', ErrorMessageParser.parse(error), 'error'));
+      if ((error as FetchBaseQueryError).status !== 404) {
+        dispatch(newNotification('Failed to create a new file', ErrorMessageParser.parse(error), 'error'));
+        return;
+      }
     }
+    await pushNewFile(data);
   };
   const [markup, setMarkup] = useState('PLAINTEXT');
   const editorRef = useRef(null);
@@ -205,7 +266,12 @@ export const NewFile = ({
             {...register('detail')}
           />
           <Stack direction="row" spacing={4} mt={2}>
-            <Button type="submit" colorScheme="teal" isLoading={isLoading} loadingText="Creating">
+            <Button
+              type="submit"
+              colorScheme="teal"
+              isLoading={isLoading || isCheckingFile}
+              loadingText="Creating"
+            >
               Commit
             </Button>
             <Button variant="outline" onClick={() => Router.back()}>
@@ -214,6 +280,16 @@ export const NewFile = ({
           </Stack>
         </VStack>
       </Box>
+      <OverwriteFileModal
+        isOpen={isOverwriteModalOpen}
+        onClose={onOverwriteModalClose}
+        path={pendingData?.changes[0].path}
+        isLoading={isLoading}
+        onOverwrite={async () => {
+          await pushNewFile(pendingData);
+          onOverwriteModalClose();
+        }}
+      />
     </form>
   );
 };
