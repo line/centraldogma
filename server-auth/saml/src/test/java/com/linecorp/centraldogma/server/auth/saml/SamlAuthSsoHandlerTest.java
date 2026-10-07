@@ -78,7 +78,7 @@ class SamlAuthSsoHandlerTest {
         AggregatedHttpResponse aggregated = httpResponse.aggregate().join();
         assertThat(aggregated.contentUtf8()).isEqualTo(getHtmlWithCsrfAndRedirect(
                 "2",
-                "window.location.href='\\/\\x27.substr(0.1)\\x27\\x22\\x26<>'"));
+                "window.location.href='\\/\\x27.\\x73ub\\x73\\x74\\x72(0.1)\\x27\\x22\\x26\\x3c\\x3e'"));
         assertCookie(tlsEnabled, aggregated.headers(), "1");
 
         messageContext = new MessageContext<>();
