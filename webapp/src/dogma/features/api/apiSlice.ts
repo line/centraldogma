@@ -671,6 +671,7 @@ export const {
   // File
   useGetFilesQuery,
   useGetFileContentQuery,
+  useLazyGetFileContentQuery,
   usePushFileChangesMutation,
   useRevertRepositoryMutation,
   // History
