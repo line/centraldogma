@@ -545,7 +545,7 @@ public class CentralDogma implements AutoCloseable {
                 logger.info("Starting plugins on the leader replica ..");
                 pluginsForLeaderOnly
                         .start(cfg, pm, exec, meterRegistry, purgeWorker, projectInitializer,
-                               mirrorAccessController)
+                               mirrorAccessController, encryptionStorageManager)
                         .handle((unused, cause) -> {
                             if (cause == null) {
                                 logger.info("Started plugins on the leader replica.");
@@ -563,7 +563,7 @@ public class CentralDogma implements AutoCloseable {
                 final CompletableFuture<?> future =
                         pluginsForLeaderOnly
                                 .stop(cfg, pm, exec, meterRegistry, purgeWorker, projectInitializer,
-                                      mirrorAccessController)
+                                      mirrorAccessController, encryptionStorageManager)
                                 .handle((unused, cause) -> {
                                     if (cause == null) {
                                         logger.info("Stopped plugins on the leader replica.");
@@ -590,7 +590,7 @@ public class CentralDogma implements AutoCloseable {
                 logger.info("Starting plugins on the {} zone leader replica ..", zone);
                 pluginsForZoneLeaderOnly
                         .start(cfg, pm, exec, meterRegistry, purgeWorker, projectInitializer,
-                               mirrorAccessController)
+                               mirrorAccessController, encryptionStorageManager)
                         .handle((unused, cause) -> {
                             if (cause == null) {
                                 logger.info("Started plugins on the {} zone leader replica.", zone);
@@ -606,7 +606,7 @@ public class CentralDogma implements AutoCloseable {
                 final CompletableFuture<?> future =
                         pluginsForZoneLeaderOnly
                                 .stop(cfg, pm, exec, meterRegistry, purgeWorker,
-                                      projectInitializer, mirrorAccessController)
+                                      projectInitializer, mirrorAccessController, encryptionStorageManager)
                                 .handle((unused, cause) -> {
                                     if (cause == null) {
                                         logger.info("Stopped plugins on the {} zone leader replica.", zone);
@@ -855,7 +855,8 @@ public class CentralDogma implements AutoCloseable {
         if (pluginsForAllReplicas != null) {
             final PluginInitContext pluginInitContext =
                     new PluginInitContext(config(), pm, executor, meterRegistry, purgeWorker, sb,
-                                          authService, projectInitializer, mirrorAccessController);
+                                          authService, projectInitializer, mirrorAccessController,
+                                          encryptionStorageManager);
             pluginsForAllReplicas.plugins()
                                  .forEach(p -> {
                                      if (!(p instanceof AllReplicasPlugin)) {
@@ -1410,9 +1411,13 @@ public class CentralDogma implements AutoCloseable {
                             final ProjectManager pm = CentralDogma.this.pm;
                             final CommandExecutor executor = CentralDogma.this.executor;
                             final MeterRegistry meterRegistry = CentralDogma.this.meterRegistry;
-                            if (pm != null && executor != null && meterRegistry != null) {
+                            final EncryptionStorageManager encryptionStorageManager =
+                                    CentralDogma.this.encryptionStorageManager;
+                            if (pm != null && executor != null && meterRegistry != null &&
+                                encryptionStorageManager != null) {
                                 pluginsForAllReplicas.start(cfg, pm, executor, meterRegistry, purgeWorker,
-                                                            projectInitializer, mirrorAccessController).join();
+                                                            projectInitializer, mirrorAccessController,
+                                                            encryptionStorageManager).join();
                             }
                         }
                         serverHealth.setHealthy(true);
@@ -1430,9 +1435,13 @@ public class CentralDogma implements AutoCloseable {
                     final ProjectManager pm = CentralDogma.this.pm;
                     final CommandExecutor executor = CentralDogma.this.executor;
                     final MeterRegistry meterRegistry = CentralDogma.this.meterRegistry;
-                    if (pm != null && executor != null && meterRegistry != null) {
+                    final EncryptionStorageManager encryptionStorageManager =
+                            CentralDogma.this.encryptionStorageManager;
+                    if (pm != null && executor != null && meterRegistry != null &&
+                        encryptionStorageManager != null) {
                         pluginsForAllReplicas.stop(cfg, pm, executor, meterRegistry, purgeWorker,
-                                                   projectInitializer, mirrorAccessController).join();
+                                                   projectInitializer, mirrorAccessController,
+                                                   encryptionStorageManager).join();
                     }
                 }
                 CentralDogma.this.doStop();
