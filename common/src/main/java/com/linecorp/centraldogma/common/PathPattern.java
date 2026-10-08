@@ -15,8 +15,10 @@
  */
 package com.linecorp.centraldogma.common;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.linecorp.centraldogma.common.DefaultPathPattern.ALL;
 import static com.linecorp.centraldogma.common.DefaultPathPattern.allPattern;
+import static com.linecorp.centraldogma.common.DefaultPathPattern.normalizeExtension;
 import static java.util.Objects.requireNonNull;
 
 import com.google.common.collect.ImmutableSet;
@@ -60,6 +62,58 @@ public interface PathPattern {
         }
 
         return new DefaultPathPattern(ImmutableSet.copyOf(patterns));
+    }
+
+    /**
+     * Creates a path pattern that matches the files whose extension is the specified {@code extension}.
+     * A leading dot in {@code extension} is optional and is added automatically if missing.
+     * The {@code extension} must consist of alphanumeric characters only.
+     * For example, {@code PathPattern.ofExtension("json")} matches all JSON files at any depth,
+     * which is equivalent to <code>PathPattern.of("/&#42;&#42;/*.json")</code>.
+     */
+    static PathPattern ofExtension(String extension) {
+        requireNonNull(extension, "extension");
+        return of("/**/*." + normalizeExtension(extension));
+    }
+
+    /**
+     * Creates a path pattern that matches the files whose path starts with the specified {@code prefix}.
+     * The {@code prefix} is anchored at the root, so a leading slash is added automatically if missing.
+     * The match is not restricted to complete path segments; for example,
+     * {@code PathPattern.startsWith("/foo/ba")} matches both {@code /foo/bar/a.txt} and {@code /foo/baz.txt},
+     * which is equivalent to <code>PathPattern.of("/foo/ba&#42;&#42;")</code>.
+     * The {@code prefix} must not contain a wildcard character ({@code '*'}).
+     * Use {@link #under(String)} to match only the files under a directory.
+     */
+    static PathPattern startsWith(String prefix) {
+        requireNonNull(prefix, "prefix");
+        checkArgument(!prefix.isEmpty(), "prefix is empty.");
+        checkArgument(prefix.indexOf('*') < 0, "prefix: %s (must not contain '*')", prefix);
+        final String normalized = prefix.startsWith("/") ? prefix : '/' + prefix;
+        return of(normalized + "**");
+    }
+
+    /**
+     * Creates a path pattern that matches the files under the specified {@code directory}.
+     * The {@code directory} is anchored at the root, so a leading slash is added automatically if missing,
+     * and a trailing slash is optional. Unlike {@link #startsWith(String)}, the match is restricted to
+     * complete path segments; for example, {@code PathPattern.under("/foo/bar")} matches {@code /foo/bar/a.txt}
+     * but not {@code /foo/bar-baz.txt}, which is equivalent to
+     * <code>PathPattern.of("/foo/bar/&#42;&#42;")</code>.
+     * The {@code directory} must not contain a wildcard character ({@code '*'}).
+     */
+    static PathPattern under(String directory) {
+        requireNonNull(directory, "directory");
+        checkArgument(!directory.isEmpty(), "directory is empty.");
+        checkArgument(directory.indexOf('*') < 0, "directory: %s (must not contain '*')", directory);
+        String dir = directory;
+        if (!dir.startsWith("/")) {
+            dir = '/' + dir;
+        }
+        if (dir.endsWith("/")) {
+            return of(dir + "**");
+        }
+        return of(dir + "/**");
     }
 
     /**
