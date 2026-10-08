@@ -273,7 +273,7 @@ defaults:
         For example, if the value is `env:ZONE_NAME`, the environment variable named `ZONE_NAME` is used as the
         zone name.
 
-      - You can also dynamically load a zone name by implementing `ConfigValueConverter`.
+      - You can also dynamically load a zone name by implementing [ConfigValueConverter](type).
 
     - `allZones` (string array)
 
@@ -622,9 +622,9 @@ For more information about mirroring, refer to [Mirroring](mirroring.mdx).
 ## Hiding sensitive property values
 
 Central Dogma supports property value substitution through the use of
-`ConfigValueConverter`.
+[ConfigValueConverter](type).
 If you want to hide sensitive information such as `tls.keyPasswords`, you can implement the converting logic
-with your own `ConfigValueConverter` and register it via
+with your own [ConfigValueConverter](type) and register it via
 [SPI](https://docs.oracle.com/javase/tutorial/sound/SPI-intro.html):
 
 - Your configuration file:
