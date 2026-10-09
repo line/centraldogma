@@ -80,8 +80,8 @@ final class MappingWatcher<T, U> implements Watcher<U> {
                     r, e);
             if (!initialValueFuture.isDone()) {
                 initialValueFuture.completeExceptionally(e);
+                close();
             }
-            close();
         };
         parent.watch((revision, value) -> {
             if (closed) {
