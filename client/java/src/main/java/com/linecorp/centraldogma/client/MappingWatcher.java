@@ -78,10 +78,10 @@ final class MappingWatcher<T, U> implements Watcher<U> {
         final BiConsumer<Throwable, Revision> reportFailure = (e, r) -> {
             logger.warn("Unexpected exception is raised from mapper.apply(). mapper: {}, revision {}", mapper,
                     r, e);
-            if (!initialValueFuture.isDone()) {
+            if (mappedLatest.get() == null) {
                 initialValueFuture.completeExceptionally(e);
+                close();
             }
-            close();
         };
         parent.watch((revision, value) -> {
             if (closed) {
