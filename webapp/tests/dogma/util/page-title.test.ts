@@ -24,19 +24,19 @@ describe('getPageTitleParts', () => {
     [
       `${R}/tree/[revision]/[[...path]]`,
       { ...repoQuery, revision: 'head', path: ['a', 'b'] },
-      ['b/', 'myRepo', 'myProj'],
+      ['/a/b', 'myRepo', 'myProj'],
     ],
     [`${R}/tree/[revision]/[[...path]]`, { ...repoQuery, revision: '42' }, ['Revision 42', 'myRepo', 'myProj']],
     [
       `${R}/files/[revision]/[[...path]]`,
       { ...repoQuery, revision: '42', path: ['a', 'config.json'] },
-      ['config.json@42', 'myRepo', 'myProj'],
+      ['/a/config.json@42', 'myRepo', 'myProj'],
     ],
     [`${R}/files/new/[[...path]]`, { ...repoQuery, path: ['a'] }, ['New file', 'myRepo', 'myProj']],
     [
       `${R}/commits/[[...path]]`,
       { ...repoQuery, path: ['config.json'] },
-      ['History', 'config.json', 'myRepo', 'myProj'],
+      ['History', '/config.json', 'myRepo', 'myProj'],
     ],
     [`${R}/commit/[revision]/[[...path]]`, { ...repoQuery, revision: '3' }, ['Commit 3', 'myRepo', 'myProj']],
     [

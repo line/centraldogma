@@ -44,21 +44,20 @@ function settingsParts([section, ...rest]: string[], query: ParsedUrlQuery, defa
 
 function repoParts([page, ...rest]: string[], query: ParsedUrlQuery): string[] {
   const revision = query.revision as string;
-  const name = (query.path as string[] | undefined)?.at(-1);
+  const path = query.path && `/${(query.path as string[]).join('/')}`;
   switch (page) {
     case 'tree':
     case 'files': {
       if (rest[0] === 'new') {
         return ['New file'];
       }
-      const file = name && page === 'tree' ? `${name}/` : name;
       if (revision === 'head') {
-        return file ? [file] : [];
+        return path ? [path] : [];
       }
-      return [file ? `${file}@${revision}` : `Revision ${revision}`];
+      return [path ? `${path}@${revision}` : `Revision ${revision}`];
     }
     case 'commits':
-      return ['History', name].filter(isPresent);
+      return ['History', path].filter(isPresent);
     case 'commit':
       return [`Commit ${revision}`];
     case 'compare':
