@@ -21,6 +21,14 @@ test('welcome message', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Welcome to Central Dogma!' })).toBeVisible();
 });
 
+test('page title', async ({ page }) => {
+  await expect(page).toHaveTitle(/^Central Dogma/);
+  await page.goto('/app/projects/foo');
+  await expect(page).toHaveTitle(/^foo \| Central Dogma/);
+  await page.goto('/app/projects');
+  await expect(page).toHaveTitle(/^Projects \| Central Dogma/);
+});
+
 test('search project', async ({ page }) => {
   // Wait for the search box to be visible
   await expect(page.getByText('Search project ...')).toBeVisible();
