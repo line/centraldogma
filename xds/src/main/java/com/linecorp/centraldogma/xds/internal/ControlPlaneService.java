@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.List;
 import java.util.Map;
+import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -65,6 +66,7 @@ import com.linecorp.centraldogma.server.metadata.User;
 import com.linecorp.centraldogma.server.metadata.UserWithAppIdentity;
 import com.linecorp.centraldogma.server.plugin.PluginInitContext;
 import com.linecorp.centraldogma.server.storage.project.Project;
+import com.linecorp.centraldogma.xds.XdsResourceTransformer;
 import com.linecorp.centraldogma.xds.cluster.v1.XdsClusterService;
 import com.linecorp.centraldogma.xds.endpoint.v1.XdsEndpointService;
 import com.linecorp.centraldogma.xds.group.v1.XdsGroupService;
@@ -73,6 +75,7 @@ import com.linecorp.centraldogma.xds.k8s.v1.XdsKubernetesService;
 import com.linecorp.centraldogma.xds.listener.v1.XdsListenerService;
 import com.linecorp.centraldogma.xds.route.v1.XdsRouteService;
 
+import io.envoyproxy.controlplane.cache.ConfigWatcher;
 import io.envoyproxy.controlplane.cache.v3.SimpleCache;
 import io.envoyproxy.controlplane.server.V3DiscoveryServer;
 import io.envoyproxy.envoy.config.cluster.v3.Cluster;
@@ -133,7 +136,14 @@ public final class ControlPlaneService extends XdsResourceWatchingService {
         updateAllSnapshots(null);
         final CommandExecutor commandExecutor = pluginInitContext.commandExecutor();
         final XdsClientStatusTracker clientStatusTracker = new XdsClientStatusTracker();
-        final V3DiscoveryServer server = new V3DiscoveryServer(clientStatusTracker, cache);
+        final List<XdsResourceTransformer> transformers =
+                ImmutableList.copyOf(ServiceLoader.load(XdsResourceTransformer.class,
+                                                        ControlPlaneService.class.getClassLoader()));
+        if (!transformers.isEmpty()) {
+            logger.info("Loaded {} xDS resource transformer(s): {}", transformers.size(), transformers);
+        }
+        final ConfigWatcher configWatcher = new NodeAwareConfigWatcher(cache, transformers);
+        final V3DiscoveryServer server = new V3DiscoveryServer(clientStatusTracker, configWatcher);
         final GrpcServiceBuilder grpcServiceBuilder =
                 GrpcService.builder()
                            .addService(server.getClusterDiscoveryServiceImpl())
