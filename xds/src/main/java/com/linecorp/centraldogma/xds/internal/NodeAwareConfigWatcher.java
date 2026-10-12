@@ -79,14 +79,16 @@ final class NodeAwareConfigWatcher implements ConfigWatcher {
 
     private void deliverTransformed(Response response, Node node, XdsRequest request,
                                     Consumer<Response> responseConsumer) {
+        Response toDeliver;
         try {
             final List<Message> transformed = transformAll(node, response.resources(), request.getTypeUrl());
-            responseConsumer.accept(Response.create(request, transformed, response.version()));
+            toDeliver = Response.create(request, transformed, response.version());
         } catch (Exception e) {
             logger.warn("Failed to transform xDS resources for node '{}'; delivering untransformed response.",
                         node.getId(), e);
-            responseConsumer.accept(response);
+            toDeliver = response;
         }
+        responseConsumer.accept(toDeliver);
     }
 
     @Override
@@ -115,6 +117,7 @@ final class NodeAwareConfigWatcher implements ConfigWatcher {
 
     private void deliverDeltaTransformed(DeltaResponse response, Node node, DeltaXdsRequest request,
                                          Consumer<DeltaResponse> responseConsumer) {
+        DeltaResponse toDeliver;
         try {
             final String typeUrl = request.getTypeUrl();
             final ImmutableMap.Builder<String, VersionedResource<?>> builder = ImmutableMap.builder();
@@ -123,13 +126,14 @@ final class NodeAwareConfigWatcher implements ConfigWatcher {
                 final Message transformed = applyTransformers(node, vr.resource(), typeUrl);
                 builder.put(entry.getKey(), VersionedResource.create(transformed, vr.version()));
             }
-            responseConsumer.accept(DeltaResponse.create(request, builder.build(),
-                                                         response.removedResources(), response.version()));
+            toDeliver = DeltaResponse.create(request, builder.build(),
+                                             response.removedResources(), response.version());
         } catch (Exception e) {
             logger.warn("Failed to transform xDS resources for node '{}'; delivering untransformed response.",
                         node.getId(), e);
-            responseConsumer.accept(response);
+            toDeliver = response;
         }
+        responseConsumer.accept(toDeliver);
     }
 
     private List<Message> transformAll(Node node, Iterable<? extends Message> resources, String typeUrl) {
