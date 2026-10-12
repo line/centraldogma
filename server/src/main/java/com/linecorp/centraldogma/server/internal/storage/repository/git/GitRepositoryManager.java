@@ -16,6 +16,7 @@
 
 package com.linecorp.centraldogma.server.internal.storage.repository.git;
 
+import static com.linecorp.centraldogma.internal.HistoryConstants.UPSTREAM_TAG_PREFIX;
 import static com.linecorp.centraldogma.internal.Util.deleteFileTree;
 import static com.linecorp.centraldogma.server.internal.storage.repository.git.GitRepository.R_HEADS_MASTER;
 import static com.linecorp.centraldogma.server.internal.storage.repository.git.GitRepository.closeRepository;
@@ -30,6 +31,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -40,6 +42,7 @@ import java.util.function.Supplier;
 
 import org.eclipse.jgit.lib.Constants;
 import org.eclipse.jgit.lib.ObjectId;
+import org.eclipse.jgit.lib.Ref;
 import org.eclipse.jgit.lib.RefUpdate;
 import org.eclipse.jgit.lib.RepositoryBuilder;
 import org.eclipse.jgit.revwalk.RevCommit;
@@ -116,7 +119,7 @@ public final class GitRepositoryManager extends DirectoryBasedStorageManager<Rep
         logger.info("Starting to migrate the repository '{}' to an encrypted repository.",
                     projectRepositoryName(repositoryName));
         final long startTime = System.nanoTime();
-        final Repository oldRepository = get(repositoryName);
+        final GitRepository oldRepository = (GitRepository) get(repositoryName);
 
         final GitRepository encryptedRepository;
         final EncryptionStorageManager encryptionStorageManager = encryptionStorageManager();
@@ -132,6 +135,18 @@ public final class GitRepositoryManager extends DirectoryBasedStorageManager<Rep
         }
 
         final Revision headRevision = oldRepository.normalizeNow(Revision.HEAD);
+        final Map<String, ObjectId> upstreamTagTargets = new HashMap<>();
+        try {
+            for (Ref tag : oldRepository.jGitRepository().getRefDatabase().getRefsByPrefix(
+                    Constants.R_TAGS + UPSTREAM_TAG_PREFIX)) {
+                upstreamTagTargets.put(tag.getName(), tag.getObjectId());
+            }
+        } catch (IOException e) {
+            encryptedRepository.internalClose();
+            encryptionStorageManager.deleteRepositoryData(parent.name(), repositoryName);
+            throw new StorageException("failed to read upstream tags while migrating repository '" +
+                                       projectRepositoryName(repositoryName) + '\'', e);
+        }
         Revision baseRevision = null;
         try {
             for (int i = 2; i <= headRevision.major(); i++) {
@@ -145,9 +160,17 @@ public final class GitRepositoryManager extends DirectoryBasedStorageManager<Rep
                 final List<Commit> commits = historyFuture.join();
                 assert commits.size() == 1;
                 final Commit commit = commits.get(0);
+                final String upstreamCommitId = commit.upstreamCommitId();
+                boolean publishUpstreamCommitTag = false;
+                if (upstreamCommitId != null) {
+                    final ObjectId tagTarget = upstreamTagTargets.get(
+                            Constants.R_TAGS + UPSTREAM_TAG_PREFIX + upstreamCommitId);
+                    publishUpstreamCommitTag = oldRepository.commitIdDatabase().get(revision)
+                                                              .equals(tagTarget);
+                }
                 encryptedRepository.commit(baseRevision, commit.when(), commit.author(), commit.summary(),
                                            commit.detail(), commit.markup(), changesFuture.join().values(),
-                                           true, commit.upstreamCommitId(), false).join();
+                                           true, upstreamCommitId, publishUpstreamCommitTag).join();
             }
         } catch (Throwable t) {
             encryptedRepository.internalClose();

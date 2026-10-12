@@ -2,11 +2,7 @@ import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { renderWithProviders } from 'dogma/util/test-utils';
 import MirrorForm from 'dogma/features/repo/settings/mirrors/MirrorForm';
 import { MirrorRequest } from 'dogma/features/repo/settings/mirrors/MirrorRequest';
-import {
-  useGetProjectCredentialsQuery,
-  useGetRepoCredentialsQuery,
-  useGetReposQuery,
-} from 'dogma/features/api/apiSlice';
+import { useGetProjectCredentialsQuery, useGetRepoCredentialsQuery } from 'dogma/features/api/apiSlice';
 
 jest.mock('next/router', () => ({
   useRouter: () => ({
@@ -24,9 +20,6 @@ jest.mock('dogma/features/api/apiSlice', () => ({
   }),
   useGetRepoCredentialsQuery: jest.fn().mockReturnValue({
     data: [],
-  }),
-  useGetReposQuery: jest.fn().mockReturnValue({
-    data: [{ name: 'myRepo', encrypted: false }],
   }),
   useGetMirrorConfigQuery: jest.fn().mockReturnValue({
     data: { zonePinned: false },
@@ -84,6 +77,11 @@ const emptyMirror: MirrorRequest = {
   publishRemoteCommitTags: false,
 };
 
+const historyHelperText =
+  'Replay linear commits individually: the latest 100 initially, then every new commit. ' +
+  'Cache loss, merges, and rewrites may fall back to a snapshot.';
+const unavailableHelperText = 'Available only for remote-to-Central Dogma Git mirrors.';
+
 const mockOnSubmit = jest.fn().mockResolvedValue(undefined);
 
 function renderMirrorForm(defaultValue: MirrorRequest = emptyMirror) {
@@ -110,9 +108,6 @@ describe('MirrorForm', () => {
       data: [],
       isLoading: false,
       isError: false,
-    });
-    (useGetReposQuery as jest.Mock).mockReturnValue({
-      data: [{ name: 'myRepo', encrypted: false }],
     });
   });
 
@@ -213,6 +208,7 @@ describe('MirrorForm', () => {
 
     expect(screen.getByRole('checkbox', { name: 'Preserve upstream commit history?' })).toBeEnabled();
     expect(screen.getByRole('checkbox', { name: 'Publish tags for upstream commits?' })).toBeDisabled();
+    expect(screen.getByText(historyHelperText)).toBeInTheDocument();
     expect(screen.getByText('Enable upstream commit history first.')).toBeInTheDocument();
   });
 
@@ -231,6 +227,7 @@ describe('MirrorForm', () => {
 
     expect(screen.getByRole('checkbox', { name: 'Preserve upstream commit history?' })).toBeDisabled();
     expect(screen.getByRole('checkbox', { name: 'Publish tags for upstream commits?' })).toBeDisabled();
+    expect(screen.getAllByText(unavailableHelperText)).toHaveLength(2);
   });
 
   it('disables commit history preservation for Central Dogma mirrors', () => {
@@ -238,21 +235,8 @@ describe('MirrorForm', () => {
 
     expect(screen.getByRole('checkbox', { name: 'Preserve upstream commit history?' })).toBeDisabled();
     expect(screen.getByRole('checkbox', { name: 'Publish tags for upstream commits?' })).toBeDisabled();
-  });
-
-  it('allows history preservation but disables tag publishing for encrypted repositories', () => {
-    (useGetReposQuery as jest.Mock).mockReturnValue({
-      data: [{ name: 'myRepo', encrypted: true }],
-    });
-    renderMirrorForm({
-      ...emptyMirror,
-      remoteScheme: 'git+https',
-      preserveRemoteCommitHistory: true,
-    });
-
-    expect(screen.getByRole('checkbox', { name: 'Preserve upstream commit history?' })).toBeEnabled();
-    expect(screen.getByRole('checkbox', { name: 'Publish tags for upstream commits?' })).toBeDisabled();
-    expect(screen.getByText('Unavailable for encrypted repositories.')).toBeInTheDocument();
+    expect(screen.getAllByText(unavailableHelperText)).toHaveLength(2);
+    expect(screen.queryByText(historyHelperText)).not.toBeInTheDocument();
   });
 
   it('clears and disables tag publishing when commit history preservation is disabled', async () => {
@@ -303,6 +287,8 @@ describe('MirrorForm', () => {
       expect(preserve).not.toBeChecked();
       expect(publishTags).toBeDisabled();
       expect(publishTags).not.toBeChecked();
+      expect(screen.getAllByText(unavailableHelperText)).toHaveLength(2);
+      expect(screen.queryByText(historyHelperText)).not.toBeInTheDocument();
     });
   });
 });

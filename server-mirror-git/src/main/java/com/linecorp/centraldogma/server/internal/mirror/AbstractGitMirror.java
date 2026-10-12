@@ -28,14 +28,17 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletionException;
 import java.util.function.Consumer;
 import java.util.regex.Pattern;
 
+import org.eclipse.jgit.api.FetchCommand;
 import org.eclipse.jgit.api.RemoteSetUrlCommand;
 import org.eclipse.jgit.api.RemoteSetUrlCommand.UriType;
 import org.eclipse.jgit.api.TransportCommand;
 import org.eclipse.jgit.api.errors.GitAPIException;
+import org.eclipse.jgit.api.errors.TransportException;
 import org.eclipse.jgit.dircache.DirCache;
 import org.eclipse.jgit.dircache.DirCacheBuilder;
 import org.eclipse.jgit.dircache.DirCacheEditor;
@@ -43,6 +46,7 @@ import org.eclipse.jgit.dircache.DirCacheEditor.DeletePath;
 import org.eclipse.jgit.dircache.DirCacheEditor.PathEdit;
 import org.eclipse.jgit.dircache.DirCacheEntry;
 import org.eclipse.jgit.errors.MissingObjectException;
+import org.eclipse.jgit.errors.PackProtocolException;
 import org.eclipse.jgit.ignore.IgnoreNode.MatchResult;
 import org.eclipse.jgit.lib.CommitBuilder;
 import org.eclipse.jgit.lib.Constants;
@@ -72,6 +76,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.TreeNode;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
 
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
@@ -105,8 +110,8 @@ abstract class AbstractGitMirror extends AbstractMirror {
 
     private static final int GIT_TIMEOUT_SECS = 60;
 
-    // Fetch one extra commit to include the previous head or detect an oversized initial history.
-    private static final int MAX_REPLAY_COMMITS = 100;
+    // Bound the initial shallow fetch; later runs fetch every commit after the previous remote head.
+    private static final int INITIAL_FETCH_DEPTH = 100;
 
     private static final String HEAD_REF_MASTER = Constants.R_HEADS + Constants.MASTER;
 
@@ -345,9 +350,41 @@ abstract class AbstractGitMirror extends AbstractMirror {
 
             // Update the head commit ID again because there's a chance a commit is pushed between the
             // getHeadBranchRef and fetchRemoteHeadAndGetCommitId calls.
-            headCommitId = fetchRemoteHeadAndGetCommitId(git, headBranchRef.getName(),
-                                                         preserveRemoteCommitHistory() ?
-                                                         MAX_REPLAY_COMMITS + 1 : 2);
+            if (preserveRemoteCommitHistory()) {
+                final org.eclipse.jgit.lib.Repository gitRepository = git.getRepository();
+                int depth = INITIAL_FETCH_DEPTH;
+                if (oldMirrorState != null && oldMirrorState.remoteRevision() != null) {
+                    try {
+                        final ObjectId previousCommitId =
+                                ObjectId.fromString(oldMirrorState.remoteRevision());
+                        final Ref cachedHead = gitRepository.exactRef(headBranchRef.getName());
+                        if (cachedHead != null && cachedHead.getObjectId() != null &&
+                            gitRepository.getObjectDatabase().has(previousCommitId)) {
+                            if (previousCommitId.equals(cachedHead.getObjectId())) {
+                                depth = 0;
+                            } else {
+                                try (RevWalk revWalk = new RevWalk(gitRepository)) {
+                                    final RevCommit previousCommit =
+                                            revWalk.parseCommit(previousCommitId);
+                                    final RevCommit cachedHeadCommit =
+                                            revWalk.parseCommit(cachedHead.getObjectId());
+                                    if (revWalk.isMergedInto(previousCommit, cachedHeadCommit)) {
+                                        depth = 0;
+                                    }
+                                } catch (IOException e) {
+                                    logger.debug("Failed to validate the Git mirror fetch cache", e);
+                                }
+                            }
+                        }
+                    } catch (IllegalArgumentException ignored) {
+                        // Use a bounded fetch when the stored remote revision is invalid.
+                    }
+                }
+                headCommitId = fetchRemoteHeadAndGetCommitId(
+                        git, headBranchRef.getName(), depth);
+            } else {
+                headCommitId = fetchRemoteHeadAndGetCommitId(git, headBranchRef.getName(), 2);
+            }
         } catch (Exception e) {
             String message = "Failed to fetch the remote repository '" + git.remoteUri() +
                              "' to the local repository '" + localPath() + "'.";
@@ -405,14 +442,10 @@ abstract class AbstractGitMirror extends AbstractMirror {
         }
     }
 
-    /**
-     * Returns the remote commits to replay, oldest first, or {@code null} if this run has to fall back to
-     * pushing a single snapshot of the remote head.
-     */
     @Nullable
     private ImmutableList<RevCommit> commitsToReplay(GitWithAuth git, @Nullable MirrorState oldMirrorState,
                                                      ObjectId headCommitId) {
-        @Nullable ObjectId previousCommitId = null;
+        ObjectId previousCommitId = null;
         if (oldMirrorState != null) {
             final String remoteRevision = oldMirrorState.remoteRevision();
             if (remoteRevision == null) {
@@ -428,12 +461,13 @@ abstract class AbstractGitMirror extends AbstractMirror {
 
         try (RevWalk revWalk = new RevWalk(git.getRepository())) {
             final RevCommit headCommit = revWalk.parseCommit(headCommitId);
-            @Nullable RevCommit previousCommit = null;
+            final Set<ObjectId> shallowCommits =
+                    git.getRepository().getObjectDatabase().getShallowCommits();
+            RevCommit previousCommit = null;
             if (previousCommitId != null) {
                 try {
                     previousCommit = revWalk.parseCommit(previousCommitId);
                 } catch (MissingObjectException e) {
-                    // The previously mirrored commit is outside the fetch window, or the remote dropped it.
                     return null;
                 }
                 if (!revWalk.isMergedInto(previousCommit, headCommit)) {
@@ -450,18 +484,17 @@ abstract class AbstractGitMirror extends AbstractMirror {
                 revWalk.markUninteresting(previousCommit);
             }
             final ImmutableList.Builder<RevCommit> commits = ImmutableList.builder();
-            int numCommits = 0;
             RevCommit expectedParent = previousCommit;
             for (RevCommit commit : revWalk) {
-                if (++numCommits > MAX_REPLAY_COMMITS) {
-                    logger.info("More than {} commits are reachable from the remote head. " +
-                                "Falling back to a single snapshot.", MAX_REPLAY_COMMITS);
-                    return null;
-                }
-                final int expectedParentCount = expectedParent == null ? 0 : 1;
-                final boolean hasUnexpectedParent =
-                        expectedParent != null && !commit.getParent(0).equals(expectedParent);
-                if (commit.getParentCount() != expectedParentCount || hasUnexpectedParent) {
+                final boolean isShallowBoundary = shallowCommits.contains(commit.getId());
+                final int rawParentCount = RevCommit.parse(commit.getRawBuffer()).getParentCount();
+                final boolean validFirstCommit = expectedParent == null && previousCommitId == null &&
+                                                 (rawParentCount == 0 ||
+                                                  isShallowBoundary && rawParentCount == 1);
+                final boolean continuesLinearHistory = expectedParent != null &&
+                                                       commit.getParentCount() == 1 &&
+                                                       commit.getParent(0).equals(expectedParent);
+                if (!validFirstCommit && !continuesLinearHistory) {
                     logger.info("Remote history is not linear. Falling back to a single snapshot.");
                     return null;
                 }
@@ -785,19 +818,92 @@ abstract class AbstractGitMirror extends AbstractMirror {
 
     private static ObjectId fetchRemoteHeadAndGetCommitId(
             GitWithAuth git, String headBranchRefName, int depth) throws GitAPIException, IOException {
-        final FetchResult fetchResult = git.fetch()
-                                           .setDepth(depth)
-                                           .setRefSpecs(new RefSpec(headBranchRefName))
-                                           .setRemoveDeletedRefs(true)
-                                           .setTagOpt(TagOpt.NO_TAGS)
-                                           .setTimeout(GIT_TIMEOUT_SECS)
-                                           .call();
+        final FetchResult fetchResult = fetchRemoteHeadWithRetry(git, headBranchRefName, depth);
         final ObjectId commitId = fetchResult.getAdvertisedRef(headBranchRefName).getObjectId();
         final RefUpdate refUpdate = git.getRepository().updateRef(headBranchRefName);
         refUpdate.setNewObjectId(commitId);
         refUpdate.setForceUpdate(true);
         refUpdate.update();
         return commitId;
+    }
+
+    static FetchResult fetchRemoteHeadWithRetry(
+            GitWithAuth git, String headBranchRefName, int depth) throws GitAPIException, IOException {
+        final org.eclipse.jgit.lib.Repository repository = git.getRepository();
+        try {
+            return fetchRemoteHead(git, headBranchRefName, depth);
+        } catch (TransportException firstFailure) {
+            if (!hasShallowNegotiationFailure(firstFailure)) {
+                invalidateFetchCache(repository, firstFailure);
+                throw firstFailure;
+            }
+            // JGit can fail to negotiate a force-push from an existing shallow fetch cache.
+            try {
+                resetShallowFetchCache(repository);
+            } catch (IOException resetFailure) {
+                resetFailure.addSuppressed(firstFailure);
+                throw resetFailure;
+            }
+            try {
+                return fetchRemoteHead(
+                        git, headBranchRefName, depth == 0 ? INITIAL_FETCH_DEPTH : depth);
+            } catch (GitAPIException | RuntimeException retryFailure) {
+                invalidateFetchCache(repository, retryFailure);
+                retryFailure.addSuppressed(firstFailure);
+                throw retryFailure;
+            }
+        } catch (GitAPIException | RuntimeException firstFailure) {
+            invalidateFetchCache(repository, firstFailure);
+            throw firstFailure;
+        }
+    }
+
+    private static FetchResult fetchRemoteHead(GitWithAuth git, String headBranchRefName, int depth)
+            throws GitAPIException {
+        final FetchCommand fetch = git.fetch()
+                                      .setRefSpecs(new RefSpec(headBranchRefName))
+                                      .setRemoveDeletedRefs(true)
+                                      .setTagOpt(TagOpt.NO_TAGS)
+                                      .setTimeout(GIT_TIMEOUT_SECS);
+        if (depth > 0) {
+            fetch.setDepth(depth);
+        }
+        return fetch.call();
+    }
+
+    private static boolean hasShallowNegotiationFailure(Throwable cause) {
+        while (cause != null) {
+            if (cause instanceof PackProtocolException && cause.getMessage() != null &&
+                cause.getMessage().startsWith("Expected ACK/NAK")) {
+                return true;
+            }
+            cause = cause.getCause();
+        }
+        return false;
+    }
+
+    private static void invalidateFetchCache(
+            org.eclipse.jgit.lib.Repository repository, Throwable failure) {
+        try {
+            resetShallowFetchCache(repository);
+        } catch (IOException resetFailure) {
+            failure.addSuppressed(resetFailure);
+        }
+    }
+
+    private static void resetShallowFetchCache(
+            org.eclipse.jgit.lib.Repository repository) throws IOException {
+        for (Ref head : repository.getRefDatabase().getRefsByPrefix(Constants.R_HEADS)) {
+            final RefUpdate delete = repository.updateRef(head.getName());
+            delete.setExpectedOldObjectId(head.getObjectId());
+            delete.setForceUpdate(true);
+            final Result result = delete.delete();
+            if (result != Result.FORCED && result != Result.NO_CHANGE) {
+                throw new IOException("failed to reset shallow fetch ref " + head.getName() +
+                                      ": " + result);
+            }
+        }
+        repository.getObjectDatabase().setShallowCommits(ImmutableSet.of());
     }
 
     private Map<String, Entry<?>> localHeadEntries(Revision localHead) {

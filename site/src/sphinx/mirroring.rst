@@ -130,9 +130,10 @@ Preserving the upstream commit history
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 By default a mirroring run pushes whatever the remote repository looks like at that moment as a single
-revision, so several remote commits merged in quick succession end up in one revision. Turning on
-``Preserve upstream commit history`` replays them one by one instead, which lets you pin the state where
-only one pull request has been applied.
+revision, so several remote commits merged in quick succession end up in one revision. For a linear history,
+turning on ``Preserve upstream commit history`` replays up to the latest 100 commits on the first run and
+every commit added after the previously mirrored remote HEAD on later runs while the local fetch cache
+contains that HEAD.
 
 Publishing tags for upstream commits
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -140,7 +141,8 @@ Publishing tags for upstream commits
 Turning on ``Publish tags for upstream commits`` records the upstream SHA-1 on each mirrored revision and
 publishes it as a lightweight ``refs/tags/dogma-<remote SHA-1>`` tag. It requires
 ``Preserve upstream commit history`` to be enabled on the same mirror. If the tag already exists, it moves
-to the latest revision mirrored from that upstream commit.
+to the latest revision mirrored from that upstream commit. Tag publishing works for both file-based and
+encrypted repositories.
 
 Central Dogma serves these tags over the Git HTTP protocol, so they can be used as Git labels:
 
@@ -155,12 +157,18 @@ Central Dogma serves these tags over the Git HTTP protocol, so they can be used 
 
 Note the following limitations:
 
-- **One revision per remote commit is guaranteed only for linear, fast-forward histories.** The first run
-  replays a linear remote history up to the per-run limit. A merge graph or non-fast-forward update creates
-  one snapshot revision at the new remote head. A snapshot receives a tag for the remote head only.
+- **The first run shallow-fetches 100 generations of history.** For a linear history, this retains the latest
+  100 commits as individual revisions; older commits do not receive their own revisions. A merge graph can
+  contain more commits within the same depth and falls back to a snapshot as described below.
 
-- **A single run replays at most 100 commits.** If the initial history or the commits added since the previous
-  run exceed 100, the run creates one snapshot revision instead.
+- **Later runs fetch every commit after the previously mirrored remote HEAD** without the initial depth limit
+  while the local fetch cache contains that HEAD. After the cache is lost or reset, the next run fetches the
+  latest 100 generations. It resumes individual revisions if the previous HEAD is in that window; otherwise,
+  it creates one snapshot.
+
+- **One revision per remote commit is guaranteed only for linear, fast-forward histories.** A merge graph or
+  non-fast-forward update creates one snapshot revision at the new remote head. With tag publishing enabled,
+  a snapshot receives a tag for that remote head only.
 
 - **A remote commit that changes nothing within the mirrored path still creates a revision**, because the
   mirror state advances to that upstream commit. Expect this if ``remote path`` covers only a part of a busy
@@ -173,9 +181,6 @@ Note the following limitations:
 
   - ``LOCAL_TO_REMOTE`` mirrors
   - Central Dogma to Central Dogma mirrors
-
-- Tag publishing is unavailable for encrypted repositories. A repository with tag publishing configured
-  cannot be migrated to encrypted storage. History preservation remains available.
 
 - During an upgrade, enable either option only after every replica is running a version that supports it.
 

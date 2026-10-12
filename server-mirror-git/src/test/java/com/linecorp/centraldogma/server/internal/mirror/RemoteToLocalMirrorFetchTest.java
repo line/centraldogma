@@ -19,6 +19,7 @@ package com.linecorp.centraldogma.server.internal.mirror;
 import static com.linecorp.centraldogma.server.internal.mirror.MirroringTestUtils.EVERY_MINUTE;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.eclipse.jgit.lib.ConfigConstants.CONFIG_COMMIT_SECTION;
 import static org.eclipse.jgit.lib.ConfigConstants.CONFIG_KEY_GPGSIGN;
 
@@ -45,6 +46,8 @@ import org.junit.jupiter.api.TestInfo;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
 import com.google.common.collect.ImmutableMap;
+import com.google.common.io.MoreFiles;
+import com.google.common.io.RecursiveDeleteOption;
 
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
@@ -164,6 +167,46 @@ class RemoteToLocalMirrorFetchTest {
 
         assertThat(mirrorRemoteToLocal(mirror, executor).mirrorStatus()).isEqualTo(MirrorStatus.SUCCESS);
         assertThat(baseRevisions).containsExactly(baseline, baseline.forward(1));
+    }
+
+    @Test
+    void missingFetchCacheUsesABoundedFetch() throws Exception {
+        final DefaultGitMirror mirror = newMirror("/", true);
+        for (int i = 0; i < 101; i++) {
+            commitToRemote("initial.txt", Integer.toString(i));
+        }
+        assertThat(mirrorRemoteToLocal(mirror).mirrorStatus()).isEqualTo(MirrorStatus.SUCCESS);
+        final Revision baseline = localRepo.normalizeNow(Revision.HEAD);
+
+        for (int i = 0; i < 101; i++) {
+            commitToRemote("subsequent.txt", Integer.toString(i));
+        }
+        MoreFiles.deleteRecursively(workDir.toPath(), RecursiveDeleteOption.ALLOW_INSECURE);
+
+        assertThat(mirrorRemoteToLocal(mirror).mirrorStatus()).isEqualTo(MirrorStatus.SUCCESS);
+        assertThat(localRepo.normalizeNow(Revision.HEAD)).isEqualTo(baseline.forward(1));
+        assertThat(localContent("/subsequent.txt")).isEqualTo("100");
+    }
+
+    @Test
+    void interruptedReplayResumesFromTheLastCommittedUpstreamCommit() throws Exception {
+        final DefaultGitMirror mirror = newMirror("/", true);
+        commitToRemote("initial.txt", "0");
+        assertThat(mirrorRemoteToLocal(mirror).mirrorStatus()).isEqualTo(MirrorStatus.SUCCESS);
+        final Revision baseline = localRepo.normalizeNow(Revision.HEAD);
+
+        for (int i = 0; i < 150; i++) {
+            commitToRemote("counter.txt", Integer.toString(i));
+        }
+        final CommandExecutor failingExecutor =
+                new FailingCommandExecutor(pmExtension.executor(), 25);
+        assertThatThrownBy(() -> mirrorRemoteToLocal(mirror, failingExecutor))
+                .hasRootCauseMessage("expected replay failure");
+        assertThat(localRepo.normalizeNow(Revision.HEAD)).isEqualTo(baseline.forward(25));
+
+        assertThat(mirrorRemoteToLocal(mirror).mirrorStatus()).isEqualTo(MirrorStatus.SUCCESS);
+        assertThat(localRepo.normalizeNow(Revision.HEAD)).isEqualTo(baseline.forward(150));
+        assertThat(localContent("/counter.txt")).isEqualTo("149");
     }
 
     @Test
@@ -448,6 +491,26 @@ class RemoteToLocalMirrorFetchTest {
                     throw new CompletionException(e);
                 }
             });
+        }
+    }
+
+    private static final class FailingCommandExecutor extends CapturingCommandExecutor {
+
+        private int remainingSuccessfulPushes;
+
+        private FailingCommandExecutor(CommandExecutor delegate, int remainingSuccessfulPushes) {
+            super(delegate, new ArrayList<>());
+            this.remainingSuccessfulPushes = remainingSuccessfulPushes;
+        }
+
+        @Override
+        public <T> CompletableFuture<T> execute(ExecutionContext ctx, Command<T> command) {
+            if (command instanceof AbstractPushCommand && remainingSuccessfulPushes-- == 0) {
+                final CompletableFuture<T> failure = new CompletableFuture<>();
+                failure.completeExceptionally(new IllegalStateException("expected replay failure"));
+                return failure;
+            }
+            return super.execute(ctx, command);
         }
     }
 }

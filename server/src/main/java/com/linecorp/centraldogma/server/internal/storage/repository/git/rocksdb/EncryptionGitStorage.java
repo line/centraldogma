@@ -20,6 +20,7 @@ import static com.linecorp.centraldogma.server.internal.storage.AesGcmSivCipher.
 import static com.linecorp.centraldogma.server.internal.storage.AesGcmSivCipher.aesSecretKey;
 import static com.linecorp.centraldogma.server.internal.storage.encryption.EncryptionUtil.getInt;
 import static com.linecorp.centraldogma.server.internal.storage.encryption.EncryptionUtil.putInt;
+import static org.eclipse.jgit.lib.Constants.HEAD;
 import static org.eclipse.jgit.lib.Constants.R_REFS;
 import static org.eclipse.jgit.lib.Constants.encode;
 import static org.eclipse.jgit.lib.ObjectReader.OBJ_ANY;
@@ -28,6 +29,8 @@ import static org.eclipse.jgit.lib.Ref.Storage.NEW;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
 import javax.crypto.SecretKey;
@@ -206,6 +209,14 @@ public final class EncryptionGitStorage implements SafeCloseable {
     @Nullable
     @VisibleForTesting
     public Ref readRef(String refName) {
+        try (SafeCloseable ignored =
+                     encryptionStorageManager.acquireRepositoryReadLock(projectName, repoName)) {
+            return readRef0(refName);
+        }
+    }
+
+    @Nullable
+    private Ref readRef0(String refName) {
         final byte[] refNameBytes = refName.getBytes(StandardCharsets.UTF_8);
         final byte[] metadataKey = refMetadataKey(refNameBytes);
         final byte[] metadata = encryptionStorageManager.getMetadata(metadataKey);
@@ -233,11 +244,33 @@ public final class EncryptionGitStorage implements SafeCloseable {
         final byte[] refValueWithoutSymRef = new byte[refValue.length - 5];
         System.arraycopy(refValue, 5, refValueWithoutSymRef, 0, refValueWithoutSymRef.length);
         final String targetRefName = new String(refValueWithoutSymRef, StandardCharsets.UTF_8);
-        final Ref targetRef = readRef(targetRefName);
+        final Ref targetRef = readRef0(targetRefName);
         if (targetRef != null) {
             return new SymbolicRef(refName, targetRef);
         }
         return new SymbolicRef(refName, new ObjectIdRef.Unpeeled(NEW, targetRefName, null));
+    }
+
+    List<Ref> readRefs(String prefix, boolean includeHead) {
+        try (SafeCloseable ignored =
+                     encryptionStorageManager.acquireRepositoryReadLock(projectName, repoName)) {
+            final List<String> refNames =
+                    encryptionStorageManager.getRefNames(projectName, repoName, prefix);
+            final List<Ref> refs = new ArrayList<>(refNames.size() + (includeHead ? 1 : 0));
+            if (includeHead) {
+                final Ref head = readRef0(HEAD);
+                if (head != null) {
+                    refs.add(head);
+                }
+            }
+            for (String refName : refNames) {
+                final Ref ref = readRef0(refName);
+                if (ref != null) {
+                    refs.add(ref);
+                }
+            }
+            return refs;
+        }
     }
 
     private static boolean isSymRef(byte[] buf, int n) {
@@ -248,35 +281,38 @@ public final class EncryptionGitStorage implements SafeCloseable {
     }
 
     Result updateRef(String refName, ObjectId objectId, Result desiredResult) {
-        final byte[] refNameBytes = refName.getBytes(StandardCharsets.UTF_8);
+        try (SafeCloseable ignored =
+                     encryptionStorageManager.acquireRepositoryWriteLock(projectName, repoName)) {
+            final byte[] refNameBytes = refName.getBytes(StandardCharsets.UTF_8);
 
-        final SecretKeyWithVersion currentDek = this.currentDek;
-        final byte[] metadataKey = refMetadataKey(refNameBytes);
-        final byte[] metadata = new byte[4 + NONCE_SIZE_BYTES];
-        putInt(metadata, 0, currentDek.version());
-        final byte[] nonce = AesGcmSivCipher.generateNonce();
-        System.arraycopy(nonce, 0, metadata, 4, NONCE_SIZE_BYTES);
+            final SecretKeyWithVersion currentDek = this.currentDek;
+            final byte[] metadataKey = refMetadataKey(refNameBytes);
+            final byte[] metadata = new byte[4 + NONCE_SIZE_BYTES];
+            putInt(metadata, 0, currentDek.version());
+            final byte[] nonce = AesGcmSivCipher.generateNonce();
+            System.arraycopy(nonce, 0, metadata, 4, NONCE_SIZE_BYTES);
 
-        final byte[] encryptedRefName =
-                encrypt(currentDek.secretKey(), nonce, refNameBytes, 0, refNameBytes.length);
-        final byte[] encryptedId = encryptObjectId(currentDek.secretKey(), nonce, objectId);
+            final byte[] encryptedRefName =
+                    encrypt(currentDek.secretKey(), nonce, refNameBytes, 0, refNameBytes.length);
+            final byte[] encryptedId = encryptObjectId(currentDek.secretKey(), nonce, objectId);
 
-        // We should remove the previous ref name if it exists.
+            // We should remove the previous ref name if it exists.
 
-        final byte[] previousEncryptedRefName;
-        final byte[] previousMetadata = encryptionStorageManager.getMetadata(metadataKey);
-        if (previousMetadata == null) {
-            previousEncryptedRefName = null;
-        } else {
-            final byte[] previousNonce = new byte[NONCE_SIZE_BYTES];
-            System.arraycopy(previousMetadata, 4, previousNonce, 0, NONCE_SIZE_BYTES);
-            final SecretKey previousDek = getDek(getInt(previousMetadata, 0));
-            previousEncryptedRefName =
-                    encrypt(previousDek, previousNonce, refNameBytes, 0, refNameBytes.length);
+            final byte[] previousEncryptedRefName;
+            final byte[] previousMetadata = encryptionStorageManager.getMetadata(metadataKey);
+            if (previousMetadata == null) {
+                previousEncryptedRefName = null;
+            } else {
+                final byte[] previousNonce = new byte[NONCE_SIZE_BYTES];
+                System.arraycopy(previousMetadata, 4, previousNonce, 0, NONCE_SIZE_BYTES);
+                final SecretKey previousDek = getDek(getInt(previousMetadata, 0));
+                previousEncryptedRefName =
+                        encrypt(previousDek, previousNonce, refNameBytes, 0, refNameBytes.length);
+            }
+            encryptionStorageManager.putObjectId(metadataKey, metadata, encryptedRefName,
+                                                 encryptedId, previousEncryptedRefName);
+            return desiredResult;
         }
-        encryptionStorageManager.putObjectId(metadataKey, metadata, encryptedRefName,
-                                             encryptedId, previousEncryptedRefName);
-        return desiredResult;
     }
 
     @VisibleForTesting
@@ -288,36 +324,44 @@ public final class EncryptionGitStorage implements SafeCloseable {
     }
 
     void deleteRef(String refName) {
-        final byte[] refNameBytes = refName.getBytes(StandardCharsets.UTF_8);
-        final byte[] metadataKey = refMetadataKey(refNameBytes);
-        final byte[] metadata = encryptionStorageManager.getMetadata(metadataKey);
-        if (metadata == null) {
-            return;
+        try (SafeCloseable ignored =
+                     encryptionStorageManager.acquireRepositoryWriteLock(projectName, repoName)) {
+            final byte[] refNameBytes = refName.getBytes(StandardCharsets.UTF_8);
+            final byte[] metadataKey = refMetadataKey(refNameBytes);
+            final byte[] metadata = encryptionStorageManager.getMetadata(metadataKey);
+            if (metadata == null) {
+                return;
+            }
+
+            final byte[] nonce = new byte[NONCE_SIZE_BYTES];
+            System.arraycopy(metadata, 4, nonce, 0, NONCE_SIZE_BYTES);
+            final int keyVersion = getInt(metadata, 0);
+            final SecretKey dek = getDek(keyVersion);
+
+            final byte[] encryptedRefName = encrypt(dek, nonce, refNameBytes, 0, refNameBytes.length);
+            encryptionStorageManager.deleteObjectId(metadataKey, encryptedRefName);
         }
-
-        final byte[] nonce = new byte[NONCE_SIZE_BYTES];
-        System.arraycopy(metadata, 4, nonce, 0, NONCE_SIZE_BYTES);
-        final int keyVersion = getInt(metadata, 0);
-        final SecretKey dek = getDek(keyVersion);
-
-        final byte[] encryptedRefName = encrypt(dek, nonce, refNameBytes, 0, refNameBytes.length);
-        encryptionStorageManager.deleteObjectId(metadataKey, encryptedRefName);
     }
 
     void linkRef(String refName, String target) {
-        final byte[] refNameBytes = refName.getBytes(StandardCharsets.UTF_8);
-        final byte[] metadataKey = refMetadataKey(refNameBytes);
-        final byte[] nonce = AesGcmSivCipher.generateNonce();
-        final byte[] metadata = new byte[4 + NONCE_SIZE_BYTES];
-        final SecretKeyWithVersion currentDek = this.currentDek;
-        putInt(metadata, 0, currentDek.version());
-        System.arraycopy(nonce, 0, metadata, 4, NONCE_SIZE_BYTES);
+        try (SafeCloseable ignored =
+                     encryptionStorageManager.acquireRepositoryWriteLock(projectName, repoName)) {
+            final byte[] refNameBytes = refName.getBytes(StandardCharsets.UTF_8);
+            final byte[] metadataKey = refMetadataKey(refNameBytes);
+            final byte[] nonce = AesGcmSivCipher.generateNonce();
+            final byte[] metadata = new byte[4 + NONCE_SIZE_BYTES];
+            final SecretKeyWithVersion currentDek = this.currentDek;
+            putInt(metadata, 0, currentDek.version());
+            System.arraycopy(nonce, 0, metadata, 4, NONCE_SIZE_BYTES);
 
-        final byte[] encryptedRefName =
-                encrypt(currentDek.secretKey(), nonce, refNameBytes, 0, refNameBytes.length);
-        final byte[] encoded = encode(RefDirectory.SYMREF + target);
-        final byte[] encryptedTarget = encrypt(currentDek.secretKey(), nonce, encoded, 0, encoded.length);
-        encryptionStorageManager.putObjectId(metadataKey, metadata, encryptedRefName, encryptedTarget, null);
+            final byte[] encryptedRefName =
+                    encrypt(currentDek.secretKey(), nonce, refNameBytes, 0, refNameBytes.length);
+            final byte[] encoded = encode(RefDirectory.SYMREF + target);
+            final byte[] encryptedTarget =
+                    encrypt(currentDek.secretKey(), nonce, encoded, 0, encoded.length);
+            encryptionStorageManager.putObjectId(
+                    metadataKey, metadata, encryptedRefName, encryptedTarget, null);
+        }
     }
 
     @VisibleForTesting

@@ -24,13 +24,17 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 
 import org.eclipse.jgit.api.Git;
+import org.eclipse.jgit.lib.Constants;
+import org.eclipse.jgit.lib.ObjectId;
 import org.eclipse.jgit.lib.Repository;
 import org.eclipse.jgit.revwalk.RevCommit;
 import org.eclipse.jgit.storage.file.FileRepositoryBuilder;
+import org.eclipse.jgit.transport.UsernamePasswordCredentialsProvider;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInfo;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
 import com.linecorp.centraldogma.client.CentralDogma;
@@ -44,11 +48,11 @@ import com.linecorp.centraldogma.server.MirroringService;
 import com.linecorp.centraldogma.server.mirror.MirroringServicePluginConfig;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.testing.internal.TemporaryFolderExtension;
+import com.linecorp.centraldogma.testing.internal.TestUtil;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
 class PreserveRemoteCommitHistoryEncryptedTest {
 
-    private static final String PROJECT_NAME = "encrypted-history";
     private static final String REPOSITORY_NAME = "config";
     private static final String TAG_PREFIX = "refs/tags/dogma-";
 
@@ -74,6 +78,7 @@ class PreserveRemoteCommitHistoryEncryptedTest {
 
     private Git git;
     private File gitWorkTree;
+    private String projectName;
 
     @BeforeAll
     static void init() {
@@ -82,28 +87,29 @@ class PreserveRemoteCommitHistoryEncryptedTest {
     }
 
     @BeforeEach
-    void setUp() throws Exception {
+    void setUp(TestInfo testInfo) throws Exception {
+        projectName = TestUtil.normalizedDisplayName(testInfo);
         gitWorkTree = gitRepoDir.getRoot().resolve("upstream").toFile().getAbsoluteFile();
         final Repository gitRepository = new FileRepositoryBuilder().setWorkTree(gitWorkTree).build();
         gitRepository.create();
         git = Git.wrap(gitRepository);
         git.commit().setMessage("Initial commit").call();
 
-        client.createProject(PROJECT_NAME).join();
-        client.createRepository(PROJECT_NAME, REPOSITORY_NAME).join();
-        assertThat(dogma.projectManager().get(PROJECT_NAME).repos().get(REPOSITORY_NAME).isEncrypted())
+        client.createProject(projectName).join();
+        client.createRepository(projectName, REPOSITORY_NAME).join();
+        assertThat(dogma.projectManager().get(projectName).repos().get(REPOSITORY_NAME).isEncrypted())
                 .isTrue();
-        pushMirrorSettings();
     }
 
     @AfterEach
     void tearDown() {
         git.close();
-        client.removeProject(PROJECT_NAME).join();
+        client.removeProject(projectName).join();
     }
 
     @Test
-    void preservesHistoryWithoutPublishingTags() throws Exception {
+    void preservesHistoryAndPublishesTags() throws Exception {
+        pushMirrorSettings(true);
         mirroringService.mirror().join();
         final Revision baseline = headRevision();
         final RevCommit first = commitFile(
@@ -116,14 +122,54 @@ class PreserveRemoteCommitHistoryEncryptedTest {
         assertThat(headRevision()).isEqualTo(baseline.forward(2));
         assertThat(fileContent(baseline.forward(1))).isEqualTo("secret-1");
         assertThat(fileContent(baseline.forward(2))).isEqualTo("secret-2");
-        assertThat(client.getHistory(PROJECT_NAME, REPOSITORY_NAME, Revision.HEAD,
+        assertThat(client.getHistory(projectName, REPOSITORY_NAME, Revision.HEAD,
                                      baseline.forward(1), PathPattern.all(), 0).join())
                 .extracting(Commit::upstreamCommitId)
-                .containsOnlyNulls();
+                .containsExactly(second.name(), first.name());
         final Repository repository =
-                dogma.projectManager().get(PROJECT_NAME).repos().get(REPOSITORY_NAME).jGitRepository();
-        assertThat(repository.exactRef(TAG_PREFIX + first.name())).isNull();
-        assertThat(repository.exactRef(TAG_PREFIX + second.name())).isNull();
+                dogma.projectManager().get(projectName).repos().get(REPOSITORY_NAME).jGitRepository();
+        final ObjectId firstTag = repository.exactRef(TAG_PREFIX + first.name()).getObjectId();
+        final ObjectId secondTag = repository.exactRef(TAG_PREFIX + second.name()).getObjectId();
+        assertThat(firstTag).isNotEqualTo(secondTag);
+        assertThat(secondTag).isEqualTo(
+                repository.exactRef(Constants.R_HEADS + Constants.MASTER).getObjectId());
+        assertThat(repository.getRefDatabase().getRefsByPrefix(Constants.R_TAGS))
+                .extracting(org.eclipse.jgit.lib.Ref::getName)
+                .hasSize(3)
+                .contains(TAG_PREFIX + first.name(), TAG_PREFIX + second.name());
+
+        final File cloneDir = gitRepoDir.getRoot().resolve("clone").toFile();
+        try (Git clone = Git.cloneRepository()
+                            .setURI("http://127.0.0.1:" + dogma.serverAddress().getPort() + '/' +
+                                    projectName + '/' + REPOSITORY_NAME + ".git")
+                            .setBranch(TAG_PREFIX + second.name())
+                            .setDirectory(cloneDir)
+                            .setCredentialsProvider(
+                                    new UsernamePasswordCredentialsProvider("dogma", "anonymous"))
+                            .call()) {
+            assertThat(clone.getRepository().resolve(Constants.HEAD)).isEqualTo(secondTag);
+            assertThat(new String(Files.readAllBytes(cloneDir.toPath().resolve("encrypted.txt")),
+                                  StandardCharsets.UTF_8).trim())
+                    .isEqualTo("secret-2");
+        }
+    }
+
+    @Test
+    void preservesHistoryWithoutPublishingTags() throws Exception {
+        pushMirrorSettings(false);
+        mirroringService.mirror().join();
+        final Revision baseline = headRevision();
+        commitFile("encrypted.txt", "secret", "Update encrypted repository");
+
+        mirroringService.mirror().join();
+
+        assertThat(headRevision()).isEqualTo(baseline.forward(1));
+        assertThat(client.getHistory(projectName, REPOSITORY_NAME, Revision.HEAD,
+                                     Revision.HEAD, PathPattern.all(), 0).join().get(0).upstreamCommitId())
+                .isNull();
+        final Repository repository =
+                dogma.projectManager().get(projectName).repos().get(REPOSITORY_NAME).jGitRepository();
+        assertThat(repository.getRefDatabase().getRefsByPrefix(Constants.R_TAGS)).isEmpty();
     }
 
     private RevCommit commitFile(String path, String content, String message) throws Exception {
@@ -135,11 +181,11 @@ class PreserveRemoteCommitHistoryEncryptedTest {
     }
 
     private Revision headRevision() {
-        return client.normalizeRevision(PROJECT_NAME, REPOSITORY_NAME, Revision.HEAD).join();
+        return client.normalizeRevision(projectName, REPOSITORY_NAME, Revision.HEAD).join();
     }
 
     private String fileContent(Revision revision) {
-        return client.forRepo(PROJECT_NAME, REPOSITORY_NAME)
+        return client.forRepo(projectName, REPOSITORY_NAME)
                      .file("/encrypted.txt")
                      .get(revision)
                      .join()
@@ -147,9 +193,9 @@ class PreserveRemoteCommitHistoryEncryptedTest {
                      .trim();
     }
 
-    private void pushMirrorSettings() {
-        final String credentialName = credentialName(PROJECT_NAME, "none");
-        client.forRepo(PROJECT_NAME, Project.REPO_DOGMA)
+    private void pushMirrorSettings(boolean publishRemoteCommitTags) {
+        final String credentialName = credentialName(projectName, "none");
+        client.forRepo(projectName, Project.REPO_DOGMA)
               .commit("Add /credentials/none",
                       Change.ofJsonUpsert(credentialFile(credentialName),
                                           "{ \"type\": \"NONE\", \"name\": \"" + credentialName +
@@ -158,7 +204,7 @@ class PreserveRemoteCommitHistoryEncryptedTest {
         final String gitUri = "git+file://" +
                               (gitWorkTree.getPath().startsWith(File.separator) ? "" : "/") +
                               gitWorkTree.getPath().replace(File.separatorChar, '/') + "/.git";
-        client.forRepo(PROJECT_NAME, Project.REPO_DOGMA)
+        client.forRepo(projectName, Project.REPO_DOGMA)
               .commit("Add a mirror",
                       Change.ofJsonUpsert(
                               "/repos/" + REPOSITORY_NAME + "/mirrors/history.json",
@@ -172,7 +218,7 @@ class PreserveRemoteCommitHistoryEncryptedTest {
                               "  \"schedule\": \"0 0 0 1 1 ? 2099\"," +
                               "  \"credentialName\": \"" + credentialName + "\"," +
                               "  \"preserveRemoteCommitHistory\": true," +
-                              "  \"publishRemoteCommitTags\": false" +
+                              "  \"publishRemoteCommitTags\": " + publishRemoteCommitTags +
                               '}'))
               .push().join();
     }

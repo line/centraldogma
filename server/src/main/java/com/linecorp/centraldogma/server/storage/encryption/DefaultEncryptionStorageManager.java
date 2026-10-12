@@ -30,6 +30,7 @@ import org.jspecify.annotations.Nullable;
 
 import com.google.common.collect.ImmutableList;
 
+import com.linecorp.armeria.common.util.SafeCloseable;
 import com.linecorp.armeria.common.util.UnmodifiableFuture;
 import com.linecorp.centraldogma.server.auth.SessionKey;
 import com.linecorp.centraldogma.server.auth.SessionMasterKey;
@@ -155,6 +156,21 @@ final class DefaultEncryptionStorageManager implements EncryptionStorageManager 
     @Override
     public byte[] getMetadata(byte[] metadataKey) {
         return repositoryEncryptionStorage.getMetadata(metadataKey);
+    }
+
+    @Override
+    public List<String> getRefNames(String projectName, String repoName, String prefix) {
+        return repositoryEncryptionStorage.getRefNames(projectName, repoName, prefix);
+    }
+
+    @Override
+    public SafeCloseable acquireRepositoryReadLock(String projectName, String repoName) {
+        return repositoryEncryptionStorage.acquireRepositoryReadLock(projectName, repoName);
+    }
+
+    @Override
+    public SafeCloseable acquireRepositoryWriteLock(String projectName, String repoName) {
+        return repositoryEncryptionStorage.acquireRepositoryWriteLock(projectName, repoName);
     }
 
     @Override

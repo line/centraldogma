@@ -78,8 +78,7 @@ public final class MirrorConverter {
                 mirrorConfig.rawRemoteUri().getScheme());
         validatePublishRemoteCommitTags(
                 mirrorConfig.publishRemoteCommitTags(), mirrorConfig.preserveRemoteCommitHistory(),
-                mirrorConfig.direction(),
-                mirrorConfig.rawRemoteUri().getScheme(), mirrorConfig.localRepo(), parent);
+                mirrorConfig.direction(), mirrorConfig.rawRemoteUri().getScheme());
 
         final MirrorContext mirrorContext = new MirrorContext(
                 mirrorConfig.id(), mirrorConfig.enabled(), mirrorConfig.cronSchedule(),
@@ -108,17 +107,13 @@ public final class MirrorConverter {
 
     static void validatePublishRemoteCommitTags(boolean publishRemoteCommitTags,
                                                 boolean preserveRemoteCommitHistory,
-                                                MirrorDirection direction, String remoteScheme,
-                                                String localRepo, Project parent) {
+                                                MirrorDirection direction, String remoteScheme) {
         if (!publishRemoteCommitTags) {
             return;
         }
         checkArgument(preserveRemoteCommitHistory,
                       "'Publish tags for upstream commits' requires 'Preserve upstream commit history'");
         validateRemoteGitOption("'Publish tags for upstream commits'", direction, remoteScheme);
-        checkArgument(!parent.repos().exists(localRepo) || !parent.repos().get(localRepo).isEncrypted(),
-                      "'Publish tags for upstream commits' is not supported for encrypted repository '%s'",
-                      localRepo);
     }
 
     private static void validateRemoteGitOption(String option, MirrorDirection direction,

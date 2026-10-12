@@ -497,6 +497,6 @@ public final class DefaultMetaRepository extends RepositoryWrapper implements Me
     private void validatePublishRemoteCommitTags(MirrorRequest mirror) {
         MirrorConverter.validatePublishRemoteCommitTags(
                 true, mirror.preserveRemoteCommitHistory(), MirrorDirection.valueOf(mirror.direction()),
-                mirror.remoteScheme(), mirror.localRepo(), parent());
+                mirror.remoteScheme());
     }
 }

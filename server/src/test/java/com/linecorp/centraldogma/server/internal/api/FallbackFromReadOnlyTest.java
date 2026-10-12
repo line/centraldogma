@@ -15,28 +15,19 @@
  */
 package com.linecorp.centraldogma.server.internal.api;
 
+import static com.linecorp.centraldogma.internal.HistoryConstants.UPSTREAM_TAG_PREFIX;
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.PASSWORD;
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.USERNAME;
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.getAccessToken;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.inOrder;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verifyNoInteractions;
-import static org.mockito.Mockito.when;
 
 import java.io.File;
 import java.net.InetSocketAddress;
 import java.util.List;
-import java.util.Map;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 
+import org.eclipse.jgit.lib.Constants;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import org.mockito.InOrder;
 
 import com.linecorp.armeria.client.WebClient;
 import com.linecorp.armeria.common.AggregatedHttpResponse;
@@ -47,11 +38,9 @@ import com.linecorp.armeria.common.MediaType;
 import com.linecorp.armeria.common.RequestHeaders;
 import com.linecorp.armeria.common.SessionProtocol;
 import com.linecorp.armeria.common.auth.AuthToken;
-import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Commit;
-import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.RepositoryStatus;
 import com.linecorp.centraldogma.common.Revision;
@@ -59,14 +48,6 @@ import com.linecorp.centraldogma.server.CentralDogma;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.server.EncryptionConfig;
 import com.linecorp.centraldogma.server.GracefulShutdownTimeout;
-import com.linecorp.centraldogma.server.command.CommandExecutor;
-import com.linecorp.centraldogma.server.metadata.MetadataService;
-import com.linecorp.centraldogma.server.metadata.ProjectMetadata;
-import com.linecorp.centraldogma.server.metadata.RepositoryMetadata;
-import com.linecorp.centraldogma.server.storage.encryption.EncryptionStorageManager;
-import com.linecorp.centraldogma.server.storage.project.Project;
-import com.linecorp.centraldogma.server.storage.repository.MetaRepository;
-import com.linecorp.centraldogma.server.storage.repository.Repository;
 import com.linecorp.centraldogma.testing.internal.auth.TestAuthProviderFactory;
 
 class FallbackFromReadOnlyTest {
@@ -130,15 +111,11 @@ class FallbackFromReadOnlyTest {
         assertThat(migratedCommit.upstreamCommitId()).isEqualTo(UPSTREAM_COMMIT_ID);
         assertThat(migratedCommit.detail()).isEqualTo("Mirrored detail");
         assertThat(migratedCommit.markup()).isEqualTo(Markup.MARKDOWN);
+        assertThat(dogma.projectManager().get(PROJECT_NAME).repos().get(REPO_NAME).jGitRepository()
+                        .exactRef(Constants.R_TAGS + UPSTREAM_TAG_PREFIX + UPSTREAM_COMMIT_ID))
+                .isNull();
 
         createHistoryMirror(dogma, PROJECT_NAME, REPO_NAME, true);
-        final CentralDogma encryptedDogma = dogma;
-        assertThatThrownBy(() -> encryptedDogma.projectManager().get(PROJECT_NAME).metaRepo()
-                                               .mirror(REPO_NAME, "history").join())
-                .isInstanceOf(CompletionException.class)
-                .hasCauseInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining(
-                        "'Publish tags for upstream commits' is not supported for encrypted repository");
 
         // Set the repository to read-only.
         response = updateRepositoryStatus(client, PROJECT_NAME, REPO_NAME, "READ_ONLY");
@@ -155,7 +132,7 @@ class FallbackFromReadOnlyTest {
     }
 
     @Test
-    void tagPublishingMirrorPreventsEncryptionMigration() throws Exception {
+    void tagPublishingMirrorCanBeMigratedToEncryptedStorage() throws Exception {
         CentralDogma dogma = new CentralDogmaBuilder(dataDir)
                 .port(0, SessionProtocol.HTTP)
                 .webAppEnabled(false)
@@ -185,74 +162,14 @@ class FallbackFromReadOnlyTest {
 
             final AggregatedHttpResponse response =
                     postApi(client, PROJECT_NAME, REPO_NAME, "/migrate/encrypted");
-            assertThat(response.status()).isEqualTo(HttpStatus.BAD_REQUEST);
-            assertThat(response.contentUtf8())
-                    .contains(
-                            "Cannot encrypt a repository with a mirror that publishes tags for " +
-                            "upstream commits");
+            assertThat(response.status()).isEqualTo(HttpStatus.OK);
             assertThat(dogma.projectManager().get(PROJECT_NAME).repos().get(REPO_NAME).isEncrypted())
-                    .isFalse();
+                    .isTrue();
             assertThat(dogma.projectManager().get(PROJECT_NAME).metadata().repo(REPO_NAME).status())
                     .isEqualTo(RepositoryStatus.ACTIVE);
         } finally {
             dogma.stop().join();
         }
-    }
-
-    @Test
-    void tagPublishingMirrorCreatedDuringMigrationRestoresActiveStatus() throws Exception {
-        final CommandExecutor executor = mock(CommandExecutor.class);
-        final MetadataService metadataService = mock(MetadataService.class);
-        final EncryptionStorageManager encryptionStorageManager = mock(EncryptionStorageManager.class);
-        final Project project = mock(Project.class);
-        final Repository repository = mock(Repository.class);
-        final MetaRepository metaRepository = mock(MetaRepository.class);
-        final ProjectMetadata projectMetadata = mock(ProjectMetadata.class);
-        final RepositoryMetadata repositoryMetadata = mock(RepositoryMetadata.class);
-        final ServiceRequestContext ctx = mock(ServiceRequestContext.class);
-        final String mirrorPath = "/repos/" + REPO_NAME + "/mirrors/history.json";
-        final String mirrorPattern = "/repos/" + REPO_NAME + "/mirrors/*.json";
-        final Map<String, Entry<?>> noMirrors = Map.of();
-        final Map<String, Entry<?>> tagPublishingMirror = Map.of(
-                mirrorPath, Entry.ofJson(Revision.INIT, mirrorPath,
-                                         "{\"publishRemoteCommitTags\":true}"));
-
-        when(project.name()).thenReturn(PROJECT_NAME);
-        when(project.metadata()).thenReturn(projectMetadata);
-        when(project.metaRepo()).thenReturn(metaRepository);
-        when(projectMetadata.repos()).thenReturn(Map.of(REPO_NAME, repositoryMetadata));
-        when(repositoryMetadata.status()).thenReturn(RepositoryStatus.ACTIVE);
-        when(repository.name()).thenReturn(REPO_NAME);
-        when(repository.parent()).thenReturn(project);
-        when(repository.normalizeNow(Revision.HEAD)).thenReturn(Revision.INIT);
-        when(repository.isEncrypted()).thenReturn(false);
-        when(metaRepository.find(Revision.HEAD, mirrorPattern))
-                .thenReturn(CompletableFuture.completedFuture(noMirrors))
-                .thenReturn(CompletableFuture.completedFuture(tagPublishingMirror));
-        when(encryptionStorageManager.enabled()).thenReturn(true);
-        when(encryptionStorageManager.generateWdek())
-                .thenReturn(CompletableFuture.completedFuture("wrapped-dek"));
-        when(encryptionStorageManager.kekId()).thenReturn("kek-id");
-        when(metadataService.updateRepositoryStatus(
-                eq(Author.SYSTEM), eq(PROJECT_NAME), eq(REPO_NAME), any(RepositoryStatus.class)))
-                .thenReturn(CompletableFuture.completedFuture(new Revision(2)),
-                            CompletableFuture.completedFuture(new Revision(3)));
-
-        final RepositoryServiceV1 service =
-                new RepositoryServiceV1(executor, metadataService, encryptionStorageManager);
-        assertThatThrownBy(() -> service.migrateToEncryptedRepository(
-                ctx, project, repository, Author.SYSTEM).join())
-                .isInstanceOf(CompletionException.class)
-                .hasCauseInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining(
-                        "Cannot encrypt a repository with a mirror that publishes tags for upstream commits");
-
-        final InOrder statusUpdates = inOrder(metadataService);
-        statusUpdates.verify(metadataService).updateRepositoryStatus(
-                Author.SYSTEM, PROJECT_NAME, REPO_NAME, RepositoryStatus.READ_ONLY);
-        statusUpdates.verify(metadataService).updateRepositoryStatus(
-                Author.SYSTEM, PROJECT_NAME, REPO_NAME, RepositoryStatus.ACTIVE);
-        verifyNoInteractions(executor);
     }
 
     private static int appIdCounter;

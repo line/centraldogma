@@ -107,10 +107,6 @@ final class CommitExecutor {
 
     CommitResult execute(Revision baseRevision,
                          Function<Revision, Iterable<Change<?>>> applyingChangesProvider) {
-        if (publishUpstreamCommitTag && gitRepository.isEncrypted()) {
-            throw new StorageException(
-                    "tags for upstream commits are not supported for encrypted repositories");
-        }
         final RevisionAndEntries res;
         final Iterable<Change<?>> applyingChanges;
         gitRepository.writeLock();

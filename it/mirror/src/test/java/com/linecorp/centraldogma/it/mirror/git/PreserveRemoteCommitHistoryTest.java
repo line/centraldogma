@@ -27,6 +27,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 
 import org.eclipse.jgit.api.Git;
@@ -155,8 +156,8 @@ class PreserveRemoteCommitHistoryTest {
     }
 
     @Test
-    void firstRunFallsBackToSnapshotWhenHistoryExceedsLimit() throws Exception {
-        for (int i = 0; i < 100; i++) {
+    void firstRunReplaysLatestCommitsUpToLimit() throws Exception {
+        for (int i = 0; i < 150; i++) {
             commitFile("counter.txt", Integer.toString(i), "Update counter " + i);
         }
 
@@ -164,10 +165,37 @@ class PreserveRemoteCommitHistoryTest {
         final Revision before = headRevision();
         mirroringService.mirror().join();
 
-        assertThat(headRevision()).isEqualTo(before.forward(1));
-        assertThat(fileContent(headRevision(), "/counter.txt")).isEqualTo("99");
-        assertThat(history(headRevision(), headRevision()).get(0).upstreamCommitId()).isNull();
+        assertThat(headRevision()).isEqualTo(before.forward(100));
+        assertThat(fileContent(before.forward(1), "/counter.txt")).isEqualTo("50");
+        assertThat(fileContent(headRevision(), "/counter.txt")).isEqualTo("149");
+        final List<Commit> commits = history(headRevision(), before.forward(1));
+        assertThat(commits).hasSize(100);
+        assertThat(commits.get(0).summary()).isEqualTo("Update counter 149");
+        assertThat(commits.get(99).summary()).isEqualTo("Update counter 50");
+        assertThat(commits).extracting(Commit::upstreamCommitId).containsOnlyNulls();
         assertThat(tagNames()).isEmpty();
+    }
+
+    @Test
+    void firstRunPublishesTagsOnlyForLatestCommits() throws Exception {
+        final List<RevCommit> upstreamCommits = new ArrayList<>();
+        for (int i = 0; i < 101; i++) {
+            upstreamCommits.add(commitFile("counter.txt", Integer.toString(i), "Update counter " + i));
+        }
+
+        pushMirrorSettings(true, true);
+        final Revision before = headRevision();
+        mirroringService.mirror().join();
+
+        assertThat(headRevision()).isEqualTo(before.forward(100));
+        final List<Commit> mirroredCommits = history(headRevision(), before.forward(1));
+        assertThat(mirroredCommits).hasSize(100);
+        assertThat(mirroredCommits.get(0).upstreamCommitId()).isEqualTo(upstreamCommits.get(100).name());
+        assertThat(mirroredCommits.get(99).upstreamCommitId()).isEqualTo(upstreamCommits.get(1).name());
+        assertThat(tagNames()).hasSize(100)
+                              .doesNotContain(TAG_PREFIX + upstreamCommits.get(0).name())
+                              .contains(TAG_PREFIX + upstreamCommits.get(1).name(),
+                                        TAG_PREFIX + upstreamCommits.get(100).name());
     }
 
     @Test
@@ -233,7 +261,56 @@ class PreserveRemoteCommitHistoryTest {
         mirroringService.mirror().join();
 
         assertThat(headRevision()).isEqualTo(baseline.forward(100));
+        assertThat(fileContent(headRevision(), "/counter.txt")).isEqualTo("99");
         assertThat(tagNames()).isEmpty();
+    }
+
+    @Test
+    void replaysAllCommitsAfterTheFirstRun() throws Exception {
+        for (int i = 0; i < 101; i++) {
+            commitFile("initial-counter.txt", Integer.toString(i), "Update initial counter " + i);
+        }
+        pushMirrorSettings(true);
+        final Revision before = headRevision();
+        mirroringService.mirror().join();
+        final Revision baseline = headRevision();
+        assertThat(baseline).isEqualTo(before.forward(100));
+
+        for (int i = 0; i < 101; i++) {
+            commitFile("counter.txt", Integer.toString(i), "Update counter " + i);
+        }
+
+        mirroringService.mirror().join();
+
+        assertThat(headRevision()).isEqualTo(baseline.forward(101));
+        assertThat(fileContent(baseline.forward(1), "/counter.txt")).isEqualTo("0");
+        assertThat(fileContent(headRevision(), "/counter.txt")).isEqualTo("100");
+        assertThat(tagNames()).isEmpty();
+    }
+
+    @Test
+    void subsequentReplayPreservesAnUpstreamDeletion() throws Exception {
+        commitFile("obsolete.txt", "obsolete", "Add obsolete file");
+        for (int i = 0; i < 100; i++) {
+            commitFile("initial-counter.txt", Integer.toString(i), "Update initial counter " + i);
+        }
+        pushMirrorSettings(true);
+        mirroringService.mirror().join();
+        final Revision baseline = headRevision();
+
+        removeFile("obsolete.txt", "Remove obsolete file");
+        for (int i = 0; i < 100; i++) {
+            commitFile("counter.txt", Integer.toString(i), "Update counter " + i);
+        }
+        mirroringService.mirror().join();
+
+        assertThat(headRevision()).isEqualTo(baseline.forward(101));
+        assertThat(client.getFiles(projName, REPO_FOO, baseline.forward(1), PathPattern.all()).join())
+                .doesNotContainKey("/obsolete.txt");
+        assertThat(client.getFiles(projName, REPO_FOO, baseline.forward(1), PathPattern.all()).join())
+                .doesNotContainKey("/counter.txt");
+        assertThat(fileContent(baseline.forward(2), "/counter.txt")).isEqualTo("0");
+        assertThat(fileContent(headRevision(), "/counter.txt")).isEqualTo("99");
     }
 
     @Test
@@ -261,6 +338,31 @@ class PreserveRemoteCommitHistoryTest {
         assertThat(headRevision()).isEqualTo(baseline.forward(1));
         assertThat(fileContent(headRevision(), "/left.txt")).isEqualTo("left");
         assertThat(fileContent(headRevision(), "/right.txt")).isEqualTo("right");
+        assertThat(history(headRevision(), headRevision()).get(0).upstreamCommitId()).isNull();
+        assertThat(tagNames()).isEmpty();
+    }
+
+    @Test
+    void mergeAtShallowBoundaryFallsBackToSingleSnapshot() throws Exception {
+        final RevCommit base = git.log().setMaxCount(1).call().iterator().next();
+
+        git.checkout().setCreateBranch(true).setName("left").setStartPoint(base).call();
+        final RevCommit left = commitFile("left.txt", "left", "Update left");
+        git.checkout().setName("master").call();
+        final MergeResult result = git.merge().include(left).setFastForward(FastForwardMode.NO_FF)
+                                      .setMessage("Merge left").call();
+        assertThat(result.getMergeStatus().isSuccessful()).isTrue();
+        for (int i = 0; i < 99; i++) {
+            commitFile("counter.txt", Integer.toString(i), "Update counter " + i);
+        }
+
+        pushMirrorSettings(true);
+        final Revision baseline = headRevision();
+        mirroringService.mirror().join();
+
+        assertThat(headRevision()).isEqualTo(baseline.forward(1));
+        assertThat(fileContent(headRevision(), "/left.txt")).isEqualTo("left");
+        assertThat(fileContent(headRevision(), "/counter.txt")).isEqualTo("98");
         assertThat(history(headRevision(), headRevision()).get(0).upstreamCommitId()).isNull();
         assertThat(tagNames()).isEmpty();
     }
@@ -447,6 +549,48 @@ class PreserveRemoteCommitHistoryTest {
         assertThat(tagNames()).isEmpty();
     }
 
+    @Test
+    void longDivergedRemoteProducesASingleRevision() throws Exception {
+        pushMirrorSettings(true);
+        mirroringService.mirror().join();
+        for (int i = 0; i < 150; i++) {
+            commitFile("counter.txt", Integer.toString(i), "Update counter " + i);
+        }
+        mirroringService.mirror().join();
+        final Revision replayed = headRevision();
+
+        git.reset().setMode(ResetType.HARD).setRef("HEAD~1").call();
+        commitFile("diverged.txt", "diverged", "Diverge remote history");
+        mirroringService.mirror().join();
+
+        assertThat(headRevision()).isEqualTo(replayed.forward(1));
+        assertThat(fileContent(headRevision(), "/counter.txt")).isEqualTo("148");
+        assertThat(fileContent(headRevision(), "/diverged.txt")).isEqualTo("diverged");
+        assertThat(tagNames()).isEmpty();
+    }
+
+    @Test
+    void divergenceAfterTheFirstRunFallsBackToSingleSnapshot() throws Exception {
+        for (int i = 0; i < 150; i++) {
+            commitFile("old-counter.txt", Integer.toString(i), "Update old counter " + i);
+        }
+        pushMirrorSettings(true);
+        mirroringService.mirror().join();
+        final Revision replayed = headRevision();
+
+        git.reset().setMode(ResetType.HARD).setRef("HEAD~150").call();
+        for (int i = 0; i < 150; i++) {
+            commitFile("new-counter.txt", Integer.toString(i), "Update new counter " + i);
+        }
+        mirroringService.mirror().join();
+
+        assertThat(headRevision()).isEqualTo(replayed.forward(1));
+        assertThat(fileContent(headRevision(), "/new-counter.txt")).isEqualTo("149");
+        assertThat(client.getFiles(projName, REPO_FOO, headRevision(), PathPattern.all()).join())
+                .doesNotContainKey("/old-counter.txt");
+        assertThat(tagNames()).isEmpty();
+    }
+
     @ParameterizedTest
     @CsvSource({
             "false, false, 1, false, false",
@@ -545,6 +689,11 @@ class PreserveRemoteCommitHistoryTest {
         Files.write(file.toPath(), content.getBytes(StandardCharsets.UTF_8));
         git.add().addFilepattern(path).call();
         return git.commit().setMessage(message).setAuthor(authorName, authorEmail).call();
+    }
+
+    private RevCommit removeFile(String path, String message) throws Exception {
+        git.rm().addFilepattern(path).call();
+        return git.commit().setMessage(message).call();
     }
 
     private void pushMirrorSettings(boolean preserveRemoteCommitHistory) {
