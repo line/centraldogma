@@ -20,6 +20,9 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.protobuf.Message;
@@ -40,6 +43,8 @@ import io.envoyproxy.envoy.config.core.v3.Node;
 import io.netty.util.AttributeKey;
 
 final class NodeAwareConfigWatcher implements ConfigWatcher {
+
+    private static final Logger logger = LoggerFactory.getLogger(NodeAwareConfigWatcher.class);
 
     private static final AttributeKey<Node> NODE_KEY = AttributeKey.valueOf(
             NodeAwareConfigWatcher.class, "xds.node");
@@ -74,8 +79,14 @@ final class NodeAwareConfigWatcher implements ConfigWatcher {
 
     private void deliverTransformed(Response response, Node node, XdsRequest request,
                                     Consumer<Response> responseConsumer) {
-        final List<Message> transformed = transformAll(node, response.resources(), request.getTypeUrl());
-        responseConsumer.accept(Response.create(request, transformed, response.version()));
+        try {
+            final List<Message> transformed = transformAll(node, response.resources(), request.getTypeUrl());
+            responseConsumer.accept(Response.create(request, transformed, response.version()));
+        } catch (Exception e) {
+            logger.warn("Failed to transform xDS resources for node '{}'; delivering untransformed response.",
+                        node.getId(), e);
+            responseConsumer.accept(response);
+        }
     }
 
     @Override
@@ -104,15 +115,21 @@ final class NodeAwareConfigWatcher implements ConfigWatcher {
 
     private void deliverDeltaTransformed(DeltaResponse response, Node node, DeltaXdsRequest request,
                                          Consumer<DeltaResponse> responseConsumer) {
-        final String typeUrl = request.getTypeUrl();
-        final ImmutableMap.Builder<String, VersionedResource<?>> builder = ImmutableMap.builder();
-        for (Map.Entry<String, VersionedResource<?>> entry : response.resources().entrySet()) {
-            final VersionedResource<?> vr = entry.getValue();
-            final Message transformed = applyTransformers(node, vr.resource(), typeUrl);
-            builder.put(entry.getKey(), VersionedResource.create(transformed, vr.version()));
+        try {
+            final String typeUrl = request.getTypeUrl();
+            final ImmutableMap.Builder<String, VersionedResource<?>> builder = ImmutableMap.builder();
+            for (Map.Entry<String, VersionedResource<?>> entry : response.resources().entrySet()) {
+                final VersionedResource<?> vr = entry.getValue();
+                final Message transformed = applyTransformers(node, vr.resource(), typeUrl);
+                builder.put(entry.getKey(), VersionedResource.create(transformed, vr.version()));
+            }
+            responseConsumer.accept(DeltaResponse.create(request, builder.build(),
+                                                         response.removedResources(), response.version()));
+        } catch (Exception e) {
+            logger.warn("Failed to transform xDS resources for node '{}'; delivering untransformed response.",
+                        node.getId(), e);
+            responseConsumer.accept(response);
         }
-        responseConsumer.accept(DeltaResponse.create(request, builder.build(),
-                                                     response.removedResources(), response.version()));
     }
 
     private List<Message> transformAll(Node node, Iterable<? extends Message> resources, String typeUrl) {
