@@ -104,7 +104,6 @@ class FallbackFromReadOnlyTest {
         // Migrate the non-encrypted repo to an encrypted repo.
         AggregatedHttpResponse response = postApi(client, PROJECT_NAME, REPO_NAME, "/migrate/encrypted");
         assertThat(response.status()).isEqualTo(HttpStatus.OK);
-        assertThat(response.contentUtf8()).contains("\"encrypted\":true");
         assertThat(dogma.projectManager().get(PROJECT_NAME).repos().get(REPO_NAME).isEncrypted()).isTrue();
         final Commit migratedCommit = dogma.projectManager().get(PROJECT_NAME).repos().get(REPO_NAME)
                                             .history(Revision.HEAD, Revision.HEAD, "/**").join().get(0);

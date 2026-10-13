@@ -308,7 +308,7 @@ final class RepositoryEncryptionStorage {
         }
     }
 
-    List<String> getRefNames(String projectName, String repoName, String prefix) {
+    List<String> getRefNamesByPrefix(String projectName, String repoName, String prefix) {
         requireNonNull(projectName, "projectName");
         requireNonNull(repoName, "repoName");
         requireNonNull(prefix, "prefix");

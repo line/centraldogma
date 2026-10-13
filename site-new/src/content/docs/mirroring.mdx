@@ -137,12 +137,18 @@ Here is the properties of the mirroring task:
   commits. With a usable local fetch cache, later runs replay every commit added after the previously
   mirrored remote HEAD.
 
+Enabling history on an existing mirror does not backfill commits already represented by its current
+snapshot. Later upstream changes are preserved.
+
 #### Publish tags for upstream commits
 
 `Publish tags for upstream commits` records the upstream SHA-1 on each mirrored revision and publishes
 it as a lightweight `refs/tags/dogma-<remote SHA-1>` tag. It requires `Preserve upstream commit history`
 to be enabled on the same mirror. If the tag already exists, it moves to the latest revision mirrored
 from that upstream commit. Tag publishing works for both file-based and encrypted repositories.
+
+Enabling tag publishing later does not tag earlier Central Dogma revisions. The next mirrored remote
+HEAD and later upstream commits receive tags.
 
 Central Dogma serves these tags over Git HTTP, so applications can use them as Git labels:
 

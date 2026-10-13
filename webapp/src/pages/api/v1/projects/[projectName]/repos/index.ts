@@ -13,7 +13,6 @@ const newRepo = (id: number): RepoDto => {
     headRevision: parseInt(faker.random.numeric()),
     url: faker.internet.url(),
     createdAt: faker.datatype.datetime().toISOString(),
-    encrypted: false,
   };
 };
 
@@ -24,7 +23,6 @@ const mockRepos = [
     headRevision: 1,
     url: '/api/v1/projects/abcd/repos/meta',
     createdAt: '2022-11-23T03:13:49.581Z',
-    encrypted: false,
   },
   {
     name: 'repo1',
@@ -32,7 +30,6 @@ const mockRepos = [
     headRevision: 6,
     url: '/api/v1/projects/abcd/repos/repo1',
     createdAt: '2022-11-23T03:16:17.880Z',
-    encrypted: false,
   },
 ];
 

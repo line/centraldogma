@@ -159,8 +159,8 @@ final class DefaultEncryptionStorageManager implements EncryptionStorageManager 
     }
 
     @Override
-    public List<String> getRefNames(String projectName, String repoName, String prefix) {
-        return repositoryEncryptionStorage.getRefNames(projectName, repoName, prefix);
+    public List<String> getRefNamesByPrefix(String projectName, String repoName, String prefix) {
+        return repositoryEncryptionStorage.getRefNamesByPrefix(projectName, repoName, prefix);
     }
 
     @Override

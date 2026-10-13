@@ -350,41 +350,9 @@ abstract class AbstractGitMirror extends AbstractMirror {
 
             // Update the head commit ID again because there's a chance a commit is pushed between the
             // getHeadBranchRef and fetchRemoteHeadAndGetCommitId calls.
-            if (preserveRemoteCommitHistory()) {
-                final org.eclipse.jgit.lib.Repository gitRepository = git.getRepository();
-                int depth = INITIAL_FETCH_DEPTH;
-                if (oldMirrorState != null && oldMirrorState.remoteRevision() != null) {
-                    try {
-                        final ObjectId previousCommitId =
-                                ObjectId.fromString(oldMirrorState.remoteRevision());
-                        final Ref cachedHead = gitRepository.exactRef(headBranchRef.getName());
-                        if (cachedHead != null && cachedHead.getObjectId() != null &&
-                            gitRepository.getObjectDatabase().has(previousCommitId)) {
-                            if (previousCommitId.equals(cachedHead.getObjectId())) {
-                                depth = 0;
-                            } else {
-                                try (RevWalk revWalk = new RevWalk(gitRepository)) {
-                                    final RevCommit previousCommit =
-                                            revWalk.parseCommit(previousCommitId);
-                                    final RevCommit cachedHeadCommit =
-                                            revWalk.parseCommit(cachedHead.getObjectId());
-                                    if (revWalk.isMergedInto(previousCommit, cachedHeadCommit)) {
-                                        depth = 0;
-                                    }
-                                } catch (IOException e) {
-                                    logger.debug("Failed to validate the Git mirror fetch cache", e);
-                                }
-                            }
-                        }
-                    } catch (IllegalArgumentException ignored) {
-                        // Use a bounded fetch when the stored remote revision is invalid.
-                    }
-                }
-                headCommitId = fetchRemoteHeadAndGetCommitId(
-                        git, headBranchRef.getName(), depth);
-            } else {
-                headCommitId = fetchRemoteHeadAndGetCommitId(git, headBranchRef.getName(), 2);
-            }
+            final int depth = fetchDepth(preserveRemoteCommitHistory(), git.getRepository(),
+                                         headBranchRef.getName(), oldMirrorState);
+            headCommitId = fetchRemoteHeadAndGetCommitId(git, headBranchRef.getName(), depth);
         } catch (Exception e) {
             String message = "Failed to fetch the remote repository '" + git.remoteUri() +
                              "' to the local repository '" + localPath() + "'.";
@@ -813,6 +781,46 @@ abstract class AbstractGitMirror extends AbstractMirror {
         } catch (Exception e) {
             logger.warn("Unexpected exception while retrieving the remote source revision", e);
             return null;
+        }
+    }
+
+    /**
+     * Returns the fetch depth for the next remote fetch.
+     *
+     * <p>A depth of {@code 0} means no fetch depth limit because {@code fetchRemoteHead()} calls
+     * {@link FetchCommand#setDepth(int)} only for positive values.
+     */
+    static int fetchDepth(boolean preserveRemoteCommitHistory,
+                          org.eclipse.jgit.lib.Repository repository, String headBranchRefName,
+                          @Nullable MirrorState oldMirrorState) throws IOException {
+        if (!preserveRemoteCommitHistory) {
+            return 2;
+        }
+        if (oldMirrorState == null || oldMirrorState.remoteRevision() == null) {
+            return INITIAL_FETCH_DEPTH;
+        }
+
+        try {
+            final ObjectId previousCommitId = ObjectId.fromString(oldMirrorState.remoteRevision());
+            final Ref cachedHead = repository.exactRef(headBranchRefName);
+            if (cachedHead == null || cachedHead.getObjectId() == null ||
+                !repository.getObjectDatabase().has(previousCommitId)) {
+                return INITIAL_FETCH_DEPTH;
+            }
+            if (previousCommitId.equals(cachedHead.getObjectId())) {
+                return 0;
+            }
+
+            try (RevWalk revWalk = new RevWalk(repository)) {
+                final RevCommit previousCommit = revWalk.parseCommit(previousCommitId);
+                final RevCommit cachedHeadCommit = revWalk.parseCommit(cachedHead.getObjectId());
+                return revWalk.isMergedInto(previousCommit, cachedHeadCommit) ? 0 : INITIAL_FETCH_DEPTH;
+            } catch (IOException e) {
+                logger.debug("Failed to validate the Git mirror fetch cache", e);
+                return INITIAL_FETCH_DEPTH;
+            }
+        } catch (IllegalArgumentException ignored) {
+            return INITIAL_FETCH_DEPTH;
         }
     }
 

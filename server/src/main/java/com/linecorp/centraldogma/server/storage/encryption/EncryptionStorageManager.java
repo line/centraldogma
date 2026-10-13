@@ -173,7 +173,7 @@ public interface EncryptionStorageManager extends SafeCloseable {
     /**
      * Returns the Git ref names that start with the specified prefix.
      */
-    List<String> getRefNames(String projectName, String repoName, String prefix);
+    List<String> getRefNamesByPrefix(String projectName, String repoName, String prefix);
 
     /**
      * Locks encrypted reference access for the specified repository.

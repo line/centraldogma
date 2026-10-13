@@ -56,6 +56,88 @@ class AbstractGitMirrorFetchTest {
     Path tempDir;
 
     @Test
+    void snapshotFetchReadsOnlyHeadAndItsParent() throws Exception {
+        try (Repository repository = newRepository()) {
+            assertThat(AbstractGitMirror.fetchDepth(false, repository, HEAD, null)).isEqualTo(2);
+        }
+    }
+
+    @Test
+    void initialFetchIsBounded() throws Exception {
+        try (Repository repository = newRepository()) {
+            assertThat(AbstractGitMirror.fetchDepth(true, repository, HEAD, null)).isEqualTo(100);
+        }
+    }
+
+    @Test
+    void fetchWithoutACacheIsBounded() throws Exception {
+        try (Repository repository = newRepository()) {
+            final ObjectId previousCommit = createCommit(repository);
+
+            assertThat(AbstractGitMirror.fetchDepth(true, repository, HEAD, mirrorState(previousCommit)))
+                    .isEqualTo(100);
+        }
+    }
+
+    @Test
+    void fetchWithoutThePreviousCommitObjectIsBounded() throws Exception {
+        try (Repository repository = newRepository()) {
+            final ObjectId cachedHead = createCommit(repository);
+            setHead(repository, cachedHead);
+            final ObjectId missingPreviousCommit = ObjectId.fromString(
+                    "1111111111111111111111111111111111111111");
+
+            assertThat(AbstractGitMirror.fetchDepth(
+                    true, repository, HEAD, mirrorState(missingPreviousCommit)))
+                    .isEqualTo(100);
+        }
+    }
+
+    @Test
+    void fetchWithAnInvalidPreviousRevisionIsBounded() throws Exception {
+        try (Repository repository = newRepository()) {
+            final MirrorState mirrorState = new MirrorState("invalid", "invalid", null, null, null);
+
+            assertThat(AbstractGitMirror.fetchDepth(true, repository, HEAD, mirrorState)).isEqualTo(100);
+        }
+    }
+
+    @Test
+    void fetchFromThePreviousCommitIsUnbounded() throws Exception {
+        try (Repository repository = newRepository()) {
+            final ObjectId previousCommit = createCommit(repository);
+            setHead(repository, previousCommit);
+
+            assertThat(AbstractGitMirror.fetchDepth(true, repository, HEAD, mirrorState(previousCommit)))
+                    .isZero();
+        }
+    }
+
+    @Test
+    void fetchFromACacheAheadOfThePreviousCommitIsUnbounded() throws Exception {
+        try (Repository repository = newRepository()) {
+            final ObjectId previousCommit = createCommit(repository);
+            final ObjectId cachedHead = createCommit(repository, "Cached head", previousCommit);
+            setHead(repository, cachedHead);
+
+            assertThat(AbstractGitMirror.fetchDepth(true, repository, HEAD, mirrorState(previousCommit)))
+                    .isZero();
+        }
+    }
+
+    @Test
+    void fetchFromADivergedCacheIsBounded() throws Exception {
+        try (Repository repository = newRepository()) {
+            final ObjectId previousCommit = createCommit(repository, "Previous commit");
+            final ObjectId cachedHead = createCommit(repository, "Diverged cache");
+            setHead(repository, cachedHead);
+
+            assertThat(AbstractGitMirror.fetchDepth(true, repository, HEAD, mirrorState(previousCommit)))
+                    .isEqualTo(100);
+        }
+    }
+
+    @Test
     void ordinaryTransportFailureInvalidatesTheFetchCache() throws Exception {
         try (Repository repository = newRepository()) {
             final ObjectId oldHead = createCommit(repository);
@@ -193,7 +275,17 @@ class AbstractGitMirrorFetchTest {
         return repository;
     }
 
-    private static ObjectId createCommit(Repository repository) throws IOException {
+    private static MirrorState mirrorState(ObjectId remoteRevision) {
+        final String revision = remoteRevision.name();
+        return new MirrorState(revision, revision, null, null, null);
+    }
+
+    private static ObjectId createCommit(Repository repository, ObjectId... parents) throws IOException {
+        return createCommit(repository, "Initial commit", parents);
+    }
+
+    private static ObjectId createCommit(Repository repository, String message, ObjectId... parents)
+            throws IOException {
         try (ObjectInserter inserter = repository.newObjectInserter()) {
             final ObjectId treeId = inserter.insert(Constants.OBJ_TREE, new byte[0]);
             final PersonIdent ident =
@@ -202,7 +294,8 @@ class AbstractGitMirrorFetchTest {
             commit.setTreeId(treeId);
             commit.setAuthor(ident);
             commit.setCommitter(ident);
-            commit.setMessage("Initial commit");
+            commit.setParentIds(parents);
+            commit.setMessage(message);
             final ObjectId commitId = inserter.insert(commit);
             inserter.flush();
             return commitId;

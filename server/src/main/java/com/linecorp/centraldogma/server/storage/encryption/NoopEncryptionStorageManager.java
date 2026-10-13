@@ -139,7 +139,7 @@ public enum NoopEncryptionStorageManager implements EncryptionStorageManager {
     }
 
     @Override
-    public List<String> getRefNames(String projectName, String repoName, String prefix) {
+    public List<String> getRefNamesByPrefix(String projectName, String repoName, String prefix) {
         return ImmutableList.of();
     }
 

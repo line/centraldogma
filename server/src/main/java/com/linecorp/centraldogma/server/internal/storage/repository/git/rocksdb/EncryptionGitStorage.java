@@ -255,7 +255,7 @@ public final class EncryptionGitStorage implements SafeCloseable {
         try (SafeCloseable ignored =
                      encryptionStorageManager.acquireRepositoryReadLock(projectName, repoName)) {
             final List<String> refNames =
-                    encryptionStorageManager.getRefNames(projectName, repoName, prefix);
+                    encryptionStorageManager.getRefNamesByPrefix(projectName, repoName, prefix);
             final List<Ref> refs = new ArrayList<>(refNames.size() + (includeHead ? 1 : 0));
             if (includeHead) {
                 final Ref head = readRef0(HEAD);

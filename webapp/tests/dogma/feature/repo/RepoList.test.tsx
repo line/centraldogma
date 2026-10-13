@@ -22,7 +22,6 @@ describe('RepoList', () => {
         headRevision: 1,
         url: '/api/v1/projects/abcd/repos/meta',
         createdAt: '2022-11-23T03:13:49.581Z',
-        encrypted: false,
       },
       {
         name: 'repo1',
@@ -30,7 +29,6 @@ describe('RepoList', () => {
         headRevision: 6,
         url: '/api/v1/projects/abcd/repos/repo1',
         createdAt: '2022-11-23T03:16:17.880Z',
-        encrypted: false,
       },
       {
         name: 'repo2',
@@ -38,7 +36,6 @@ describe('RepoList', () => {
         headRevision: 1,
         url: '/api/v1/projects/abcd/repos/repo2',
         createdAt: '2022-11-28T03:01:47.262Z',
-        encrypted: false,
       },
     ];
     expectedProps = {
