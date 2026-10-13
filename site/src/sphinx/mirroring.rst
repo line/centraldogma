@@ -132,8 +132,7 @@ Preserving the upstream commit history
 By default a mirroring run pushes whatever the remote repository looks like at that moment as a single
 revision, so several remote commits merged in quick succession end up in one revision. For a linear history,
 turning on ``Preserve upstream commit history`` replays up to the latest 100 commits on the first run and
-every commit added after the previously mirrored remote HEAD on later runs while the local fetch cache
-contains that HEAD.
+each new commit on later runs when Central Dogma can resume from the previously mirrored remote HEAD.
 
 Enabling history on an existing mirror does not backfill commits already represented by its current
 snapshot. Later upstream changes are preserved.
@@ -163,18 +162,9 @@ Central Dogma serves these tags over the Git HTTP protocol, so they can be used 
 
 Note the following limitations:
 
-- **The first run shallow-fetches 100 generations of history.** For a linear history, this retains the latest
-  100 commits as individual revisions; older commits do not receive their own revisions. A merge graph can
-  contain more commits within the same depth and falls back to a snapshot as described below.
-
-- **Later runs fetch every commit after the previously mirrored remote HEAD** without the initial depth limit
-  while the local fetch cache contains that HEAD. After the cache is lost or reset, the next run fetches the
-  latest 100 generations. It resumes individual revisions if the previous HEAD is in that window; otherwise,
-  it creates one snapshot.
-
-- **One revision per remote commit is guaranteed only for linear, fast-forward histories.** A merge graph or
-  non-fast-forward update creates one snapshot revision at the new remote head. With tag publishing enabled,
-  a snapshot receives a tag for that remote head only.
+- Central Dogma produces one snapshot at the current remote HEAD when the new upstream commits include a merge,
+  the update is non-fast-forward, or it cannot resume from the previously mirrored commit after checking the
+  latest 100 generations. With tag publishing enabled, the snapshot receives a tag for that remote HEAD only.
 
 - **A remote commit that changes nothing within the mirrored path still creates a revision**, because the
   mirror state advances to that upstream commit. Expect this if ``remote path`` covers only a part of a busy

@@ -134,8 +134,8 @@ Here is the properties of the mirroring task:
 - **Default snapshot**: Central Dogma mirrors the HEAD of the configured branch as one revision instead
   of replaying individual commits.
 - **Preserved history**: For a linear history, the first run replays up to the latest 100 upstream
-  commits. With a usable local fetch cache, later runs replay every commit added after the previously
-  mirrored remote HEAD.
+  commits. Later runs replay each new commit when Central Dogma can resume from the previously mirrored
+  remote HEAD.
 
 Enabling history on an existing mirror does not backfill commits already represented by its current
 snapshot. Later upstream changes are preserved.
@@ -163,16 +163,9 @@ spring.cloud.config.label: dogma-3f2a1c9e8b7d6540a1b2c3d4e5f60718293a4b5c
 
 #### Limitations
 
-- The first run shallow-fetches 100 generations of history. For a linear history, this retains the latest
-  100 commits as individual revisions; older commits do not receive their own revisions. A merge graph can
-  contain more commits within the same depth and falls back to a snapshot as described below.
-- Later runs fetch every commit after the previously mirrored remote HEAD without the initial depth limit
-  while the local fetch cache contains that HEAD. After the cache is lost or reset, the next run fetches the
-  latest 100 generations. It resumes individual revisions if the previous HEAD is in that window; otherwise,
-  it creates one snapshot.
-- One revision per upstream commit is guaranteed only for linear, fast-forward histories. A merge graph or
-  non-fast-forward update creates one snapshot revision at the new HEAD of the configured branch. With tag
-  publishing enabled, a snapshot receives a tag for that remote HEAD only.
+- Central Dogma produces one snapshot at the current remote HEAD when the new upstream commits include a merge,
+  the update is non-fast-forward, or it cannot resume from the previously mirrored commit after checking the
+  latest 100 generations. With tag publishing enabled, the snapshot receives a tag for that remote HEAD only.
 - With history preservation enabled, a remote commit outside the mirrored path still creates a revision
   because it advances the mirror state to that upstream commit.
 - Only one mirror targeting a repository may preserve upstream commit history. If tag publishing is
