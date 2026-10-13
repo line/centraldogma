@@ -348,10 +348,10 @@ abstract class AbstractGitMirror extends AbstractMirror {
                 return newMirrorResultForUpToDate(headBranchRef, triggeredTime);
             }
 
-            // Update the head commit ID again because there's a chance a commit is pushed between the
-            // getHeadBranchRef and fetchRemoteHeadAndGetCommitId calls.
             final int depth = fetchDepth(preserveRemoteCommitHistory(), git.getRepository(),
                                          headBranchRef.getName(), oldMirrorState);
+            // Update the head commit ID again because there's a chance a commit is pushed between the
+            // getHeadBranchRef and fetchRemoteHeadAndGetCommitId calls.
             headCommitId = fetchRemoteHeadAndGetCommitId(git, headBranchRef.getName(), depth);
         } catch (Exception e) {
             String message = "Failed to fetch the remote repository '" + git.remoteUri() +
