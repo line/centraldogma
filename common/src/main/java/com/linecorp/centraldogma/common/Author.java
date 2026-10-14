@@ -23,7 +23,6 @@ import static java.util.Objects.requireNonNull;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import com.linecorp.centraldogma.internal.Util;
@@ -31,7 +30,6 @@ import com.linecorp.centraldogma.internal.Util;
 /**
  * An author of a {@link Commit}.
  */
-@JsonIgnoreProperties(ignoreUnknown = true)
 public class Author {
 
     /**

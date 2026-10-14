@@ -12,10 +12,10 @@ jest.mock('next/router', () => ({
 }));
 
 describe('RepoList', () => {
-  let expectedProps: JSX.IntrinsicAttributes & RepoListProps<RepoDto>;
+  let expectedProps: JSX.IntrinsicAttributes & RepoListProps<object>;
 
   beforeEach(() => {
-    const mockRepos: RepoDto[] = [
+    const mockRepos = [
       {
         name: 'meta',
         creator: { name: 'System', email: 'system@localhost.localdomain' },

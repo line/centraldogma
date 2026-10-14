@@ -15,11 +15,9 @@
  */
 package com.linecorp.centraldogma.server.storage.encryption;
 
-import static com.linecorp.centraldogma.internal.HistoryConstants.UPSTREAM_TAG_PREFIX;
 import static com.linecorp.centraldogma.server.internal.storage.AesGcmSivCipher.aesSecretKey;
 import static java.util.concurrent.ForkJoinPool.commonPool;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.awaitility.Awaitility.await;
 import static org.eclipse.jgit.lib.Constants.HEAD;
 import static org.eclipse.jgit.lib.ObjectReader.OBJ_ANY;
 import static org.mockito.Mockito.mock;
@@ -28,7 +26,6 @@ import static org.mockito.Mockito.when;
 import java.io.File;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
-import java.util.concurrent.CompletableFuture;
 
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
@@ -45,12 +42,9 @@ import org.junit.jupiter.api.io.TempDir;
 import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.MoreExecutors;
 
-import com.linecorp.armeria.common.util.SafeCloseable;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
-import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.Revision;
-import com.linecorp.centraldogma.server.command.CommitResult;
 import com.linecorp.centraldogma.server.internal.storage.AesGcmSivCipher;
 import com.linecorp.centraldogma.server.internal.storage.repository.git.GitRepositoryManager;
 import com.linecorp.centraldogma.server.internal.storage.repository.git.rocksdb.EncryptionGitStorage;
@@ -135,14 +129,12 @@ class RepositoryReencryptionTest {
     void shouldReencryptAllDataWithNewDek() throws Exception {
         final Repository repo = createRepository(REPO_NAME);
         final EncryptionGitStorage encryptionGitStorage = getEncryptionGitStorage(repo);
-        final String upstreamCommitId = "0123456789abcdef0123456789abcdef01234567";
-        final String tagRefName = "refs/tags/" + UPSTREAM_TAG_PREFIX + upstreamCommitId;
 
-        repo.commit(Revision.INIT, 0, Author.SYSTEM, "Add files", "", Markup.PLAINTEXT,
-                    ImmutableList.of(
-                            Change.ofJsonUpsert("/file1.json", "{\"key\":\"value1\"}"),
-                            Change.ofJsonUpsert("/file2.json", "{\"key\":\"value2\"}")),
-                    true, upstreamCommitId, true).join();
+        repo.commit(Revision.INIT, 0, Author.SYSTEM, "Add files",
+                   ImmutableList.of(
+                           Change.ofJsonUpsert("/file1.json", "{\"key\":\"value1\"}"),
+                           Change.ofJsonUpsert("/file2.json", "{\"key\":\"value2\"}")
+                   )).join();
 
         // Verify initial state - all metadata should be version 1
         final byte[] rev1MetadataKey = encryptionGitStorage.rev2ShaMetadataKey(Revision.INIT);
@@ -151,8 +143,6 @@ class RepositoryReencryptionTest {
                 R_HEADS_MASTER.getBytes(StandardCharsets.UTF_8));
         final byte[] headMetadataKey = encryptionGitStorage.refMetadataKey(
                 HEAD.getBytes(StandardCharsets.UTF_8));
-        final byte[] tagMetadataKey = encryptionGitStorage.refMetadataKey(
-                tagRefName.getBytes(StandardCharsets.UTF_8));
 
         assertThat(getMetadataKeyVersion(encryptionStorageManager.getMetadata(rev1MetadataKey)))
                 .isEqualTo(1);
@@ -161,8 +151,6 @@ class RepositoryReencryptionTest {
         assertThat(getMetadataKeyVersion(encryptionStorageManager.getMetadata(refMetadataKey)))
                 .isEqualTo(1);
         assertThat(getMetadataKeyVersion(encryptionStorageManager.getMetadata(headMetadataKey)))
-                .isEqualTo(1);
-        assertThat(getMetadataKeyVersion(encryptionStorageManager.getMetadata(tagMetadataKey)))
                 .isEqualTo(1);
 
         // Verify objects (commits, trees, blobs) are accessible
@@ -239,8 +227,6 @@ class RepositoryReencryptionTest {
                 .isEqualTo(2);
         assertThat(getMetadataKeyVersion(encryptionStorageManager.getMetadata(headMetadataKey)))
                 .isEqualTo(2);
-        assertThat(getMetadataKeyVersion(encryptionStorageManager.getMetadata(tagMetadataKey)))
-                .isEqualTo(2);
 
         // Verify data is still accessible (objects remain unchanged, only wrapped DEK changed)
         final ObjectLoader rev1LoaderAfter = encryptionGitStorage.getObject(rev1ObjectId, OBJ_ANY);
@@ -276,13 +262,10 @@ class RepositoryReencryptionTest {
         // Verify refs are still accessible
         final Ref masterRef = encryptionGitStorage.readRef(R_HEADS_MASTER);
         final Ref headRef = encryptionGitStorage.readRef(HEAD);
-        final Ref tagRef = encryptionGitStorage.readRef(tagRefName);
         assertThat(masterRef).isNotNull();
         assertThat(headRef).isNotNull();
-        assertThat(tagRef).isNotNull();
         assertThat(masterRef.getObjectId()).isEqualTo(rev2ObjectId);
         assertThat(headRef.getTarget().getObjectId()).isEqualTo(rev2ObjectId);
-        assertThat(tagRef.getObjectId()).isEqualTo(rev2ObjectId);
 
         // Old version 1 encrypted keys should be DELETED after re-encryption.
         // Since refs/HEAD/rev2sha are re-encrypted with new nonce and new DEK,
@@ -313,23 +296,6 @@ class RepositoryReencryptionTest {
         assertThat(encryptionStorageManager.getObjectId(newHeadEncryptedKey, headMetadataKey))
                 .as("New HEAD encrypted data with version 2 should be accessible")
                 .isNotNull();
-    }
-
-    @Test
-    void refUpdateUsesRepositoryEncryptionLock() throws Exception {
-        final Repository repo = createRepository(REPO_NAME);
-        final EncryptionGitStorage encryptionGitStorage = getEncryptionGitStorage(repo);
-        final CompletableFuture<CommitResult> commit;
-        try (SafeCloseable ignored =
-                     encryptionStorageManager.acquireRepositoryWriteLock(PROJECT_NAME, REPO_NAME)) {
-            commit = repo.commit(Revision.INIT, 0, Author.SYSTEM, "Add file",
-                                 ImmutableList.of(Change.ofTextUpsert("/value.txt", "value")));
-            await().untilAsserted(() ->
-                    assertThat(encryptionGitStorage.getRevisionObjectId(new Revision(2))).isNotNull());
-            assertThat(commit).isNotDone();
-        }
-
-        assertThat(commit.join().revision()).isEqualTo(new Revision(2));
     }
 
     @Test
@@ -523,3 +489,4 @@ class RepositoryReencryptionTest {
         assertThat(new String(loader.getBytes())).contains("Add diverse files");
     }
 }
+

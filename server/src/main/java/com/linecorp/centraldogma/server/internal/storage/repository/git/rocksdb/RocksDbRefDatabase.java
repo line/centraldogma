@@ -15,7 +15,6 @@
  */
 package com.linecorp.centraldogma.server.internal.storage.repository.git.rocksdb;
 
-import static com.linecorp.centraldogma.internal.HistoryConstants.UPSTREAM_TAG_PREFIX;
 import static org.eclipse.jgit.lib.Ref.Storage.NEW;
 
 import java.io.IOException;
@@ -53,12 +52,9 @@ final class RocksDbRefDatabase extends RefDatabase {
 
     @Override
     public boolean isNameConflicting(String name) throws IOException {
-        if (name.equals(Constants.HEAD) ||
-            name.equals(Constants.R_HEADS + Constants.MASTER) ||
-            name.startsWith(Constants.R_TAGS + UPSTREAM_TAG_PREFIX)) {
-            return false;
-        }
-        throw new IllegalArgumentException("unsupported ref name: " + name);
+        // It's always false because the name is HEAD or refs/heads/master.
+        assert name.equals(Constants.HEAD) || name.equals(Constants.R_HEADS + Constants.MASTER) : name;
+        return false;
     }
 
     @Override
@@ -85,12 +81,8 @@ final class RocksDbRefDatabase extends RefDatabase {
 
     @Override
     public Map<String, Ref> getRefs(String prefix) throws IOException {
-        final ImmutableMap.Builder<String, Ref> refs = ImmutableMap.builder();
-        final String refPrefix = prefix.isEmpty() ? Constants.R_REFS : prefix;
-        for (Ref ref : repo.encryptionGitStorage().readRefs(refPrefix, prefix.isEmpty())) {
-            refs.put(ref.getName().substring(prefix.length()), ref);
-        }
-        return refs.build();
+        // Currently, we don't support listing refs.
+        return ImmutableMap.of();
     }
 
     @Override
