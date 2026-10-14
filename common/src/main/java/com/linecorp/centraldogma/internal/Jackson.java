@@ -42,6 +42,7 @@ import com.fasterxml.jackson.core.io.SegmentedStringWriter;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.core.util.DefaultIndenter;
 import com.fasterxml.jackson.core.util.DefaultPrettyPrinter;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.Module;
@@ -73,6 +74,9 @@ public final class Jackson {
     private static final ObjectMapper prettyMapper = new ObjectMapper();
 
     static {
+        compactMapper.disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
+        prettyMapper.disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
+
         // Pretty-print the JSON when serialized via the mapper.
         compactMapper.disable(SerializationFeature.INDENT_OUTPUT);
         prettyMapper.enable(SerializationFeature.INDENT_OUTPUT);
