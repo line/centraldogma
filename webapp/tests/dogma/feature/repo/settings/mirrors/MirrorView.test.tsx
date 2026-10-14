@@ -53,6 +53,8 @@ describe('MirrorView', () => {
     expect(remotePathCodes.length).toBe(1);
     expect(remotePathCodes[0].textContent).toContain('dogma://my-cd.com/myproject/myrepo.dogma');
     expect(remotePathCodes[0].textContent).not.toContain('#');
+    expect(container).not.toHaveTextContent('Preserve upstream commit history');
+    expect(container).not.toHaveTextContent('Publish tags for upstream commits');
   });
 
   it('renders remote path without branch for dogma+https mirrors', () => {
@@ -74,5 +76,40 @@ describe('MirrorView', () => {
     expect(remotePathCode.textContent).toContain('dogma+https://my-cd.com/myproject/myrepo.dogma');
     expect(remotePathCode.textContent).toContain('/config/');
     expect(remotePathCode.textContent).not.toContain('#');
+  });
+
+  it('shows history and tag publishing states separately', () => {
+    const { container } = renderWithProviders(
+      <MirrorView
+        projectName="myProject"
+        repoName="myRepo"
+        mirror={{
+          ...baseMirror,
+          preserveRemoteCommitHistory: true,
+          publishRemoteCommitTags: false,
+        }}
+      />,
+    );
+
+    const rows = Array.from(container.querySelectorAll('tr')).map((row) => row.textContent);
+    expect(rows).toEqual(
+      expect.arrayContaining([expect.stringContaining('Preserve upstream commit historyEnabled')]),
+    );
+    expect(rows).toEqual(
+      expect.arrayContaining([expect.stringContaining('Publish tags for upstream commitsDisabled')]),
+    );
+  });
+
+  it('hides the upstream history options for local-to-remote mirrors', () => {
+    const { container } = renderWithProviders(
+      <MirrorView
+        projectName="myProject"
+        repoName="myRepo"
+        mirror={{ ...baseMirror, direction: 'LOCAL_TO_REMOTE' }}
+      />,
+    );
+
+    expect(container).not.toHaveTextContent('Preserve upstream commit history');
+    expect(container).not.toHaveTextContent('Publish tags for upstream commits');
   });
 });

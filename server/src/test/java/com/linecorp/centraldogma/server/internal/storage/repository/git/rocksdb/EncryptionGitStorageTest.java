@@ -83,6 +83,10 @@ class EncryptionGitStorageTest {
                  .thenReturn(new SecretKeyWithVersion(DEK, 1));
         lenient().when(encryptionStorageManager.getDek(TEST_PROJECT, TEST_REPO, 1))
                  .thenReturn(DEK);
+        lenient().when(encryptionStorageManager.acquireRepositoryReadLock(TEST_PROJECT, TEST_REPO))
+                 .thenReturn(() -> {});
+        lenient().when(encryptionStorageManager.acquireRepositoryWriteLock(TEST_PROJECT, TEST_REPO))
+                 .thenReturn(() -> {});
         storage = new EncryptionGitStorage(TEST_PROJECT, TEST_REPO, encryptionStorageManager);
 
         // Leniently stubs.

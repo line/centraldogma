@@ -15,6 +15,7 @@
  */
 package com.linecorp.centraldogma.server.internal.api;
 
+import static com.linecorp.centraldogma.internal.HistoryConstants.UPSTREAM_TAG_PREFIX;
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.PASSWORD;
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.USERNAME;
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.getAccessToken;
@@ -22,7 +23,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.File;
 import java.net.InetSocketAddress;
+import java.util.List;
 
+import org.eclipse.jgit.lib.Constants;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -35,6 +38,12 @@ import com.linecorp.armeria.common.MediaType;
 import com.linecorp.armeria.common.RequestHeaders;
 import com.linecorp.armeria.common.SessionProtocol;
 import com.linecorp.armeria.common.auth.AuthToken;
+import com.linecorp.centraldogma.common.Author;
+import com.linecorp.centraldogma.common.Change;
+import com.linecorp.centraldogma.common.Commit;
+import com.linecorp.centraldogma.common.Markup;
+import com.linecorp.centraldogma.common.RepositoryStatus;
+import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.server.CentralDogma;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.server.EncryptionConfig;
@@ -45,6 +54,7 @@ class FallbackFromReadOnlyTest {
 
     private static final String PROJECT_NAME = "myProject";
     private static final String REPO_NAME = "myRepo";
+    private static final String UPSTREAM_COMMIT_ID = "0123456789abcdef0123456789abcdef01234567";
 
     @TempDir
     File dataDir;
@@ -68,6 +78,13 @@ class FallbackFromReadOnlyTest {
         createRepository(client, PROJECT_NAME, REPO_NAME);
 
         assertThat(dogma.projectManager().get(PROJECT_NAME).repos().get(REPO_NAME).isEncrypted()).isFalse();
+        dogma.projectManager().get(PROJECT_NAME).repos().get(REPO_NAME)
+             .commit(Revision.HEAD, System.currentTimeMillis(), Author.SYSTEM,
+                     "Mirrored commit", "Mirrored detail", Markup.MARKDOWN,
+                     List.of(Change.ofTextUpsert("/foo.txt", "foo")), true,
+                     UPSTREAM_COMMIT_ID, false)
+             .join();
+        createHistoryMirror(dogma, PROJECT_NAME, REPO_NAME, false);
         dogma.stop().join();
 
         // 2. Restart the server WITH encryption enabled and migrate the repo.
@@ -88,6 +105,16 @@ class FallbackFromReadOnlyTest {
         AggregatedHttpResponse response = postApi(client, PROJECT_NAME, REPO_NAME, "/migrate/encrypted");
         assertThat(response.status()).isEqualTo(HttpStatus.OK);
         assertThat(dogma.projectManager().get(PROJECT_NAME).repos().get(REPO_NAME).isEncrypted()).isTrue();
+        final Commit migratedCommit = dogma.projectManager().get(PROJECT_NAME).repos().get(REPO_NAME)
+                                            .history(Revision.HEAD, Revision.HEAD, "/**").join().get(0);
+        assertThat(migratedCommit.upstreamCommitId()).isEqualTo(UPSTREAM_COMMIT_ID);
+        assertThat(migratedCommit.detail()).isEqualTo("Mirrored detail");
+        assertThat(migratedCommit.markup()).isEqualTo(Markup.MARKDOWN);
+        assertThat(dogma.projectManager().get(PROJECT_NAME).repos().get(REPO_NAME).jGitRepository()
+                        .exactRef(Constants.R_TAGS + UPSTREAM_TAG_PREFIX + UPSTREAM_COMMIT_ID))
+                .isNull();
+
+        createHistoryMirror(dogma, PROJECT_NAME, REPO_NAME, true);
 
         // Set the repository to read-only.
         response = updateRepositoryStatus(client, PROJECT_NAME, REPO_NAME, "READ_ONLY");
@@ -101,6 +128,47 @@ class FallbackFromReadOnlyTest {
 
         assertThat(dogma.projectManager().get(PROJECT_NAME).repos().get(REPO_NAME).isEncrypted()).isFalse();
         dogma.stop().join();
+    }
+
+    @Test
+    void tagPublishingMirrorCanBeMigratedToEncryptedStorage() throws Exception {
+        CentralDogma dogma = new CentralDogmaBuilder(dataDir)
+                .port(0, SessionProtocol.HTTP)
+                .webAppEnabled(false)
+                .gracefulShutdownTimeout(new GracefulShutdownTimeout(0, 0))
+                .systemAdministrators(USERNAME)
+                .authProviderFactory(new TestAuthProviderFactory())
+                .build();
+        dogma.start().join();
+        WebClient client = newClient(dogma.activePort().localAddress());
+        createProject(client, PROJECT_NAME);
+        createRepository(client, PROJECT_NAME, REPO_NAME);
+        createHistoryMirror(dogma, PROJECT_NAME, REPO_NAME, true);
+        dogma.stop().join();
+
+        dogma = new CentralDogmaBuilder(dataDir)
+                .port(0, SessionProtocol.HTTP)
+                .webAppEnabled(false)
+                .gracefulShutdownTimeout(new GracefulShutdownTimeout(0, 0))
+                .encryption(new EncryptionConfig(true, false, "kekId"))
+                .systemAdministrators(USERNAME)
+                .authProviderFactory(new TestAuthProviderFactory())
+                .build();
+        dogma.start().join();
+
+        try {
+            client = newClient(dogma.activePort().localAddress());
+
+            final AggregatedHttpResponse response =
+                    postApi(client, PROJECT_NAME, REPO_NAME, "/migrate/encrypted");
+            assertThat(response.status()).isEqualTo(HttpStatus.OK);
+            assertThat(dogma.projectManager().get(PROJECT_NAME).repos().get(REPO_NAME).isEncrypted())
+                    .isTrue();
+            assertThat(dogma.projectManager().get(PROJECT_NAME).metadata().repo(REPO_NAME).status())
+                    .isEqualTo(RepositoryStatus.ACTIVE);
+        } finally {
+            dogma.stop().join();
+        }
     }
 
     private static int appIdCounter;
@@ -131,6 +199,22 @@ class FallbackFromReadOnlyTest {
         final AggregatedHttpResponse response =
                 client.execute(headers, "{\"name\":\"" + repoName + "\"}").aggregate().join();
         assertThat(response.status()).isEqualTo(HttpStatus.CREATED);
+    }
+
+    private static void createHistoryMirror(CentralDogma dogma, String projectName, String repoName,
+                                            boolean publishRemoteCommitTags) {
+        final String mirrorPath = "/repos/" + repoName + "/mirrors/history.json";
+        dogma.projectManager().get(projectName).metaRepo()
+             .commit(Revision.HEAD, System.currentTimeMillis(), Author.SYSTEM, "Add a mirror",
+                     Change.ofJsonUpsert(
+                             mirrorPath,
+                             "{ \"id\": \"history\", \"enabled\": true," +
+                             " \"direction\": \"REMOTE_TO_LOCAL\", \"localRepo\": \"" + repoName +
+                             "\", \"localPath\": \"/\"," +
+                             " \"remoteUri\": \"git+https://example.com/repo.git\"," +
+                             " \"credentialName\": \"\", \"preserveRemoteCommitHistory\": true," +
+                             " \"publishRemoteCommitTags\": " + publishRemoteCommitTags + " }"))
+             .join();
     }
 
     private static AggregatedHttpResponse postApi(WebClient client,
