@@ -27,6 +27,7 @@ import {
   MenuItem,
   MenuList,
   Stack,
+  useBreakpointValue,
   useColorMode,
   useColorModeValue,
   useDisclosure,
@@ -71,6 +72,7 @@ export const Navbar = () => {
   const { user } = useAppSelector((state) => state.auth);
   const dispatch = useAppDispatch();
   const pathname = usePathname();
+  const isMobile = useBreakpointValue({ base: true, md: false }) ?? false;
 
   const { data: titleDto } = useGetTitleQuery();
   const title = titleDto?.title.replace('{{hostname}}', titleDto.hostname) || 'Central Dogma';
@@ -111,13 +113,17 @@ export const Navbar = () => {
         {pathname === '/' || pathname?.startsWith('/app/xds') ? (
           <div />
         ) : (
-          <Box w="40%">
+          <Box w="40%" display={{ base: 'none', md: 'block' }}>
             <ProjectSearchBox id="nav-search" placeholder="Jump to project ..." />
           </Box>
         )}
         <Flex alignItems="center" gap={2}>
           {/* "New Project" is a project-section action, so hide it within the xDS section. */}
-          {!pathname?.startsWith('/app/xds') && <NewProject />}
+          {!pathname?.startsWith('/app/xds') && (
+            <Box display={{ base: 'none', md: 'block' }}>
+              <NewProject />
+            </Box>
+          )}
           <IconButton
             aria-label="Toggle color mode"
             icon={colorMode === 'light' ? <MoonIcon /> : <SunIcon />}
@@ -144,14 +150,18 @@ export const Navbar = () => {
         </Flex>
       </Flex>
 
-      {isOpen ? (
-        <Box pb={4} display={{ md: 'none' }}>
+      {isOpen && isMobile ? (
+        <Box pb={4}>
           <Stack as="nav" spacing={4}>
             {topMenus.map(({ path, name }) => (
               <NavLink link={path} key={name}>
                 {name}
               </NavLink>
             ))}
+            {pathname !== '/' && !pathname?.startsWith('/app/xds') && (
+              <ProjectSearchBox id="mobile-nav-search" placeholder="Jump to project ..." />
+            )}
+            {!pathname?.startsWith('/app/xds') && <NewProject />}
           </Stack>
         </Box>
       ) : null}

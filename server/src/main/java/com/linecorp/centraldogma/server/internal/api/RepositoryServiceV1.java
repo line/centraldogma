@@ -428,8 +428,7 @@ public class RepositoryServiceV1 extends AbstractService {
         final boolean isDogmaProject =
                 InternalProjectInitializer.INTERNAL_PROJECT_DOGMA.equals(project.name());
 
-        return encryptionStorageManager
-                .generateWdek()
+        return encryptionStorageManager.generateWdek()
                 .thenCompose(wdek -> {
                     final WrappedDekDetails wdekDetails = new WrappedDekDetails(
                             wdek, 1, encryptionStorageManager.kekId(),
