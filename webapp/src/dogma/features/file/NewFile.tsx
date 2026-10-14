@@ -35,7 +35,7 @@ import {
   useDisclosure,
   VStack,
 } from '@chakra-ui/react';
-import { useLazyGetFileContentQuery, usePushFileChangesMutation } from 'dogma/features/api/apiSlice';
+import { useLazyGetFilesQuery, usePushFileChangesMutation } from 'dogma/features/api/apiSlice';
 import { newNotification } from 'dogma/features/notification/notificationSlice';
 import { useAppDispatch } from 'dogma/hooks';
 import Router from 'next/router';
@@ -80,7 +80,7 @@ export const NewFile = ({
 }) => {
   const { colorMode } = useColorMode();
   const [addNewFle, { isLoading }] = usePushFileChangesMutation();
-  const [getFileContent, { isFetching: isCheckingFile }] = useLazyGetFileContentQuery();
+  const [getFiles, { isFetching: isCheckingFile }] = useLazyGetFilesQuery();
   const {
     isOpen: isOverwriteModalOpen,
     onOpen: onOverwriteModalOpen,
@@ -135,28 +135,31 @@ export const NewFile = ({
     };
 
     // UPSERT silently overwrites an existing file, so ask the user before overwriting it.
+    let entries;
     try {
-      const existing = await getFileContent({
+      // The list API returns no content (null) if nothing exists at the path.
+      entries = await getFiles({
         projectName,
         repoName,
         filePath: path,
         revision: 'head',
+        withContent: false,
       }).unwrap();
-      if (!existing) {
-        // A directory at the path returns no content. Pushing a file there replaces the whole directory.
+    } catch (error) {
+      dispatch(newNotification('Failed to create a new file', ErrorMessageParser.parse(error), 'error'));
+      return;
+    }
+    if (Array.isArray(entries) && entries.length > 0) {
+      if (entries.length === 1 && entries[0].path === path && entries[0].type !== 'DIRECTORY') {
+        setPendingData(data);
+        onOverwriteModalOpen();
+      } else {
+        // The list API returns the children of a directory. Pushing a file there replaces the whole directory.
         dispatch(
           newNotification('Failed to create a new file', `A directory already exists at ${path}`, 'error'),
         );
-        return;
       }
-      setPendingData(data);
-      onOverwriteModalOpen();
       return;
-    } catch (error) {
-      if ((error as FetchBaseQueryError).status !== 404) {
-        dispatch(newNotification('Failed to create a new file', ErrorMessageParser.parse(error), 'error'));
-        return;
-      }
     }
     await pushNewFile(data);
   };
