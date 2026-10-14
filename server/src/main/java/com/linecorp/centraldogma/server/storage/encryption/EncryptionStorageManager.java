@@ -171,21 +171,6 @@ public interface EncryptionStorageManager extends SafeCloseable {
     byte @Nullable[] getMetadata(byte[] metadataKey);
 
     /**
-     * Returns the Git ref names that start with the specified prefix.
-     */
-    List<String> getRefNamesByPrefix(String projectName, String repoName, String prefix);
-
-    /**
-     * Locks encrypted reference access for the specified repository.
-     */
-    SafeCloseable acquireRepositoryReadLock(String projectName, String repoName);
-
-    /**
-     * Locks encrypted reference mutations for the specified repository.
-     */
-    SafeCloseable acquireRepositoryWriteLock(String projectName, String repoName);
-
-    /**
      * Stores the specified key-value object with metadata.
      */
     void putObject(byte[] metadataKey, byte[] metadataValue, byte[] key, byte[] value);

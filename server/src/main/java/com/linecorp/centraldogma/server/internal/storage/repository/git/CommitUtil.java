@@ -21,8 +21,6 @@ import static java.util.Objects.requireNonNull;
 import java.io.IOException;
 import java.io.StringWriter;
 
-import org.jspecify.annotations.Nullable;
-
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.databind.JsonNode;
 
@@ -39,10 +37,8 @@ final class CommitUtil {
     private static final String FIELD_NAME_DETAIL = "detail";
     private static final String FIELD_NAME_MARKUP = "markup";
     private static final String FIELD_NAME_REVISION = "revision";
-    private static final String FIELD_NAME_UPSTREAM_COMMIT_ID = "upstreamCommitId";
 
-    static String toJsonString(String summary, String detail, Markup markup, Revision nextRevision,
-                               @Nullable String upstreamCommitId) {
+    static String toJsonString(String summary, String detail, Markup markup, Revision nextRevision) {
         try {
             final StringWriter stringWriter = new StringWriter();
             final JsonGenerator jsonGenerator = Jackson.createPrettyGenerator(stringWriter);
@@ -51,10 +47,6 @@ final class CommitUtil {
             jsonGenerator.writeStringField(FIELD_NAME_DETAIL, detail);
             jsonGenerator.writeStringField(FIELD_NAME_MARKUP, markup.nameLowercased());
             jsonGenerator.writeStringField(FIELD_NAME_REVISION, nextRevision.text());
-            if (upstreamCommitId != null) {
-                // Keep ordinary commit messages byte-identical to older versions.
-                jsonGenerator.writeStringField(FIELD_NAME_UPSTREAM_COMMIT_ID, upstreamCommitId);
-            }
             jsonGenerator.writeEndObject();
             jsonGenerator.close();
             return stringWriter.toString();
@@ -94,10 +86,8 @@ final class CommitUtil {
             }
 
             final Revision revision = new Revision(Jackson.textValue(jsonNode.get(FIELD_NAME_REVISION), ""));
-            final String upstreamCommitId =
-                    Jackson.textValue(jsonNode.get(FIELD_NAME_UPSTREAM_COMMIT_ID), null);
 
-            return new Commit(revision, author, when, summary, detail, markup, upstreamCommitId);
+            return new Commit(revision, author, when, summary, detail, markup);
         } catch (Exception e) {
             throw new StorageException("failed to create a Commit", e);
         }

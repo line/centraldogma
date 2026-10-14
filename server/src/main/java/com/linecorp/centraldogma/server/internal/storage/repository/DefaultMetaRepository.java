@@ -21,10 +21,8 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.linecorp.centraldogma.internal.CredentialUtil.credentialFile;
 import static com.linecorp.centraldogma.server.internal.storage.InternalProjectConstants.INTERNAL_PROJECT_XDS;
 import static com.linecorp.centraldogma.server.internal.storage.repository.MirrorConverter.converterToMirrorConfig;
-import static com.linecorp.centraldogma.server.metadata.MetadataService.METADATA_JSON;
 import static java.util.Objects.requireNonNull;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -51,7 +49,6 @@ import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.EntryNotFoundException;
 import com.linecorp.centraldogma.common.Markup;
-import com.linecorp.centraldogma.common.RepositoryStatus;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.api.v1.MirrorRequest;
@@ -59,8 +56,6 @@ import com.linecorp.centraldogma.server.ZoneConfig;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.credential.Credential;
 import com.linecorp.centraldogma.server.credential.CredentialType;
-import com.linecorp.centraldogma.server.metadata.ProjectMetadata;
-import com.linecorp.centraldogma.server.metadata.RepositoryMetadata;
 import com.linecorp.centraldogma.server.mirror.Mirror;
 import com.linecorp.centraldogma.server.mirror.MirrorDirection;
 import com.linecorp.centraldogma.server.mirror.MirrorSchemes;
@@ -158,7 +153,8 @@ public final class DefaultMetaRepository extends RepositoryWrapper implements Me
                         MirrorConverter.convertToMirror(c, parent(), Credential.NONE, trustedHostKeys));
             }
 
-            return credential(c.credentialName()).thenApply(
+            final CompletableFuture<Credential> future = credential(c.credentialName());
+            return future.thenApply(
                     credential -> MirrorConverter.convertToMirror(c, parent(), credential, trustedHostKeys));
         });
     }
@@ -223,57 +219,6 @@ public final class DefaultMetaRepository extends RepositoryWrapper implements Me
                           }
                       })
                       .collect(toImmutableList());
-    }
-
-    private CompletableFuture<Revision> validateHistoryOptionsRequest(MirrorRequest mirrorRequest) {
-        final boolean preserveRemoteCommitHistory = mirrorRequest.preserveRemoteCommitHistory();
-        final boolean publishRemoteCommitTags = mirrorRequest.publishRemoteCommitTags();
-        if (!preserveRemoteCommitHistory && !publishRemoteCommitTags) {
-            return UnmodifiableFuture.completedFuture(Revision.HEAD);
-        }
-        return normalize(Revision.HEAD).thenCompose(revision ->
-                find(revision, METADATA_JSON + ",/repos/" + mirrorRequest.localRepo() +
-                               "/mirrors/*.json", ImmutableMap.of())
-                        .thenApply(entries -> {
-                            if (publishRemoteCommitTags) {
-                                validateActiveRepository(mirrorRequest, entries);
-                            }
-                            final Map<String, Entry<?>> mirrorEntries = new HashMap<>(entries);
-                            mirrorEntries.remove(METADATA_JSON);
-                            final List<MirrorConfig> mirrorConfigs = toMirrorConfigs(mirrorEntries);
-                            if (preserveRemoteCommitHistory) {
-                                final boolean duplicate = mirrorConfigs.stream()
-                                        .anyMatch(candidate -> candidate.preserveRemoteCommitHistory() &&
-                                                               !candidate.id().equals(mirrorRequest.id()));
-                                checkArgument(!duplicate,
-                                              "Only one mirror may preserve upstream commit history for " +
-                                              "repository '%s'", mirrorRequest.localRepo());
-                            }
-                            return revision;
-                        }));
-    }
-
-    private static void validateActiveRepository(MirrorRequest mirrorRequest,
-                                                 Map<String, Entry<?>> entries) {
-        final Entry<?> metadataEntry = entries.get(METADATA_JSON);
-        if (metadataEntry == null) {
-            return;
-        }
-        final ProjectMetadata projectMetadata;
-        try {
-            projectMetadata = Jackson.treeToValue((JsonNode) metadataEntry.content(), ProjectMetadata.class);
-        } catch (JsonProcessingException e) {
-            throw new RepositoryMetadataException("failed to load the project metadata", e);
-        }
-        final RepositoryMetadata repositoryMetadata =
-                projectMetadata.repos().get(mirrorRequest.localRepo());
-        if (repositoryMetadata == null) {
-            return;
-        }
-        checkArgument(
-                repositoryMetadata.status() == RepositoryStatus.ACTIVE,
-                "'Publish tags for upstream commits' is only supported for ACTIVE repositories, " +
-                "but '%s' is %s", mirrorRequest.localRepo(), repositoryMetadata.status());
     }
 
     @Override
@@ -366,13 +311,12 @@ public final class DefaultMetaRepository extends RepositoryWrapper implements Me
             String repoName, MirrorRequest mirrorRequest, Author author,
             @Nullable ZoneConfig zoneConfig, boolean update) {
         validateMirror(mirrorRequest, zoneConfig);
-        final CompletableFuture<Revision> baseRevisionFuture = validateCredentialType(mirrorRequest)
-                .thenCompose(unused -> validateHistoryOptionsRequest(mirrorRequest));
+        final CompletableFuture<Void> credentialValidation = validateCredentialType(mirrorRequest);
         if (update) {
             final String summary = "Update the mirror '" + mirrorRequest.id() + "' in " + repoName;
-            return baseRevisionFuture.thenCompose(
-                    baseRevision -> mirror(repoName, mirrorRequest.id(), baseRevision).thenApply(mirror -> {
-                        return newMirrorCommand(repoName, mirrorRequest, author, summary, baseRevision);
+            return credentialValidation.thenCompose(
+                    unused -> mirror(repoName, mirrorRequest.id()).thenApply(mirror -> {
+                        return newMirrorCommand(repoName, mirrorRequest, author, summary);
                     }));
         } else {
             String summary = "Create a new mirror from " + mirrorRequest.remoteUrl() +
@@ -384,9 +328,8 @@ public final class DefaultMetaRepository extends RepositoryWrapper implements Me
                 summary = "[Local-to-remote] " + summary;
             }
             final String finalSummary = summary;
-            return baseRevisionFuture.thenApply(
-                    baseRevision -> newMirrorCommand(
-                            repoName, mirrorRequest, author, finalSummary, baseRevision));
+            return credentialValidation.thenApply(
+                    unused -> newMirrorCommand(repoName, mirrorRequest, author, finalSummary));
         }
     }
 
@@ -432,12 +375,12 @@ public final class DefaultMetaRepository extends RepositoryWrapper implements Me
     }
 
     private Command<Revision> newMirrorCommand(String repoName, MirrorRequest mirrorRequest,
-                                               Author author, String summary, Revision baseRevision) {
+                                               Author author, String summary) {
         final MirrorConfig mirrorConfig = converterToMirrorConfig(mirrorRequest);
         final JsonNode jsonNode = Jackson.valueToTree(mirrorConfig);
         final Change<JsonNode> change =
                 Change.ofJsonUpsert(mirrorFile(repoName, mirrorConfig.id()), jsonNode);
-        return Command.push(author, parent().name(), name(), baseRevision, summary, "", Markup.PLAINTEXT,
+        return Command.push(author, parent().name(), name(), Revision.HEAD, summary, "", Markup.PLAINTEXT,
                             change);
     }
 
@@ -458,7 +401,7 @@ public final class DefaultMetaRepository extends RepositoryWrapper implements Me
         });
     }
 
-    private void validateMirror(MirrorRequest mirror, @Nullable ZoneConfig zoneConfig) {
+    private static void validateMirror(MirrorRequest mirror, @Nullable ZoneConfig zoneConfig) {
         checkArgument(!Strings.isNullOrEmpty(mirror.id()), "Mirror ID is empty");
         final String scheduleString = mirror.schedule();
         if (scheduleString != null) {
@@ -480,23 +423,5 @@ public final class DefaultMetaRepository extends RepositoryWrapper implements Me
             checkArgument("/".equals(localPath) || localPath.isEmpty(),
                           "xDS mirrors must use localPath '/', but got: %s", localPath);
         }
-
-        if (mirror.preserveRemoteCommitHistory()) {
-            validatePreserveRemoteCommitHistory(mirror);
-        }
-        if (mirror.publishRemoteCommitTags()) {
-            validatePublishRemoteCommitTags(mirror);
-        }
-    }
-
-    private void validatePreserveRemoteCommitHistory(MirrorRequest mirror) {
-        MirrorConverter.validatePreserveRemoteCommitHistory(
-                true, MirrorDirection.valueOf(mirror.direction()), mirror.remoteScheme());
-    }
-
-    private void validatePublishRemoteCommitTags(MirrorRequest mirror) {
-        MirrorConverter.validatePublishRemoteCommitTags(
-                true, mirror.preserveRemoteCommitHistory(), MirrorDirection.valueOf(mirror.direction()),
-                mirror.remoteScheme());
     }
 }

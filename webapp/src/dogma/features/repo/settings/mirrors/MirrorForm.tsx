@@ -20,7 +20,6 @@ import {
   AlertIcon,
   Button,
   Center,
-  Code,
   Divider,
   FormControl,
   FormHelperText,
@@ -48,13 +47,12 @@ import {
   useGetProjectCredentialsQuery,
   useGetRepoCredentialsQuery,
 } from 'dogma/features/api/apiSlice';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import FieldErrorMessage from 'dogma/common/components/form/FieldErrorMessage';
-import { isGitMirrorScheme, MirrorRequest } from 'dogma/features/repo/settings/mirrors/MirrorRequest';
+import { MirrorRequest } from 'dogma/features/repo/settings/mirrors/MirrorRequest';
 import { CredentialDto } from 'dogma/features/project/settings/credentials/CredentialDto';
 import cronstrue from 'cronstrue';
 import { CiLocationOn } from 'react-icons/ci';
-import { VscGitCommit, VscTag } from 'react-icons/vsc';
 
 interface MirrorFormProps {
   projectName: string;
@@ -83,10 +81,6 @@ const MIRROR_SCHEMES: OptionType[] = ['git+ssh', 'git+http', 'git+https', 'dogma
 
 function isDogmaScheme(scheme: string): boolean {
   return scheme === 'dogma' || scheme === 'dogma+https';
-}
-
-function supportsRemoteCommitOptions(direction: string, remoteScheme: string): boolean {
-  return direction === 'REMOTE_TO_LOCAL' && isGitMirrorScheme(remoteScheme);
 }
 
 function repoMirrorCredentialName(project: string, repo: string, id: string): string {
@@ -118,16 +112,8 @@ const MirrorForm = ({
   });
 
   const isNew = defaultValue.id === '';
-  const {
-    data: projectCredentials,
-    isLoading: projectCredentialsLoading,
-    isError: projectCredentialsError,
-  } = useGetProjectCredentialsQuery(projectName);
-  const {
-    data: repoCredentials,
-    isLoading: repoCredentialsLoading,
-    isError: repoCredentialsError,
-  } = useGetRepoCredentialsQuery({
+  const { data: projectCredentials } = useGetProjectCredentialsQuery(projectName);
+  const { data: repoCredentials } = useGetRepoCredentialsQuery({
     projectName: projectName as string,
     repoName,
   });
@@ -135,24 +121,8 @@ const MirrorForm = ({
 
   const [isScheduleEnabled, setScheduleEnabled] = useState<boolean>(defaultValue.schedule != null);
   const schedule = watch('schedule');
-  const direction = watch('direction');
   const remoteScheme = watch('remoteScheme');
-  const preserveRemoteCommitHistory = watch('preserveRemoteCommitHistory');
-  const publishRemoteCommitTags = watch('publishRemoteCommitTags');
   const isDogma = isDogmaScheme(remoteScheme);
-  const canConfigureRemoteCommitOptions = supportsRemoteCommitOptions(direction, remoteScheme);
-  const canPublishRemoteCommitTags = canConfigureRemoteCommitOptions && preserveRemoteCommitHistory;
-
-  useEffect(() => {
-    if (!canConfigureRemoteCommitOptions) {
-      if (preserveRemoteCommitHistory) {
-        setValue('preserveRemoteCommitHistory', false, { shouldDirty: true });
-      }
-    }
-    if (publishRemoteCommitTags && (!canConfigureRemoteCommitOptions || !preserveRemoteCommitHistory)) {
-      setValue('publishRemoteCommitTags', false, { shouldDirty: true });
-    }
-  }, [canConfigureRemoteCommitOptions, preserveRemoteCommitHistory, publishRemoteCommitTags, setValue]);
 
   const repoCredentialOptions: OptionType[] = (repoCredentials || [])
     .filter((credential: CredentialDto) => credential.id)
@@ -178,10 +148,6 @@ const MirrorForm = ({
       options: projectCredentialOptions,
     },
   ];
-  const hasCredentials = repoCredentialOptions.length > 0 || projectCredentialOptions.length > 0;
-  const credentialsLoading = !hasCredentials && (projectCredentialsLoading || repoCredentialsLoading);
-  const credentialsLoadFailed =
-    !hasCredentials && !credentialsLoading && (projectCredentialsError || repoCredentialsError);
 
   const zoneOptions: OptionType[] = (zoneConfig?.zonePinned ? zoneConfig.zone.allZones : []).map(
     (zone: string) => ({
@@ -228,12 +194,6 @@ const MirrorForm = ({
         }
         if (isDogmaScheme(mirror.remoteScheme)) {
           mirror.remoteBranch = '';
-        }
-        if (!supportsRemoteCommitOptions(mirror.direction, mirror.remoteScheme)) {
-          mirror.preserveRemoteCommitHistory = false;
-          mirror.publishRemoteCommitTags = false;
-        } else if (!mirror.preserveRemoteCommitHistory) {
-          mirror.publishRemoteCommitTags = false;
         }
         return onSubmit(mirror, () => {}, setError);
       })}
@@ -342,7 +302,7 @@ const MirrorForm = ({
               control={control}
               render={({ field: { onChange, value } }) => (
                 <RadioGroup onChange={onChange} value={value} defaultValue={defaultValue.direction}>
-                  <Stack direction={{ base: 'column', md: 'row' }}>
+                  <Stack direction="row">
                     <Radio value="REMOTE_TO_LOCAL" marginRight={2}>
                       <LabelledIcon icon={GoArrowDown} text="Remote to Central Dogma" />
                     </Radio>
@@ -359,12 +319,8 @@ const MirrorForm = ({
 
           {!hideLocalPath && (
             <>
-              <Stack direction={{ base: 'column', md: 'row' }} width="100%">
-                <FormControl
-                  width={{ base: '100%', md: '50%' }}
-                  isRequired
-                  isInvalid={errors.localPath != null}
-                >
+              <Stack direction="row" width="100%">
+                <FormControl width="50%" isRequired isInvalid={errors.localPath != null}>
                   <FormLabel>Local path</FormLabel>
                   <Input
                     id="localPath"
@@ -381,8 +337,8 @@ const MirrorForm = ({
             </>
           )}
 
-          <Stack direction={{ base: 'column', md: 'row' }} width="100%">
-            <FormControl width={{ base: '100%', md: '50%' }} isRequired isInvalid={errors.remoteScheme != null}>
+          <Stack direction="row" width="100%">
+            <FormControl width="50%" isRequired isInvalid={errors.remoteScheme != null}>
               <FormLabel>
                 <LabelledIcon icon={GoRepo} text={'Remote'} />
               </FormLabel>
@@ -436,11 +392,7 @@ const MirrorForm = ({
               />
             </FormControl>
             {!isDogma && (
-              <FormControl
-                width={{ base: '100%', md: '50%' }}
-                isRequired
-                isInvalid={errors.remoteBranch != null}
-              >
+              <FormControl width="50%" isRequired isInvalid={errors.remoteBranch != null}>
                 <FormLabel>branch</FormLabel>
                 <Input
                   id="remoteBranch"
@@ -453,7 +405,7 @@ const MirrorForm = ({
                 <FieldErrorMessage error={errors.remoteBranch} fieldName="remote branch" />
               </FormControl>
             )}
-            <FormControl width={{ base: '100%', md: '50%' }} isRequired isInvalid={errors.remotePath != null}>
+            <FormControl width="50%" isRequired isInvalid={errors.remotePath != null}>
               <FormLabel>path</FormLabel>
               <Input
                 id="remotePath"
@@ -468,11 +420,7 @@ const MirrorForm = ({
           </Stack>
           <Spacer />
 
-          <FormControl
-            width={{ base: '100%', md: '65%' }}
-            alignItems="left"
-            isInvalid={errors.credentialName != null}
-          >
+          <FormControl width="65%" alignItems="left" isInvalid={errors.credentialName != null}>
             <FormLabel>
               <LabelledIcon icon={GoKey} text={'Credential'} />
             </FormLabel>
@@ -485,7 +433,7 @@ const MirrorForm = ({
                   ref={ref}
                   id="credentialId"
                   name={name}
-                  isDisabled={!hasCredentials}
+                  isDisabled={repoCredentialOptions.length === 0 && projectCredentialOptions.length === 0}
                   options={groupedCredentialOptions}
                   defaultValue={defaultCredential}
                   // The default value of React Select must be null (and not undefined)
@@ -496,13 +444,9 @@ const MirrorForm = ({
                   }
                   onChange={(option) => onChange(option?.value || '')}
                   placeholder={
-                    hasCredentials
-                      ? 'Enter credential ID ...'
-                      : credentialsLoading
-                        ? 'Loading credentials ...'
-                        : credentialsLoadFailed
-                          ? 'Failed to load credentials.'
-                          : 'No credentials found.'
+                    repoCredentialOptions.length === 0 && projectCredentialOptions.length === 0
+                      ? 'No credential is found. You need to create credentials first.'
+                      : 'Enter credential ID ...'
                   }
                   closeMenuOnSelect={true}
                   openMenuOnFocus={true}
@@ -512,25 +456,11 @@ const MirrorForm = ({
               )}
             />
             <FieldErrorMessage error={errors.credentialName} fieldName="Credential" />
-            {credentialsLoadFailed ? (
-              <FormHelperText color="red.500">
-                Could not load credentials. Refresh the page and try again.
-              </FormHelperText>
-            ) : !credentialsLoading && !hasCredentials ? (
-              <FormHelperText>
-                Create a project or repository credential before configuring this mirror.
-              </FormHelperText>
-            ) : null}
           </FormControl>
           <Spacer />
           {zoneConfig?.zonePinned && (
             <>
-              <FormControl
-                width={{ base: '100%', md: '65%' }}
-                isRequired
-                alignItems="left"
-                isInvalid={errors.zone != null}
-              >
+              <FormControl width="65%" isRequired alignItems="left" isInvalid={errors.zone != null}>
                 <FormLabel>
                   <LabelledIcon icon={CiLocationOn} text={'Zone'} />
                 </FormLabel>
@@ -579,77 +509,6 @@ const MirrorForm = ({
                 gitignore <ExternalLinkIcon mx="2px" />
               </Link>{' '}
               describes files that should be excluded from the mirroring.
-            </FormHelperText>
-          </FormControl>
-          <Spacer />
-
-          <FormControl
-            display="grid"
-            gridTemplateColumns={{ base: 'minmax(0, 1fr) auto', md: '20rem auto minmax(0, 1fr)' }}
-            columnGap={4}
-            rowGap={{ base: 1, md: 0 }}
-            alignItems="center"
-          >
-            <FormLabel htmlFor="preserveRemoteCommitHistory" mb="0" minWidth={0}>
-              <LabelledIcon icon={VscGitCommit} text={'Preserve upstream commit history?'} />
-            </FormLabel>
-            <Controller
-              name="preserveRemoteCommitHistory"
-              control={control}
-              render={({ field: { onChange, value, name, ref } }) => (
-                <Switch
-                  id="preserveRemoteCommitHistory"
-                  name={name}
-                  ref={ref}
-                  isChecked={Boolean(value)}
-                  isDisabled={!canConfigureRemoteCommitOptions}
-                  onChange={onChange}
-                />
-              )}
-            />
-            <FormHelperText gridColumn="1 / -1" mt={1}>
-              {canConfigureRemoteCommitOptions
-                ? 'Replay linear commits individually: the latest 100 initially, then every new commit. ' +
-                  'Cache loss, merges, and rewrites may fall back to a snapshot.'
-                : 'Available only for remote-to-Central Dogma Git mirrors.'}
-            </FormHelperText>
-          </FormControl>
-          <Spacer />
-
-          <FormControl
-            display="grid"
-            gridTemplateColumns={{ base: 'minmax(0, 1fr) auto', md: '20rem auto minmax(0, 1fr)' }}
-            columnGap={4}
-            rowGap={{ base: 1, md: 0 }}
-            alignItems="center"
-          >
-            <FormLabel htmlFor="publishRemoteCommitTags" mb="0" minWidth={0}>
-              <LabelledIcon icon={VscTag} text={'Publish tags for upstream commits?'} />
-            </FormLabel>
-            <Controller
-              name="publishRemoteCommitTags"
-              control={control}
-              render={({ field: { onChange, value, name, ref } }) => (
-                <Switch
-                  id="publishRemoteCommitTags"
-                  name={name}
-                  ref={ref}
-                  isChecked={Boolean(value)}
-                  isDisabled={!canPublishRemoteCommitTags}
-                  onChange={onChange}
-                />
-              )}
-            />
-            <FormHelperText gridColumn="1 / -1" mt={1}>
-              {!canConfigureRemoteCommitOptions ? (
-                'Available only for remote-to-Central Dogma Git mirrors.'
-              ) : !preserveRemoteCommitHistory ? (
-                'Enable upstream commit history first.'
-              ) : (
-                <>
-                  Publish recorded upstream commits as <Code>dogma-&lt;commit SHA&gt;</Code> Git tags.
-                </>
-              )}
             </FormHelperText>
           </FormControl>
           <Spacer />

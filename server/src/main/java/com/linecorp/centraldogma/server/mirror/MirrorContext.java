@@ -49,8 +49,6 @@ public final class MirrorContext {
     private final String gitignore;
     @Nullable
     private final String zone;
-    private final boolean preserveRemoteCommitHistory;
-    private final boolean publishRemoteCommitTags;
     private final Map<String, List<String>> trustedHostKeys;
 
     /**
@@ -60,7 +58,7 @@ public final class MirrorContext {
                          Credential credential, Repository localRepo,
                          String localPath, URI remoteUri, @Nullable String gitignore, @Nullable String zone) {
         this(id, enabled, schedule, direction, credential, localRepo, localPath, remoteUri,
-             gitignore, zone, false, false, ImmutableMap.of());
+             gitignore, zone, ImmutableMap.of());
     }
 
     /**
@@ -69,19 +67,6 @@ public final class MirrorContext {
     public MirrorContext(String id, boolean enabled, @Nullable Cron schedule, MirrorDirection direction,
                          Credential credential, Repository localRepo,
                          String localPath, URI remoteUri, @Nullable String gitignore, @Nullable String zone,
-                         Map<String, List<String>> trustedHostKeys) {
-        this(id, enabled, schedule, direction, credential, localRepo, localPath, remoteUri,
-             gitignore, zone, false, false, trustedHostKeys);
-    }
-
-    /**
-     * Creates a new instance.
-     */
-    public MirrorContext(String id, boolean enabled, @Nullable Cron schedule, MirrorDirection direction,
-                         Credential credential, Repository localRepo,
-                         String localPath, URI remoteUri, @Nullable String gitignore, @Nullable String zone,
-                         boolean preserveRemoteCommitHistory,
-                         boolean publishRemoteCommitTags,
                          Map<String, List<String>> trustedHostKeys) {
         this.id = requireNonNull(id, "id");
         this.enabled = enabled;
@@ -93,8 +78,6 @@ public final class MirrorContext {
         this.remoteUri = requireNonNull(remoteUri, "remoteUri");
         this.gitignore = gitignore;
         this.zone = zone;
-        this.preserveRemoteCommitHistory = preserveRemoteCommitHistory;
-        this.publishRemoteCommitTags = publishRemoteCommitTags;
         this.trustedHostKeys = ImmutableMap.copyOf(requireNonNull(trustedHostKeys, "trustedHostKeys"));
     }
 
@@ -173,20 +156,6 @@ public final class MirrorContext {
     }
 
     /**
-     * Returns whether remote commit history preservation is enabled.
-     */
-    public boolean preserveRemoteCommitHistory() {
-        return preserveRemoteCommitHistory;
-    }
-
-    /**
-     * Returns whether tags for remote commits are published.
-     */
-    public boolean publishRemoteCommitTags() {
-        return publishRemoteCommitTags;
-    }
-
-    /**
      * Returns the globally trusted SSH host key fingerprints, keyed by hostname.
      */
     public Map<String, List<String>> trustedHostKeys() {
@@ -206,8 +175,6 @@ public final class MirrorContext {
                           .add("remoteUri", remoteUri)
                           .add("gitignore", gitignore)
                           .add("zone", zone)
-                          .add("preserveRemoteCommitHistory", preserveRemoteCommitHistory)
-                          .add("publishRemoteCommitTags", publishRemoteCommitTags)
                           .add("trustedHostKeys", trustedHostKeys)
                           .toString();
     }

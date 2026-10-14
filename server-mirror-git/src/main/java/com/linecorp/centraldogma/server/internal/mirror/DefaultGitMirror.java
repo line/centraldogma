@@ -45,10 +45,8 @@ final class DefaultGitMirror extends AbstractGitMirror {
 
     DefaultGitMirror(String id, boolean enabled, @Nullable Cron schedule, MirrorDirection direction,
                      Credential credential, Repository localRepo, String localPath, RepositoryUri remoteUri,
-                     @Nullable String gitignore, @Nullable String zone,
-                     boolean preserveRemoteCommitHistory, boolean publishRemoteCommitTags) {
-        super(id, enabled, schedule, direction, credential, localRepo, localPath, remoteUri, gitignore, zone,
-              preserveRemoteCommitHistory, publishRemoteCommitTags);
+                     @Nullable String gitignore, @Nullable String zone) {
+        super(id, enabled, schedule, direction, credential, localRepo, localPath, remoteUri, gitignore, zone);
     }
 
     @Override
