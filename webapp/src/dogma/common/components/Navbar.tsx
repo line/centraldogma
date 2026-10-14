@@ -43,6 +43,7 @@ import { LabelledIcon } from 'dogma/common/components/LabelledIcon';
 import { FaUser } from 'react-icons/fa';
 import ProjectSearchBox from 'dogma/common/components/ProjectSearchBox';
 import { createLoginUrl } from 'dogma/util/auth';
+import { toSiteTitle } from 'dogma/util/page-title';
 
 interface TopMenu {
   name: string;
@@ -73,7 +74,7 @@ export const Navbar = () => {
   const pathname = usePathname();
 
   const { data: titleDto } = useGetTitleQuery();
-  const title = titleDto?.title.replace('{{hostname}}', titleDto.hostname) || 'Central Dogma';
+  const title = toSiteTitle(titleDto);
   const { data: xdsWebEnabled } = useIsXdsWebEnabledQuery();
   const topMenus: TopMenu[] = [
     { name: title, path: '/' },
@@ -89,7 +90,6 @@ export const Navbar = () => {
 
   return (
     <Box bg={useColorModeValue('gray.100', 'gray.900')} px={4}>
-      <title>{title}</title>
       <Flex h={16} alignItems="center" justifyContent="space-between" fontWeight="semibold">
         <IconButton
           size="md"
