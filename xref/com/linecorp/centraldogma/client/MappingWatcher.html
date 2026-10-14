@@ -86,10 +86,10 @@
 <a class="jxr_linenumber" name="L78" href="#L78">78</a>          <strong class="jxr_keyword">final</strong> BiConsumer&lt;Throwable, Revision&gt; reportFailure = (e, r) -&gt; {
 <a class="jxr_linenumber" name="L79" href="#L79">79</a>              logger.warn(<span class="jxr_string">"Unexpected exception is raised from mapper.apply(). mapper: {}, revision {}"</span>, mapper,
 <a class="jxr_linenumber" name="L80" href="#L80">80</a>                      r, e);
-<a class="jxr_linenumber" name="L81" href="#L81">81</a>              <strong class="jxr_keyword">if</strong> (!initialValueFuture.isDone()) {
+<a class="jxr_linenumber" name="L81" href="#L81">81</a>              <strong class="jxr_keyword">if</strong> (mappedLatest.get() == <strong class="jxr_keyword">null</strong>) {
 <a class="jxr_linenumber" name="L82" href="#L82">82</a>                  initialValueFuture.completeExceptionally(e);
-<a class="jxr_linenumber" name="L83" href="#L83">83</a>              }
-<a class="jxr_linenumber" name="L84" href="#L84">84</a>              close();
+<a class="jxr_linenumber" name="L83" href="#L83">83</a>                  close();
+<a class="jxr_linenumber" name="L84" href="#L84">84</a>              }
 <a class="jxr_linenumber" name="L85" href="#L85">85</a>          };
 <a class="jxr_linenumber" name="L86" href="#L86">86</a>          parent.watch((revision, value) -&gt; {
 <a class="jxr_linenumber" name="L87" href="#L87">87</a>              <strong class="jxr_keyword">if</strong> (closed) {

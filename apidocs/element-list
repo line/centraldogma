@@ -25,6 +25,7 @@ com.linecorp.centraldogma.server.storage.project
 com.linecorp.centraldogma.server.storage.repository
 com.linecorp.centraldogma.testing.junit
 com.linecorp.centraldogma.testing.junit4
+com.linecorp.centraldogma.xds
 com.linecorp.centraldogma.xds.cluster.v1
 com.linecorp.centraldogma.xds.endpoint.v1
 com.linecorp.centraldogma.xds.group.v1
