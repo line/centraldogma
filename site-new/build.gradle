@@ -1,3 +1,9 @@
+import groovy.json.JsonBuilder
+import org.jsoup.Jsoup
+
+import java.nio.file.Files
+import java.util.stream.Collectors
+
 plugins {
     id 'base'
     alias(libs.plugins.node.gradle)
@@ -13,15 +19,24 @@ node {
 // Note that we didn't make `clean` depend on `npmClean`,
 // because otherwise `clean` will trigger `npmInstall`.
 tasks.clean.delete(project.file("${project.projectDir}/.docusaurus"))
+tasks.clean.delete(project.file("${project.projectDir}/gen-src"))
 tasks.clean.delete(project.file("${project.projectDir}/build"))
 tasks.clean.delete(project.file("${project.projectDir}/node_modules/.cache"))
 
 // Replaces Sphinx's `|release|` substitution, which conf.py built from gradle.properties.
 tasks.register('versionIndex', VersionIndexTask)
+tasks.register('apiIndex', ApiIndexTask) {
+    dependsOn ':javadoc:javadoc'
+    mustRunAfter project(':site').tasks.matching { task -> task.name == 'sphinx' }
+    javadocDir.set(project(':javadoc').tasks.named('javadoc', Javadoc).flatMap {
+        it.destinationDirectory
+    })
+}
 
 tasks.register('generateSiteSources') {
     dependsOn tasks.npmInstall
     dependsOn tasks.versionIndex
+    dependsOn tasks.apiIndex
 }
 
 tasks.register('develop', NpmTask) {
@@ -38,6 +53,16 @@ tasks.register('eslint', NpmTask) {
     inputs.file('package-lock.json')
 }
 
+tasks.register('apiLinkTest', NpmTask) {
+    dependsOn tasks.npmInstall
+    dependsOn tasks.apiIndex
+    args = ['run', 'test:api-links']
+    inputs.file('src/components/api-link-name.js')
+    inputs.file('src/remark/remark-api-link-transform.mjs')
+    inputs.file('src/remark/remark-api-link.test.mjs')
+    inputs.file('gen-src/api-index.json')
+}
+
 // 'siteLint' could run separately regardless of '-PnoLint' option
 tasks.register('siteLint') {
     dependsOn tasks.eslint
@@ -47,6 +72,7 @@ tasks.register('siteLint') {
 // because it takes long to build a site.
 tasks.register('site', NpmTask) {
     dependsOn tasks.generateSiteSources
+    dependsOn tasks.apiLinkTest
     if (!rootProject.hasProperty('noLint')) {
         dependsOn tasks.siteLint
     }
@@ -76,6 +102,81 @@ class VersionIndexTask extends DefaultTask {
         versionIndexFile.withPrintWriter('UTF-8') { out ->
             out.println(groovy.json.JsonOutput.prettyPrint(
                     groovy.json.JsonOutput.toJson([release: version])))
+        }
+    }
+}
+
+abstract class ApiIndexTask extends DefaultTask {
+
+    @InputDirectory
+    @PathSensitive(PathSensitivity.RELATIVE)
+    abstract DirectoryProperty getJavadocDir()
+    @OutputFile
+    final def nameToHrefFile = project.file("${project.projectDir}/gen-src/api-index.json")
+
+    @TaskAction
+    def run() {
+        def javadocPath = javadocDir.get().asFile.toPath()
+        def entries
+        Files.walk(javadocPath).withCloseable { paths ->
+            entries = paths.filter({ path ->
+                if (Files.isDirectory(path)) {
+                    return false
+                }
+
+                return path.getName(path.nameCount - 1).toString().matches(/[A-Z][a-zA-Z0-9._$]*\.html/)
+            }).sorted().flatMap({ path ->
+                def relativePath = "${javadocPath.relativize(path)}".replace(File.separator, '/')
+                def fqcn = relativePath[0..-6].replace('/', '.')
+                def href = "https://javadoc.io/doc/com.linecorp.centraldogma/centraldogma-javadoc/latest/${relativePath}"
+
+                def result = []
+                result.add([fqcn, href])
+
+                def simpleClassName = fqcn.substring(fqcn.lastIndexOf('.') + 1)
+                result.add([simpleClassName, href])
+
+                def doc = Jsoup.parse(path.toFile(), 'UTF-8')
+                doc.select(""".constant-details .member-list .detail,
+                              .constructor-details .member-list .detail,
+                              .field-details .member-list .detail,
+                              .method-details .member-list .detail""").each {
+                    def methodSignature = it.attr('id')
+                    def originalMethodSignature = methodSignature
+                    def hrefWithMethod = href + '#' + methodSignature
+                    def openParen = methodSignature.indexOf('(')
+                    if (openParen >= 0) {
+                        def closeParen = methodSignature.lastIndexOf(')')
+                        def parameterList = methodSignature.substring(openParen + 1, closeParen)
+                        def parameters = parameterList.empty ? '' : parameterList.split(',').collect { parameter ->
+                            def varargs = parameter.endsWith('...')
+                            def normalized = varargs ? parameter[0..-4] : parameter
+                            def simpleName = normalized.substring(normalized.lastIndexOf('.') + 1)
+                            varargs ? simpleName + '...' : simpleName
+                        }.join(',')
+                        methodSignature = methodSignature.substring(0, openParen) + "(${parameters})"
+                    }
+
+                    result.add([fqcn + '#' + originalMethodSignature, hrefWithMethod])
+                    result.add([fqcn + '#' + methodSignature, hrefWithMethod])
+                    result.add([simpleClassName + '#' + methodSignature, hrefWithMethod])
+                }
+
+                return result.stream()
+            }).collect(Collectors.toList())
+        }
+
+        def nameToHref = new TreeMap()
+        entries.groupBy { entry -> entry[0] }.each { name, matches ->
+            def hrefs = matches.collect { entry -> entry[1] }.toSet()
+            if (hrefs.size() == 1) {
+                nameToHref[name] = hrefs.first()
+            }
+        }
+
+        nameToHrefFile.parentFile.mkdirs()
+        nameToHrefFile.withPrintWriter('UTF-8') { out ->
+            out.println(new JsonBuilder(nameToHref).toPrettyString())
         }
     }
 }
