@@ -2,6 +2,7 @@ import { themes as prismThemes } from 'prism-react-renderer';
 import remarkGithub from 'remark-github';
 import type { Config } from '@docusaurus/types';
 import type * as Preset from '@docusaurus/preset-classic';
+import remarkApiLink from './src/remark/remark-api-link';
 
 // This runs in Node.js - Don't use client-side code here (browser APIs, JSX...)
 
@@ -43,7 +44,7 @@ const config: Config = {
           sidebarPath: './sidebars.ts',
           path: 'src/content/docs',
           editUrl: 'https://github.com/line/centraldogma/edit/main/site-new/',
-          remarkPlugins: [remarkGithub],
+          remarkPlugins: [remarkApiLink, remarkGithub],
         },
         blog: false,
         theme: {
