@@ -208,16 +208,21 @@ public final class DefaultMetaRepository extends RepositoryWrapper implements Me
 
     private List<MirrorConfig> toMirrorConfigs(Map<String, Entry<?>> entries) {
         return entries.entrySet().stream().map(entry -> {
-                          final JsonNode mirrorJson = (JsonNode) entry.getValue().content();
-                          if (!mirrorJson.isObject()) {
-                              throw newInvalidJsonTypeException(entry.getKey(), mirrorJson);
-                          }
                           try {
+                              final JsonNode mirrorJson = (JsonNode) entry.getValue().content();
+                              if (!mirrorJson.isObject()) {
+                                  throw newInvalidJsonTypeException(entry.getKey(), mirrorJson);
+                              }
                               return Jackson.treeToValue(mirrorJson, MirrorConfig.class);
-                          } catch (JsonProcessingException e) {
-                              return Exceptions.throwUnsafely(e);
+                          } catch (Exception e) {
+                              // Skip a malformed mirror configuration so that a single bad mirror does not
+                              // prevent the rest of the mirrors from being loaded.
+                              logger.warn("Failed to load a mirror configuration. project: {}, file: {}",
+                                          parent().name(), entry.getKey(), e);
+                              return null;
                           }
                       })
+                      .filter(Objects::nonNull)
                       .collect(toImmutableList());
     }
 

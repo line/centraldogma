@@ -116,6 +116,50 @@ class DefaultMetaRepositoryWithMirrorTest {
                 .hasCauseInstanceOf(RepositoryMetadataException.class);
     }
 
+    @Test
+    void invalidMirrorDoesNotPreventOtherMirrorsFromLoading() {
+        final String aliceCredential = credentialName(project.name(), "alice");
+        final List<Change<?>> changes = ImmutableList.of(
+                Change.ofJsonUpsert(
+                        "/repos/foo/mirrors/foo.json",
+                        '{' +
+                        "  \"id\": \"foo\"," +
+                        "  \"enabled\": true," +
+                        "  \"schedule\": \"" + DEFAULT_SCHEDULE + "\"," +
+                        "  \"direction\": \"LOCAL_TO_REMOTE\"," +
+                        "  \"localRepo\": \"foo\"," +
+                        "  \"remoteUri\": \"git+ssh://foo.com/foo.git\"," +
+                        "  \"credentialName\": \"" + aliceCredential + '"' +
+                        '}'),
+                // not an object but an array
+                Change.ofJsonUpsert("/repos/foo/mirrors/array.json", "[]"),
+                // an empty object
+                Change.ofJsonUpsert("/repos/foo/mirrors/empty.json", "{}"),
+                // an invalid cron expression
+                Change.ofJsonUpsert(
+                        "/repos/foo/mirrors/bad-schedule.json",
+                        '{' +
+                        "  \"id\": \"bad-schedule\"," +
+                        "  \"enabled\": true," +
+                        "  \"schedule\": \"not a cron\"," +
+                        "  \"direction\": \"LOCAL_TO_REMOTE\"," +
+                        "  \"localRepo\": \"foo\"," +
+                        "  \"remoteUri\": \"git+ssh://foo.com/bar.git\"," +
+                        "  \"credentialName\": \"" + aliceCredential + '"' +
+                        '}'),
+                rawCredential(aliceCredential, "alice"));
+        metaRepo.commit(Revision.HEAD, 0, Author.SYSTEM, "", changes).join();
+        project.repos().create("foo", Author.SYSTEM);
+
+        // The invalid mirrors are skipped when loading all mirrors, ...
+        assertThat(metaRepo.mirrors().join()).extracting(Mirror::id).containsExactly("foo");
+        assertThat(metaRepo.mirrors("foo", true).join()).extracting(Mirror::id).containsExactly("foo");
+        // ... and the single-mirror lookup still surfaces the error.
+        assertThatThrownBy(() -> metaRepo.mirror("foo", "bad-schedule").join())
+                .isInstanceOf(CompletionException.class)
+                .hasCauseInstanceOf(RepositoryMetadataException.class);
+    }
+
     @ValueSource(booleans = { true, false })
     @ParameterizedTest
     void testMirror(boolean useRawApi) {
