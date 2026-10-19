@@ -160,6 +160,58 @@ class DefaultMetaRepositoryWithMirrorTest {
                 .hasCauseInstanceOf(RepositoryMetadataException.class);
     }
 
+    @Test
+    void invalidCredentialDoesNotPreventOtherMirrorsFromLoading() {
+        final String aliceCredential = credentialName(project.name(), "alice");
+        final String brokenCredential = credentialName(project.name(), "broken");
+        final List<Change<?>> changes = ImmutableList.of(
+                Change.ofJsonUpsert(
+                        "/repos/foo/mirrors/foo.json",
+                        '{' +
+                        "  \"id\": \"foo\"," +
+                        "  \"enabled\": true," +
+                        "  \"schedule\": \"" + DEFAULT_SCHEDULE + "\"," +
+                        "  \"direction\": \"LOCAL_TO_REMOTE\"," +
+                        "  \"localRepo\": \"foo\"," +
+                        "  \"remoteUri\": \"git+ssh://foo.com/foo.git\"," +
+                        "  \"credentialName\": \"" + aliceCredential + '"' +
+                        '}'),
+                Change.ofJsonUpsert(
+                        "/repos/foo/mirrors/bar.json",
+                        '{' +
+                        "  \"id\": \"bar\"," +
+                        "  \"enabled\": true," +
+                        "  \"schedule\": \"" + DEFAULT_SCHEDULE + "\"," +
+                        "  \"direction\": \"REMOTE_TO_LOCAL\"," +
+                        "  \"localRepo\": \"foo\"," +
+                        "  \"remoteUri\": \"git+https://bar.com/bar.git\"," +
+                        "  \"credentialName\": \"" + brokenCredential + '"' +
+                        '}'),
+                rawCredential(aliceCredential, "alice"),
+                // an unknown credential type
+                Change.ofJsonUpsert(
+                        credentialFile(brokenCredential),
+                        '{' +
+                        "  \"name\": \"" + brokenCredential + "\"," +
+                        "  \"type\": \"NO_SUCH_TYPE\"" +
+                        '}'));
+        metaRepo.commit(Revision.HEAD, 0, Author.SYSTEM, "", changes).join();
+        project.repos().create("foo", Author.SYSTEM);
+
+        final List<Mirror> mirrors = metaRepo.mirrors().join().stream()
+                                             .sorted(Comparator.comparing(Mirror::id))
+                                             .collect(toImmutableList());
+        assertThat(mirrors).extracting(Mirror::id).containsExactly("bar", "foo");
+        // A mirror whose credential cannot be loaded is treated like a mirror whose credential is missing.
+        assertThat(mirrors.get(0).credential()).isSameAs(Credential.NONE);
+        assertThat(mirrors.get(1).credential()).isInstanceOf(SshKeyCredential.class);
+        assertThat(((SshKeyCredential) mirrors.get(1).credential()).username()).isEqualTo("alice");
+        // The single-credential lookup still surfaces the error.
+        assertThatThrownBy(() -> metaRepo.credential(brokenCredential).join())
+                .isInstanceOf(CompletionException.class)
+                .hasCauseInstanceOf(RepositoryMetadataException.class);
+    }
+
     @ValueSource(booleans = { true, false })
     @ParameterizedTest
     void testMirror(boolean useRawApi) {

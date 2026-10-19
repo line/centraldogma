@@ -202,8 +202,25 @@ public final class DefaultMetaRepository extends RepositoryWrapper implements Me
 
     private CompletableFuture<List<Credential>> allCredentials() {
         // TODO(minwoox): Optimize to read only the necessary files.
-        return find("/credentials/*.json,/repos/*/credentials/*.json").thenApply(
-                entries -> credentials(entries, null));
+        return find("/credentials/*.json,/repos/*/credentials/*.json").thenApply(this::toCredentials);
+    }
+
+    private List<Credential> toCredentials(Map<String, Entry<?>> entries) {
+        return entries.entrySet().stream().map(entry -> {
+                          try {
+                              //noinspection unchecked
+                              return parseCredential(entry.getKey(), (Entry<JsonNode>) entry.getValue());
+                          } catch (Exception e) {
+                              // Skip a malformed credential so that it does not prevent the mirrors from being
+                              // loaded. A mirror that uses it gets Credential.NONE as if the credential did
+                              // not exist.
+                              logger.warn("Failed to load a credential configuration. project: {}, file: {}",
+                                          parent().name(), entry.getKey(), e);
+                              return null;
+                          }
+                      })
+                      .filter(Objects::nonNull)
+                      .collect(toImmutableList());
     }
 
     private List<MirrorConfig> toMirrorConfigs(Map<String, Entry<?>> entries) {
