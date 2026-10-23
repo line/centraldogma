@@ -7,7 +7,6 @@ const ProjectsPage = () => {
     <>
       <Head>
         <link rel="icon" href="/favicon.ico" />
-        <meta name="Central Dogma | Project" content="Projects ... " />
       </Head>
       <Heading mb={10}>Projects</Heading>
       <Projects />
