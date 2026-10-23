@@ -23,6 +23,7 @@ import com.linecorp.centraldogma.server.CentralDogmaConfig;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.mirror.MirrorAccessController;
+import com.linecorp.centraldogma.server.storage.encryption.EncryptionStorageManager;
 import com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
@@ -41,6 +42,7 @@ public class PluginContext {
     private final ScheduledExecutorService purgeWorker;
     private final InternalProjectInitializer internalProjectInitializer;
     private final MirrorAccessController mirrorAccessController;
+    private final EncryptionStorageManager encryptionStorageManager;
 
     /**
      * Creates a new instance.
@@ -52,6 +54,7 @@ public class PluginContext {
      * @param purgeWorker the {@link ScheduledExecutorService} for the purging service
      * @param internalProjectInitializer the initializer for the internal projects
      * @param mirrorAccessController the controller which controls the access to the remote repos of mirrors
+     * @param encryptionStorageManager the manager for the storage of encrypted data at rest
      */
     public PluginContext(CentralDogmaConfig config,
                          ProjectManager projectManager,
@@ -59,7 +62,8 @@ public class PluginContext {
                          MeterRegistry meterRegistry,
                          ScheduledExecutorService purgeWorker,
                          InternalProjectInitializer internalProjectInitializer,
-                         MirrorAccessController mirrorAccessController) {
+                         MirrorAccessController mirrorAccessController,
+                         EncryptionStorageManager encryptionStorageManager) {
         this.config = requireNonNull(config, "config");
         this.projectManager = requireNonNull(projectManager, "projectManager");
         this.commandExecutor = requireNonNull(commandExecutor, "commandExecutor");
@@ -68,6 +72,8 @@ public class PluginContext {
         this.internalProjectInitializer = requireNonNull(internalProjectInitializer,
                                                          "internalProjectInitializer");
         this.mirrorAccessController = requireNonNull(mirrorAccessController, "mirrorAccessController");
+        this.encryptionStorageManager = requireNonNull(encryptionStorageManager,
+                                                       "encryptionStorageManager");
     }
 
     /**
@@ -117,5 +123,12 @@ public class PluginContext {
      */
     public MirrorAccessController mirrorAccessController() {
         return mirrorAccessController;
+    }
+
+    /**
+     * Returns the {@link EncryptionStorageManager}.
+     */
+    public EncryptionStorageManager encryptionStorageManager() {
+        return encryptionStorageManager;
     }
 }
