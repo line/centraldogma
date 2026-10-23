@@ -18,6 +18,7 @@ package com.linecorp.centraldogma.server.internal.storage.repository.git;
 
 import static com.linecorp.centraldogma.common.Revision.HEAD;
 import static com.linecorp.centraldogma.common.Revision.INIT;
+import static com.linecorp.centraldogma.internal.HistoryConstants.UPSTREAM_TAG_PREFIX;
 import static com.linecorp.centraldogma.server.internal.storage.repository.git.GitRepository.R_HEADS_MASTER;
 import static com.linecorp.centraldogma.server.internal.storage.repository.git.GitRepositoryManager.createEncryptionRepository;
 import static com.linecorp.centraldogma.server.internal.storage.repository.git.GitRepositoryManager.createFileRepository;
@@ -48,6 +49,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 
+import org.eclipse.jgit.lib.Constants;
 import org.eclipse.jgit.lib.ObjectId;
 import org.eclipse.jgit.lib.Ref;
 import org.eclipse.jgit.lib.RefUpdate;
@@ -72,6 +74,7 @@ import com.linecorp.centraldogma.common.ChangeType;
 import com.linecorp.centraldogma.common.Commit;
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.EntryType;
+import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.RedundantChangeException;
 import com.linecorp.centraldogma.common.Revision;
@@ -479,6 +482,26 @@ class GitRepositoryTest {
                 .commit(new Revision(rev.major() - 1), 0L, Author.UNKNOWN, SUMMARY, jsonUpserts[1]).join())
                 .isInstanceOf(CompletionException.class)
                 .hasCauseInstanceOf(ChangeConflictException.class);
+    }
+
+    @Test
+    void publishesAndMovesUpstreamTagInEncryptedRepository() throws IOException {
+        final String upstreamCommitId = "0123456789abcdef0123456789abcdef01234567";
+        final String refName = Constants.R_TAGS + UPSTREAM_TAG_PREFIX + upstreamCommitId;
+
+        encryptedRepo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, "", Markup.PLAINTEXT,
+                             List.of(jsonUpserts[0]), true, upstreamCommitId, true).join();
+        final org.eclipse.jgit.lib.Repository jGitRepository = encryptedRepo.jGitRepository();
+        final ObjectId firstTag = jGitRepository.exactRef(refName).getObjectId();
+        assertThat(jGitRepository.getRefDatabase().getRefsByPrefix(Constants.R_TAGS))
+                .extracting(Ref::getName)
+                .containsExactly(refName);
+
+        encryptedRepo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, "", Markup.PLAINTEXT,
+                             List.of(jsonUpserts[1]), true, upstreamCommitId, true).join();
+        assertThat(jGitRepository.exactRef(refName).getObjectId())
+                .isEqualTo(jGitRepository.resolve(R_HEADS_MASTER))
+                .isNotEqualTo(firstTag);
     }
 
     @Test

@@ -18,6 +18,7 @@ package com.linecorp.centraldogma.internal;
 public final class HistoryConstants {
 
     public static final int MAX_MAX_COMMITS = 1000;
+    public static final String UPSTREAM_TAG_PREFIX = "dogma-";
 
     private HistoryConstants() {}
 }
