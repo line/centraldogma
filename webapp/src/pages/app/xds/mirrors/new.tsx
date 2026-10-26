@@ -50,6 +50,8 @@ const XdsNewMirrorPage = () => {
     credentialName: null,
     gitignore: null,
     enabled: false,
+    preserveRemoteCommitHistory: false,
+    publishRemoteCommitTags: false,
   };
 
   const onSubmit = async (
