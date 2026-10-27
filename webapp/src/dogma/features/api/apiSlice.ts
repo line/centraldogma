@@ -670,7 +670,9 @@ export const {
   useRegenerateAppIdentitySecretMutation,
   // File
   useGetFilesQuery,
+  useLazyGetFilesQuery,
   useGetFileContentQuery,
+  useLazyGetFileContentQuery,
   usePushFileChangesMutation,
   useRevertRepositoryMutation,
   // History
