@@ -26,6 +26,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
 import com.linecorp.centraldogma.client.CentralDogma;
+import com.linecorp.centraldogma.client.CentralDogmaRepository;
 import com.linecorp.centraldogma.client.Watcher;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Query;
@@ -119,6 +120,21 @@ class WatcherTest {
         }).newChild(val -> "not called");
         await().untilAsserted(() -> assertThatThrownBy(() -> watcher.initialValueFuture().join())
                 .hasCauseExactlyInstanceOf(RuntimeException.class));
+        originalWatcher.close();
+    }
+
+    @Test
+    void mapperExceptionAfterInitialValue() {
+        final CentralDogmaRepository repo = dogma.client().forRepo("foo", "bar");
+        repo.commit("Add qux.txt", Change.ofTextUpsert("/qux.txt", "1")).push().join();
+        final Watcher<String> originalWatcher = repo.watcher(Query.ofText("/qux.txt")).start();
+        final Watcher<Integer> watcher = originalWatcher.newChild(str -> Integer.parseInt(str.trim()));
+        assertThat(watcher.initialValueFuture().join().value()).isOne();
+
+        repo.commit("Invalid qux.txt", Change.ofTextUpsert("/qux.txt", "invalid")).push().join();
+        await().until(() -> originalWatcher.latestValue().contains("invalid"));
+        repo.commit("Modify qux.txt", Change.ofTextUpsert("/qux.txt", "2")).push().join();
+        await().untilAsserted(() -> assertThat(watcher.latestValue()).isEqualTo(2));
         originalWatcher.close();
     }
 

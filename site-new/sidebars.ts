@@ -2,7 +2,7 @@ import type { SidebarsConfig } from '@docusaurus/plugin-content-docs';
 
 // This runs in Node.js - Don't use client-side code here (browser APIs, JSX...)
 
-// The order mirrors the toctree of the Sphinx site. The restructured information
+// The order follows the Sphinx toctree, with additional guides. The restructured information
 // architecture lands page by page once the content is rewritten.
 const sidebars: SidebarsConfig = {
   docsSidebar: [
@@ -11,7 +11,11 @@ const sidebars: SidebarsConfig = {
       type: 'category',
       label: 'Setting up',
       link: { type: 'generated-index', title: 'Setting up' },
-      items: ['setup-installation', 'setup-configuration'],
+      items: [
+        'setup-installation',
+        'setup-configuration',
+        'encryption-at-rest',
+      ],
     },
     'concepts',
     'client-cli',

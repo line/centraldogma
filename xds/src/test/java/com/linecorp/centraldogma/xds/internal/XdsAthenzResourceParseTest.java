@@ -22,14 +22,14 @@ import org.junit.jupiter.api.Test;
 
 import com.google.protobuf.Any;
 
-import com.linecorp.armeria.xds.athenz.AthenzFilterConfig.AccessTokenConstraintConfig;
+import com.linecorp.armeria.xds.athenz.AccessTokenConstraintConfig;
 import com.linecorp.centraldogma.internal.Yaml;
 
 import io.envoyproxy.envoy.config.listener.v3.ApiListener;
 import io.envoyproxy.envoy.config.listener.v3.Listener;
 import io.envoyproxy.envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager;
 import io.envoyproxy.envoy.extensions.filters.network.http_connection_manager.v3.HttpFilter;
-import jp.co.lycorp.ftd.athenz.v1.AthenzAccessToken.AccessTokenConstraint;
+import jp.co.lycorp.ftd.athenz.v1.AccessTokenConstraint;
 
 class XdsAthenzResourceParseTest {
 

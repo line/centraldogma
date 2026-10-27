@@ -41,7 +41,7 @@ import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpMethod;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.RequestHeaders;
-import com.linecorp.armeria.xds.athenz.AthenzFilterConfig.AccessTokenConstraintConfig;
+import com.linecorp.armeria.xds.athenz.AccessTokenConstraintConfig;
 import com.linecorp.centraldogma.internal.Yaml;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
@@ -54,7 +54,7 @@ import io.envoyproxy.envoy.service.discovery.v3.DiscoveryRequest;
 import io.envoyproxy.envoy.service.discovery.v3.DiscoveryResponse;
 import io.envoyproxy.envoy.service.listener.v3.ListenerDiscoveryServiceGrpc.ListenerDiscoveryServiceStub;
 import io.grpc.stub.StreamObserver;
-import jp.co.lycorp.ftd.athenz.v1.AthenzAccessToken.AccessTokenConstraint;
+import jp.co.lycorp.ftd.athenz.v1.AccessTokenConstraint;
 
 class XdsListenerServiceTest {
 
