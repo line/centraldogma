@@ -90,6 +90,93 @@ class ZooKeeperCommandExecutorTest {
                                "[{\"op\":\"safeReplace\",\"path\":\"/a\",\"oldValue\":\"b\",\"value\":\"c\"}]");
 
     @Test
+    @Timeout(30)
+    void defaultMaximumLogCountDoesNotRejectWrites() throws Exception {
+        try (Cluster cluster = Cluster.builder().numReplicas(1).logCounts(1, Integer.MAX_VALUE)
+                                      .build(ZooKeeperCommandExecutorTest::newMockDelegate)) {
+            final ZooKeeperCommandExecutor executor = cluster.get(0).commandExecutor();
+            executor.execute(Command.createProject(Author.SYSTEM, "first")).join();
+            executor.execute(Command.createProject(Author.SYSTEM, "second")).join();
+            executor.execute(Command.createProject(Author.SYSTEM, "third")).join();
+            assertThat(executor.loadLog(2)).isNotNull();
+        }
+    }
+
+    @Test
+    @Timeout(60)
+    void rejectsAtObservedThresholdBeforeDelegateExecution() throws Exception {
+        try (Cluster cluster = Cluster.builder().numReplicas(1).logCounts(1, 2)
+                                      .build(ZooKeeperCommandExecutorTest::newMockDelegate)) {
+            final Replica replica = cluster.get(0);
+            final ZooKeeperCommandExecutor executor = replica.commandExecutor();
+            executor.execute(Command.createProject(Author.SYSTEM, "first")).join();
+            executor.execute(Command.createProject(Author.SYSTEM, "second")).join();
+
+            final Command<?> rejected = Command.createProject(Author.SYSTEM, "rejected");
+            assertThatThrownBy(() -> executor.execute(rejected).join())
+                    .hasCauseInstanceOf(ReplicationException.class)
+                    .hasMessageContaining("observed count: 2");
+            verify(replica.delegate(), times(0)).apply(eq(rejected));
+            assertThat(executor.isWritable()).isTrue();
+        }
+    }
+
+    @Test
+    @Timeout(60)
+    void concurrentIndependentPathsCanExceedThreshold() throws Exception {
+        final CountDownLatch entered = new CountDownLatch(2);
+        final CompletableFuture<Revision> release = new CompletableFuture<>();
+        final Command<Revision> second = Command.push(null, Author.SYSTEM, "project", "second",
+                                                      new Revision(1), "", "", Markup.PLAINTEXT,
+                                                      ImmutableList.of());
+        final Command<Revision> third = Command.push(null, Author.SYSTEM, "project", "third",
+                                                     new Revision(1), "", "", Markup.PLAINTEXT,
+                                                     ImmutableList.of());
+        final Supplier<Function<Command<?>, CompletableFuture<?>>> delegateSupplier = () -> command -> {
+            if (command.equals(second) || command.equals(third)) {
+                entered.countDown();
+                return release;
+            }
+            return completedFuture(null);
+        };
+
+        try (Cluster cluster = Cluster.builder().numReplicas(3).logCounts(1, 2).build(delegateSupplier)) {
+            final ZooKeeperCommandExecutor first = cluster.get(0).commandExecutor();
+            first.execute(Command.createProject(Author.SYSTEM, "first")).join();
+            try {
+                final CompletableFuture<Revision> secondResult = first.execute(second);
+                final CompletableFuture<Revision> thirdResult = cluster.get(1).commandExecutor().execute(third);
+                assertThat(entered.await(10, TimeUnit.SECONDS)).isTrue();
+                release.complete(new Revision(2));
+                secondResult.join();
+                thirdResult.join();
+                assertThat(first.loadLog(2)).isNotNull();
+            } finally {
+                release.complete(new Revision(2));
+            }
+        }
+    }
+
+    @Test
+    @Timeout(30)
+    void agedLogCleanupRestoresWriteCapacity() throws Exception {
+        try (Cluster cluster = Cluster.builder().numReplicas(1).logCounts(1, 2)
+                                      .minLogAgeMillis(100)
+                                      .build(ZooKeeperCommandExecutorTest::newMockDelegate)) {
+            final ZooKeeperCommandExecutor executor = cluster.get(0).commandExecutor();
+            executor.execute(Command.createProject(Author.SYSTEM, "first")).join();
+            executor.execute(Command.createProject(Author.SYSTEM, "second")).join();
+            assertThatThrownBy(() -> executor.execute(Command.createProject(Author.SYSTEM, "blocked")).join())
+                    .hasCauseInstanceOf(ReplicationException.class);
+
+            await().atMost(Duration.ofSeconds(10)).ignoreExceptions().untilAsserted(() -> {
+                executor.execute(Command.createProject(Author.SYSTEM, "afterCleanup")).join();
+            });
+            assertThat(executor.isWritable()).isTrue();
+        }
+    }
+
+    @Test
     void testLogWatch() throws Exception {
         // The 5th replica is used for ensuring the quorum.
         try (Cluster cluster = Cluster.of(ZooKeeperCommandExecutorTest::newMockDelegate)) {
