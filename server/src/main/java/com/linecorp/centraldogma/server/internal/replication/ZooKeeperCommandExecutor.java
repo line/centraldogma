@@ -95,6 +95,7 @@ import com.linecorp.centraldogma.server.command.RepositoryCommand;
 import com.linecorp.centraldogma.server.command.UpdateServerStatusCommand;
 import com.linecorp.centraldogma.server.internal.command.DefaultExecutionContext;
 
+import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.binder.jvm.ExecutorServiceMetrics;
@@ -139,6 +140,10 @@ public final class ZooKeeperCommandExecutor
     private final File zkLogDir;
     private final CommandExecutor delegate;
     private final MeterRegistry meterRegistry;
+    private final Counter deleteLogsBelowLimitCounter;
+    private final Counter deleteLogsNoDeletionCounter;
+    private final Counter deleteLogsDeletedCounter;
+    private final Counter deleteLogsFailureCounter;
 
     @Nullable
     private final String zone;
@@ -190,7 +195,15 @@ public final class ZooKeeperCommandExecutor
                 }
 
                 while (curator.getState() == CuratorFrameworkState.STARTED) {
-                    deleteLogs();
+                    try {
+                        deleteLogs();
+                    } catch (InterruptedException e) {
+                        // Leadership is being released.
+                        throw e;
+                    } catch (Exception e) {
+                        deleteLogsFailureCounter.increment();
+                        throw e;
+                    }
                     synchronized (this) {
                         wait();
                     }
@@ -220,6 +233,7 @@ public final class ZooKeeperCommandExecutor
         private void deleteLogs() throws Exception {
             final List<String> children = curator.getChildren().forPath(absolutePath(LOG_PATH));
             if (children.size() <= cfg.maxLogCount()) {
+                deleteLogsBelowLimitCounter.increment();
                 return;
             }
 
@@ -252,6 +266,11 @@ public final class ZooKeeperCommandExecutor
                 }
             } finally {
                 logger.info("Deleted ZooKeeper nodes: {}", deletedPaths);
+            }
+            if (deletedPaths.isEmpty()) {
+                deleteLogsNoDeletionCounter.increment();
+            } else {
+                deleteLogsDeletedCounter.increment();
             }
         }
 
@@ -390,6 +409,18 @@ public final class ZooKeeperCommandExecutor
 
         this.delegate = requireNonNull(delegate, "delegate");
         this.meterRegistry = requireNonNull(meterRegistry, "meterRegistry");
+        deleteLogsBelowLimitCounter = Counter.builder("replica.zk.logs.delete.result")
+                                             .tag("result", "below_limit")
+                                             .register(meterRegistry);
+        deleteLogsNoDeletionCounter = Counter.builder("replica.zk.logs.delete.result")
+                                             .tag("result", "no_deletion")
+                                             .register(meterRegistry);
+        deleteLogsDeletedCounter = Counter.builder("replica.zk.logs.delete.result")
+                                          .tag("result", "deleted")
+                                          .register(meterRegistry);
+        deleteLogsFailureCounter = Counter.builder("replica.zk.logs.delete.result")
+                                          .tag("result", "failure")
+                                          .register(meterRegistry);
         this.zone = zone;
 
         // Register the metrics which are accessible even before started.
