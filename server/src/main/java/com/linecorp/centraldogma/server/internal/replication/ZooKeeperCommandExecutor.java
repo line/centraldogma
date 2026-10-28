@@ -163,6 +163,7 @@ public final class ZooKeeperCommandExecutor
     @Nullable
     private volatile LeaderSelector zoneLeaderSelector;
     private volatile boolean createdParentNodes;
+    private volatile boolean starting;
     private volatile boolean canReplicate;
     // Highest ZooKeeper revision whose effect is in local data
     private volatile long lastReplayedRevision = -1;
@@ -430,6 +431,7 @@ public final class ZooKeeperCommandExecutor
                            @Nullable Runnable onReleaseLeadership,
                            @Nullable Runnable onTakeZoneLeadership,
                            @Nullable Runnable onReleaseZoneLeadership) throws Exception {
+        starting = true;
         try {
             // Get the last replayed revision.
             try {
@@ -448,6 +450,9 @@ public final class ZooKeeperCommandExecutor
             curator = CuratorFrameworkFactory.newClient(
                     "127.0.0.1:" + quorumPeer.getClientPort(), cfg.timeoutMillis(), cfg.timeoutMillis(),
                     (retryCount, elapsedTimeMs, sleeper) -> {
+                        if (starting && isStopping()) {
+                            return false;
+                        }
                         return retryPolicy.allowRetry(retryCount, elapsedTimeMs, sleeper);
                     });
 
@@ -513,6 +518,8 @@ public final class ZooKeeperCommandExecutor
             throw e;
         } catch (Exception e) {
             throw new ReplicationException(e);
+        } finally {
+            starting = false;
         }
     }
 
