@@ -83,7 +83,9 @@ public final class ZooKeeperReplicationConfig implements ReplicationConfig {
         this(serverId, servers, secret, null, null, null, null, null, null, null, null);
     }
 
-    /** Creates a new replication configuration with log retention settings. */
+    /**
+     * Creates a new replication configuration.
+     */
     public ZooKeeperReplicationConfig(int serverId, Map<Integer, ZooKeeperServerConfig> servers,
                                       String secret, int minimumLogCount, int maximumLogCount,
                                       long minLogAgeMillis) {
