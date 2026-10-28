@@ -35,6 +35,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.google.common.annotations.VisibleForTesting;
@@ -52,7 +53,8 @@ public final class ZooKeeperReplicationConfig implements ReplicationConfig {
 
     private static final int DEFAULT_TIMEOUT_MILLIS = 10000;
     private static final int DEFAULT_NUM_WORKERS = 16;
-    private static final int DEFAULT_MAX_LOG_COUNT = 1024;
+    private static final int DEFAULT_MINIMUM_LOG_COUNT = 1024;
+    private static final int DEFAULT_MAXIMUM_LOG_COUNT = Integer.MAX_VALUE;
     private static final long DEFAULT_MIN_LOG_AGE_MILLIS = TimeUnit.DAYS.toMillis(1);
     static final int MINIMUM_SECRET_LENGTH = 16;
     private static final String DEFAULT_SECRET = "ch4n63m3";
@@ -64,7 +66,8 @@ public final class ZooKeeperReplicationConfig implements ReplicationConfig {
     private final Map<String, String> additionalProperties;
     private final int timeoutMillis;
     private final int numWorkers;
-    private final int maxLogCount;
+    private final int minimumLogCount;
+    private final int maximumLogCount;
     private final long minLogAgeMillis;
 
     /**
@@ -77,27 +80,45 @@ public final class ZooKeeperReplicationConfig implements ReplicationConfig {
      */
     public ZooKeeperReplicationConfig(int serverId, Map<Integer, ZooKeeperServerConfig> servers,
                                       String secret) {
-        this(serverId, servers, secret, null, null, null, null, null, null);
+        this(serverId, servers, secret, null, null, null, null, null, null, null, null);
+    }
+
+    /** Creates a new replication configuration with log retention settings. */
+    public ZooKeeperReplicationConfig(int serverId, Map<Integer, ZooKeeperServerConfig> servers,
+                                      String secret, int minimumLogCount, int maximumLogCount,
+                                      long minLogAgeMillis) {
+        this(serverId, servers, secret, null, null, null, null, minimumLogCount,
+             maximumLogCount, minLogAgeMillis, null);
     }
 
     @VisibleForTesting
     ZooKeeperReplicationConfig(
             int serverId, Map<Integer, ZooKeeperServerConfig> servers, String secret,
             Map<String, String> additionalProperties,
-            int timeoutMillis, int numWorkers, int maxLogCount, long minLogAgeMillis) {
+            int timeoutMillis, int numWorkers, int legacyMaxLogCount, long minLogAgeMillis) {
         this(Integer.valueOf(serverId), servers, secret, additionalProperties, Integer.valueOf(timeoutMillis),
-             Integer.valueOf(numWorkers), Integer.valueOf(maxLogCount), Long.valueOf(minLogAgeMillis), null);
+             Integer.valueOf(numWorkers), Integer.valueOf(legacyMaxLogCount), null, null,
+             Long.valueOf(minLogAgeMillis), null);
     }
 
     @VisibleForTesting
     ZooKeeperReplicationConfig(
             int serverId, Map<Integer, ZooKeeperServerConfig> servers, @Nullable String secret,
             @Nullable Map<String, String> additionalProperties,
-            int timeoutMillis, int numWorkers, int maxLogCount, long minLogAgeMillis,
+            int timeoutMillis, int numWorkers, int legacyMaxLogCount, long minLogAgeMillis,
             @Nullable Boolean allowInsecureSecret) {
         this(Integer.valueOf(serverId), servers, secret, additionalProperties, Integer.valueOf(timeoutMillis),
-             Integer.valueOf(numWorkers), Integer.valueOf(maxLogCount), Long.valueOf(minLogAgeMillis),
-             allowInsecureSecret);
+             Integer.valueOf(numWorkers), Integer.valueOf(legacyMaxLogCount), null, null,
+             Long.valueOf(minLogAgeMillis), allowInsecureSecret);
+    }
+
+    ZooKeeperReplicationConfig(@Nullable Integer serverId, Map<Integer, ZooKeeperServerConfig> servers,
+                               @Nullable String secret, @Nullable Map<String, String> additionalProperties,
+                               @Nullable Integer timeoutMillis, @Nullable Integer numWorkers,
+                               @Nullable Integer legacyMaxLogCount, @Nullable Long minLogAgeMillis,
+                               @Nullable Boolean allowInsecureSecret) {
+        this(serverId, servers, secret, additionalProperties, timeoutMillis, numWorkers, legacyMaxLogCount,
+             null, null, minLogAgeMillis, allowInsecureSecret);
     }
 
     @JsonCreator
@@ -111,7 +132,9 @@ public final class ZooKeeperReplicationConfig implements ReplicationConfig {
                                @Nullable Map<String, String> additionalProperties,
                                @JsonProperty("timeoutMillis") @Nullable Integer timeoutMillis,
                                @JsonProperty("numWorkers") @Nullable Integer numWorkers,
-                               @JsonProperty("maxLogCount") @Nullable Integer maxLogCount,
+                               @JsonProperty("maxLogCount") @Nullable Integer legacyMaxLogCount,
+                               @JsonProperty("minimumLogCount") @Nullable Integer minimumLogCount,
+                               @JsonProperty("maximumLogCount") @Nullable Integer maximumLogCount,
                                @JsonProperty("minLogAgeMillis") @Nullable Long minLogAgeMillis,
                                @JsonProperty("allowInsecureSecret") @Nullable Boolean allowInsecureSecret) {
 
@@ -158,8 +181,23 @@ public final class ZooKeeperReplicationConfig implements ReplicationConfig {
         this.numWorkers =
                 numWorkers == null || numWorkers <= 0 ? DEFAULT_NUM_WORKERS : numWorkers;
 
-        this.maxLogCount =
-                maxLogCount == null || maxLogCount <= 0 ? DEFAULT_MAX_LOG_COUNT : maxLogCount;
+        checkArgument(legacyMaxLogCount == null || minimumLogCount == null,
+                      "maxLogCount and minimumLogCount cannot both be specified");
+        checkArgument(minimumLogCount == null || minimumLogCount > 0,
+                      "minimumLogCount: %s (expected: > 0)", minimumLogCount);
+        checkArgument(maximumLogCount == null || maximumLogCount > 0,
+                      "maximumLogCount: %s (expected: > 0)", maximumLogCount);
+        if (minimumLogCount != null) {
+            this.minimumLogCount = minimumLogCount;
+        } else if (legacyMaxLogCount != null && legacyMaxLogCount > 0) {
+            this.minimumLogCount = legacyMaxLogCount;
+        } else {
+            this.minimumLogCount = DEFAULT_MINIMUM_LOG_COUNT;
+        }
+        this.maximumLogCount = firstNonNull(maximumLogCount, DEFAULT_MAXIMUM_LOG_COUNT);
+        checkArgument(this.minimumLogCount < this.maximumLogCount,
+                      "minimumLogCount: %s (expected: < maximumLogCount: %s)",
+                      this.minimumLogCount, this.maximumLogCount);
 
         this.minLogAgeMillis =
                 minLogAgeMillis == null || minLogAgeMillis <= 0 ? DEFAULT_MIN_LOG_AGE_MILLIS : minLogAgeMillis;
@@ -287,13 +325,34 @@ public final class ZooKeeperReplicationConfig implements ReplicationConfig {
     }
 
     /**
-     * Returns the maximum number of log items to keep in ZooKeeper. Note that the log items will still not be
+     * Returns the target number of log items to keep in ZooKeeper. Note that the log items will still not be
      * removed if they are younger than {@link #minLogAgeMillis()}.
-     * If unspecified, the default of {@value #DEFAULT_MAX_LOG_COUNT} is returned.
+     * If unspecified, the default of {@value #DEFAULT_MINIMUM_LOG_COUNT} is returned.
      */
     @JsonProperty
+    public int minimumLogCount() {
+        return minimumLogCount;
+    }
+
+    /**
+     * Returns the approximate maximum log count used as a write threshold. Commands are rejected
+     * when the observed count reaches this value, but concurrent commands on different paths can exceed it.
+     * If unspecified, {@link Integer#MAX_VALUE} is returned, effectively disabling the threshold.
+     */
+    @JsonProperty
+    public int maximumLogCount() {
+        return maximumLogCount;
+    }
+
+    /**
+     * Returns {@link #minimumLogCount()}.
+     *
+     * @deprecated use {@link #minimumLogCount()} instead.
+     */
+    @Deprecated
+    @JsonIgnore
     public int maxLogCount() {
-        return maxLogCount;
+        return minimumLogCount;
     }
 
     /**
@@ -327,7 +386,8 @@ public final class ZooKeeperReplicationConfig implements ReplicationConfig {
                additionalProperties().equals(that.additionalProperties()) &&
                timeoutMillis() == that.timeoutMillis() &&
                numWorkers() == that.numWorkers() &&
-               maxLogCount() == that.maxLogCount() &&
+               minimumLogCount() == that.minimumLogCount() &&
+               maximumLogCount() == that.maximumLogCount() &&
                minLogAgeMillis() == that.minLogAgeMillis();
     }
 
@@ -339,7 +399,8 @@ public final class ZooKeeperReplicationConfig implements ReplicationConfig {
                           .add("additionalProperties", additionalProperties())
                           .add("timeoutMillis", timeoutMillis())
                           .add("numWorkers", numWorkers())
-                          .add("maxLogCount", maxLogCount())
+                          .add("minimumLogCount", minimumLogCount())
+                          .add("maximumLogCount", maximumLogCount())
                           .add("minLogAgeMillis", minLogAgeMillis()).toString();
     }
 }

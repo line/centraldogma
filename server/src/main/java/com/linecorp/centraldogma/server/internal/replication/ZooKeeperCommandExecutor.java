@@ -192,7 +192,8 @@ public final class ZooKeeperCommandExecutor
                 while (curator.getState() == CuratorFrameworkState.STARTED) {
                     deleteLogs();
                     synchronized (this) {
-                        wait();
+                        // Recheck aged logs even when rejected writes produce no child event.
+                        wait(Math.min(TimeUnit.MINUTES.toMillis(1), cfg.minLogAgeMillis()));
                     }
                 }
             } catch (InterruptedException e) {
@@ -219,12 +220,12 @@ public final class ZooKeeperCommandExecutor
 
         private void deleteLogs() throws Exception {
             final List<String> children = curator.getChildren().forPath(absolutePath(LOG_PATH));
-            if (children.size() <= cfg.maxLogCount()) {
+            if (children.size() <= cfg.minimumLogCount()) {
                 return;
             }
 
             final long minAllowedTimestamp = System.currentTimeMillis() - cfg.minLogAgeMillis();
-            final int targetCount = children.size() - cfg.maxLogCount();
+            final int targetCount = children.size() - cfg.minimumLogCount();
             final List<String> deletedPaths = new ArrayList<>(targetCount);
             children.sort(Comparator.comparingLong(Long::parseLong));
             try {
@@ -1131,9 +1132,10 @@ public final class ZooKeeperCommandExecutor
             //     Other replicas may still append the logs with different execution paths, because, by design,
             //     two commands never conflict with each other if they have different execution paths.
 
+            final List<String> recentRevisions;
             timings.startLogReplay();
             try {
-                final List<String> recentRevisions = curator.getChildren().forPath(absolutePath(LOG_PATH));
+                recentRevisions = curator.getChildren().forPath(absolutePath(LOG_PATH));
                 if (!recentRevisions.isEmpty()) {
                     final long lastRevision = recentRevisions.stream().mapToLong(Long::parseLong).max()
                                                              .getAsLong();
@@ -1141,6 +1143,12 @@ public final class ZooKeeperCommandExecutor
                 }
             } finally {
                 timings.endLogReplay();
+            }
+
+            if (recentRevisions.size() >= cfg.maximumLogCount()) {
+                throw new ReplicationException("ZooKeeper command log write threshold reached " +
+                                               "(observed count: " + recentRevisions.size() +
+                                               ", maximumLogCount: " + cfg.maximumLogCount() + ')');
             }
 
             timings.startCommandExecution();
