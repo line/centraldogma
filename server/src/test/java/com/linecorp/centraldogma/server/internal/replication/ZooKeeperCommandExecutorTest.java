@@ -520,11 +520,20 @@ class ZooKeeperCommandExecutorTest {
                                             "replica.zk.latency#value{type=max}",
                                             "replica.zk.latency#value{type=min}",
                                             "replica.zk.log.dir.size#value",
+                                            "replica.zk.logs.children#value",
                                             "replica.zk.nodes#value",
                                             "replica.zk.outstanding.requests#value",
                                             "replica.zk.packets.received#count",
                                             "replica.zk.packets.sent#count",
                                             "replica.zk.watches#value");
+
+            final double initialLogCount = meters.get("replica.zk.logs.children#value");
+            cluster.get(0).commandExecutor()
+                   .execute(Command.createRepository(Author.SYSTEM, "project", "repo1")).join();
+            await().untilAsserted(() -> {
+                assertThat(MoreMeters.measureAll(cluster.get(0).meterRegistry()))
+                        .containsEntry("replica.zk.logs.children#value", initialLogCount + 1);
+            });
         }
     }
 
