@@ -19,6 +19,7 @@ import { ChakraLink } from 'dogma/common/components/ChakraLink';
 import { FaHistory } from 'react-icons/fa';
 import { makeTraversalFileLinks, toFilePath } from 'dogma/util/path-util';
 import { WithRepositoryRole } from 'dogma/features/auth/RepositoryRole';
+import { PageTitle } from 'dogma/common/components/PageTitle';
 
 const RepositoryDetailPage = () => {
   const router = useRouter();
@@ -95,6 +96,7 @@ cat ${project}/${repo}${path}`;
         files = Array.isArray(files) ? files : [files];
         return (
           <Box p="2">
+            <PageTitle title={[filePath, repoName, projectName]} />
             <Breadcrumbs path={directoryPath} omitIndexList={[0, 3, 5, 6]} suffixes={{ 4: '/tree/head' }} />
             <Flex minWidth="max-content" alignItems="center" gap="2" mb={6}>
               <Heading size="lg">

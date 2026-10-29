@@ -14,19 +14,20 @@
  * under the License.
  */
 import Head from 'next/head';
-import { useRouter } from 'next/router';
 import { useGetTitleQuery } from 'dogma/features/api/apiSlice';
-import { getPageTitleParts, toSiteTitle } from 'dogma/util/page-title';
 
-export const PageTitle = () => {
-  const router = useRouter();
-  const { data: titleDto } = useGetTitleQuery();
-  const parts = getPageTitleParts(router.pathname, router.query);
-  const siteTitle = toSiteTitle(titleDto);
-  const title = parts.length > 0 ? `${parts.join(' · ')} | ${siteTitle}` : siteTitle;
+export const useSiteTitle = () => {
+  const { data } = useGetTitleQuery();
+  return data?.title.replace('{{hostname}}', data.hostname) || 'Central Dogma';
+};
+
+// `title` lists the parts of the page title, most specific first.
+export const PageTitle = ({ title = [] }: { title?: string | (string | undefined)[] }) => {
+  const siteTitle = useSiteTitle();
+  const parts = [title].flat().filter(Boolean);
   return (
     <Head>
-      <title>{title}</title>
+      <title>{parts.length > 0 ? `${siteTitle} | ${parts.join(' · ')}` : siteTitle}</title>
     </Head>
   );
 };

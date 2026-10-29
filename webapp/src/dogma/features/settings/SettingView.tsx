@@ -18,6 +18,7 @@ import { Box, Flex, Heading, HStack, Tab, TabList, TabPanel, TabPanels, Tabs } f
 import { ReactNode } from 'react';
 import Link from 'next/link';
 import { Breadcrumbs } from 'dogma/common/components/Breadcrumbs';
+import { PageTitle } from 'dogma/common/components/PageTitle';
 import { useRouter } from 'next/router';
 import { useAppSelector } from 'dogma/hooks';
 import { GrSystem } from 'react-icons/gr';
@@ -48,6 +49,7 @@ const SettingView = ({ currentTab, children }: SettingsViewProps) => {
 
   return (
     <Box>
+      <PageTitle title={[currentTab, 'Settings']} />
       <Breadcrumbs path={router.asPath} omitIndexList={[0]} />
       <Flex minWidth="max-content" alignItems="center" gap="2" mb={6}>
         <Heading size="lg">

@@ -34,8 +34,14 @@ export interface XdsRoute {
   section: XdsSection;
 }
 
-export function toXdsSection(type: string | undefined): XdsSection {
-  return type === 'overview' ||
+// Derives the current group and section from the router query. The group page uses `name` while the
+// resource editor uses `group`; both carry an optional `type`.
+export function useXdsRoute(): XdsRoute {
+  const router = useRouter();
+  const group = (router.query.name as string) || (router.query.group as string) || undefined;
+  const type = router.query.type as string | undefined;
+  const section: XdsSection =
+    type === 'overview' ||
     type === 'permissions' ||
     type === 'k8sAggregators' ||
     type === 'credentials' ||
@@ -44,30 +50,7 @@ export function toXdsSection(type: string | undefined): XdsSection {
     type === 'mirroring' ||
     type === 'references' ||
     (type && Object.prototype.hasOwnProperty.call(XDS_RESOURCE_META, type))
-    ? (type as XdsSection)
-    : 'overview';
-}
-
-const SECTION_TITLE: Record<string, string> = {
-  overview: 'Overview',
-  permissions: 'Permissions',
-  k8sAggregators: 'K8s Aggregators',
-  credentials: 'Credentials',
-  dangerZone: 'Danger Zone',
-  history: 'History',
-  mirroring: 'Mirroring',
-  references: 'References',
-};
-
-export function xdsSectionTitle(section: XdsSection): string {
-  return SECTION_TITLE[section] ?? `${XDS_RESOURCE_META[section as XdsResourceType].label}s`;
-}
-
-// Derives the current group and section from the router query. The group page uses `name` while the
-// resource editor uses `group`; both carry an optional `type`.
-export function useXdsRoute(): XdsRoute {
-  const router = useRouter();
-  const group = (router.query.name as string) || (router.query.group as string) || undefined;
-  const section = toXdsSection(router.query.type as string | undefined);
+      ? (type as XdsSection)
+      : 'overview';
   return { group, section };
 }

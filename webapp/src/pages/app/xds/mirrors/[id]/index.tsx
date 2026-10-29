@@ -19,6 +19,7 @@ import { useRouter } from 'next/router';
 import { useGetMirrorQuery } from 'dogma/features/api/apiSlice';
 import { Deferred } from 'dogma/common/components/Deferred';
 import MirrorView from 'dogma/features/repo/settings/mirrors/MirrorView';
+import { PageTitle } from 'dogma/common/components/PageTitle';
 
 const XdsMirrorViewPage = () => {
   const router = useRouter();
@@ -39,6 +40,7 @@ const XdsMirrorViewPage = () => {
     <Deferred isLoading={isLoading} error={error}>
       {() => (
         <>
+          <PageTitle title={[id, 'Mirroring', group, 'xDS']} />
           <Breadcrumb mb={4} color="gray.500" fontSize="sm">
             <BreadcrumbItem>
               <BreadcrumbLink as={RouteLink} href="/app/xds">

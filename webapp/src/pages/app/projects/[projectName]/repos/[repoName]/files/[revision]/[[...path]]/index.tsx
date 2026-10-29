@@ -8,6 +8,7 @@ import { Deferred } from 'dogma/common/components/Deferred';
 import React from 'react';
 import { FileIcon } from 'dogma/common/components/FileIcon';
 import { toFilePath } from 'dogma/util/path-util';
+import { PageTitle } from 'dogma/common/components/PageTitle';
 
 const FileContentPage = () => {
   const router = useRouter();
@@ -32,6 +33,7 @@ const FileContentPage = () => {
       {() => {
         return (
           <Box p="2">
+            <PageTitle title={[filePath, repoName, projectName]} />
             <Breadcrumbs path={router.asPath} omitIndexList={[0, 3, 5, 6]} suffixes={{ 4: '/tree/head' }} />
             <Flex minWidth="max-content" alignItems="center" gap="2" mb={6}>
               <Heading size="lg">

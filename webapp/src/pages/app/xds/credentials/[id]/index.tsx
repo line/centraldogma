@@ -19,6 +19,7 @@ import { useRouter } from 'next/router';
 import { useGetRepoCredentialQuery } from 'dogma/features/api/apiSlice';
 import { Deferred } from 'dogma/common/components/Deferred';
 import CredentialView from 'dogma/features/project/settings/credentials/CredentialView';
+import { PageTitle } from 'dogma/common/components/PageTitle';
 
 const XdsCredentialViewPage = () => {
   const router = useRouter();
@@ -39,6 +40,7 @@ const XdsCredentialViewPage = () => {
       {() => (
         <>
           <Flex>
+            <PageTitle title={[id, 'Credentials', group, 'xDS']} />
             <Breadcrumb mb={4} color="gray.500" fontSize="sm">
               <BreadcrumbItem>
                 <BreadcrumbLink as={RouteLink} href="/app/xds">

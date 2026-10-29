@@ -35,7 +35,7 @@ import { CloseIcon, HamburgerIcon, MoonIcon, SunIcon } from '@chakra-ui/icons';
 import { default as RouteLink } from 'next/link';
 import { logout } from 'dogma/features/auth/authSlice';
 import Router from 'next/router';
-import { useGetTitleQuery, useIsXdsWebEnabledQuery } from 'dogma/features/api/apiSlice';
+import { useIsXdsWebEnabledQuery } from 'dogma/features/api/apiSlice';
 import { NewProject } from 'dogma/features/project/NewProject';
 import { usePathname } from 'next/navigation';
 import { useAppDispatch, useAppSelector } from 'dogma/hooks';
@@ -43,7 +43,7 @@ import { LabelledIcon } from 'dogma/common/components/LabelledIcon';
 import { FaUser } from 'react-icons/fa';
 import ProjectSearchBox from 'dogma/common/components/ProjectSearchBox';
 import { createLoginUrl } from 'dogma/util/auth';
-import { toSiteTitle } from 'dogma/util/page-title';
+import { useSiteTitle } from 'dogma/common/components/PageTitle';
 
 interface TopMenu {
   name: string;
@@ -73,8 +73,7 @@ export const Navbar = () => {
   const dispatch = useAppDispatch();
   const pathname = usePathname();
 
-  const { data: titleDto } = useGetTitleQuery();
-  const title = toSiteTitle(titleDto);
+  const title = useSiteTitle();
   const { data: xdsWebEnabled } = useIsXdsWebEnabledQuery();
   const topMenus: TopMenu[] = [
     { name: title, path: '/' },

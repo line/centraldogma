@@ -24,9 +24,9 @@ test('welcome message', async ({ page }) => {
 test('page title', async ({ page }) => {
   await expect(page).toHaveTitle(/^Central Dogma/);
   await page.goto('/app/projects/foo');
-  await expect(page).toHaveTitle(/^foo \| Central Dogma/);
+  await expect(page).toHaveTitle(/^Central Dogma.* \| foo$/);
   await page.goto('/app/projects');
-  await expect(page).toHaveTitle(/^Projects \| Central Dogma/);
+  await expect(page).toHaveTitle(/^Central Dogma.* \| Projects$/);
 });
 
 test('search project', async ({ page }) => {
