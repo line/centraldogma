@@ -48,9 +48,13 @@ import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.module.SimpleModule;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.IntNode;
+import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.JsonNodeType;
 import com.fasterxml.jackson.databind.node.NullNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.fasterxml.jackson.databind.node.TextNode;
 import com.fasterxml.jackson.datatype.jsr310.deser.InstantDeserializer;
 import com.fasterxml.jackson.datatype.jsr310.ser.InstantSerializer;
 import com.google.common.collect.ImmutableList;
@@ -59,6 +63,7 @@ import com.jayway.jsonpath.Configuration;
 import com.jayway.jsonpath.Configuration.Defaults;
 import com.jayway.jsonpath.JsonPath;
 import com.jayway.jsonpath.Option;
+import com.jayway.jsonpath.PathNotFoundException;
 import com.jayway.jsonpath.spi.json.JacksonJsonNodeJsonProvider;
 import com.jayway.jsonpath.spi.json.JsonProvider;
 import com.jayway.jsonpath.spi.mapper.JacksonMappingProvider;
@@ -91,6 +96,7 @@ public final class Jackson {
                          .jsonProvider(new JacksonJsonNodeJsonProvider())
                          .mappingProvider(new JacksonMappingProvider(prettyMapper))
                          .build();
+    private static final Configuration jsonPathKeysCfg = jsonPathCfg.addOptions(Option.AS_PATH_LIST);
 
     static {
         // If the json-path library is shaded, its transitive dependency 'json-smart' should not be required.
@@ -311,19 +317,60 @@ public final class Jackson {
         requireNonNull(jsonNode, "jsonNode");
         requireNonNull(jsonPath, "jsonPath");
 
+        // A trailing '~' (e.g. '$.*~') extracts the keys of the matched nodes instead of their values.
+        final boolean keysOnly = jsonPath.length() > 1 && jsonPath.endsWith("~");
+
         final JsonPath compiledJsonPath;
         try {
-            compiledJsonPath = JsonPath.compile(jsonPath);
+            compiledJsonPath = JsonPath.compile(keysOnly ? jsonPath.substring(0, jsonPath.length() - 1)
+                                                         : jsonPath);
         } catch (Exception e) {
             throw new QuerySyntaxException("invalid JSON path: " + jsonPath, e);
         }
 
         try {
+            if (keysOnly) {
+                return extractKeys(jsonNode, compiledJsonPath);
+            }
             return JsonPath.parse(jsonNode, jsonPathCfg)
                            .read(compiledJsonPath, JsonNode.class);
         } catch (Exception e) {
             throw new QueryExecutionException("JSON path evaluation failed: " + jsonPath, e);
         }
+    }
+
+    private static JsonNode extractKeys(JsonNode jsonNode, JsonPath jsonPath) {
+        final ArrayNode keys = JsonNodeFactory.instance.arrayNode();
+        final JsonNode paths;
+        try {
+            paths = JsonPath.parse(jsonNode, jsonPathKeysCfg).read(jsonPath, JsonNode.class);
+        } catch (PathNotFoundException e) {
+            if (jsonPath.isDefinite()) {
+                throw e;
+            }
+            // An indefinite path without '~' also returns an empty array.
+            return keys;
+        }
+
+        for (JsonNode path : paths) {
+            keys.add(lastPathSegment(path.asText()));
+        }
+        return jsonPath.isDefinite() ? keys.get(0) : keys;
+    }
+
+    /**
+     * Returns the property name or the array index at the end of the normalized path,
+     * e.g. {@code "b"} for {@code $['a']['b']} and {@code 0} for {@code $['a'][0]}.
+     */
+    private static JsonNode lastPathSegment(String path) {
+        if (path.endsWith("']")) {
+            final int start = path.lastIndexOf("['");
+            checkArgument(start > 0, "no key in path: %s", path);
+            return TextNode.valueOf(path.substring(start + 2, path.length() - 2));
+        }
+        final int start = path.lastIndexOf('[');
+        checkArgument(start > 0 && path.endsWith("]"), "no key in path: %s", path);
+        return IntNode.valueOf(Integer.parseInt(path.substring(start + 1, path.length() - 1)));
     }
 
     public static String escapeText(String text) {

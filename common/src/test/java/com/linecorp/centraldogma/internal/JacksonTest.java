@@ -28,6 +28,7 @@ import org.junit.jupiter.api.Test;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.google.common.collect.ImmutableList;
 
 import com.linecorp.centraldogma.common.QueryExecutionException;
 
@@ -172,6 +173,45 @@ class JacksonTest {
         assertThat(foo.aa).isEqualTo(123);
         assertThat(foo.bb).isEqualTo(true);
         assertThat(foo.cc).isEqualTo("hello");
+    }
+
+    @Test
+    void extractKeysWithTilde() throws IOException {
+        final JsonNode node = readTree('{' +
+                                       "   \"a\": 1," +
+                                       "   \"b\": {" +
+                                       "      \"c\": 2," +
+                                       "      \"d\": 3" +
+                                       "   }," +
+                                       "   \"e\": [10, 20]," +
+                                       "   \"f\": {}" +
+                                       '}');
+        assertThatJson(Jackson.extractTree(node, "$.*~")).isEqualTo("[\"a\", \"b\", \"e\", \"f\"]");
+        assertThatJson(Jackson.extractTree(node, "$.b.*~")).isEqualTo("[\"c\", \"d\"]");
+        assertThatJson(Jackson.extractTree(node, "$.b[*]~")).isEqualTo("[\"c\", \"d\"]");
+        assertThatJson(Jackson.extractTree(node, "$.e.*~")).isEqualTo("[0, 1]");
+        assertThatJson(Jackson.extractTree(node, "$.f.*~")).isEqualTo("[]");
+        assertThatJson(Jackson.extractTree(node, "$..*~"))
+                .isEqualTo("[\"a\", \"b\", \"e\", \"f\", \"c\", \"d\", 0, 1]");
+        assertThatJson(Jackson.extractTree(node, "$.b~")).isEqualTo("\"b\"");
+        assertThatJson(Jackson.extractTree(node, "$['b']~")).isEqualTo("\"b\"");
+        assertThatJson(Jackson.extractTree(node, "$.e[1]~")).isEqualTo("1");
+        assertThatJson(Jackson.extractTree(node, ImmutableList.of("$.b", "$.*~")))
+                .isEqualTo("[\"c\", \"d\"]");
+
+        // The values are returned as before if '~' is not used.
+        assertThatJson(Jackson.extractTree(node, "$.b.*")).isEqualTo("[2, 3]");
+        assertThatJson(Jackson.extractTree(node, "$.f.*")).isEqualTo("[]");
+        assertThatThrownBy(() -> Jackson.extractTree(node, "$~"))
+                .isExactlyInstanceOf(QueryExecutionException.class);
+    }
+
+    @Test
+    void extractKeysWithSpecialCharactersWithTilde() throws IOException {
+        final JsonNode node = readTree("{\"a'b\": 1, \"c]d\": 2, \"e.f\": 3, \"g~\": 4}");
+        assertThatJson(Jackson.extractTree(node, "$.*~"))
+                .isEqualTo("[\"a'b\", \"c]d\", \"e.f\", \"g~\"]");
+        assertThatJson(Jackson.extractTree(node, "$['g~']")).isEqualTo("4");
     }
 
     static final class Foo {
