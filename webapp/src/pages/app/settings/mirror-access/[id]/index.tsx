@@ -21,6 +21,7 @@ import React from 'react';
 import { Breadcrumbs } from 'dogma/common/components/Breadcrumbs';
 import { Flex, Spacer } from '@chakra-ui/react';
 import MirrorAccessControlView from 'dogma/features/settings/mirror-access/MirrorAccessControlView';
+import { PageTitle } from 'dogma/common/components/PageTitle';
 
 const MirrorAccessControlViewPage = () => {
   const router = useRouter();
@@ -32,6 +33,7 @@ const MirrorAccessControlViewPage = () => {
         return (
           <>
             <Flex>
+              <PageTitle title={[id, 'Mirror Access Control', 'Settings']} />
               <Breadcrumbs path={router.asPath} omitIndexList={[0]} />
               <Spacer />
             </Flex>

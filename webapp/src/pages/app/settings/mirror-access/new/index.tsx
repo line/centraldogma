@@ -25,6 +25,7 @@ import { Breadcrumbs } from 'dogma/common/components/Breadcrumbs';
 import React from 'react';
 import MirrorAccessControlForm from 'dogma/features/settings/mirror-access/MirrorAccessControlForm';
 import { MirrorAccessControlRequest } from 'dogma/features/settings/mirror-access/MirrorAccessControl';
+import { PageTitle } from 'dogma/common/components/PageTitle';
 
 const EMPTY_MACR: MirrorAccessControlRequest = {
   id: '',
@@ -61,6 +62,7 @@ const NewMirrorAccessControlPage = () => {
 
   return (
     <>
+      <PageTitle title={['New', 'Mirror Access Control', 'Settings']} />
       <Breadcrumbs path={router.asPath} omitIndexList={[0]} />
       <MirrorAccessControlForm defaultValue={EMPTY_MACR} onSubmit={onSubmit} isWaitingResponse={isLoading} />
     </>

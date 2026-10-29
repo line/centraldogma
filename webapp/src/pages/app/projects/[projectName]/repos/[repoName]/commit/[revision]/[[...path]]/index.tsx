@@ -29,6 +29,7 @@ import { GoCodescan, GoCommit } from 'react-icons/go';
 import { FaHistory } from 'react-icons/fa';
 import DiffView, { DiffMode } from 'dogma/common/components/DiffView';
 import DiffModeButton from 'dogma/common/components/DiffModeButton';
+import { PageTitle } from 'dogma/common/components/PageTitle';
 
 const CommitViewPage = () => {
   const router = useRouter();
@@ -137,6 +138,7 @@ const CommitViewPage = () => {
         const hasNext = filePath == '/**' && revision !== headRev.revision;
         return (
           <Box>
+            <PageTitle title={[`Commit ${revision}`, repoName, projectName]} />
             <Breadcrumbs path={router.asPath} omitIndexList={[0, 3]} unlinkedList={[5]} />
             <Heading size="lg" marginBottom={5}>
               <HStack color="teal">
