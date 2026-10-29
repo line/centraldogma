@@ -33,7 +33,7 @@ const FileContentPage = () => {
       {() => {
         return (
           <Box p="2">
-            <PageTitle title={[filePath, repoName, projectName]} />
+            <PageTitle title={[filePath, `Revision ${revision}`, repoName, projectName]} />
             <Breadcrumbs path={router.asPath} omitIndexList={[0, 3, 5, 6]} suffixes={{ 4: '/tree/head' }} />
             <Flex minWidth="max-content" alignItems="center" gap="2" mb={6}>
               <Heading size="lg">
