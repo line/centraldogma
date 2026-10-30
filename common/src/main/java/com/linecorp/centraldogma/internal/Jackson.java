@@ -18,6 +18,7 @@ package com.linecorp.centraldogma.internal;
 
 import static com.fasterxml.jackson.databind.node.JsonNodeType.OBJECT;
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.linecorp.centraldogma.internal.Json5.isJson;
 import static com.linecorp.centraldogma.internal.Json5.isJson5;
 import static com.linecorp.centraldogma.internal.Json5.isJsonCompatible;
@@ -28,8 +29,12 @@ import java.io.IOError;
 import java.io.IOException;
 import java.io.Writer;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Set;
+
+import org.jspecify.annotations.Nullable;
 
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonGenerator;
@@ -64,6 +69,7 @@ import com.jayway.jsonpath.Configuration.Defaults;
 import com.jayway.jsonpath.JsonPath;
 import com.jayway.jsonpath.Option;
 import com.jayway.jsonpath.PathNotFoundException;
+import com.jayway.jsonpath.internal.Utils;
 import com.jayway.jsonpath.spi.json.JacksonJsonNodeJsonProvider;
 import com.jayway.jsonpath.spi.json.JsonProvider;
 import com.jayway.jsonpath.spi.mapper.JacksonMappingProvider;
@@ -319,18 +325,18 @@ public final class Jackson {
 
         // A trailing '~' (e.g. '$.*~') extracts the keys of the matched nodes instead of their values.
         final boolean keysOnly = jsonPath.length() > 1 && jsonPath.endsWith("~");
+        final String valuePath = keysOnly ? jsonPath.substring(0, jsonPath.length() - 1) : jsonPath;
 
         final JsonPath compiledJsonPath;
         try {
-            compiledJsonPath = JsonPath.compile(keysOnly ? jsonPath.substring(0, jsonPath.length() - 1)
-                                                         : jsonPath);
+            compiledJsonPath = JsonPath.compile(valuePath);
         } catch (Exception e) {
             throw new QuerySyntaxException("invalid JSON path: " + jsonPath, e);
         }
 
         try {
             if (keysOnly) {
-                return extractKeys(jsonNode, compiledJsonPath);
+                return extractKeys(jsonNode, compiledJsonPath, multiPropertyNames(valuePath));
             }
             return JsonPath.parse(jsonNode, jsonPathCfg)
                            .read(compiledJsonPath, JsonNode.class);
@@ -339,7 +345,8 @@ public final class Jackson {
         }
     }
 
-    private static JsonNode extractKeys(JsonNode jsonNode, JsonPath jsonPath) {
+    private static JsonNode extractKeys(JsonNode jsonNode, JsonPath jsonPath,
+                                        @Nullable List<String> selectedNames) {
         final ArrayNode keys = JsonNodeFactory.instance.arrayNode();
         final JsonNode paths;
         try {
@@ -352,25 +359,136 @@ public final class Jackson {
             return keys;
         }
 
-        for (JsonNode path : paths) {
-            keys.add(lastPathSegment(path.asText()));
+        // A path like $['a','b'] matches the object which has the selected properties, so return
+        // the selected names which exist in it, even if the path is definite.
+        final String selector;
+        final List<String> distinctNames;
+        if (selectedNames != null) {
+            selector = "['" + String.join("', '", selectedNames) + "']";
+            distinctNames = selectedNames.stream().distinct().collect(toImmutableList());
+        } else {
+            selector = null;
+            distinctNames = null;
         }
-        return jsonPath.isDefinite() ? keys.get(0) : keys;
+
+        for (JsonNode pathNode : paths) {
+            final String path = pathNode.asText();
+            if (selector == null) {
+                final JsonNode key = walk(jsonNode, path, 1, true);
+                checkArgument(key != null, "no key in path: %s", path);
+                keys.add(key);
+                continue;
+            }
+
+            final JsonNode parent = path.endsWith(selector) ?
+                                    walk(jsonNode, path.substring(0, path.length() - selector.length()),
+                                         1, false) : null;
+            checkArgument(parent != null, "no key in path: %s", path);
+            distinctNames.stream().filter(parent::has).forEach(keys::add);
+        }
+        return jsonPath.isDefinite() && selector == null ? keys.get(0) : keys;
     }
 
     /**
-     * Returns the property name or the array index at the end of the normalized path,
-     * e.g. {@code "b"} for {@code $['a']['b']} and {@code 0} for {@code $['a'][0]}.
+     * Follows the normalized path from the node and returns the key at the end of it if {@code returnKey}
+     * is {@code true}, e.g. {@code "b"} for {@code $['a']['b']} and {@code 0} for {@code $['a'][0]}, or
+     * the node at the end of it otherwise. json-path does not escape the names in the path, so this tries
+     * each {@code ']} until the name before it exists in the node. If a name such as {@code a']['b} and
+     * a nested path such as {@code a.b} both exist, they have the same path and the nested one is used.
      */
-    private static JsonNode lastPathSegment(String path) {
-        if (path.endsWith("']")) {
-            final int start = path.lastIndexOf("['");
-            checkArgument(start > 0, "no key in path: %s", path);
-            return TextNode.valueOf(path.substring(start + 2, path.length() - 2));
+    @Nullable
+    private static JsonNode walk(@Nullable JsonNode node, String path, int start, boolean returnKey) {
+        if (node == null) {
+            return null;
         }
-        final int start = path.lastIndexOf('[');
-        checkArgument(start > 0 && path.endsWith("]"), "no key in path: %s", path);
-        return IntNode.valueOf(Integer.parseInt(path.substring(start + 1, path.length() - 1)));
+        if (start == path.length()) {
+            return returnKey ? null : node;
+        }
+        if (path.startsWith("['", start)) {
+            for (int end = path.indexOf("']", start + 2); end >= 0; end = path.indexOf("']", end + 1)) {
+                final String name = path.substring(start + 2, end);
+                final JsonNode child = node.get(name);
+                if (child == null) {
+                    continue;
+                }
+                if (returnKey && end + 2 == path.length()) {
+                    return TextNode.valueOf(name);
+                }
+                final JsonNode found = walk(child, path, end + 2, returnKey);
+                if (found != null) {
+                    return found;
+                }
+            }
+            return null;
+        }
+
+        final int end = path.indexOf(']', start);
+        if (path.charAt(start) != '[' || end <= start + 1 ||
+            !path.substring(start + 1, end).chars().allMatch(Character::isDigit)) {
+            return null;
+        }
+        final int index = Integer.parseInt(path.substring(start + 1, end));
+        if (returnKey && end + 1 == path.length()) {
+            return node.has(index) ? IntNode.valueOf(index) : null;
+        }
+        return walk(node.get(index), path, end + 1, returnKey);
+    }
+
+    /**
+     * Returns the property names in the bracket at the end of the JSON path if it has more than one,
+     * e.g. {@code a} and {@code b} for {@code $['a','b']}, or {@code null} otherwise.
+     */
+    @Nullable
+    private static List<String> multiPropertyNames(String jsonPath) {
+        int i = skipSpaces(jsonPath, jsonPath.length() - 1);
+        if (i < 0 || jsonPath.charAt(i) != ']') {
+            return null;
+        }
+        final List<String> names = new ArrayList<>();
+        while (true) {
+            final int close = skipSpaces(jsonPath, i - 1);
+            if (close < 0) {
+                return null;
+            }
+            final char quote = jsonPath.charAt(close);
+            if (quote != '\'' && quote != '"') {
+                return null;
+            }
+            int open = close - 1;
+            while (open >= 0 && (jsonPath.charAt(open) != quote || isEscaped(jsonPath, open))) {
+                open--;
+            }
+            if (open < 0) {
+                return null;
+            }
+            // Unescape in the same way as json-path, so that the names match the matched paths.
+            names.add(0, Utils.unescape(jsonPath.substring(open + 1, close)));
+            i = skipSpaces(jsonPath, open - 1);
+            if (i < 0) {
+                return null;
+            }
+            if (jsonPath.charAt(i) == '[') {
+                return names.size() > 1 ? names : null;
+            }
+            if (jsonPath.charAt(i) != ',') {
+                return null;
+            }
+        }
+    }
+
+    private static int skipSpaces(String str, int index) {
+        while (index >= 0 && Character.isWhitespace(str.charAt(index))) {
+            index--;
+        }
+        return index;
+    }
+
+    private static boolean isEscaped(String str, int index) {
+        int backslashes = 0;
+        while (index - backslashes > 0 && str.charAt(index - backslashes - 1) == '\\') {
+            backslashes++;
+        }
+        return backslashes % 2 == 1;
     }
 
     public static String escapeText(String text) {
