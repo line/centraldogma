@@ -214,8 +214,11 @@ public final class DefaultMetaRepository extends RepositoryWrapper implements Me
                               // Skip a malformed credential so that it does not prevent the mirrors from being
                               // loaded. A mirror that uses it gets Credential.NONE as if the credential did
                               // not exist.
-                              logger.warn("Failed to load a credential configuration. project: {}, file: {}",
-                                          parent().name(), entry.getKey(), e);
+                              // Exception messages may contain credential values.
+                              logger.warn("Skipping a malformed credential configuration. " +
+                                          "Mirrors referencing it will use no credentials. " +
+                                          "project: {}, file: {}, exception: {}",
+                                          parent().name(), entry.getKey(), e.getClass().getSimpleName());
                               return null;
                           }
                       })

@@ -36,6 +36,7 @@ import org.junit.jupiter.api.TestInfo;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.slf4j.LoggerFactory;
 
 import com.cronutils.model.CronType;
 import com.cronutils.model.definition.CronDefinitionBuilder;
@@ -49,6 +50,7 @@ import com.linecorp.centraldogma.internal.api.v1.MirrorRequest;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.credential.Credential;
 import com.linecorp.centraldogma.server.internal.credential.SshKeyCredential;
+import com.linecorp.centraldogma.server.internal.storage.repository.DefaultMetaRepository;
 import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryMetadataException;
 import com.linecorp.centraldogma.server.mirror.Mirror;
 import com.linecorp.centraldogma.server.mirror.MirrorDirection;
@@ -57,6 +59,11 @@ import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 import com.linecorp.centraldogma.server.storage.repository.MetaRepository;
 import com.linecorp.centraldogma.testing.internal.ProjectManagerExtension;
 import com.linecorp.centraldogma.testing.internal.TestUtil;
+
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 
 class DefaultMetaRepositoryWithMirrorTest {
 
@@ -193,23 +200,49 @@ class DefaultMetaRepositoryWithMirrorTest {
                         credentialFile(brokenCredential),
                         '{' +
                         "  \"name\": \"" + brokenCredential + "\"," +
-                        "  \"type\": \"NO_SUCH_TYPE\"" +
+                        "  \"type\": \"secret-mistaken-for-type\"" +
                         '}'));
         metaRepo.commit(Revision.HEAD, 0, Author.SYSTEM, "", changes).join();
         project.repos().create("foo", Author.SYSTEM);
 
-        final List<Mirror> mirrors = metaRepo.mirrors().join().stream()
-                                             .sorted(Comparator.comparing(Mirror::id))
-                                             .collect(toImmutableList());
-        assertThat(mirrors).extracting(Mirror::id).containsExactly("bar", "foo");
-        // A mirror whose credential cannot be loaded is treated like a mirror whose credential is missing.
-        assertThat(mirrors.get(0).credential()).isSameAs(Credential.NONE);
-        assertThat(mirrors.get(1).credential()).isInstanceOf(SshKeyCredential.class);
-        assertThat(((SshKeyCredential) mirrors.get(1).credential()).username()).isEqualTo("alice");
-        // The single-credential lookup still surfaces the error.
-        assertThatThrownBy(() -> metaRepo.credential(brokenCredential).join())
-                .isInstanceOf(CompletionException.class)
-                .hasCauseInstanceOf(RepositoryMetadataException.class);
+        final Logger logger = (Logger) LoggerFactory.getLogger(DefaultMetaRepository.class);
+        final ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.start();
+        logger.addAppender(appender);
+        try {
+            final List<Mirror> mirrors = metaRepo.mirrors().join().stream()
+                                                 .sorted(Comparator.comparing(Mirror::id))
+                                                 .collect(toImmutableList());
+            assertThat(mirrors).extracting(Mirror::id).containsExactly("bar", "foo");
+            // A mirror whose credential cannot be loaded is treated like a mirror whose credential is missing.
+            assertThat(mirrors.get(0).credential()).isSameAs(Credential.NONE);
+            assertThat(mirrors.get(1).credential()).isInstanceOf(SshKeyCredential.class);
+            assertThat(((SshKeyCredential) mirrors.get(1).credential()).username()).isEqualTo("alice");
+            assertThat(appender.list).singleElement().satisfies(event -> {
+                assertThat(event.getLevel()).isEqualTo(Level.WARN);
+                assertThat(event.getFormattedMessage())
+                        .contains("Skipping a malformed credential configuration",
+                                  "Mirrors referencing it will use no credentials",
+                                  project.name(), credentialFile(brokenCredential), "InvalidTypeIdException")
+                        .doesNotContain("secret-mistaken-for-type");
+                assertThat(event.getThrowableProxy()).isNull();
+            });
+            // The single-credential lookup still surfaces the error.
+            assertThatThrownBy(() -> metaRepo.credential(brokenCredential).join())
+                    .isInstanceOf(CompletionException.class)
+                    .hasCauseInstanceOf(RepositoryMetadataException.class);
+
+            metaRepo.commit(Revision.HEAD, 0, Author.SYSTEM, "",
+                            Change.ofRemoval(credentialFile(brokenCredential))).join();
+            appender.list.clear();
+            assertThat(metaRepo.mirrors().join()).extracting(Mirror::id)
+                                               .containsExactlyInAnyOrder("bar", "foo");
+            // A missing credential does not produce the malformed-credential warning.
+            assertThat(appender.list).isEmpty();
+        } finally {
+            logger.detachAppender(appender);
+            appender.stop();
+        }
     }
 
     @ValueSource(booleans = { true, false })
