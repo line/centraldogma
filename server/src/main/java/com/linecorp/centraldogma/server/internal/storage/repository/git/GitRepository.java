@@ -872,6 +872,15 @@ class GitRepository implements Repository {
     public CompletableFuture<CommitResult> commit(
             Revision baseRevision, long commitTimeMillis, Author author, String summary,
             String detail, Markup markup, Iterable<Change<?>> changes, boolean directExecution) {
+        return commit(baseRevision, commitTimeMillis, author, summary, detail, markup, changes,
+                      directExecution, null, false);
+    }
+
+    @Override
+    public CompletableFuture<CommitResult> commit(
+            Revision baseRevision, long commitTimeMillis, Author author, String summary,
+            String detail, Markup markup, Iterable<Change<?>> changes, boolean directExecution,
+            @Nullable String upstreamCommitId, boolean publishUpstreamCommitTag) {
         requireNonNull(baseRevision, "baseRevision");
         requireNonNull(author, "author");
         requireNonNull(summary, "summary");
@@ -879,7 +888,8 @@ class GitRepository implements Repository {
         requireNonNull(markup, "markup");
         requireNonNull(changes, "changes");
         final CommitExecutor commitExecutor =
-                new CommitExecutor(this, commitTimeMillis, author, summary, detail, markup, false);
+                new CommitExecutor(this, commitTimeMillis, author, summary, detail, markup, false,
+                                   upstreamCommitId, publishUpstreamCommitTag);
         return commit(baseRevision, commitExecutor, normBaseRevision -> changes);
     }
 

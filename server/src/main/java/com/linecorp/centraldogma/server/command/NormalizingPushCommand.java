@@ -46,9 +46,12 @@ public final class NormalizingPushCommand extends AbstractPushCommand<CommitResu
                            @JsonProperty("summary") String summary,
                            @JsonProperty("detail") String detail,
                            @JsonProperty("markup") Markup markup,
-                           @JsonProperty("changes") Iterable<Change<?>> changes) {
+                           @JsonProperty("changes") Iterable<Change<?>> changes,
+                           @JsonProperty("upstreamCommitId") @Nullable String upstreamCommitId,
+                           @JsonProperty("publishUpstreamCommitTag")
+                           @Nullable Boolean publishUpstreamCommitTag) {
         super(CommandType.NORMALIZING_PUSH, timestamp, author, projectName, repositoryName,
-              baseRevision, summary, detail, markup, changes);
+              baseRevision, summary, detail, markup, changes, upstreamCommitId, publishUpstreamCommitTag);
     }
 
     @Override
@@ -56,6 +59,7 @@ public final class NormalizingPushCommand extends AbstractPushCommand<CommitResu
         requireNonNull(commitResult, "commitResult");
         return new PushAsIsCommand(timestamp(), author(), projectName(), repositoryName(),
                                    commitResult.revision().backward(1), summary(), detail(),
-                                   markup(), commitResult.changes());
+                                   markup(), commitResult.changes(), upstreamCommitId(),
+                                   publishUpstreamCommitTag());
     }
 }

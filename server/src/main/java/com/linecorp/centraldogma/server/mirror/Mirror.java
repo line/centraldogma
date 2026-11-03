@@ -119,6 +119,20 @@ public interface Mirror {
     String zone();
 
     /**
+     * Returns whether remote commit history preservation is enabled.
+     */
+    default boolean preserveRemoteCommitHistory() {
+        return false;
+    }
+
+    /**
+     * Returns whether tags for remote commits are published.
+     */
+    default boolean publishRemoteCommitTags() {
+        return false;
+    }
+
+    /**
      * Performs the mirroring task.
      *
      * @param workDir the local directory where keeps the mirrored files

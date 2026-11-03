@@ -16,6 +16,7 @@
 
 package com.linecorp.centraldogma.server.internal.storage.repository.git;
 
+import static com.linecorp.centraldogma.internal.HistoryConstants.UPSTREAM_TAG_PREFIX;
 import static java.util.concurrent.ForkJoinPool.commonPool;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.lenient;
@@ -30,6 +31,8 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
+import org.eclipse.jgit.lib.Constants;
+import org.eclipse.jgit.lib.Ref;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -43,6 +46,7 @@ import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Commit;
 import com.linecorp.centraldogma.common.Entry;
+import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.ShuttingDownException;
@@ -125,6 +129,28 @@ class FallbackToFileRepositoryTest {
 
         final Entry<?> barEntry = restoredRepo.get(Revision.HEAD, Query.ofText("/bar.txt")).join();
         assertThat(barEntry.contentAsText().trim()).isEqualTo("hello");
+    }
+
+    @Test
+    void migrationPreservesPublishedUpstreamTags() throws Exception {
+        final String upstreamCommitId = "0123456789abcdef0123456789abcdef01234567";
+        final String refName = Constants.R_TAGS + UPSTREAM_TAG_PREFIX + upstreamCommitId;
+        final Repository fileRepo = gitRepositoryManager.create(REPO_NAME, 0, Author.SYSTEM, false);
+        fileRepo.commit(Revision.HEAD, 0, Author.SYSTEM, "Mirrored commit", "", Markup.PLAINTEXT,
+                        ImmutableList.of(Change.ofTextUpsert("/value.txt", "value")), true,
+                        upstreamCommitId, true).join();
+
+        storeWdekAndMigrate(REPO_NAME);
+
+        final Repository encryptedRepo = gitRepositoryManager.get(REPO_NAME);
+        final org.eclipse.jgit.lib.Repository jGitRepository = encryptedRepo.jGitRepository();
+        final Ref tag = jGitRepository.exactRef(refName);
+        assertThat(tag).isNotNull();
+        assertThat(tag.getObjectId()).isEqualTo(
+                jGitRepository.resolve(Constants.R_HEADS + Constants.MASTER));
+        assertThat(jGitRepository.getRefDatabase().getRefsByPrefix(Constants.R_TAGS))
+                .extracting(Ref::getName)
+                .containsExactly(refName);
     }
 
     @Test

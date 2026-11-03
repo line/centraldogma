@@ -1,6 +1,6 @@
 import { createColumnHelper, PaginationState } from '@tanstack/react-table';
 import { HistoryDto } from 'dogma/features/history/HistoryDto';
-import { Badge, Box, Button, HStack, Icon, useDisclosure } from '@chakra-ui/react';
+import { Badge, Box, Button, Divider, HStack, Icon, useDisclosure } from '@chakra-ui/react';
 import { ChakraLink } from 'dogma/common/components/ChakraLink';
 import { DateWithTooltip } from 'dogma/common/components/DateWithTooltip';
 import { ReactElement, useMemo, useState } from 'react';
@@ -10,6 +10,7 @@ import { GoCodescan } from 'react-icons/go';
 import { VscGitCommit } from 'react-icons/vsc';
 import CompareButton from 'dogma/common/components/CompareButton';
 import { RevertCommitModal } from 'dogma/features/history/RevertCommitModal';
+import { CommitSha } from 'dogma/features/history/CommitSha';
 import { WithRepositoryRole } from 'dogma/features/auth/RepositoryRole';
 
 export type HistoryListProps = {
@@ -44,19 +45,27 @@ const HistoryList = ({
     () => [
       columnHelper.accessor((row: HistoryDto) => `${row.revision} ${row.commitMessage.summary}`, {
         cell: (info) => (
-          <ChakraLink
-            fontWeight="semibold"
-            disabled={info.row.original.revision <= 1}
-            href={`/app/projects/${projectName}/repos/${repoName}/commit/${info.row.original.revision}`}
-          >
-            <HStack>
-              <Icon as={VscGitCommit} />
-              <Box>
-                <Badge colorScheme={'blue'}>{info.row.original.revision}</Badge>
-              </Box>
-              <Box>{info.row.original.commitMessage.summary}</Box>
-            </HStack>
-          </ChakraLink>
+          <HStack spacing={3} flexWrap="wrap" rowGap={1}>
+            <ChakraLink
+              fontWeight="semibold"
+              disabled={info.row.original.revision <= 1}
+              href={`/app/projects/${projectName}/repos/${repoName}/commit/${info.row.original.revision}`}
+            >
+              <HStack>
+                <Icon as={VscGitCommit} />
+                <Box>
+                  <Badge colorScheme={'blue'}>{info.row.original.revision}</Badge>
+                </Box>
+                <Box>{info.row.original.commitMessage.summary}</Box>
+              </HStack>
+            </ChakraLink>
+            {info.row.original.upstreamCommitId && (
+              <HStack spacing={3}>
+                <Divider orientation="vertical" height={4} />
+                <CommitSha label="Upstream commit" sha={info.row.original.upstreamCommitId} showLabel={false} />
+              </HStack>
+            )}
+          </HStack>
         ),
         header: 'Revision',
       }),

@@ -28,6 +28,7 @@ import org.jspecify.annotations.Nullable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
+import com.linecorp.armeria.common.util.SafeCloseable;
 import com.linecorp.armeria.common.util.UnmodifiableFuture;
 import com.linecorp.centraldogma.server.auth.SessionKey;
 import com.linecorp.centraldogma.server.auth.SessionMasterKey;
@@ -135,6 +136,21 @@ public enum NoopEncryptionStorageManager implements EncryptionStorageManager {
     @Override
     public byte[] getMetadata(byte[] metadataKey) {
         return null;
+    }
+
+    @Override
+    public List<String> getRefNamesByPrefix(String projectName, String repoName, String prefix) {
+        return ImmutableList.of();
+    }
+
+    @Override
+    public SafeCloseable acquireRepositoryReadLock(String projectName, String repoName) {
+        return () -> {};
+    }
+
+    @Override
+    public SafeCloseable acquireRepositoryWriteLock(String projectName, String repoName) {
+        return () -> {};
     }
 
     @Override
