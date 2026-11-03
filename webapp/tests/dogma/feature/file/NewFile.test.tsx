@@ -20,9 +20,9 @@ import { renderWithProviders } from 'dogma/util/test-utils';
 const mockPushUnwrap = jest.fn();
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const mockPush = jest.fn((..._args: unknown[]) => ({ unwrap: mockPushUnwrap }));
-const mockGetFileUnwrap = jest.fn();
+const mockGetFilesUnwrap = jest.fn();
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-const mockGetFile = jest.fn((..._args: unknown[]) => ({ unwrap: mockGetFileUnwrap }));
+const mockGetFiles = jest.fn((..._args: unknown[]) => ({ unwrap: mockGetFilesUnwrap }));
 
 // The ESM-only 'yaml' package cannot be loaded by Jest. YAML files are not covered by these tests.
 jest.mock('yaml', () => ({ __esModule: true, default: { parse: jest.fn(), stringify: jest.fn() } }));
@@ -32,7 +32,7 @@ jest.mock('next/router', () => ({ __esModule: true, default: { push: jest.fn(), 
 jest.mock('dogma/features/api/apiSlice', () => ({
   ...jest.requireActual('dogma/features/api/apiSlice'),
   usePushFileChangesMutation: () => [mockPush, { isLoading: false }],
-  useLazyGetFileContentQuery: () => [mockGetFile, { isFetching: false }],
+  useLazyGetFilesQuery: () => [mockGetFiles, { isFetching: false }],
 }));
 
 // Monaco cannot mount in JSDOM; replace the editor with a stub that returns fixed content.
@@ -61,16 +61,21 @@ describe('NewFile', () => {
     mockPush.mockClear();
     mockPushUnwrap.mockReset();
     mockPushUnwrap.mockResolvedValue({});
-    mockGetFile.mockClear();
-    mockGetFileUnwrap.mockReset();
+    mockGetFiles.mockClear();
+    mockGetFilesUnwrap.mockReset();
   });
 
   it('creates the file when it does not exist', async () => {
-    mockGetFileUnwrap.mockRejectedValue({ status: 404, data: {} });
+    // The list API responds with 204 No Content if nothing exists at the path.
+    mockGetFilesUnwrap.mockResolvedValue(null);
     submitNewFile();
 
     await waitFor(() => expect(mockPush).toHaveBeenCalledTimes(1));
-    expect(mockGetFile.mock.calls[0][0]).toMatchObject({ filePath: '/a/b.json', revision: 'head' });
+    expect(mockGetFiles.mock.calls[0][0]).toMatchObject({
+      filePath: '/a/b.json',
+      revision: 'head',
+      withContent: false,
+    });
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     expect((mockPush.mock.calls[0][0] as any).data.changes).toEqual([
       { path: '/a/b.json', type: 'UPSERT_JSON', rawContent: '{"a": 1}' },
@@ -78,7 +83,7 @@ describe('NewFile', () => {
   });
 
   it('asks before overwriting an existing file', async () => {
-    mockGetFileUnwrap.mockResolvedValue({ path: '/a/b.json' });
+    mockGetFilesUnwrap.mockResolvedValue([{ path: '/a/b.json', type: 'JSON' }]);
     const { findByText, getByRole } = submitNewFile();
 
     expect(await findByText('File already exists')).toBeTruthy();
@@ -89,7 +94,7 @@ describe('NewFile', () => {
   });
 
   it('does not overwrite an existing file when canceled', async () => {
-    mockGetFileUnwrap.mockResolvedValue({ path: '/a/b.json' });
+    mockGetFilesUnwrap.mockResolvedValue([{ path: '/a/b.json', type: 'JSON' }]);
     const { findByText, getAllByRole } = submitNewFile();
 
     expect(await findByText('File already exists')).toBeTruthy();
@@ -102,21 +107,21 @@ describe('NewFile', () => {
   });
 
   it('does not push when a directory exists at the path', async () => {
-    // The server responds with 204 No Content for a directory.
-    mockGetFileUnwrap.mockResolvedValue(undefined);
+    // The list API returns the children of a directory.
+    mockGetFilesUnwrap.mockResolvedValue([{ path: '/a/b.json/c.json', type: 'JSON' }]);
     const { queryByText } = submitNewFile();
 
-    await waitFor(() => expect(mockGetFile).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(mockGetFiles).toHaveBeenCalledTimes(1));
     await new Promise((resolve) => setTimeout(resolve, 50));
     expect(mockPush).not.toHaveBeenCalled();
     expect(queryByText('File already exists')).toBeNull();
   });
 
   it('does not push when checking the file fails', async () => {
-    mockGetFileUnwrap.mockRejectedValue({ status: 500, data: { message: 'boom' } });
+    mockGetFilesUnwrap.mockRejectedValue({ status: 500, data: { message: 'boom' } });
     submitNewFile();
 
-    await waitFor(() => expect(mockGetFile).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(mockGetFiles).toHaveBeenCalledTimes(1));
     await new Promise((resolve) => setTimeout(resolve, 50));
     expect(mockPush).not.toHaveBeenCalled();
   });

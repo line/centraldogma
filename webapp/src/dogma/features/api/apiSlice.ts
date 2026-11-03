@@ -672,7 +672,6 @@ export const {
   useGetFilesQuery,
   useLazyGetFilesQuery,
   useGetFileContentQuery,
-  useLazyGetFileContentQuery,
   usePushFileChangesMutation,
   useRevertRepositoryMutation,
   // History
