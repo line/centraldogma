@@ -17,15 +17,20 @@
 package com.linecorp.centraldogma.server.internal.replication;
 
 import static com.linecorp.centraldogma.testing.internal.TestUtil.assertJsonConversion;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import org.junit.jupiter.api.Test;
 
+import com.fasterxml.jackson.databind.exc.InvalidTypeIdException;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.collect.ImmutableList;
 
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.PushAsIsCommand;
 
@@ -81,5 +86,29 @@ class ReplicationLogTest {
                              "  }," +
                              "  \"result\": 43" +
                              '}');
+    }
+
+    @Test
+    void ignoresUnknownPropertiesInReplicationLog() throws Exception {
+        final Command<Revision> command = Command.push(
+                1234L, AUTHOR, "project", "repo", new Revision(1), "summary", "detail", Markup.PLAINTEXT,
+                ImmutableList.of(Change.ofTextUpsert("/file.txt", "content")));
+        final ReplicationLog<Revision> log = new ReplicationLog<>(1, command, new Revision(2));
+        final ObjectNode json = Jackson.valueToTree(log);
+        json.put("futureLogField", true);
+        final ObjectNode commandJson = (ObjectNode) json.get("command");
+        commandJson.put("upstreamCommitId", "0123456789abcdef0123456789abcdef01234567");
+        commandJson.put("publishUpstreamCommitTag", true);
+        ((ObjectNode) commandJson.get("author")).put("futureAuthorField", true);
+
+        assertThat(Jackson.readValue(Jackson.writeValueAsBytes(json), ReplicationLog.class)).isEqualTo(log);
+    }
+
+    @Test
+    void rejectsUnknownCommandType() {
+        final String json = "{\"replicaId\":1,\"command\":{\"type\":\"FUTURE_COMMAND\"},\"result\":null}";
+        assertThatThrownBy(() -> Jackson.readValue(json, ReplicationLog.class))
+                .isInstanceOf(InvalidTypeIdException.class)
+                .hasMessageContaining("FUTURE_COMMAND");
     }
 }
