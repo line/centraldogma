@@ -167,6 +167,65 @@ class DefaultMetaRepositoryWithMirrorTest {
                 .hasCauseInstanceOf(RepositoryMetadataException.class);
     }
 
+    @ValueSource(booleans = { true, false })
+    @ParameterizedTest
+    void invalidMirrorWarningDoesNotExposeCredentials(boolean repoSpecific) {
+        final String fakeToken = "fake-mirror-token";
+        final String invalidMirrorFile = "/repos/foo/mirrors/bad-uri.json";
+        metaRepo.commit(Revision.HEAD, 0, Author.SYSTEM, "", ImmutableList.of(
+                Change.ofJsonUpsert(
+                        "/repos/foo/mirrors/foo.json",
+                        '{' +
+                        "  \"id\": \"foo\"," +
+                        "  \"schedule\": \"" + DEFAULT_SCHEDULE + "\"," +
+                        "  \"direction\": \"REMOTE_TO_LOCAL\"," +
+                        "  \"localRepo\": \"foo\"," +
+                        "  \"remoteUri\": \"git+https://example.com/foo.git\"," +
+                        "  \"credentialName\": \"\"" +
+                        '}'),
+                Change.ofJsonUpsert(
+                        invalidMirrorFile,
+                        '{' +
+                        "  \"id\": \"bad-uri\"," +
+                        "  \"schedule\": \"" + DEFAULT_SCHEDULE + "\"," +
+                        "  \"direction\": \"REMOTE_TO_LOCAL\"," +
+                        "  \"localRepo\": \"foo\"," +
+                        "  \"remoteUri\": \"git+https://user:" + fakeToken +
+                        "@example.com/not-a-repo\"," +
+                        "  \"credentialName\": \"\"" +
+                        '}'))).join();
+        project.repos().create("foo", Author.SYSTEM);
+
+        // The parsing exception contains the URI, and the single-mirror lookup still surfaces it.
+        assertThatThrownBy(() -> metaRepo.mirror("foo", "bad-uri").join())
+                .isInstanceOf(CompletionException.class)
+                .hasCauseInstanceOf(RepositoryMetadataException.class)
+                .hasStackTraceContaining(fakeToken);
+
+        final Logger logger = (Logger) LoggerFactory.getLogger(DefaultMetaRepository.class);
+        final ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.start();
+        logger.addAppender(appender);
+        try {
+            final List<Mirror> mirrors =
+                    (repoSpecific ? metaRepo.mirrors("foo", true) : metaRepo.mirrors()).join();
+            assertThat(mirrors).extracting(Mirror::id).containsExactly("foo");
+            assertThat(appender.list).singleElement().satisfies(event -> {
+                assertThat(event.getLevel()).isEqualTo(Level.WARN);
+                assertThat(event.getFormattedMessage())
+                        .contains("Failed to load a mirror configuration", project.name(), invalidMirrorFile,
+                                  "exception: ValueInstantiationException")
+                        .doesNotContain(fakeToken);
+                assertThat(event.getThrowableProxy()).isNull();
+                assertThat(event.getArgumentArray())
+                        .containsExactly(project.name(), invalidMirrorFile, "ValueInstantiationException");
+            });
+        } finally {
+            logger.detachAppender(appender);
+            appender.stop();
+        }
+    }
+
     @Test
     void invalidCredentialDoesNotPreventOtherMirrorsFromLoading() {
         final String aliceCredential = credentialName(project.name(), "alice");

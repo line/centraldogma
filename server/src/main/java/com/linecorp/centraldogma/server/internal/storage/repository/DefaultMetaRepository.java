@@ -237,8 +237,10 @@ public final class DefaultMetaRepository extends RepositoryWrapper implements Me
                           } catch (Exception e) {
                               // Skip a malformed mirror configuration so that a single bad mirror does not
                               // prevent the rest of the mirrors from being loaded.
-                              logger.warn("Failed to load a mirror configuration. project: {}, file: {}",
-                                          parent().name(), entry.getKey(), e);
+                              // Exception messages may contain credentials in the remote URI.
+                              logger.warn("Failed to load a mirror configuration. " +
+                                          "project: {}, file: {}, exception: {}",
+                                          parent().name(), entry.getKey(), e.getClass().getSimpleName());
                               return null;
                           }
                       })
