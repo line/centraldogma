@@ -278,6 +278,9 @@ public interface Watcher<T> extends AutoCloseable {
 
     /**
      * Returns a {@link Watcher} that applies the {@link Function} for the {@link Latest#value()}.
+     * If the {@link Function} fails before the initial value is available, the returned {@link Watcher}
+     * is closed and its {@link #initialValueFuture()} is completed exceptionally. Afterwards, failures are
+     * logged and the failed revision is skipped.
      */
     default <U> Watcher<U> newChildAsync(Function<? super T, ? extends CompletableFuture<? extends U>> mapper) {
         requireNonNull(mapper, "mapper");
