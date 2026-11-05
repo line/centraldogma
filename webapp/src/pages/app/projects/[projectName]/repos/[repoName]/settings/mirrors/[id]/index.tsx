@@ -21,6 +21,7 @@ import { Deferred } from 'dogma/common/components/Deferred';
 import React from 'react';
 import { Breadcrumbs } from 'dogma/common/components/Breadcrumbs';
 import MirrorView from 'dogma/features/repo/settings/mirrors/MirrorView';
+import { PageTitle } from 'dogma/common/components/PageTitle';
 
 const MirrorViewPage = () => {
   const router = useRouter();
@@ -38,6 +39,7 @@ const MirrorViewPage = () => {
       {() => {
         return (
           <>
+            <PageTitle title={[id, 'Mirrors', repoName, projectName]} />
             <Breadcrumbs path={router.asPath} omitIndexList={[0]} />
             <Spacer />
             <MirrorView projectName={projectName} repoName={repoName} mirror={mirror} />
