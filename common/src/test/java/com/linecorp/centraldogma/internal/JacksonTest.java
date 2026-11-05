@@ -24,10 +24,13 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.io.IOException;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.exc.InvalidFormatException;
 import com.google.common.collect.ImmutableList;
 
 import com.linecorp.centraldogma.common.QueryExecutionException;
@@ -244,6 +247,25 @@ class JacksonTest {
         assertThatJson(Jackson.extractTree(node, "$.*~"))
                 .isEqualTo("[\"a\", \"a']['b\", \"a'][0\", \"b\", \"a', 'b\"]");
         assertThatJson(Jackson.extractTree(node, "$['a','b']~")).isEqualTo("[\"a\", \"b\"]");
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = { false, true })
+    void ignoresUnknownProperties(boolean fromTree) throws Exception {
+        final String json = "{\"aa\":123,\"bb\":true,\"cc\":\"hello\",\"futureField\":{\"nested\":true}}";
+        final Foo foo = fromTree ? Jackson.treeToValue(readTree(json), Foo.class)
+                                 : Jackson.readValue(json, Foo.class);
+        assertThat(foo.aa).isEqualTo(123);
+        assertThat(foo.bb).isTrue();
+        assertThat(foo.cc).isEqualTo("hello");
+    }
+
+    @Test
+    void rejectsInvalidKnownProperty() {
+        final String json = "{\"aa\":\"not-a-number\",\"bb\":true,\"cc\":\"hello\",\"futureField\":true}";
+        assertThatThrownBy(() -> Jackson.readValue(json, Foo.class))
+                .isInstanceOf(InvalidFormatException.class)
+                .hasMessageContaining("aa");
     }
 
     static final class Foo {
