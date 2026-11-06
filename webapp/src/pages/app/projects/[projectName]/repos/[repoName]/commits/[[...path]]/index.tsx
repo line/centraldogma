@@ -4,6 +4,7 @@ import { useRouter } from 'next/router';
 import HistoryList from 'dogma/features/history/HistoryList';
 import React from 'react';
 import { Breadcrumbs } from 'dogma/common/components/Breadcrumbs';
+import { PageTitle } from 'dogma/common/components/PageTitle';
 import { Deferred } from 'dogma/common/components/Deferred';
 import { FcOpenedFolder } from 'react-icons/fc';
 import { GoRepo } from 'react-icons/go';
@@ -129,6 +130,7 @@ const HistoryListPage = () => {
         }
         return (
           <Box p="2">
+            <PageTitle title={['History', filePath, repoName, projectName]} />
             <Breadcrumbs
               path={
                 directoryPath.split('?')[0] + (router.query.from ? `/${baseRevision}..${fromRevision}` : '')

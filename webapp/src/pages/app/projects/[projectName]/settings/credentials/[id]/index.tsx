@@ -21,6 +21,7 @@ import React from 'react';
 import { Breadcrumbs } from 'dogma/common/components/Breadcrumbs';
 import { Flex, Spacer } from '@chakra-ui/react';
 import CredentialView from 'dogma/features/project/settings/credentials/CredentialView';
+import { PageTitle } from 'dogma/common/components/PageTitle';
 
 const CredentialViewPage = () => {
   const router = useRouter();
@@ -33,6 +34,7 @@ const CredentialViewPage = () => {
         return (
           <>
             <Flex>
+              <PageTitle title={[id, 'Credentials', projectName]} />
               <Breadcrumbs path={router.asPath} omitIndexList={[0]} />
               <Spacer />
             </Flex>
