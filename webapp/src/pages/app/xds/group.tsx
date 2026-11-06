@@ -42,6 +42,7 @@ import { useXdsRoute } from 'dogma/features/xds/useXdsRoute';
 import { useGroupReadAccess } from 'dogma/features/xds/useGroupReadAccess';
 import { useGroupAdminAccess } from 'dogma/features/xds/useGroupAdminAccess';
 import { useGroupExists } from 'dogma/features/xds/useGroupExists';
+import { PageTitle } from 'dogma/common/components/PageTitle';
 
 // Sections that manage group-level access and are therefore restricted to group admins.
 const ADMIN_ONLY_SECTIONS = ['permissions', 'credentials', 'dangerZone', 'mirroring'];
@@ -115,6 +116,7 @@ const GroupDetailPage = () => {
   const title = SECTION_TITLE[section] ?? `${XDS_RESOURCE_META[section as XdsResourceType].label}s`;
   return (
     <Box>
+      <PageTitle title={[title, group, 'xDS']} />
       <Breadcrumb mb={4} color="gray.500" fontSize="sm">
         <BreadcrumbItem>
           <BreadcrumbLink as={RouteLink} href="/app/xds">
