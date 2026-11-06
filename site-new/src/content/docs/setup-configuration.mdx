@@ -332,7 +332,8 @@ example shows the configuration of the first replica in a 3-replica cluster:
     "additionalProperties": {},
     "timeoutMillis": null,
     "numWorkers": null,
-    "maxLogCount": null,
+    "minimumLogCount": null,
+    "maximumLogCount": null,
     "minLogAgeMillis": null
   }
 }
@@ -430,11 +431,20 @@ example shows the configuration of the first replica in a 3-replica cluster:
   - the number of worker threads dedicated for replication. If `null` or unspecified, the default value
     of '16 threads' is used.
 
-- `maxLogCount` (integer)
+- `minimumLogCount` (integer)
 
-  - the maximum number of log items to keep in ZooKeeper. Note that the log entries will still not be removed
+  - the target number of log items to keep in ZooKeeper. Note that the log entries will still not be removed
     if they are younger than `minLogAgeMillis`. If `null` or unspecified, the default value of
     '1024 log entries' is used.
+
+  - The old name `maxLogCount` is accepted for compatibility, but is deprecated. Do not specify both names.
+
+- `maximumLogCount` (integer)
+
+  - the observed log count at which new writes fail with an HTTP 500 replication error.
+    If `null` or unspecified, the default is `Integer.MAX_VALUE`, effectively disabling the
+    threshold. Concurrent writes on different paths can exceed it. It must be greater than
+    `minimumLogCount`.
 
 - `minLogAgeMillis` (integer)
 
