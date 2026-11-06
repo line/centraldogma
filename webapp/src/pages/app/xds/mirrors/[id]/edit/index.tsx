@@ -25,6 +25,7 @@ import ErrorMessageParser from 'dogma/features/services/ErrorMessageParser';
 import { Deferred } from 'dogma/common/components/Deferred';
 import { MirrorDto, MirrorRequest } from 'dogma/features/repo/settings/mirrors/MirrorRequest';
 import MirrorForm from 'dogma/features/repo/settings/mirrors/MirrorForm';
+import { PageTitle } from 'dogma/common/components/PageTitle';
 
 const XdsMirrorEditPage = () => {
   const router = useRouter();
@@ -76,6 +77,7 @@ const XdsMirrorEditPage = () => {
     <Deferred isLoading={isLoading} error={error}>
       {() => (
         <>
+          <PageTitle title={[`Edit ${id}`, 'Mirroring', group, 'xDS']} />
           <Breadcrumb mb={4} color="gray.500" fontSize="sm">
             <BreadcrumbItem>
               <BreadcrumbLink as={RouteLink} href="/app/xds">

@@ -16,6 +16,7 @@
 import { useRouter } from 'next/router';
 import { ResourceEditor } from 'dogma/features/xds/ResourceEditor';
 import { XdsResourceType, XDS_RESOURCE_META } from 'dogma/features/xds/XdsTypes';
+import { PageTitle } from 'dogma/common/components/PageTitle';
 
 const ResourcePage = () => {
   const router = useRouter();
@@ -28,7 +29,12 @@ const ResourcePage = () => {
   if (!group || !type || !XDS_RESOURCE_META[type]) {
     return null;
   }
-  return <ResourceEditor group={group} type={type} id={id} isNew={isNew} k8s={k8s} />;
+  return (
+    <>
+      <PageTitle title={[isNew ? 'New' : id, `${XDS_RESOURCE_META[type].label}s`, group, 'xDS']} />
+      <ResourceEditor group={group} type={type} id={id} isNew={isNew} k8s={k8s} />
+    </>
+  );
 };
 
 export default ResourcePage;

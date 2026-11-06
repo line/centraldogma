@@ -28,6 +28,7 @@ import {
   CredentialDto,
 } from 'dogma/features/project/settings/credentials/CredentialDto';
 import CredentialForm from 'dogma/features/project/settings/credentials/CredentialForm';
+import { PageTitle } from 'dogma/common/components/PageTitle';
 
 const EMPTY_CREDENTIAL: CredentialDto = {
   id: '',
@@ -61,6 +62,7 @@ const NewCredentialPage = () => {
 
   return (
     <>
+      <PageTitle title={['New', 'Credentials', projectName]} />
       <Breadcrumbs path={router.asPath} omitIndexList={[0]} />
       <CredentialForm
         projectName={projectName}
