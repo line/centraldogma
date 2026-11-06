@@ -29,8 +29,14 @@ import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
+import java.io.File;
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -44,6 +50,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
@@ -652,13 +659,43 @@ class ZooKeeperCommandExecutorTest {
             // Keep the ZooKeeper log but rewind the local progress file, then restart.
             replica.commandExecutor().stop().join();
             java.nio.file.Files.writeString(
-                    new java.io.File(replica.dataDir(), "last_revision").toPath(), "-1");
+                    new File(replica.dataDir(), "last_revision").toPath(), "-1");
             replica.commandExecutor().start().join();
 
             // Both revisions are replayed again instead of being skipped.
             await().untilAsserted(() -> verify(replica.delegate(), times(2)).apply(eq(command1)));
             await().untilAsserted(() -> verify(replica.delegate(), times(2)).apply(eq(command2)));
             assertThat(replica.commandExecutor().isWritable()).isTrue();
+        }
+    }
+
+    @Test
+    @Timeout(60)
+    void rejectsStartupAfterZooKeeperHistoryResetWithRetainedCheckpoint() throws Exception {
+        try (Cluster cluster = Cluster.builder().numReplicas(1)
+                                      .build(ZooKeeperCommandExecutorTest::newMockDelegate)) {
+            final Replica replica = cluster.get(0);
+            replica.commandExecutor().execute(Command.createProject(Author.SYSTEM, "p")).join();
+            replica.commandExecutor().execute(Command.createRepository(Author.SYSTEM, "p", "r")).join();
+            assertThat(replica.localRevision()).isEqualTo(1L);
+
+            replica.commandExecutor().stop().join();
+            final Path zkDir = new File(replica.dataDir(), "_zookeeper").toPath();
+            try (Stream<Path> paths = Files.walk(zkDir)) {
+                paths.sorted(Comparator.reverseOrder()).forEach(path -> {
+                    try {
+                        Files.delete(path);
+                    } catch (IOException e) {
+                        throw new UncheckedIOException(e);
+                    }
+                });
+            }
+
+            assertThatThrownBy(() -> replica.commandExecutor().start().join())
+                    .hasRootCauseInstanceOf(ReplicationException.class)
+                    .hasMessageContaining("ZooKeeper command history is empty");
+            assertThat(replica.commandExecutor().isStarted()).isFalse();
+            assertThat(replica.localRevision()).isEqualTo(1L);
         }
     }
 

@@ -59,6 +59,7 @@ import org.apache.curator.framework.state.ConnectionState;
 import org.apache.curator.retry.RetryForever;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
+import org.apache.zookeeper.data.Stat;
 import org.apache.zookeeper.server.auth.DigestLoginModule;
 import org.apache.zookeeper.server.auth.SASLAuthenticationProvider;
 import org.apache.zookeeper.server.quorum.QuorumPeer.ServerState;
@@ -162,6 +163,7 @@ public final class ZooKeeperCommandExecutor
     @Nullable
     private volatile LeaderSelector zoneLeaderSelector;
     private volatile boolean createdParentNodes;
+    private volatile boolean starting;
     private volatile boolean canReplicate;
     // Highest ZooKeeper revision whose effect is in local data
     private volatile long lastReplayedRevision = -1;
@@ -429,6 +431,7 @@ public final class ZooKeeperCommandExecutor
                            @Nullable Runnable onReleaseLeadership,
                            @Nullable Runnable onTakeZoneLeadership,
                            @Nullable Runnable onReleaseZoneLeadership) throws Exception {
+        starting = true;
         try {
             // Get the last replayed revision.
             try {
@@ -447,10 +450,16 @@ public final class ZooKeeperCommandExecutor
             curator = CuratorFrameworkFactory.newClient(
                     "127.0.0.1:" + quorumPeer.getClientPort(), cfg.timeoutMillis(), cfg.timeoutMillis(),
                     (retryCount, elapsedTimeMs, sleeper) -> {
+                        if (starting && isStopping()) {
+                            return false;
+                        }
                         return retryPolicy.allowRetry(retryCount, elapsedTimeMs, sleeper);
                     });
 
             curator.start();
+            validateZooKeeperLogsAndRevision();
+            createdParentNodes = false;
+            createParentNodes();
 
             // Start the log replay.
             logWatcherExecutor = ExecutorServiceMetrics.monitor(
@@ -509,6 +518,25 @@ public final class ZooKeeperCommandExecutor
             throw e;
         } catch (Exception e) {
             throw new ReplicationException(e);
+        } finally {
+            starting = false;
+        }
+    }
+
+    /**
+     * Rejects startup when {@code last_revision} is non-initial but ZooKeeper has no command logs.
+     */
+    private void validateZooKeeperLogsAndRevision() throws Exception {
+        if (lastReplayedRevision == -1) {
+            return;
+        }
+
+        // Normal log cleanup retains at least one child because maxLogCount is always positive.
+        final Stat logStat = curator.checkExists().forPath(absolutePath(LOG_PATH));
+        if (logStat == null || logStat.getNumChildren() == 0) {
+            throw new ReplicationException(
+                    "ZooKeeper command history is empty but " + revisionFile +
+                    " contains a non-initial checkpoint: " + lastReplayedRevision);
         }
     }
 
@@ -739,6 +767,8 @@ public final class ZooKeeperCommandExecutor
                         } catch (Exception e) {
                             logger.warn("Failed to close the Curator framework: {}", e.getMessage(), e);
                         } finally {
+                            // Cached locks are bound to the Curator client that was just closed.
+                            mutexMap.clear();
                             try {
                                 if (quorumPeer != null) {
                                     final long peerId = quorumPeer.getId();
