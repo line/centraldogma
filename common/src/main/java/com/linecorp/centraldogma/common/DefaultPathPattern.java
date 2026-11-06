@@ -31,6 +31,11 @@ final class DefaultPathPattern implements PathPattern {
 
     private static final Pattern PATH_PATTERN_PATTERN = Pattern.compile("^[- /*_.0-9a-zA-Z]+$");
 
+    /**
+     * The pattern that a file extension must match; only alphanumeric characters are allowed.
+     */
+    private static final Pattern EXTENSION_PATTERN = Pattern.compile("^[a-zA-Z0-9]+$");
+
     static final String ALL = "/**";
 
     static final DefaultPathPattern allPattern = new DefaultPathPattern(ALL, ALL);
@@ -98,6 +103,19 @@ final class DefaultPathPattern implements PathPattern {
         checkArgument(PATH_PATTERN_PATTERN.matcher(pattern).matches(),
                       "pattern: %s (expected: %s)", pattern, PATH_PATTERN_PATTERN);
         return pattern;
+    }
+
+    /**
+     * Strips an optional leading dot from {@code extension} and validates that the rest consists of
+     * alphanumeric characters only.
+     */
+    static String normalizeExtension(String extension) {
+        final String normalized = extension.startsWith(".") ? extension.substring(1) : extension;
+        checkArgument(!normalized.isEmpty(), "extension is empty.");
+        checkArgument(EXTENSION_PATTERN.matcher(normalized).matches(),
+                      "extension: %s (expected: an alphanumeric extension such as \"json\" or \".json\")",
+                      extension);
+        return normalized;
     }
 
     @Override
