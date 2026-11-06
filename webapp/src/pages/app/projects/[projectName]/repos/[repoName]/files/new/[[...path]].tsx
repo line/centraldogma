@@ -2,6 +2,7 @@ import { Box } from '@chakra-ui/react';
 import { useRouter } from 'next/router';
 import { Breadcrumbs } from 'dogma/common/components/Breadcrumbs';
 import { NewFile } from 'dogma/features/file/NewFile';
+import { PageTitle } from 'dogma/common/components/PageTitle';
 
 const NewFilePage = () => {
   const router = useRouter();
@@ -9,6 +10,7 @@ const NewFilePage = () => {
   const projectName = router.query.projectName ? (router.query.projectName as string) : '';
   return (
     <Box p="2">
+      <PageTitle title={['New file', repoName, projectName]} />
       <Breadcrumbs path={router.asPath} omitIndexList={[0, 3, 5, 6]} suffixes={{ 4: '/tree/head' }} />
       <NewFile
         projectName={projectName}

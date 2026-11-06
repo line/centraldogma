@@ -25,6 +25,7 @@ import { Breadcrumbs } from 'dogma/common/components/Breadcrumbs';
 import React from 'react';
 import { VariableDto } from 'dogma/features/project/settings/variables/VariableDto';
 import VariableForm from 'dogma/features/project/settings/variables/VariableForm';
+import { PageTitle } from 'dogma/common/components/PageTitle';
 
 const EMPTY_VARIABLE: VariableDto = {
   id: '',
@@ -56,6 +57,7 @@ const NewRepoVariablePage = () => {
 
   return (
     <>
+      <PageTitle title={['New', 'Variables', repoName, projectName]} />
       <Breadcrumbs path={router.asPath} omitIndexList={[0]} />
       <VariableForm
         projectName={projectName}
