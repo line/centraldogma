@@ -520,11 +520,22 @@ class ZooKeeperCommandExecutorTest {
                                             "replica.zk.latency#value{type=max}",
                                             "replica.zk.latency#value{type=min}",
                                             "replica.zk.log.dir.size#value",
+                                            "replica.zk.logs.delete.result#count{result=below_limit}",
+                                            "replica.zk.logs.delete.result#count{result=no_deletion}",
+                                            "replica.zk.logs.delete.result#count{result=deleted}",
+                                            "replica.zk.logs.delete.result#count{result=failure}",
                                             "replica.zk.nodes#value",
                                             "replica.zk.outstanding.requests#value",
                                             "replica.zk.packets.received#count",
                                             "replica.zk.packets.sent#count",
                                             "replica.zk.watches#value");
+
+            cluster.get(0).commandExecutor()
+                   .execute(Command.createRepository(Author.SYSTEM, "project", "repo1")).join();
+            await().untilAsserted(() -> {
+                assertThat(cluster.get(0).meterRegistry().find("replica.zk.logs.delete.result")
+                                                 .tag("result", "below_limit").counter().count()).isPositive();
+            });
         }
     }
 
