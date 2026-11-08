@@ -84,7 +84,7 @@ final class CdsStreamingTest {
         int expectedNonce = 0;
         DiscoveryResponse discoveryResponse = queue.take();
         while (discoveryResponse.getResourcesList().isEmpty()) {
-            // The commited cluster is not yet available. Send ack and receive the next discovery response.
+            // The committed cluster is not yet available. Send ack and receive the next discovery response.
             sendAck(requestStreamObserver, discoveryResponse);
             discoveryResponse = queue.take();
             expectedNonce++;
