@@ -51,8 +51,7 @@ junit4 = "4.13.2"
 junit5 = "5.14.4"
 junit-pioneer = "2.3.0"
 jsch = "0.1.55"
-# Don't update `json-path` version
-json-path = "2.2.0"
+json-path = "2.10.0"
 # 3.0.0 requires java 17
 json-unit = "2.40.1"
 jsoup = "1.24.1" # JSoup is only used for Gradle script.
