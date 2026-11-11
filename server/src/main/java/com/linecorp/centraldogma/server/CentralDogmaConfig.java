@@ -614,7 +614,7 @@ public final class CentralDogmaConfig {
     }
 
     /**
-     * Returns the ordered content push rate limiting rules, or an empty list if disabled.
+     * Returns the ordered rate limiting rules for content pushes and reverts, or an empty list if disabled.
      */
     @JsonProperty
     public List<RateLimitingConfig> rateLimiting() {

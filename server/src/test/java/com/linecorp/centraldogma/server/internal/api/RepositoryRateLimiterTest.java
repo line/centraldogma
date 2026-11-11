@@ -32,9 +32,13 @@ import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.MediaType;
 import com.linecorp.armeria.common.RequestHeaders;
 import com.linecorp.centraldogma.client.CentralDogma;
+import com.linecorp.centraldogma.common.Author;
+import com.linecorp.centraldogma.common.Change;
+import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.server.RateLimitingConfig;
+import com.linecorp.centraldogma.server.storage.repository.Repository;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
 import io.micrometer.core.instrument.Counter;
@@ -75,7 +79,7 @@ class RepositoryRateLimiterTest {
             client.createProject("default").join();
             for (String repo : new String[] {
                     "one", "two", "endpoints", "git", "gitSuffix", "watch", "auth", "revert", "management",
-                    "legacy" }) {
+                    "revertFirst" }) {
                 client.createRepository("default", repo).join();
             }
             client.createProject("other").join();
@@ -156,7 +160,7 @@ class RepositoryRateLimiterTest {
     }
 
     @Test
-    void onlyContentPushIsRateLimited() {
+    void readsAndPreviewsDoNotUsePushBudget() {
         final double passedBefore = counter(FALLBACK_PATTERN, "passed").count();
         final double rejectedBefore = counter(FALLBACK_PATTERN, "rejected").count();
         for (int i = 0; i < 2; i++) {
@@ -176,23 +180,29 @@ class RepositoryRateLimiterTest {
         assertThat(counter(FALLBACK_PATTERN, "rejected").count()).isEqualTo(rejectedBefore + 1);
     }
 
-    @Test
-    void revertIsNotRateLimited() {
-        assertThat(push("default", "revert", 1).status()).isEqualTo(HttpStatus.OK);
-        assertThat(post("/api/v1/projects/default/repos/revert/revert",
-                        "{\"targetRevision\":1,\"commitMessage\":{\"summary\":\"Revert\"}}").status())
-                .isEqualTo(HttpStatus.OK);
-        assertThat(push("default", "revert", 2).status()).isEqualTo(HttpStatus.TOO_MANY_REQUESTS);
-    }
-
-    @Test
-    void legacyWriteIsNotRateLimited() {
-        assertThat(push("default", "legacy", 1).status()).isEqualTo(HttpStatus.OK);
-        assertThat(post("/api/v0/projects/default/repositories/legacy/delete/revisions/-1/value.txt",
-                        "{\"commitMessage\":{\"summary\":\"Delete value\"," +
-                        "\"detail\":{\"content\":\"\",\"markup\":\"PLAINTEXT\"}}}").status())
-                .isEqualTo(HttpStatus.OK);
-        assertThat(push("default", "legacy", 2).status()).isEqualTo(HttpStatus.TOO_MANY_REQUESTS);
+    @ParameterizedTest
+    @ValueSource(booleans = { true, false })
+    void pushAndRevertShareBudget(boolean revertFirst) {
+        final String repoName = revertFirst ? "revertFirst" : "revert";
+        final Repository repository = dogma.dogma().projectManager().get("default").repos().get(repoName);
+        // Seed content without consuming a permit so a revert can be the first limited request.
+        repository.commit(Revision.HEAD, System.currentTimeMillis(), Author.SYSTEM,
+                          "Prepare revert", Change.ofTextUpsert("/value.txt", "initial")).join();
+        final String revertPath = "/api/v1/projects/default/repos/" + repoName + "/revert";
+        final String revertBody =
+                "{\"targetRevision\":1,\"commitMessage\":{\"summary\":\"Revert\"}}";
+        final double passedBefore = counter(FALLBACK_PATTERN, "passed").count();
+        final double rejectedBefore = counter(FALLBACK_PATTERN, "rejected").count();
+        if (revertFirst) {
+            assertThat(post(revertPath, revertBody).status()).isEqualTo(HttpStatus.OK);
+            assertThat(push("default", repoName, 1).status()).isEqualTo(HttpStatus.TOO_MANY_REQUESTS);
+        } else {
+            assertThat(push("default", repoName, 1).status()).isEqualTo(HttpStatus.OK);
+            assertThat(post(revertPath, revertBody).status()).isEqualTo(HttpStatus.TOO_MANY_REQUESTS);
+        }
+        assertThat(repository.normalizeNow(Revision.HEAD).major()).isEqualTo(3);
+        assertThat(counter(FALLBACK_PATTERN, "passed").count()).isEqualTo(passedBefore + 1);
+        assertThat(counter(FALLBACK_PATTERN, "rejected").count()).isEqualTo(rejectedBefore + 1);
     }
 
     @ParameterizedTest

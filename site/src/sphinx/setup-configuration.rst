@@ -160,8 +160,8 @@ Core properties
 
 - ``rateLimiting`` (array)
 
-  - the ordered per-server rules for content push requests. Defaults to ``[]`` (disabled).
-    See :ref:`rate-limiting` for pattern matching and metrics.
+  - the ordered per-server rules for content pushes and reverts. Defaults to ``[]`` (disabled).
+    See :ref:`rate-limiting`.
 
 - ``webAppEnabled`` (boolean)
 
@@ -273,49 +273,24 @@ Core properties
 
 Rate limiting
 -------------
-Use ``rateLimiting`` to limit content push requests per second independently for each repository on each server:
+Use ``rateLimiting`` to limit HTTP API v1 content pushes and reverts per repository on each server:
 
 .. code-block:: json
 
     "rateLimiting": [
       { "pattern": "payments/config", "requestsPerSecond": 20 },
-      { "pattern": "payments/unlimited", "requestsPerSecond": 0 },
       { "pattern": "payments/.*", "requestsPerSecond": 200 },
       { "pattern": ".*", "requestsPerSecond": 100 }
     ]
 
-Patterns are Java regular expressions matched against the entire ``projectName/repoName`` string.
-The first matching rule wins, so put specific rules before broader rules and a catch-all ``.*`` rule last.
-Patterns are compiled at startup and evaluated in order on each push.
+Patterns are Java regular expressions matching the entire ``projectName/repoName``. The first matching
+rule wins. Each repository has its own budget, shared by pushes and reverts. A rate of ``0`` or no matching
+rule means unlimited requests. An empty ``rateLimiting`` array (the default) disables rate limiting.
 
-Each repository has its own budget: in this example, ``payments/config`` gets 20 pushes per second,
-other repositories in ``payments`` get 200 each, and repositories in other projects get 100 each.
-``payments/unlimited`` has no limit. Repositories matching the same pattern do not share a budget.
+The limiter uses a token bucket algorithm. Excess requests receive HTTP ``429 Too Many Requests``.
+Restart servers to apply changes.
 
-Rates must be finite, nonnegative numbers. Fractional rates are supported; for example, ``0.5`` means
-one push every two seconds on average. A rate of ``0`` means unlimited pushes and stops rule evaluation.
-Repositories with no matching rule are unlimited. Omitting ``rateLimiting``, setting it to ``null``, or using
-an empty array disables the feature. Invalid patterns or rates prevent the server from starting.
-
-Only ``POST /api/v1/projects/{projectName}/repos/{repoName}/contents`` is limited. Reads, watches, previews,
-reverts, repository management, Git HTTP, legacy HTTP, Thrift, mirroring, and replication are not covered.
-Authentication and repository authorization run before rate limiting. Authorized push attempts count before
-request validation.
-
-Requests exceeding the rate receive HTTP ``429 Too Many Requests`` with a JSON error response.
-The limiter uses Armeria's built-in rate strategy, which allows bursts after idle periods; the configured
-rate is not a strict maximum for every one-second interval. It does not provide a ``Retry-After`` header.
-
-The ``content.push.rate.limiting.requests`` counter has ``pattern`` and ``result`` tags, where ``result`` is
-``passed`` or ``rejected``. Counts aggregate across repositories matching the same rule on a server, while
-their rate limits remain independent. A passed request has been admitted by the limiter; its push may
-still fail validation or storage processing. Explicit unlimited rules count requests as passed.
-Unmatched requests, authentication or authorization failures, and nonexistent repositories do not count.
-Both counters are registered for each pattern at startup, including patterns that have not matched traffic.
-In Prometheus, the counter is named ``content_push_rate_limiting_requests_total``.
-
-Configuration is read at startup. Restart servers to apply changes. Limiter state is held in memory on
-each server and resets when a server restarts or a repository is reopened.
+The ``content.push.rate.limiting.requests`` counter tracks ``passed`` and ``rejected`` requests by ``pattern``.
 
 .. _replication:
 

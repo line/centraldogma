@@ -42,7 +42,7 @@ import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 
 /**
- * Limits content push requests independently for each repository.
+ * Limits content push and revert requests independently for each repository.
  */
 public final class RepositoryRateLimiter implements DecoratorFactoryFunction<RateLimited> {
 

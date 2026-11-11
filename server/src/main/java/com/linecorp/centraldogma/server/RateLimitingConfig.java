@@ -25,7 +25,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects;
 
 /**
- * A per-server content push rate limit matched against {@code projectName/repoName}.
+ * A per-server rate limit for content pushes and reverts matched against {@code projectName/repoName}.
  * Rules are evaluated in order, and the first full-string match wins.
  * Each repository has an independent budget, even when it matches the same rule as another repository.
  */
@@ -35,7 +35,7 @@ public final class RateLimitingConfig {
     private final double requestsPerSecond;
 
     /**
-     * Creates a rule with a regular expression and a rate. A rate of {@code 0} means unlimited pushes.
+     * Creates a rule with a regular expression and a rate. A rate of {@code 0} means unlimited requests.
      * Invalid regular expressions and rates are rejected when the configuration is created.
      */
     @JsonCreator
@@ -60,7 +60,8 @@ public final class RateLimitingConfig {
     }
 
     /**
-     * Returns the content pushes per second for each matching repository, or {@code 0} for unlimited pushes.
+     * Returns the content pushes and reverts per second for each matching repository,
+     * or {@code 0} for unlimited requests.
      */
     @JsonProperty
     public double requestsPerSecond() {

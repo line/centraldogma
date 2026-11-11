@@ -599,7 +599,7 @@ public final class CentralDogmaBuilder {
     }
 
     /**
-     * Sets the ordered per-server rate limiting rules for content pushes.
+     * Sets the ordered per-server rate limiting rules for content pushes and reverts.
      * The first matching rule wins. Rate limiting is disabled by default.
      */
     public CentralDogmaBuilder rateLimiting(RateLimitingConfig... rateLimiting) {
@@ -607,7 +607,7 @@ public final class CentralDogmaBuilder {
     }
 
     /**
-     * Sets the ordered per-server rate limiting rules for content pushes.
+     * Sets the ordered per-server rate limiting rules for content pushes and reverts.
      * The first matching rule wins. Rate limiting is disabled by default.
      */
     public CentralDogmaBuilder rateLimiting(Iterable<RateLimitingConfig> rateLimiting) {
