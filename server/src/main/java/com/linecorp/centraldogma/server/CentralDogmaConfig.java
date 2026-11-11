@@ -272,6 +272,9 @@ public final class CentralDogmaConfig {
 
     private final boolean enableThriftService;
 
+    @Nullable
+    private final RateLimitingConfig rateLimiting;
+
     CentralDogmaConfig(
             @JsonProperty(value = "dataDir", required = true) File dataDir,
             @JsonProperty(value = "ports", required = true)
@@ -300,7 +303,8 @@ public final class CentralDogmaConfig {
             @JsonProperty("pluginConfigs") @Nullable List<PluginConfig> pluginConfigs,
             @JsonProperty("management") @Nullable ManagementConfig managementConfig,
             @JsonProperty("zone") @Nullable ZoneConfig zoneConfig,
-            @JsonProperty("enableThriftService") @Nullable Boolean enableThriftService) {
+            @JsonProperty("enableThriftService") @Nullable Boolean enableThriftService,
+            @JsonProperty("rateLimiting") @Nullable RateLimitingConfig rateLimiting) {
 
         this.dataDir = requireNonNull(dataDir, "dataDir");
         this.ports = ImmutableList.copyOf(requireNonNull(ports, "ports"));
@@ -353,6 +357,7 @@ public final class CentralDogmaConfig {
         this.managementConfig = managementConfig;
         this.zoneConfig = zoneConfig;
         this.enableThriftService = firstNonNull(enableThriftService, true);
+        this.rateLimiting = rateLimiting;
     }
 
     /**
@@ -607,6 +612,15 @@ public final class CentralDogmaConfig {
     @JsonProperty
     public boolean enableThriftService() {
         return enableThriftService;
+    }
+
+    /**
+     * Returns the content push rate limiting configuration, or {@code null} if disabled.
+     */
+    @Nullable
+    @JsonProperty
+    public RateLimitingConfig rateLimiting() {
+        return rateLimiting;
     }
 
     @Override

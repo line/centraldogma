@@ -206,6 +206,7 @@ public class ContentServiceV1 extends AbstractService {
     @Post("/projects/{projectName}/repos/{repoName}/contents")
     @ConsumesJson
     @RequiresRepositoryRole(RepositoryRole.WRITE)
+    @RateLimited
     public CompletableFuture<PushResultDto> push(
             @Param @Default("-1") String revision,
             Repository repository,

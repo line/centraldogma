@@ -153,6 +153,7 @@ import com.linecorp.centraldogma.server.internal.api.LoggerService;
 import com.linecorp.centraldogma.server.internal.api.MetadataApiService;
 import com.linecorp.centraldogma.server.internal.api.MirroringServiceV1;
 import com.linecorp.centraldogma.server.internal.api.ProjectServiceV1;
+import com.linecorp.centraldogma.server.internal.api.RepositoryRateLimiter;
 import com.linecorp.centraldogma.server.internal.api.RepositoryServiceV1;
 import com.linecorp.centraldogma.server.internal.api.WatchService;
 import com.linecorp.centraldogma.server.internal.api.auth.ApplicationCertificateAuthorizer;
@@ -991,7 +992,8 @@ public class CentralDogma implements AutoCloseable {
                 new JacksonRequestConverterFunction(new ObjectMapper()),
                 new HttpApiRequestConverter(projectApiManager),
                 new RequiresRepositoryRoleDecoratorFactory(mds),
-                new RequiresProjectRoleDecoratorFactory(mds)
+                new RequiresProjectRoleDecoratorFactory(mds),
+                new RepositoryRateLimiter(cfg.rateLimiting(), pm)
         );
         sb.dependencyInjector(dependencyInjector, false)
           // TODO(ikhoon): Consider exposing ReflectiveDependencyInjector as a public API via

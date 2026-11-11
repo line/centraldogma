@@ -34,6 +34,7 @@ defaults:
   "numRepositoryWorkers": 16,
   "maxRemovedRepositoryAgeMillis": null,
   "repositoryCacheSpec": "maximumWeight=134217728,expireAfterAccess=5m",
+  "rateLimiting": null,
   "webAppEnabled": true,
   "webAppTitle": null,
   "gracefulShutdownTimeout": {
@@ -175,6 +176,11 @@ defaults:
     access cache. Refer to [the Caffeine API documentation](https://static.javadoc.io/com.github.ben-manes.caffeine/caffeine/2.6.2/com/github/benmanes/caffeine/cache/CaffeineSpec.html) for more information.
     Note that the weight of the cache has been tuned to be roughly proportional to its memory usage.
 
+- `rateLimiting` (object)
+
+  - the per-server limits for content push requests. Defaults to `null` (disabled).
+    See [Rate limiting](#rate-limiting) for defaults and overrides.
+
 - `webAppEnabled` (boolean)
 
   - whether to enable the web-based administrative console. Enabled by default.
@@ -280,6 +286,45 @@ defaults:
       - the list of zone names.
 
       - the current zone name must be included in the list of zone names.
+
+## Rate limiting
+
+Use `rateLimiting` to limit content push requests per second independently for each repository on each server:
+
+```json
+"rateLimiting": {
+  "defaultRepositoryRequestsPerSecond": 100,
+  "projects": {
+    "payments": {
+      "defaultRepositoryRequestsPerSecond": 200,
+      "repos": {
+        "config": 20,
+        "unlimited": 0
+      }
+    }
+  }
+}
+```
+
+The repository override takes precedence over the project default, which takes precedence over the server
+default. Each repository has its own budget: in this example, `payments/config` gets 20 pushes per second,
+other repositories in `payments` get 200 each, and repositories in other projects get 100 each.
+`payments/unlimited` has no limit. There is no shared project budget.
+
+Rates must be finite, nonnegative numbers. A rate of `0` disables limiting for that scope.
+An omitted project default inherits the server default; an omitted server default is `0`.
+
+Only `POST /api/v1/projects/{projectName}/repos/{repoName}/contents` is limited. Reads, watches, previews,
+reverts, repository management, Git HTTP, legacy HTTP, Thrift, mirroring, and replication are not covered.
+Authentication and repository authorization run before rate limiting. Authorized push attempts count before
+request validation.
+
+Requests exceeding the rate receive HTTP `429 Too Many Requests` with a JSON error response.
+The limiter uses Armeria's built-in rate strategy, which allows bursts after idle periods; the configured
+rate is not a strict maximum for every one-second interval. It does not provide a `Retry-After` header.
+
+Configuration is read at startup. Restart servers to apply changes. Limiter state is held in memory on
+each server and resets when a server restarts or a repository is reopened.
 
 ## Configuring replication
 
