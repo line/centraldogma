@@ -133,7 +133,6 @@ final class EmbeddedZooKeeper extends QuorumPeer {
                           stats.reset();
                           return max(0, maxBufferSize);
                       })
-             .tag("type", "max")
              .baseUnit("bytes")
              .description("Maximum ZooKeeper client response size since the previous read, " +
                           "excluding the four-byte length prefix")
