@@ -34,7 +34,7 @@ defaults:
   "numRepositoryWorkers": 16,
   "maxRemovedRepositoryAgeMillis": null,
   "repositoryCacheSpec": "maximumWeight=134217728,expireAfterAccess=5m",
-  "rateLimiting": null,
+  "rateLimiting": [],
   "webAppEnabled": true,
   "webAppTitle": null,
   "gracefulShutdownTimeout": {
@@ -176,10 +176,10 @@ defaults:
     access cache. Refer to [the Caffeine API documentation](https://static.javadoc.io/com.github.ben-manes.caffeine/caffeine/2.6.2/com/github/benmanes/caffeine/cache/CaffeineSpec.html) for more information.
     Note that the weight of the cache has been tuned to be roughly proportional to its memory usage.
 
-- `rateLimiting` (object)
+- `rateLimiting` (array)
 
-  - the per-server limits for content push requests. Defaults to `null` (disabled).
-    See [Rate limiting](#rate-limiting) for defaults and overrides.
+  - the ordered per-server rules for content push requests. Defaults to `[]` (disabled).
+    See [Rate limiting](#rate-limiting) for pattern matching and metrics.
 
 - `webAppEnabled` (boolean)
 
@@ -292,27 +292,26 @@ defaults:
 Use `rateLimiting` to limit content push requests per second independently for each repository on each server:
 
 ```json
-"rateLimiting": {
-  "defaultRepositoryRequestsPerSecond": 100,
-  "projects": {
-    "payments": {
-      "defaultRepositoryRequestsPerSecond": 200,
-      "repos": {
-        "config": 20,
-        "unlimited": 0
-      }
-    }
-  }
-}
+"rateLimiting": [
+  { "pattern": "payments/config", "requestsPerSecond": 20 },
+  { "pattern": "payments/unlimited", "requestsPerSecond": 0 },
+  { "pattern": "payments/.*", "requestsPerSecond": 200 },
+  { "pattern": ".*", "requestsPerSecond": 100 }
+]
 ```
 
-The repository override takes precedence over the project default, which takes precedence over the server
-default. Each repository has its own budget: in this example, `payments/config` gets 20 pushes per second,
-other repositories in `payments` get 200 each, and repositories in other projects get 100 each.
-`payments/unlimited` has no limit. There is no shared project budget.
+Patterns are Java regular expressions matched against the entire `projectName/repoName` string.
+The first matching rule wins, so put specific rules before broader rules and a catch-all `.*` rule last.
+Patterns are compiled at startup and evaluated in order on each push.
 
-Rates must be finite, nonnegative numbers. A rate of `0` disables limiting for that scope.
-An omitted project default inherits the server default; an omitted server default is `0`.
+Each repository has its own budget: in this example, `payments/config` gets 20 pushes per second,
+other repositories in `payments` get 200 each, and repositories in other projects get 100 each.
+`payments/unlimited` has no limit. Repositories matching the same pattern do not share a budget.
+
+Rates must be finite, nonnegative numbers. Fractional rates are supported; for example, `0.5` means
+one push every two seconds on average. A rate of `0` means unlimited pushes and stops rule evaluation.
+Repositories with no matching rule are unlimited. Omitting `rateLimiting`, setting it to `null`, or using
+an empty array disables the feature. Invalid patterns or rates prevent the server from starting.
 
 Only `POST /api/v1/projects/{projectName}/repos/{repoName}/contents` is limited. Reads, watches, previews,
 reverts, repository management, Git HTTP, legacy HTTP, Thrift, mirroring, and replication are not covered.
@@ -322,6 +321,14 @@ request validation.
 Requests exceeding the rate receive HTTP `429 Too Many Requests` with a JSON error response.
 The limiter uses Armeria's built-in rate strategy, which allows bursts after idle periods; the configured
 rate is not a strict maximum for every one-second interval. It does not provide a `Retry-After` header.
+
+The `content.push.rate.limiting.requests` counter has `pattern` and `result` tags, where `result` is
+`passed` or `rejected`. Counts aggregate across repositories matching the same rule on a server, while
+their rate limits remain independent. A passed request has been admitted by the limiter; its push may
+still fail validation or storage processing. Explicit unlimited rules count requests as passed.
+Unmatched requests, authentication or authorization failures, and nonexistent repositories do not count.
+Both counters are registered for each pattern at startup, including patterns that have not matched traffic.
+In Prometheus, the counter is named `content_push_rate_limiting_requests_total`.
 
 Configuration is read at startup. Restart servers to apply changes. Limiter state is held in memory on
 each server and resets when a server restarts or a repository is reopened.

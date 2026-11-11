@@ -993,7 +993,7 @@ public class CentralDogma implements AutoCloseable {
                 new HttpApiRequestConverter(projectApiManager),
                 new RequiresRepositoryRoleDecoratorFactory(mds),
                 new RequiresProjectRoleDecoratorFactory(mds),
-                new RepositoryRateLimiter(cfg.rateLimiting(), pm)
+                new RepositoryRateLimiter(cfg.rateLimiting(), pm, meterRegistry)
         );
         sb.dependencyInjector(dependencyInjector, false)
           // TODO(ikhoon): Consider exposing ReflectiveDependencyInjector as a public API via

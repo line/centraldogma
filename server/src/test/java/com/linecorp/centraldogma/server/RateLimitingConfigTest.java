@@ -22,81 +22,82 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
+import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.google.common.collect.ImmutableMap;
 
 import com.linecorp.centraldogma.internal.Jackson;
-import com.linecorp.centraldogma.server.RateLimitingConfig.ProjectConfig;
 
 class RateLimitingConfigTest {
 
     @Test
-    void resolveOverrides() {
-        final RateLimitingConfig config = new RateLimitingConfig(100.0, ImmutableMap.of(
-                "payments", new ProjectConfig(200.0, ImmutableMap.of("config", 20.0, "unlimited", 0.0)),
-                "inherited", new ProjectConfig(null, ImmutableMap.of("config", 30.0)),
-                "unlimited", new ProjectConfig(0.0, ImmutableMap.of("config", 40.0))));
+    void fullStringMatching() {
+        final RateLimitingConfig config = new RateLimitingConfig("payments/config", 0.5);
+        assertThat(config.matches("payments/config")).isTrue();
+        assertThat(config.matches("payments/configExtra")).isFalse();
+        assertThat(config.matches("otherpayments/config")).isFalse();
 
-        assertThat(config.requestsPerSecond("other", "config")).isEqualTo(100);
-        assertThat(config.requestsPerSecond("payments", "other")).isEqualTo(200);
-        assertThat(config.requestsPerSecond("payments", "config")).isEqualTo(20);
-        assertThat(config.requestsPerSecond("payments", "unlimited")).isZero();
-        assertThat(config.requestsPerSecond("inherited", "other")).isEqualTo(100);
-        assertThat(config.requestsPerSecond("inherited", "config")).isEqualTo(30);
-        assertThat(config.requestsPerSecond("unlimited", "other")).isZero();
-        assertThat(config.requestsPerSecond("unlimited", "config")).isEqualTo(40);
+        final RateLimitingConfig project = new RateLimitingConfig("payments/.*", 200.0);
+        assertThat(project.matches("payments/config")).isTrue();
+        assertThat(project.matches("payments/other")).isTrue();
+        assertThat(project.matches("other/config")).isFalse();
+        assertThat(new RateLimitingConfig(".*", 100.0).matches("@internal/repo")).isTrue();
     }
 
-    @Test
-    void disabledByDefault() {
-        final RateLimitingConfig config = new RateLimitingConfig(null, null);
-        assertThat(config.requestsPerSecond("project", "repo")).isZero();
-        assertThat(config.projects()).isEmpty();
+    @ParameterizedTest
+    @ValueSource(strings = { "", ",\"rateLimiting\":null", ",\"rateLimiting\":[]" })
+    void disabledByDefault(String rateLimiting) throws Exception {
+        assertThat(loadConfiguration(rateLimiting).rateLimiting()).isEmpty();
     }
 
     @Test
     void loadServerConfiguration() throws Exception {
-        final CentralDogmaConfig config = CentralDogmaConfig.load(
-                '{' +
-                "\"dataDir\": \"./data\"," +
-                "\"ports\": [{\"localAddress\": {\"host\": \"*\", \"port\": 0}," +
-                "              \"protocols\": [\"http\"]}]," +
-                "\"rateLimiting\": {" +
-                "  \"defaultRepositoryRequestsPerSecond\": 100," +
-                "  \"projects\": {" +
-                "    \"payments\": {" +
-                "      \"defaultRepositoryRequestsPerSecond\": 200," +
-                "      \"repos\": {\"config\": 20, \"unlimited\": 0}" +
-                "    }" +
-                "  }" +
-                "}}"
-        );
-        assertThat(config.rateLimiting()).isNotNull();
-        assertThat(config.rateLimiting().requestsPerSecond("payments", "config")).isEqualTo(20);
-        final RateLimitingConfig roundTrip = Jackson.readValue(
-                Jackson.writeValueAsString(config.rateLimiting()), RateLimitingConfig.class);
-        final JsonNode roundTripJson = Jackson.valueToTree(roundTrip);
-        assertThat(roundTripJson)
-                .isEqualTo(Jackson.valueToTree(config.rateLimiting()));
+        final CentralDogmaConfig config = loadConfiguration(
+                ",\"rateLimiting\":[" +
+                "{\"pattern\":\"payments/config\",\"requestsPerSecond\":0.5}," +
+                "{\"pattern\":\"payments/unlimited\",\"requestsPerSecond\":0}," +
+                "{\"pattern\":\"payments/.*\",\"requestsPerSecond\":200}," +
+                "{\"pattern\":\".*\",\"requestsPerSecond\":100}]");
+        assertThat(config.rateLimiting()).extracting(RateLimitingConfig::pattern)
+                                        .containsExactly("payments/config", "payments/unlimited",
+                                                         "payments/.*", ".*");
+        assertThat(config.rateLimiting()).extracting(RateLimitingConfig::requestsPerSecond)
+                                        .containsExactly(0.5, 0.0, 200.0, 100.0);
+        final CentralDogmaConfig roundTrip = loadConfiguration(
+                ",\"rateLimiting\":" + Jackson.writeValueAsString(config.rateLimiting()));
+        final JsonNode roundTripJson = Jackson.valueToTree(roundTrip.rateLimiting());
+        assertThat(roundTripJson).isEqualTo(Jackson.valueToTree(config.rateLimiting()));
     }
 
     @ParameterizedTest
     @ValueSource(doubles = { -1, Double.NaN, Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY })
     void rejectInvalidRates(double rate) {
-        assertThatThrownBy(() -> new RateLimitingConfig(rate, null))
-                .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> new ProjectConfig(rate, null))
-                .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> new ProjectConfig(null, ImmutableMap.of("repo", rate)))
+        assertThatThrownBy(() -> new RateLimitingConfig(".*", rate))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
-    @Test
-    void rejectInvalidNames() {
-        assertThatThrownBy(() -> new RateLimitingConfig(null, ImmutableMap.of(
-                "project/repo", new ProjectConfig(null, null))))
+    @ParameterizedTest
+    @ValueSource(strings = { "", "[", "*" })
+    void rejectInvalidPatterns(String pattern) {
+        assertThatThrownBy(() -> new RateLimitingConfig(pattern, 1.0))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> new ProjectConfig(null, ImmutableMap.of("repo/path", 1.0)))
-                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {
+            "{}", "{\"pattern\":\".*\"}", "{\"requestsPerSecond\":1}",
+            "{\"pattern\":null,\"requestsPerSecond\":1}",
+            "{\"pattern\":\".*\",\"requestsPerSecond\":null}",
+            "{\"pattern\":\"[\",\"requestsPerSecond\":1}"
+    })
+    void rejectInvalidJson(String json) {
+        assertThatThrownBy(() -> loadConfiguration(
+                ",\"rateLimiting\":[" + json + ']')).isInstanceOf(JsonMappingException.class);
+    }
+
+    private static CentralDogmaConfig loadConfiguration(String rateLimiting) throws Exception {
+        return CentralDogmaConfig.load(
+                "{\"dataDir\":\"./data\",\"ports\":[{" +
+                "\"localAddress\":{\"host\":\"*\",\"port\":0},\"protocols\":[\"http\"]}]" +
+                rateLimiting + '}');
     }
 }

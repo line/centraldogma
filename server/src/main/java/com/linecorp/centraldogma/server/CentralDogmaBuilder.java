@@ -139,8 +139,7 @@ public final class CentralDogmaBuilder {
     private ZoneConfig zoneConfig;
     private boolean enableThriftService = true;
 
-    @Nullable
-    private RateLimitingConfig rateLimiting;
+    private List<RateLimitingConfig> rateLimiting = ImmutableList.of();
 
     /**
      * Creates a new builder with the specified data directory.
@@ -600,11 +599,19 @@ public final class CentralDogmaBuilder {
     }
 
     /**
-     * Sets the per-server rate limits for content push requests.
-     * Rate limiting is disabled by default.
+     * Sets the ordered per-server rate limiting rules for content pushes.
+     * The first matching rule wins. Rate limiting is disabled by default.
      */
-    public CentralDogmaBuilder rateLimiting(RateLimitingConfig rateLimiting) {
-        this.rateLimiting = requireNonNull(rateLimiting, "rateLimiting");
+    public CentralDogmaBuilder rateLimiting(RateLimitingConfig... rateLimiting) {
+        return rateLimiting(ImmutableList.copyOf(rateLimiting));
+    }
+
+    /**
+     * Sets the ordered per-server rate limiting rules for content pushes.
+     * The first matching rule wins. Rate limiting is disabled by default.
+     */
+    public CentralDogmaBuilder rateLimiting(Iterable<RateLimitingConfig> rateLimiting) {
+        this.rateLimiting = ImmutableList.copyOf(rateLimiting);
         return this;
     }
 

@@ -16,141 +16,69 @@
 package com.linecorp.centraldogma.server;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.linecorp.centraldogma.internal.Util.validateProjectName;
-import static com.linecorp.centraldogma.internal.Util.validateRepositoryName;
+import static java.util.Objects.requireNonNull;
 
-import java.util.Map;
-
-import org.jspecify.annotations.Nullable;
+import java.util.regex.Pattern;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects;
-import com.google.common.collect.ImmutableMap;
 
 /**
- * Per-server rate limits for content push requests. Each repository has an independent budget.
+ * A per-server content push rate limit matched against {@code projectName/repoName}.
+ * Rules are evaluated in order, and the first full-string match wins.
+ * Each repository has an independent budget, even when it matches the same rule as another repository.
  */
 public final class RateLimitingConfig {
 
-    private final double defaultRepositoryRequestsPerSecond;
-    private final Map<String, ProjectConfig> projects;
+    private final Pattern pattern;
+    private final double requestsPerSecond;
 
     /**
-     * Creates a configuration with a default rate and optional project and repository overrides.
-     * A rate of {@code 0} disables rate limiting. If the default rate is unspecified, it is {@code 0}.
+     * Creates a rule with a regular expression and a rate. A rate of {@code 0} means unlimited pushes.
+     * Invalid regular expressions and rates are rejected when the configuration is created.
      */
     @JsonCreator
     public RateLimitingConfig(
-            @JsonProperty("defaultRepositoryRequestsPerSecond")
-            @Nullable Double defaultRepositoryRequestsPerSecond,
-            @JsonProperty("projects") @Nullable Map<String, ProjectConfig> projects) {
-        this.defaultRepositoryRequestsPerSecond =
-                validateRate(defaultRepositoryRequestsPerSecond != null ?
-                             defaultRepositoryRequestsPerSecond : 0);
-        this.projects = projects != null ? ImmutableMap.copyOf(projects) : ImmutableMap.of();
-        this.projects.keySet().forEach(name -> validateProjectName(name, "projects", true));
+            @JsonProperty(value = "pattern", required = true) String pattern,
+            @JsonProperty(value = "requestsPerSecond", required = true) Double requestsPerSecond) {
+        requireNonNull(pattern, "pattern");
+        checkArgument(!pattern.isEmpty(), "pattern must not be empty");
+        this.pattern = Pattern.compile(pattern);
+        requireNonNull(requestsPerSecond, "requestsPerSecond");
+        checkArgument(Double.isFinite(requestsPerSecond) && requestsPerSecond >= 0,
+                      "requestsPerSecond: %s (expected: a finite value >= 0)", requestsPerSecond);
+        this.requestsPerSecond = requestsPerSecond;
     }
 
     /**
-     * Returns the default content pushes per second for each repository, or {@code 0} for unlimited pushes.
+     * Returns the regular expression matched against {@code projectName/repoName}.
      */
     @JsonProperty
-    public double defaultRepositoryRequestsPerSecond() {
-        return defaultRepositoryRequestsPerSecond;
+    public String pattern() {
+        return pattern.pattern();
     }
 
     /**
-     * Returns the project-specific defaults and repository overrides.
+     * Returns the content pushes per second for each matching repository, or {@code 0} for unlimited pushes.
      */
     @JsonProperty
-    public Map<String, ProjectConfig> projects() {
-        return projects;
+    public double requestsPerSecond() {
+        return requestsPerSecond;
     }
 
     /**
-     * Returns the repository override, project default, or server default, in that order.
-     * A returned value of {@code 0} means unlimited requests.
+     * Returns whether the entire {@code projectName/repoName} matches this rule.
      */
-    public double requestsPerSecond(String projectName, String repoName) {
-        final ProjectConfig project = projects.get(projectName);
-        if (project != null) {
-            final Double repoRate = project.repos().get(repoName);
-            if (repoRate != null) {
-                return repoRate;
-            }
-            final Double projectRate = project.defaultRepositoryRequestsPerSecond();
-            if (projectRate != null) {
-                return projectRate;
-            }
-        }
-        return defaultRepositoryRequestsPerSecond;
-    }
-
-    private static double validateRate(double rate) {
-        checkArgument(Double.isFinite(rate) && rate >= 0,
-                      "requestsPerSecond: %s (expected: a finite value >= 0)", rate);
-        return rate;
+    public boolean matches(String projectAndRepoName) {
+        return pattern.matcher(projectAndRepoName).matches();
     }
 
     @Override
     public String toString() {
         return MoreObjects.toStringHelper(this)
-                          .add("defaultRepositoryRequestsPerSecond", defaultRepositoryRequestsPerSecond)
-                          .add("projects", projects)
+                          .add("pattern", pattern())
+                          .add("requestsPerSecond", requestsPerSecond)
                           .toString();
-    }
-
-    /**
-     * A default rate for each repository in a project and overrides for individual repositories.
-     */
-    public static final class ProjectConfig {
-
-        @Nullable
-        private final Double defaultRepositoryRequestsPerSecond;
-        private final Map<String, Double> repos;
-
-        /**
-         * Creates a configuration with an optional project default and repository overrides.
-         * An unspecified default inherits the server default. A rate of {@code 0} disables rate limiting.
-         */
-        @JsonCreator
-        public ProjectConfig(
-                @JsonProperty("defaultRepositoryRequestsPerSecond")
-                @Nullable Double defaultRepositoryRequestsPerSecond,
-                @JsonProperty("repos") @Nullable Map<String, Double> repos) {
-            this.defaultRepositoryRequestsPerSecond = defaultRepositoryRequestsPerSecond != null ?
-                                                     validateRate(defaultRepositoryRequestsPerSecond) : null;
-            this.repos = repos != null ? ImmutableMap.copyOf(repos) : ImmutableMap.of();
-            this.repos.forEach((name, rate) -> {
-                validateRepositoryName(name, "repos");
-                validateRate(rate);
-            });
-        }
-
-        /**
-         * Returns the default rate for each repository in this project, or {@code null} to inherit it.
-         */
-        @Nullable
-        @JsonProperty
-        public Double defaultRepositoryRequestsPerSecond() {
-            return defaultRepositoryRequestsPerSecond;
-        }
-
-        /**
-         * Returns the repository-specific rates. A rate of {@code 0} means unlimited requests.
-         */
-        @JsonProperty
-        public Map<String, Double> repos() {
-            return repos;
-        }
-
-        @Override
-        public String toString() {
-            return MoreObjects.toStringHelper(this)
-                              .add("defaultRepositoryRequestsPerSecond", defaultRepositoryRequestsPerSecond)
-                              .add("repos", repos)
-                              .toString();
-        }
     }
 }
