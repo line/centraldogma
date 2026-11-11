@@ -26,6 +26,7 @@ import { Breadcrumbs } from 'dogma/common/components/Breadcrumbs';
 import React from 'react';
 import { CredentialDto } from 'dogma/features/project/settings/credentials/CredentialDto';
 import CredentialForm from 'dogma/features/project/settings/credentials/CredentialForm';
+import { PageTitle } from 'dogma/common/components/PageTitle';
 
 const RepoCredentialEditPage = () => {
   const router = useRouter();
@@ -61,6 +62,7 @@ const RepoCredentialEditPage = () => {
       {() => {
         return (
           <>
+            <PageTitle title={[`Edit ${id}`, 'Credentials', repoName, projectName]} />
             <Breadcrumbs path={router.asPath} omitIndexList={[0]} />
             <CredentialForm
               projectName={projectName}

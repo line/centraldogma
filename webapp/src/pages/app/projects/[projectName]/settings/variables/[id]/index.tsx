@@ -21,6 +21,7 @@ import React from 'react';
 import { Breadcrumbs } from 'dogma/common/components/Breadcrumbs';
 import { Flex, Spacer } from '@chakra-ui/react';
 import VariableView from 'dogma/features/project/settings/variables/VariableView';
+import { PageTitle } from 'dogma/common/components/PageTitle';
 
 const VariableViewPage = () => {
   const router = useRouter();
@@ -33,6 +34,7 @@ const VariableViewPage = () => {
         return (
           <>
             <Flex>
+              <PageTitle title={[id, 'Variables', projectName]} />
               <Breadcrumbs path={router.asPath} omitIndexList={[0]} />
               <Spacer />
             </Flex>

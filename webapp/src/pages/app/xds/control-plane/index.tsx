@@ -35,6 +35,7 @@ import { useGetXdsClientsQuery } from 'dogma/features/api/apiSlice';
 import { ClientStatusTable } from 'dogma/features/xds/ClientStatusTable';
 import { SnapshotViewer } from 'dogma/features/xds/SnapshotViewer';
 import { useAppSelector } from 'dogma/hooks';
+import { PageTitle } from 'dogma/common/components/PageTitle';
 
 const ClientsTab = () => {
   const { data, isLoading, error } = useGetXdsClientsQuery(undefined, {
@@ -57,6 +58,7 @@ const XdsControlPlanePage = () => {
   const { user } = useAppSelector((state) => state.auth);
   return (
     <Box p="2">
+      <PageTitle title={['Control Plane', 'xDS']} />
       <Breadcrumb mb={4} color="gray.500">
         <BreadcrumbItem>
           <BreadcrumbLink as={RouteLink} href="/app/xds">
