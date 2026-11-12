@@ -28,6 +28,7 @@ import java.util.concurrent.CompletableFuture;
 import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.util.Exceptions;
+import com.linecorp.armeria.server.annotation.Blocking;
 import com.linecorp.armeria.server.annotation.Delete;
 import com.linecorp.armeria.server.annotation.Param;
 import com.linecorp.armeria.server.annotation.Post;
@@ -62,6 +63,7 @@ public final class XdsGroupService {
      *
      * <p>Creates a new xDS group.
      */
+    @Blocking
     @Post("/xds/groups")
     public CompletableFuture<HttpResponse> createGroup(@Param("group_id") String groupId) {
         if (!PROJECT_AND_REPO_NAME_PATTERN.matcher(groupId).matches()) {
