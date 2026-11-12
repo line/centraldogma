@@ -73,8 +73,7 @@ public final class XdsGroupService {
                     errorResponse(HttpStatus.FORBIDDEN, "Cannot create internal repository: " + groupId));
         }
         if (xdsProject.repos().exists(groupId)) {
-            return CompletableFuture.completedFuture(
-                    errorResponse(HttpStatus.CONFLICT, "Group already exists: " + groupId));
+            return CompletableFuture.completedFuture(groupConflictResponse(groupId));
         }
         final User createUser = currentUser();
         if (createUser == null) {
@@ -87,13 +86,21 @@ public final class XdsGroupService {
                     if (cause != null) {
                         final Throwable peeled = Exceptions.peel(cause);
                         if (peeled instanceof RepositoryExistsException) {
-                            return errorResponse(HttpStatus.CONFLICT,
-                                                 "Group already exists: " + groupId);
+                            return groupConflictResponse(groupId);
                         }
                         return errorResponse(HttpStatus.INTERNAL_SERVER_ERROR, peeled);
                     }
                     return HttpResponse.of(HttpStatus.OK);
                 });
+    }
+
+    private HttpResponse groupConflictResponse(String groupId) {
+        if (xdsProject.repos().listRemoved().containsKey(groupId)) {
+            return errorResponse(HttpStatus.CONFLICT,
+                                 "Group was deleted and cannot be recreated until its repository is purged: " +
+                                 groupId);
+        }
+        return errorResponse(HttpStatus.CONFLICT, "Group already exists: " + groupId);
     }
 
     /**
