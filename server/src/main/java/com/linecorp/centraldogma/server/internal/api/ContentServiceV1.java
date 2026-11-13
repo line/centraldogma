@@ -206,6 +206,7 @@ public class ContentServiceV1 extends AbstractService {
     @Post("/projects/{projectName}/repos/{repoName}/contents")
     @ConsumesJson
     @RequiresRepositoryRole(RepositoryRole.WRITE)
+    @RateLimited
     public CompletableFuture<PushResultDto> push(
             @Param @Default("-1") String revision,
             Repository repository,
@@ -268,6 +269,7 @@ public class ContentServiceV1 extends AbstractService {
     @Post("/projects/{projectName}/repos/{repoName}/revert")
     @ConsumesJson
     @RequiresRepositoryRole(RepositoryRole.WRITE)
+    @RateLimited
     public CompletableFuture<PushResultDto> revert(
             Repository repository, Author author, RevertRequest request) {
         requireNonNull(request, "request");

@@ -34,6 +34,7 @@ defaults:
       "numRepositoryWorkers": 16,
       "maxRemovedRepositoryAgeMillis": null,
       "repositoryCacheSpec": "maximumWeight=134217728,expireAfterAccess=5m",
+      "rateLimiting": {},
       "webAppEnabled": true,
       "webAppTitle": null,
       "gracefulShutdownTimeout": {
@@ -157,6 +158,12 @@ Core properties
     access cache. Refer to `the Caffeine API documentation`_ for more information.
     Note that the weight of the cache has been tuned to be roughly proportional to its memory usage.
 
+- ``rateLimiting`` (object)
+
+  - the global and ordered repository limits for content pushes and reverts on each server.
+    Defaults to ``{}`` (disabled).
+    See :ref:`rate-limiting`.
+
 - ``webAppEnabled`` (boolean)
 
   - whether to enable the web-based administrative console. Enabled by default.
@@ -262,6 +269,44 @@ Core properties
       - the list of zone names.
 
       - the current zone name must be included in the list of zone names.
+
+.. _rate-limiting:
+
+Rate limiting
+-------------
+Use ``rateLimiting`` to limit HTTP API v1 content pushes and reverts on each server:
+
+.. code-block:: json
+
+    "rateLimiting": {
+      "global": { "requests": 10000, "timeUnit": "DAYS" },
+      "repositories": [
+        { "pattern": "payments/config", "requests": 20, "timeUnit": "MINUTES" },
+        { "pattern": "payments/blocked", "requests": 0, "timeUnit": "MINUTES" },
+        { "pattern": "payments/unlimited", "requests": -1, "timeUnit": "MINUTES" },
+        { "pattern": "payments/.*", "requests": 200, "timeUnit": "HOURS" },
+        { "pattern": ".*", "requests": 100, "timeUnit": "HOURS" }
+      ]
+    }
+
+``global`` is an optional budget shared by all repositories on one server. ``repositories`` is an optional,
+ordered list of rules. The global limit omits ``pattern``; every repository rule requires it.
+Patterns are Java regular expressions matching the entire ``projectName/repoName``;
+the first matching rule wins. Each repository has its own budget, even when repositories match the same
+rule. Pushes and reverts share both budgets.
+
+Use ``requests: -1`` for unlimited requests or ``requests: 0`` to reject all requests. Values below ``-1`` are
+invalid. ``timeUnit`` is required but has no effect for these two values.
+
+After authentication and repository authorization, the repository limit is checked before the global
+limit. A repository rejection does not consume a global token. A global rejection retains the repository
+token already consumed. Tokens are not refunded if an admitted request fails. A matching repository rule
+with ``-1`` or ``0`` still wins over later rules. An unmatched or unlimited repository still uses the global
+budget. Omitting ``rateLimiting`` or setting it to ``{}`` disables all limits.
+
+The ``content.push.rate.limiting.requests`` counter tracks ``passed`` and ``rejected`` checks, tagged by ``scope``
+(``repository`` or ``global``) and ``pattern`` (empty for the global limit). A request passing the repository
+check but rejected globally increments repository ``passed`` and global ``rejected``.
 
 .. _replication:
 

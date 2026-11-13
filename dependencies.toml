@@ -116,6 +116,8 @@ prometheus-metrics = { module = "io.prometheus:prometheus-metrics-bom", version.
 [libraries.armeria]
 module = "com.linecorp.armeria:armeria"
 javadocs = "https://www.javadoc.io/doc/com.linecorp.armeria/armeria-javadoc/1.27.0/"
+[libraries.armeria-bucket4j]
+module = "com.linecorp.armeria:armeria-bucket4j"
 [libraries.armeria-grpc]
 module = "com.linecorp.armeria:armeria-grpc"
 [libraries.armeria-junit5]

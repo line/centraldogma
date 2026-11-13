@@ -7,6 +7,7 @@ dependencies {
     api libs.armeria
     api libs.armeria.prometheus1
     api libs.armeria.thrift09
+    implementation libs.armeria.bucket4j
     testImplementation libs.armeria.junit5
 
     implementation libs.bouncycastle.bcprov
