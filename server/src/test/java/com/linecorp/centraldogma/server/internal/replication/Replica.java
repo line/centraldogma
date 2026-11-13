@@ -48,7 +48,8 @@ final class Replica {
     private final CompletableFuture<Void> startFuture;
 
     Replica(InstanceSpec spec, Map<Integer, ZooKeeperServerConfig> servers,
-            Function<Command<?>, CompletableFuture<?>> delegate, boolean start) {
+            Function<Command<?>, CompletableFuture<?>> delegate, boolean start,
+            int minimumLogCount, int maximumLogCount, long minLogAgeMillis) {
         this.delegate = delegate;
 
         dataDir = spec.getDataDirectory();
@@ -56,7 +57,8 @@ final class Replica {
 
         final int id = spec.getServerId();
         final ZooKeeperReplicationConfig zkCfg = new ZooKeeperReplicationConfig(
-                id, servers, "test-secret-for-replication-0123456789abcdef");
+                id, servers, "test-secret-for-replication-0123456789abcdef",
+                minimumLogCount, maximumLogCount, minLogAgeMillis);
 
         commandExecutor = new ZooKeeperCommandExecutor(
                 zkCfg, dataDir, new AbstractCommandExecutor(null, null, null, null) {
