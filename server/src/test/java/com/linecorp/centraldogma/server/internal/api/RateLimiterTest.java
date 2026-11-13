@@ -50,7 +50,7 @@ import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 
-class RepositoryRateLimiterTest {
+class RateLimiterTest {
 
     // Each bucket starts with one token and replenishes it over a day.
     private static final long REQUESTS = 1;
