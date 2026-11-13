@@ -3,13 +3,14 @@
 #     If its classes are exposed in Javadoc, update offline links as well.
 #
 [versions]
-armeria = "1.42.0"
+armeria = "1.43.0"
 assertj = "3.27.7"
 awaitility = "4.3.0"
 bouncycastle = "1.86"
-caffeine = "3.3.0"
-checkstyle = "10.3.3"
-conscrypt = "2.7.0"
+caffeine = "3.3.1"
+# Keep aligned with Armeria's Checkstyle version.
+checkstyle = "10.3.4"
+conscrypt = "2.9.0"
 controlplane = "1.0.55"
 # Ensure that we use the same ZooKeeper version as what Curator depends on.
 # See: https://github.com/apache/curator/blob/master/pom.xml
@@ -26,14 +27,16 @@ freemarker = "2.3.35"
 futures-completable = "0.3.6"
 # Ensure that we use the same gRPC-Java version as what Armeria depends on.
 # See: https://github.com/line/armeria/blob/main/dependencies.toml
-grpc-java = "1.84.0"
+grpc-java = "1.85.1"
+# Keep aligned with Armeria's Guava version.
 guava = "33.7.2-jre"
-guava-failureaccess = "1.0.1"
+guava-failureaccess = "1.0.3"
 hamcrest-library = "3.0"
-hibernate-validator6 = "6.2.5.Final"
-hibernate-validator8 = "8.0.3.Final"
-hibernate-validator9 = "9.1.4.Final"
-jackson = "2.22.3"
+hibernate-validator6 = "6.2.6.Final"
+hibernate-validator8 = "8.0.6.Final"
+hibernate-validator9 = "9.1.6.Final"
+# Keep aligned with Armeria's Jackson version.
+jackson = "2.22.4"
 javassist = "3.33.0-GA"
 javax-annotation = "1.3.2"
 javax-inject = "1"
@@ -51,43 +54,49 @@ jsch = "0.1.55"
 # Don't update `json-path` version
 json-path = "2.2.0"
 # 3.0.0 requires java 17
-json-unit = "2.38.0"
-jsoup = "1.23.2" # JSoup is only used for Gradle script.
+json-unit = "2.40.1"
+jsoup = "1.24.1" # JSoup is only used for Gradle script.
 jspecify = "1.0.1"
 jmh-core = "1.37"
-jmh-gradle-plugin = "0.7.3"
+jmh-gradle-plugin = "0.7.4"
 jxr = "0.2.1"
 # Ensure that we use the same Kubernetes client version as what Armeria depends on.
 # See: https://github.com/line/armeria/blob/main/dependencies.toml
 kubernetes-client = "7.7.0"
-logback15 = "1.5.34"
-micrometer = "1.17.1"
-mina-sshd = "2.20.0"
+# Keep aligned with Armeria's Logback 1.5 version.
+logback15 = "1.5.38"
+# Keep aligned with Armeria's Micrometer version.
+micrometer = "1.17.2"
+mina-sshd = "2.20.1"
 mockito = "5.24.0"
 nimbus-jose-jwt = "10.10"
 nexus-publish-plugin = "2.0.0"
 node-gradle-plugin = "7.1.0"
 osdetector = "1.7.3"
-owasp = "1.5.0"
-proguard = "7.9.1"
-prometheus-metrics = "1.9.0"
+owasp = "1.6.0"
+proguard = "7.10.0"
+# Keep aligned with Armeria's Prometheus Metrics version.
+prometheus-metrics = "1.10.0"
+# Keep aligned with Armeria's Protobuf version.
 protobuf = "3.25.9"
-protobuf-gradle-plugin = "0.10.0"
+protobuf-gradle-plugin = "0.10.1"
 quartz = "2.5.2"
-reflections = "0.9.11"
+# Keep aligned with Armeria's Reflections version.
+reflections = "0.9.12"
 # Keep this version for CentOS 7's libstdc++ compatibility.
 rocksdb = "10.10.1.1"
-shadow-gradle-plugin = "9.4.2"
+shadow-gradle-plugin = "9.6.1"
 # Don't update `shiro` version
 shiro = "1.3.2"
-slf4j2 = "2.0.18"
+# Keep aligned with Armeria's SLF4J version.
+slf4j2 = "2.0.20"
 # Ensure that we use the same Snappy version as what Curator depends on.
 # See: https://github.com/apache/curator/blob/master/pom.xml
 snappy = "1.1.10.11"
 sphinx = "2.10.1"
 spring-boot2 = "2.7.18"
-spring-boot3 = "3.5.15"
-spring-boot4 = "4.1.1"
+spring-boot3 = "3.5.16"
+spring-boot4 = "4.1.2"
 spring-test-junit5 = "1.5.0"
 testcontainers = "2.0.5"
 thrift09 = { strictly = "0.9.3-1" }
@@ -95,7 +104,7 @@ thrift09 = { strictly = "0.9.3-1" }
 # See: https://github.com/apache/curator/blob/master/pom.xml
 #      (Switch to the right tag to find out the right version.)
 zookeeper = "3.9.3"
-zstd = "1.5.7-21"
+zstd = "1.5.7-26"
 
 [boms]
 armeria = { module = "com.linecorp.armeria:armeria-bom", version.ref = "armeria" }
