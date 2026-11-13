@@ -24,11 +24,12 @@ import static com.linecorp.centraldogma.server.internal.storage.InternalProjectC
 import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.errorResponse;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Function;
 
 import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.util.Exceptions;
-import com.linecorp.armeria.server.annotation.Blocking;
+import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.annotation.Delete;
 import com.linecorp.armeria.server.annotation.Param;
 import com.linecorp.armeria.server.annotation.Post;
@@ -63,7 +64,6 @@ public final class XdsGroupService {
      *
      * <p>Creates a new xDS group.
      */
-    @Blocking
     @Post("/xds/groups")
     public CompletableFuture<HttpResponse> createGroup(@Param("group_id") String groupId) {
         if (!PROJECT_AND_REPO_NAME_PATTERN.matcher(groupId).matches()) {
@@ -75,34 +75,39 @@ public final class XdsGroupService {
                     errorResponse(HttpStatus.FORBIDDEN, "Cannot create internal repository: " + groupId));
         }
         if (xdsProject.repos().exists(groupId)) {
-            return CompletableFuture.completedFuture(groupConflictResponse(groupId));
+            return CompletableFuture.completedFuture(
+                    errorResponse(HttpStatus.CONFLICT, "Group already exists: " + groupId));
         }
         final User createUser = currentUser();
         if (createUser == null) {
             return CompletableFuture.completedFuture(
                     errorResponse(HttpStatus.UNAUTHORIZED, "Authentication required"));
         }
+        final ServiceRequestContext ctx = ServiceRequestContext.current();
         return createRepository(commandExecutor, mds, getAuthor(createUser), INTERNAL_PROJECT_XDS, groupId,
                                 false, null)
                 .handle((unused, cause) -> {
                     if (cause != null) {
                         final Throwable peeled = Exceptions.peel(cause);
                         if (peeled instanceof RepositoryExistsException) {
-                            return groupConflictResponse(groupId);
+                            return CompletableFuture.supplyAsync(
+                                    () -> xdsProject.repos().listRemoved().containsKey(groupId),
+                                    ctx.blockingTaskExecutor()).thenApply(wasRemoved -> {
+                                if (wasRemoved) {
+                                    return errorResponse(
+                                            HttpStatus.CONFLICT,
+                                            "Group was deleted and cannot be recreated until its repository " +
+                                            "is purged: " + groupId);
+                                }
+                                return errorResponse(HttpStatus.CONFLICT, "Group already exists: " + groupId);
+                            });
                         }
-                        return errorResponse(HttpStatus.INTERNAL_SERVER_ERROR, peeled);
+                        return CompletableFuture.completedFuture(
+                                errorResponse(HttpStatus.INTERNAL_SERVER_ERROR, peeled));
                     }
-                    return HttpResponse.of(HttpStatus.OK);
-                });
-    }
-
-    private HttpResponse groupConflictResponse(String groupId) {
-        if (xdsProject.repos().listRemoved().containsKey(groupId)) {
-            return errorResponse(HttpStatus.CONFLICT,
-                                 "Group was deleted and cannot be recreated until its repository is purged: " +
-                                 groupId);
-        }
-        return errorResponse(HttpStatus.CONFLICT, "Group already exists: " + groupId);
+                    return CompletableFuture.completedFuture(HttpResponse.of(HttpStatus.OK));
+                })
+                .thenCompose(Function.identity());
     }
 
     /**
