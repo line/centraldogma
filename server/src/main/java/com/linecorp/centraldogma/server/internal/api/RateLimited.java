@@ -20,19 +20,12 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
-import com.linecorp.armeria.server.annotation.DecoratorFactory;
-
 /**
- * Applies the per-repository rate limit to the annotated HTTP API method.
+ * Applies the repository and global rate limits to the annotated HTTP API method.
+ * Authorization is checked first, followed by the repository limit and then the global limit.
  */
-@DecoratorFactory(RepositoryRateLimiter.class)
+@RepositoryRateLimited
+@GlobalRateLimited
 @Retention(RetentionPolicy.RUNTIME)
-@Target(ElementType.METHOD)
-public @interface RateLimited {
-
-    /**
-     * Specifies the order of this decorator relative to other method decorators.
-     * Defaults to {@code 1} to run after authorization decorators with order {@code 0}.
-     */
-    int order() default 1;
-}
+@Target({ ElementType.METHOD, ElementType.ANNOTATION_TYPE })
+public @interface RateLimited {}

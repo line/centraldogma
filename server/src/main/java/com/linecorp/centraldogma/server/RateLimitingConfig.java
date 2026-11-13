@@ -15,71 +15,62 @@
  */
 package com.linecorp.centraldogma.server;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static java.util.Objects.requireNonNull;
+import java.util.List;
 
-import java.util.regex.Pattern;
+import org.jspecify.annotations.Nullable;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects;
+import com.google.common.collect.ImmutableList;
 
 /**
- * A per-server rate limit for content pushes and reverts matched against {@code projectName/repoName}.
- * Rules are evaluated in order, and the first full-string match wins.
- * Each repository has an independent budget, even when it matches the same rule as another repository.
+ * Per-server rate limits for HTTP API v1 content pushes and reverts.
+ * The first matching repository rule is checked before the shared global limit.
  */
 public final class RateLimitingConfig {
 
-    private final Pattern pattern;
-    private final double requestsPerSecond;
+    static final RateLimitingConfig DISABLED = new RateLimitingConfig(null, ImmutableList.of());
+
+    @Nullable
+    private final RateLimitConfig global;
+    private final List<RepositoryRateLimitConfig> repositories;
 
     /**
-     * Creates a rule with a regular expression and a rate. A rate of {@code 0} means unlimited requests.
-     * Invalid regular expressions and rates are rejected when the configuration is created.
+     * Creates rate limiting configuration with an optional global limit and ordered repository rules.
+     * A missing global limit or repository rule list disables the corresponding limits.
      */
     @JsonCreator
-    public RateLimitingConfig(
-            @JsonProperty(value = "pattern", required = true) String pattern,
-            @JsonProperty(value = "requestsPerSecond", required = true) Double requestsPerSecond) {
-        requireNonNull(pattern, "pattern");
-        checkArgument(!pattern.isEmpty(), "pattern must not be empty");
-        this.pattern = Pattern.compile(pattern);
-        requireNonNull(requestsPerSecond, "requestsPerSecond");
-        checkArgument(Double.isFinite(requestsPerSecond) && requestsPerSecond >= 0,
-                      "requestsPerSecond: %s (expected: a finite value >= 0)", requestsPerSecond);
-        this.requestsPerSecond = requestsPerSecond;
+    public RateLimitingConfig(@JsonProperty("global") @Nullable RateLimitConfig global,
+                              @JsonProperty("repositories")
+                              @Nullable List<RepositoryRateLimitConfig> repositories) {
+        this.global = global;
+        this.repositories = repositories != null ? ImmutableList.copyOf(repositories) : ImmutableList.of();
     }
 
     /**
-     * Returns the regular expression matched against {@code projectName/repoName}.
+     * Returns the shared global limit, or {@code null} if disabled.
+     */
+    @Nullable
+    @JsonProperty
+    public RateLimitConfig global() {
+        return global;
+    }
+
+    /**
+     * Returns the ordered repository rules. The first full-string match wins.
+     * Each repository has an independent budget, even if it matches the same rule as another repository.
      */
     @JsonProperty
-    public String pattern() {
-        return pattern.pattern();
-    }
-
-    /**
-     * Returns the content pushes and reverts per second for each matching repository,
-     * or {@code 0} for unlimited requests.
-     */
-    @JsonProperty
-    public double requestsPerSecond() {
-        return requestsPerSecond;
-    }
-
-    /**
-     * Returns whether the entire {@code projectName/repoName} matches this rule.
-     */
-    public boolean matches(String projectAndRepoName) {
-        return pattern.matcher(projectAndRepoName).matches();
+    public List<RepositoryRateLimitConfig> repositories() {
+        return repositories;
     }
 
     @Override
     public String toString() {
         return MoreObjects.toStringHelper(this)
-                          .add("pattern", pattern())
-                          .add("requestsPerSecond", requestsPerSecond)
+                          .add("global", global)
+                          .add("repositories", repositories)
                           .toString();
     }
 }

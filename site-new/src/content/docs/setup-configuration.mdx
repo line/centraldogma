@@ -34,7 +34,7 @@ defaults:
   "numRepositoryWorkers": 16,
   "maxRemovedRepositoryAgeMillis": null,
   "repositoryCacheSpec": "maximumWeight=134217728,expireAfterAccess=5m",
-  "rateLimiting": [],
+  "rateLimiting": {},
   "webAppEnabled": true,
   "webAppTitle": null,
   "gracefulShutdownTimeout": {
@@ -176,9 +176,10 @@ defaults:
     access cache. Refer to [the Caffeine API documentation](https://static.javadoc.io/com.github.ben-manes.caffeine/caffeine/2.6.2/com/github/benmanes/caffeine/cache/CaffeineSpec.html) for more information.
     Note that the weight of the cache has been tuned to be roughly proportional to its memory usage.
 
-- `rateLimiting` (array)
+- `rateLimiting` (object)
 
-  - the ordered per-server rules for content pushes and reverts. Defaults to `[]` (disabled).
+  - the global and ordered repository limits for content pushes and reverts on each server.
+    Defaults to `{}` (disabled).
     See [Rate limiting](#rate-limiting).
 
 - `webAppEnabled` (boolean)
@@ -289,24 +290,51 @@ defaults:
 
 ## Rate limiting
 
-Use `rateLimiting` to limit HTTP API v1 content pushes and reverts per repository on each server:
+Use `rateLimiting` to limit HTTP API v1 content pushes and reverts on each server:
 
 ```json
-"rateLimiting": [
-  { "pattern": "payments/config", "requestsPerSecond": 20 },
-  { "pattern": "payments/.*", "requestsPerSecond": 200 },
-  { "pattern": ".*", "requestsPerSecond": 100 }
-]
+"rateLimiting": {
+  "global": { "requests": 10000, "timeUnit": "DAYS" },
+  "repositories": [
+    { "pattern": "payments/config", "requests": 20, "timeUnit": "MINUTES" },
+    { "pattern": "payments/blocked", "requests": 0, "timeUnit": "MINUTES" },
+    { "pattern": "payments/unlimited", "requests": -1, "timeUnit": "MINUTES" },
+    { "pattern": "payments/.*", "requests": 200, "timeUnit": "HOURS" },
+    { "pattern": ".*", "requests": 100, "timeUnit": "HOURS" }
+  ]
+}
 ```
 
-Patterns are Java regular expressions matching the entire `projectName/repoName`. The first matching
-rule wins. Each repository has its own budget, shared by pushes and reverts. A rate of `0` or no matching
-rule means unlimited requests. An empty `rateLimiting` array (the default) disables rate limiting.
+`global` is an optional budget shared by all repositories on one server. `repositories` is an optional,
+ordered list of rules. Patterns are Java regular expressions matching the entire `projectName/repoName`;
+the first matching rule wins. Each repository has its own budget, even when repositories match the same
+rule. Pushes and reverts share both budgets.
 
-The limiter uses a token bucket algorithm. Excess requests receive HTTP `429 Too Many Requests`.
-Restart servers to apply changes.
+For a positive `requests` value, each limit uses a Bucket4j token bucket. `requests` is an integer specifying
+both the capacity and the number of tokens replenished per `timeUnit`. The bucket starts full and replenishes
+tokens gradually, up to its capacity. For example, 24 requests per `DAYS` permits an initial burst of 24 requests,
+then replenishes one token per hour. This is an average rate with a burst allowance, rather than a fixed
+calendar or rolling-window quota. `timeUnit` accepts Java `TimeUnit` names: `NANOSECONDS`, `MICROSECONDS`,
+`MILLISECONDS`, `SECONDS`, `MINUTES`, `HOURS`, and `DAYS`. A day is exactly 24 hours.
 
-The `content.push.rate.limiting.requests` counter tracks `passed` and `rejected` requests by `pattern`.
+Use `requests: -1` for unlimited requests or `requests: 0` to reject all requests. Values below `-1` are
+invalid. `timeUnit` is required but has no effect for these two values.
+
+After authentication and repository authorization, the repository limit is checked before the global
+limit. A repository rejection does not consume a global token. A global rejection retains the repository
+token already consumed. Tokens are not refunded if an admitted request fails. A matching repository rule
+with `-1` or `0` still wins over later rules. An unmatched or unlimited repository still uses the global
+budget. Omitting `rateLimiting` or setting it to `{}` disables all limits.
+
+Rejected requests receive HTTP `429 Too Many Requests` with a message identifying the repository or server
+limit. Positive limits include a `Retry-After` header. A zero limit omits this header because requests remain
+blocked until the configuration changes. Reads, previews, management endpoints, and internal writes are not
+limited. Each server maintains independent, in-memory budgets; restarts reset them. Restart servers to
+apply configuration changes.
+
+The `content.push.rate.limiting.requests` counter tracks `passed` and `rejected` checks, tagged by `scope`
+(`repository` or `global`) and `pattern` (empty for the global limit). A request passing the repository
+check but rejected globally increments repository `passed` and global `rejected`.
 
 ## Configuring replication
 

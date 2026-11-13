@@ -16,25 +16,27 @@
 package com.linecorp.centraldogma.server.internal.api;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static com.linecorp.centraldogma.server.internal.api.RateLimitingUtil.counter;
+import static com.linecorp.centraldogma.server.internal.api.RateLimitingUtil.newThrottlingDecorator;
 
 import java.util.List;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Function;
 
+import org.jspecify.annotations.Nullable;
+
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 
 import com.linecorp.armeria.common.HttpRequest;
-import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.util.UnmodifiableFuture;
 import com.linecorp.armeria.server.HttpService;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.annotation.DecoratorFactoryFunction;
-import com.linecorp.armeria.server.throttling.ThrottlingService;
 import com.linecorp.armeria.server.throttling.ThrottlingStrategy;
 import com.linecorp.centraldogma.common.ProjectNotFoundException;
 import com.linecorp.centraldogma.common.RepositoryNotFoundException;
-import com.linecorp.centraldogma.server.RateLimitingConfig;
+import com.linecorp.centraldogma.server.RepositoryRateLimitConfig;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
@@ -44,7 +46,7 @@ import io.micrometer.core.instrument.MeterRegistry;
 /**
  * Limits content push and revert requests independently for each repository.
  */
-public final class RepositoryRateLimiter implements DecoratorFactoryFunction<RateLimited> {
+public final class RepositoryRateLimiter implements DecoratorFactoryFunction<RepositoryRateLimited> {
 
     private final List<Rule> rules;
     private final ProjectManager projectManager;
@@ -53,29 +55,19 @@ public final class RepositoryRateLimiter implements DecoratorFactoryFunction<Rat
     private final Cache<Repository, ThrottlingStrategy<HttpRequest>> strategies =
             Caffeine.newBuilder().weakKeys().build();
 
-    public RepositoryRateLimiter(List<RateLimitingConfig> config, ProjectManager projectManager,
+    public RepositoryRateLimiter(List<RepositoryRateLimitConfig> config, ProjectManager projectManager,
                                  MeterRegistry meterRegistry) {
         rules = config.stream().map(rule -> new Rule(rule, meterRegistry)).collect(toImmutableList());
         this.projectManager = projectManager;
     }
 
     @Override
-    public Function<? super HttpService, ? extends HttpService> newDecorator(RateLimited parameter) {
+    public Function<? super HttpService, ? extends HttpService> newDecorator(RepositoryRateLimited parameter) {
         if (rules.isEmpty()) {
             return Function.identity();
         }
-        final ThrottlingStrategy<HttpRequest> strategy = ThrottlingStrategy.of(this::accept);
-        return ThrottlingService.builder(strategy)
-                                .onRejectedRequest((delegate, ctx, req, cause) -> {
-                                    if (cause != null) {
-                                        return HttpApiUtil.newResponse(ctx, HttpStatus.INTERNAL_SERVER_ERROR,
-                                                                      cause);
-                                    }
-                                    return HttpApiUtil.newResponse(
-                                            ctx, HttpStatus.TOO_MANY_REQUESTS,
-                                            "Repository content push rate limit exceeded.");
-                                })
-                                .newDecorator();
+        return newThrottlingDecorator(ThrottlingStrategy.of(this::accept),
+                                      "Repository content push rate limit exceeded.");
     }
 
     private CompletionStage<Boolean> accept(ServiceRequestContext ctx, HttpRequest req) {
@@ -85,52 +77,42 @@ public final class RepositoryRateLimiter implements DecoratorFactoryFunction<Rat
             return UnmodifiableFuture.completedFuture(true);
         }
         final String projectAndRepoName = projectName + '/' + repoName;
-        Rule matchedRule = null;
         for (Rule rule : rules) {
             if (rule.config.matches(projectAndRepoName)) {
-                matchedRule = rule;
-                break;
+                final Repository repository = findRepository(projectName, repoName);
+                if (repository == null) {
+                    return UnmodifiableFuture.completedFuture(true);
+                }
+                return strategies.get(repository, unused -> rule.newStrategy()).accept(ctx, req);
             }
         }
-        if (matchedRule == null) {
-            return UnmodifiableFuture.completedFuture(true);
-        }
+        return UnmodifiableFuture.completedFuture(true);
+    }
 
-        final Repository repository;
+    @Nullable
+    private Repository findRepository(String projectName, String repoName) {
         try {
-            repository = projectManager.get(projectName).repos().get(repoName);
+            return projectManager.get(projectName).repos().get(repoName);
         } catch (ProjectNotFoundException | RepositoryNotFoundException ignored) {
             // Let the API handle nonexistent resources without allocating limiter state for arbitrary names.
-            return UnmodifiableFuture.completedFuture(true);
+            return null;
         }
-        final Rule rule = matchedRule;
-        final double rate = rule.config.requestsPerSecond();
-        final CompletionStage<Boolean> result =
-                rate == 0 ? UnmodifiableFuture.completedFuture(true)
-                          : strategies.get(repository, unused -> ThrottlingStrategy.rateLimiting(rate))
-                                      .accept(ctx, req);
-        return result.thenApply(passed -> {
-            if (passed) {
-                rule.passed.increment();
-            } else {
-                rule.rejected.increment();
-            }
-            return passed;
-        });
     }
 
     private static final class Rule {
 
-        final RateLimitingConfig config;
+        final RepositoryRateLimitConfig config;
         final Counter passed;
         final Counter rejected;
 
-        Rule(RateLimitingConfig config, MeterRegistry meterRegistry) {
+        Rule(RepositoryRateLimitConfig config, MeterRegistry meterRegistry) {
             this.config = config;
-            passed = meterRegistry.counter("content.push.rate.limiting.requests",
-                                           "pattern", config.pattern(), "result", "passed");
-            rejected = meterRegistry.counter("content.push.rate.limiting.requests",
-                                             "pattern", config.pattern(), "result", "rejected");
+            passed = counter(meterRegistry, "repository", config.pattern(), "passed");
+            rejected = counter(meterRegistry, "repository", config.pattern(), "rejected");
+        }
+
+        ThrottlingStrategy<HttpRequest> newStrategy() {
+            return RateLimitingUtil.newStrategy(config.requests(), config.timeUnit(), passed, rejected);
         }
     }
 }

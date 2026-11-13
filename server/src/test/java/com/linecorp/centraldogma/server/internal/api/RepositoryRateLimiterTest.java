@@ -18,10 +18,15 @@ package com.linecorp.centraldogma.server.internal.api;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.eclipse.jgit.transport.GitProtocolConstants.VERSION_2_REQUEST;
 
+import java.util.concurrent.TimeUnit;
+
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+
+import com.google.common.collect.ImmutableList;
 
 import com.linecorp.armeria.client.WebClient;
 import com.linecorp.armeria.client.WebClientBuilder;
@@ -37,7 +42,9 @@ import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
+import com.linecorp.centraldogma.server.RateLimitConfig;
 import com.linecorp.centraldogma.server.RateLimitingConfig;
+import com.linecorp.centraldogma.server.RepositoryRateLimitConfig;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
@@ -46,8 +53,8 @@ import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 
 class RepositoryRateLimiterTest {
 
-    // Each limiter admits its first request immediately, then takes 1000 seconds to replenish a permit.
-    private static final double RATE = 0.001;
+    // Each bucket starts with one token and replenishes it over a day.
+    private static final long REQUESTS = 1;
     private static final String METRIC_PATTERN = "metrics/(one|two)";
     private static final String FALLBACK_PATTERN = "(default|other|api|repoOverride)/.*";
     private static final SimpleMeterRegistry meterRegistry = new SimpleMeterRegistry();
@@ -58,15 +65,15 @@ class RepositoryRateLimiterTest {
         protected void configure(CentralDogmaBuilder builder) {
             builder.webAppEnabled(true);
             builder.meterRegistry(meterRegistry);
-            builder.rateLimiting(
-                    new RateLimitingConfig(METRIC_PATTERN, RATE),
-                    new RateLimitingConfig("metrics/unlimited", 0.0),
-                    new RateLimitingConfig("projectOverride/limited", RATE),
-                    new RateLimitingConfig("projectOverride/.*", 0.0),
+            builder.rateLimiting(new RateLimitingConfig(null, ImmutableList.of(
+                    new RepositoryRateLimitConfig(METRIC_PATTERN, REQUESTS, TimeUnit.DAYS),
+                    new RepositoryRateLimitConfig("metrics/unlimited", -1L, TimeUnit.DAYS),
+                    new RepositoryRateLimitConfig("projectOverride/limited", REQUESTS, TimeUnit.DAYS),
+                    new RepositoryRateLimitConfig("projectOverride/.*", -1L, TimeUnit.DAYS),
                     // This more specific rule must lose to the earlier project rule.
-                    new RateLimitingConfig("projectOverride/unlimited", RATE),
-                    new RateLimitingConfig("repoOverride/unlimited", 0.0),
-                    new RateLimitingConfig(FALLBACK_PATTERN, RATE));
+                    new RepositoryRateLimitConfig("projectOverride/unlimited", REQUESTS, TimeUnit.DAYS),
+                    new RepositoryRateLimitConfig("repoOverride/unlimited", -1L, TimeUnit.DAYS),
+                    new RepositoryRateLimitConfig(FALLBACK_PATTERN, REQUESTS, TimeUnit.DAYS))));
         }
 
         @Override
@@ -148,7 +155,8 @@ class RepositoryRateLimiterTest {
         assertThat(push("metrics", "two", 2).status()).isEqualTo(HttpStatus.TOO_MANY_REQUESTS);
         assertThat(passed.count()).isEqualTo(2);
         assertThat(rejected.count()).isEqualTo(2);
-        assertThat(passed.getId().getTags()).hasSize(2);
+        assertThat(passed.getId().getTag("scope")).isEqualTo("repository");
+        assertThat(passed.getId().getTags()).hasSize(3);
     }
 
     @Test
@@ -286,6 +294,85 @@ class RepositoryRateLimiterTest {
         assertThat(counter(FALLBACK_PATTERN, "rejected").count()).isEqualTo(rejectedBefore);
         dogma.client().createRepository("default", "missing").join();
         assertThat(push("default", "missing", 1).status()).isEqualTo(HttpStatus.OK);
+    }
+
+    @Nested
+    class GlobalOnly {
+
+        private final SimpleMeterRegistry globalMeterRegistry = new SimpleMeterRegistry();
+
+        @RegisterExtension
+        final CentralDogmaExtension globalDogma = new CentralDogmaExtension() {
+            @Override
+            protected boolean runForEachTest() {
+                return true;
+            }
+
+            @Override
+            protected void configure(CentralDogmaBuilder builder) {
+                builder.meterRegistry(globalMeterRegistry);
+                builder.rateLimiting(new RateLimitingConfig(new RateLimitConfig(3L, TimeUnit.DAYS), null));
+            }
+
+            @Override
+            protected void configureHttpClient(WebClientBuilder builder) {
+                builder.addHeader(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous");
+            }
+
+            @Override
+            protected void scaffold(CentralDogma client) {
+                for (String project : new String[] { "default", "other" }) {
+                    client.createProject(project).join();
+                    client.createRepository(project, "one").join();
+                }
+            }
+        };
+
+        @Test
+        void globalBudgetIsSharedOnlyByAuthorizedPushesAndReverts() {
+            final WebClient client = globalDogma.httpClient();
+            final String contents = "/api/v1/projects/default/repos/one/contents";
+            final WebClient unauthenticated =
+                    WebClient.of("http://127.0.0.1:" + globalDogma.serverAddress().getPort());
+            final RequestHeaders headers = RequestHeaders.of(HttpMethod.POST, contents,
+                                                              HttpHeaderNames.CONTENT_TYPE, MediaType.JSON);
+            assertThat(unauthenticated.execute(headers, pushBody(1)).aggregate().join().status())
+                    .isEqualTo(HttpStatus.UNAUTHORIZED);
+            assertThat(client.prepare().post("/api/v1/projects/default/repos/missing/contents")
+                             .content(MediaType.JSON, pushBody(1)).execute().aggregate().join().status())
+                    .isEqualTo(HttpStatus.NOT_FOUND);
+            for (int i = 0; i < 2; i++) {
+                assertThat(client.prepare().post("/api/v1/projects/default/repos/one/preview")
+                                 .content(MediaType.JSON, pushBody(1)).execute().aggregate().join().status())
+                        .isEqualTo(HttpStatus.OK);
+            }
+            assertThat(client.execute(headers, pushBody(1)).aggregate().join().status())
+                    .isEqualTo(HttpStatus.OK);
+            final Repository repository = globalDogma.dogma().projectManager().get("other").repos().get("one");
+            repository.commit(Revision.HEAD, System.currentTimeMillis(), Author.SYSTEM,
+                              "Prepare revert", Change.ofTextUpsert("/value.txt", "initial")).join();
+            assertThat(client.prepare().post("/api/v1/projects/other/repos/one/revert")
+                             .content(MediaType.JSON,
+                                      "{\"targetRevision\":1,\"commitMessage\":{\"summary\":\"Revert\"}}")
+                             .execute().aggregate().join().status()).isEqualTo(HttpStatus.OK);
+            final AggregatedHttpResponse rejected = client.execute(headers, pushBody(2)).aggregate().join();
+            assertThat(rejected.status()).isEqualTo(HttpStatus.TOO_MANY_REQUESTS);
+            assertThat(rejected.contentUtf8()).contains("Server content push rate limit exceeded.");
+            assertThat(rejected.headers().get(HttpHeaderNames.RETRY_AFTER)).isNotNull();
+            assertThat(client.prepare().post("/api/v1/projects/default/repos/missing/contents")
+                             .content(MediaType.JSON, pushBody(1)).execute().aggregate().join().status())
+                    .isEqualTo(HttpStatus.TOO_MANY_REQUESTS);
+            assertThat(client.get(contents + "/value.txt").aggregate().join().status())
+                    .isEqualTo(HttpStatus.OK);
+            assertThat(unauthenticated.execute(headers, pushBody(2)).aggregate().join().status())
+                    .isEqualTo(HttpStatus.UNAUTHORIZED);
+            assertThat(globalMeterRegistry.get("content.push.rate.limiting.requests")
+                                          .tags("scope", "global", "result", "passed").counter().count())
+                    .isEqualTo(3);
+            assertThat(globalMeterRegistry.get("content.push.rate.limiting.requests")
+                                          .tags("scope", "global", "result", "rejected").counter().count())
+                    .isEqualTo(2);
+        }
     }
 
     private static Counter counter(String pattern, String result) {
