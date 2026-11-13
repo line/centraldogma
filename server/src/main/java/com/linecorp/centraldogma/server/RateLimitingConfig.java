@@ -15,6 +15,8 @@
  */
 package com.linecorp.centraldogma.server;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import java.util.List;
 
 import org.jspecify.annotations.Nullable;
@@ -33,19 +35,23 @@ public final class RateLimitingConfig {
     static final RateLimitingConfig DISABLED = new RateLimitingConfig(null, ImmutableList.of());
 
     @Nullable
-    private final RateLimitConfig global;
-    private final List<RepositoryRateLimitConfig> repositories;
+    private final RateLimitRule global;
+    private final List<RateLimitRule> repositories;
 
     /**
      * Creates rate limiting configuration with an optional global limit and ordered repository rules.
      * A missing global limit or repository rule list disables the corresponding limits.
+     * The global limit must not have a pattern, and every repository rule must have a pattern.
      */
     @JsonCreator
-    public RateLimitingConfig(@JsonProperty("global") @Nullable RateLimitConfig global,
-                              @JsonProperty("repositories")
-                              @Nullable List<RepositoryRateLimitConfig> repositories) {
+    public RateLimitingConfig(@JsonProperty("global") @Nullable RateLimitRule global,
+                              @JsonProperty("repositories") @Nullable List<RateLimitRule> repositories) {
+        checkArgument(global == null || global.pattern() == null, "global limit must not have a pattern");
         this.global = global;
         this.repositories = repositories != null ? ImmutableList.copyOf(repositories) : ImmutableList.of();
+        for (RateLimitRule repository : this.repositories) {
+            checkArgument(repository.pattern() != null, "repository rule must have a pattern");
+        }
     }
 
     /**
@@ -53,7 +59,7 @@ public final class RateLimitingConfig {
      */
     @Nullable
     @JsonProperty
-    public RateLimitConfig global() {
+    public RateLimitRule global() {
         return global;
     }
 
@@ -62,7 +68,7 @@ public final class RateLimitingConfig {
      * Each repository has an independent budget, even if it matches the same rule as another repository.
      */
     @JsonProperty
-    public List<RepositoryRateLimitConfig> repositories() {
+    public List<RateLimitRule> repositories() {
         return repositories;
     }
 

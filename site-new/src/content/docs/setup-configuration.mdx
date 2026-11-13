@@ -306,16 +306,10 @@ Use `rateLimiting` to limit HTTP API v1 content pushes and reverts on each serve
 ```
 
 `global` is an optional budget shared by all repositories on one server. `repositories` is an optional,
-ordered list of rules. Patterns are Java regular expressions matching the entire `projectName/repoName`;
+ordered list of rules. The global limit omits `pattern`; every repository rule requires it.
+Patterns are Java regular expressions matching the entire `projectName/repoName`;
 the first matching rule wins. Each repository has its own budget, even when repositories match the same
 rule. Pushes and reverts share both budgets.
-
-For a positive `requests` value, each limit uses a Bucket4j token bucket. `requests` is an integer specifying
-both the capacity and the number of tokens replenished per `timeUnit`. The bucket starts full and replenishes
-tokens gradually, up to its capacity. For example, 24 requests per `DAYS` permits an initial burst of 24 requests,
-then replenishes one token per hour. This is an average rate with a burst allowance, rather than a fixed
-calendar or rolling-window quota. `timeUnit` accepts Java `TimeUnit` names: `NANOSECONDS`, `MICROSECONDS`,
-`MILLISECONDS`, `SECONDS`, `MINUTES`, `HOURS`, and `DAYS`. A day is exactly 24 hours.
 
 Use `requests: -1` for unlimited requests or `requests: 0` to reject all requests. Values below `-1` are
 invalid. `timeUnit` is required but has no effect for these two values.
@@ -325,12 +319,6 @@ limit. A repository rejection does not consume a global token. A global rejectio
 token already consumed. Tokens are not refunded if an admitted request fails. A matching repository rule
 with `-1` or `0` still wins over later rules. An unmatched or unlimited repository still uses the global
 budget. Omitting `rateLimiting` or setting it to `{}` disables all limits.
-
-Rejected requests receive HTTP `429 Too Many Requests` with a message identifying the repository or server
-limit. Positive limits include a `Retry-After` header. A zero limit omits this header because requests remain
-blocked until the configuration changes. Reads, previews, management endpoints, and internal writes are not
-limited. Each server maintains independent, in-memory budgets; restarts reset them. Restart servers to
-apply configuration changes.
 
 The `content.push.rate.limiting.requests` counter tracks `passed` and `rejected` checks, tagged by `scope`
 (`repository` or `global`) and `pattern` (empty for the global limit). A request passing the repository

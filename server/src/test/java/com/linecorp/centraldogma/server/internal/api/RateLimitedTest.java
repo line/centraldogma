@@ -34,8 +34,7 @@ import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.server.ServerBuilder;
 import com.linecorp.armeria.server.annotation.Post;
 import com.linecorp.armeria.testing.junit5.server.ServerExtension;
-import com.linecorp.centraldogma.server.RateLimitConfig;
-import com.linecorp.centraldogma.server.RepositoryRateLimitConfig;
+import com.linecorp.centraldogma.server.RateLimitRule;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
@@ -55,9 +54,9 @@ class RateLimitedTest {
             final SimpleMeterRegistry meterRegistry = new SimpleMeterRegistry();
             sb.dependencyInjector(DependencyInjector.ofSingletons(
                     new RepositoryRateLimiter(
-                            ImmutableList.of(new RepositoryRateLimitConfig(".*", 1L, TimeUnit.DAYS)),
+                            ImmutableList.of(new RateLimitRule(".*", 1L, TimeUnit.DAYS)),
                             projectManager, meterRegistry),
-                    new GlobalRateLimiter(new RateLimitConfig(2L, TimeUnit.DAYS), meterRegistry)), false);
+                    new GlobalRateLimiter(new RateLimitRule(2L, TimeUnit.DAYS), meterRegistry)), false);
             sb.annotatedService(new Object() {
                 @Post("/alias/{projectName}/{repoName}")
                 @RateLimited

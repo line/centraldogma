@@ -42,9 +42,8 @@ import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
-import com.linecorp.centraldogma.server.RateLimitConfig;
+import com.linecorp.centraldogma.server.RateLimitRule;
 import com.linecorp.centraldogma.server.RateLimitingConfig;
-import com.linecorp.centraldogma.server.RepositoryRateLimitConfig;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
@@ -66,14 +65,14 @@ class RepositoryRateLimiterTest {
             builder.webAppEnabled(true);
             builder.meterRegistry(meterRegistry);
             builder.rateLimiting(new RateLimitingConfig(null, ImmutableList.of(
-                    new RepositoryRateLimitConfig(METRIC_PATTERN, REQUESTS, TimeUnit.DAYS),
-                    new RepositoryRateLimitConfig("metrics/unlimited", -1L, TimeUnit.DAYS),
-                    new RepositoryRateLimitConfig("projectOverride/limited", REQUESTS, TimeUnit.DAYS),
-                    new RepositoryRateLimitConfig("projectOverride/.*", -1L, TimeUnit.DAYS),
+                    new RateLimitRule(METRIC_PATTERN, REQUESTS, TimeUnit.DAYS),
+                    new RateLimitRule("metrics/unlimited", -1L, TimeUnit.DAYS),
+                    new RateLimitRule("projectOverride/limited", REQUESTS, TimeUnit.DAYS),
+                    new RateLimitRule("projectOverride/.*", -1L, TimeUnit.DAYS),
                     // This more specific rule must lose to the earlier project rule.
-                    new RepositoryRateLimitConfig("projectOverride/unlimited", REQUESTS, TimeUnit.DAYS),
-                    new RepositoryRateLimitConfig("repoOverride/unlimited", -1L, TimeUnit.DAYS),
-                    new RepositoryRateLimitConfig(FALLBACK_PATTERN, REQUESTS, TimeUnit.DAYS))));
+                    new RateLimitRule("projectOverride/unlimited", REQUESTS, TimeUnit.DAYS),
+                    new RateLimitRule("repoOverride/unlimited", -1L, TimeUnit.DAYS),
+                    new RateLimitRule(FALLBACK_PATTERN, REQUESTS, TimeUnit.DAYS))));
         }
 
         @Override
@@ -311,7 +310,7 @@ class RepositoryRateLimiterTest {
             @Override
             protected void configure(CentralDogmaBuilder builder) {
                 builder.meterRegistry(globalMeterRegistry);
-                builder.rateLimiting(new RateLimitingConfig(new RateLimitConfig(3L, TimeUnit.DAYS), null));
+                builder.rateLimiting(new RateLimitingConfig(new RateLimitRule(3L, TimeUnit.DAYS), null));
             }
 
             @Override

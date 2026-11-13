@@ -18,6 +18,7 @@ package com.linecorp.centraldogma.server;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import org.junit.jupiter.api.Test;
@@ -35,19 +36,16 @@ class RateLimitingConfigTest {
 
     @Test
     void fullStringMatching() {
-        final RepositoryRateLimitConfig config =
-                new RepositoryRateLimitConfig("payments/config", 30L, TimeUnit.MINUTES);
+        final RateLimitRule config = new RateLimitRule("payments/config", 30L, TimeUnit.MINUTES);
         assertThat(config.matches("payments/config")).isTrue();
         assertThat(config.matches("payments/configExtra")).isFalse();
         assertThat(config.matches("otherpayments/config")).isFalse();
 
-        final RepositoryRateLimitConfig project =
-                new RepositoryRateLimitConfig("payments/.*", 200L, TimeUnit.HOURS);
+        final RateLimitRule project = new RateLimitRule("payments/.*", 200L, TimeUnit.HOURS);
         assertThat(project.matches("payments/config")).isTrue();
         assertThat(project.matches("payments/other")).isTrue();
         assertThat(project.matches("other/config")).isFalse();
-        assertThat(new RepositoryRateLimitConfig(".*", 100L, TimeUnit.DAYS).matches("@internal/repo"))
-                .isTrue();
+        assertThat(new RateLimitRule(".*", 100L, TimeUnit.DAYS).matches("@internal/repo")).isTrue();
     }
 
     @ParameterizedTest
@@ -70,18 +68,20 @@ class RateLimitingConfigTest {
                 "{\"pattern\":\".*\",\"requests\":100,\"timeUnit\":\"DAYS\"}]}").rateLimiting();
         assertThat(config.global().requests()).isEqualTo(1000);
         assertThat(config.global().timeUnit()).isEqualTo(TimeUnit.DAYS);
-        assertThat(config.repositories()).extracting(RepositoryRateLimitConfig::pattern)
+        assertThat(config.global().pattern()).isNull();
+        assertThat(config.repositories()).extracting(RateLimitRule::pattern)
                                          .containsExactly("payments/config", "payments/unlimited",
                                                           "payments/.*", ".*");
-        assertThat(config.repositories()).extracting(RepositoryRateLimitConfig::requests)
+        assertThat(config.repositories()).extracting(RateLimitRule::requests)
                                          .containsExactly(30L, -1L, 200L, 100L);
-        assertThat(config.repositories()).extracting(RepositoryRateLimitConfig::timeUnit)
+        assertThat(config.repositories()).extracting(RateLimitRule::timeUnit)
                                          .containsExactly(TimeUnit.MINUTES, TimeUnit.SECONDS,
                                                           TimeUnit.HOURS, TimeUnit.DAYS);
         final RateLimitingConfig roundTrip = loadConfiguration(
                 ",\"rateLimiting\":" + Jackson.writeValueAsString(config)).rateLimiting();
         final JsonNode roundTripJson = Jackson.valueToTree(roundTrip);
         assertThat(roundTripJson).isEqualTo(Jackson.valueToTree(config));
+        assertThat(roundTripJson.get("global").has("pattern")).isFalse();
     }
 
     @ParameterizedTest
@@ -119,17 +119,35 @@ class RateLimitingConfigTest {
 
     @Test
     void rejectCountsBelowUnlimited() {
-        assertThatThrownBy(() -> new RateLimitConfig(-2L, TimeUnit.DAYS))
+        assertThatThrownBy(() -> new RateLimitRule(-2L, TimeUnit.DAYS))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> new RepositoryRateLimitConfig(".*", -2L, TimeUnit.HOURS))
+        assertThatThrownBy(() -> new RateLimitRule(".*", -2L, TimeUnit.HOURS))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
     @ParameterizedTest
     @ValueSource(strings = { "", "[", "*" })
     void rejectInvalidPatterns(String pattern) {
-        assertThatThrownBy(() -> new RepositoryRateLimitConfig(pattern, 1L, TimeUnit.MINUTES))
+        assertThatThrownBy(() -> new RateLimitRule(pattern, 1L, TimeUnit.MINUTES))
                 .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void rejectPatternsInWrongScope() {
+        assertThatThrownBy(() -> new RateLimitingConfig(new RateLimitRule(".*", 1L, TimeUnit.DAYS), null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("global limit must not have a pattern");
+        assertThatThrownBy(() -> new RateLimitingConfig(null, List.of(new RateLimitRule(1L, TimeUnit.DAYS))))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("repository rule must have a pattern");
+    }
+
+    @Test
+    void rejectGlobalPattern() {
+        assertThatThrownBy(() -> loadConfiguration(
+                ",\"rateLimiting\":{\"global\":{\"pattern\":\".*\",\"requests\":1,\"timeUnit\":\"DAYS\"}}"))
+                .isInstanceOf(JsonMappingException.class)
+                .hasMessageContaining("global limit must not have a pattern");
     }
 
     @ParameterizedTest
@@ -153,6 +171,7 @@ class RateLimitingConfigTest {
     @ParameterizedTest
     @ValueSource(strings = { "{\"requests\":1,\"timeUnit\":\"DAYS\"}",
             "{\"pattern\":null,\"requests\":1,\"timeUnit\":\"DAYS\"}",
+            "{\"pattern\":\"\",\"requests\":1,\"timeUnit\":\"DAYS\"}",
             "{\"pattern\":\"[\",\"requests\":1,\"timeUnit\":\"DAYS\"}" })
     void rejectInvalidRepositoryRules(String json) {
         assertThatThrownBy(() -> loadConfiguration(

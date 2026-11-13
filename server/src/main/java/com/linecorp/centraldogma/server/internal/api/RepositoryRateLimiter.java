@@ -18,6 +18,7 @@ package com.linecorp.centraldogma.server.internal.api;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.linecorp.centraldogma.server.internal.api.RateLimitingUtil.counter;
 import static com.linecorp.centraldogma.server.internal.api.RateLimitingUtil.newThrottlingDecorator;
+import static java.util.Objects.requireNonNull;
 
 import java.util.List;
 import java.util.concurrent.CompletionStage;
@@ -36,7 +37,7 @@ import com.linecorp.armeria.server.annotation.DecoratorFactoryFunction;
 import com.linecorp.armeria.server.throttling.ThrottlingStrategy;
 import com.linecorp.centraldogma.common.ProjectNotFoundException;
 import com.linecorp.centraldogma.common.RepositoryNotFoundException;
-import com.linecorp.centraldogma.server.RepositoryRateLimitConfig;
+import com.linecorp.centraldogma.server.RateLimitRule;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
@@ -55,7 +56,7 @@ public final class RepositoryRateLimiter implements DecoratorFactoryFunction<Rep
     private final Cache<Repository, ThrottlingStrategy<HttpRequest>> strategies =
             Caffeine.newBuilder().weakKeys().build();
 
-    public RepositoryRateLimiter(List<RepositoryRateLimitConfig> config, ProjectManager projectManager,
+    public RepositoryRateLimiter(List<RateLimitRule> config, ProjectManager projectManager,
                                  MeterRegistry meterRegistry) {
         rules = config.stream().map(rule -> new Rule(rule, meterRegistry)).collect(toImmutableList());
         this.projectManager = projectManager;
@@ -101,14 +102,15 @@ public final class RepositoryRateLimiter implements DecoratorFactoryFunction<Rep
 
     private static final class Rule {
 
-        final RepositoryRateLimitConfig config;
+        final RateLimitRule config;
         final Counter passed;
         final Counter rejected;
 
-        Rule(RepositoryRateLimitConfig config, MeterRegistry meterRegistry) {
+        Rule(RateLimitRule config, MeterRegistry meterRegistry) {
             this.config = config;
-            passed = counter(meterRegistry, "repository", config.pattern(), "passed");
-            rejected = counter(meterRegistry, "repository", config.pattern(), "rejected");
+            final String pattern = requireNonNull(config.pattern(), "config.pattern");
+            passed = counter(meterRegistry, "repository", pattern, "passed");
+            rejected = counter(meterRegistry, "repository", pattern, "rejected");
         }
 
         ThrottlingStrategy<HttpRequest> newStrategy() {

@@ -19,8 +19,13 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
 
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Pattern;
+
+import org.jspecify.annotations.Nullable;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects;
 
@@ -28,23 +33,52 @@ import com.google.common.base.MoreObjects;
  * A token bucket's capacity and refill rate, expressed as a request count per time unit.
  * Buckets start full and refill gradually, up to their capacity.
  * A count of {@code -1} allows unlimited requests, and {@code 0} rejects all requests.
+ * Global limits omit the pattern; repository rules require a pattern matched against the entire
+ * {@code projectName/repoName} and give each repository its own token bucket.
  */
-public final class RateLimitConfig {
+public final class RateLimitRule {
 
+    @Nullable
+    private final Pattern pattern;
     private final long requests;
     private final TimeUnit timeUnit;
 
     /**
-     * Creates a limit with capacity {@code requests}, replenishing that many tokens per {@code timeUnit}.
+     * Creates a global limit with capacity {@code requests}, replenishing that many tokens
+     * per {@code timeUnit}.
      * A count of {@code -1} allows unlimited requests, and {@code 0} rejects all requests.
      * The count must be at least {@code -1}, and both properties are required.
      */
+    public RateLimitRule(long requests, TimeUnit timeUnit) {
+        this(null, requests, timeUnit);
+    }
+
+    /**
+     * Creates a limit with an optional repository pattern, bucket capacity and refill time unit.
+     * The pattern must be {@code null} for a global limit and nonempty for a repository rule.
+     * A count of {@code -1} allows unlimited requests, and {@code 0} rejects all requests.
+     * The count must be at least {@code -1}, and both {@code requests} and {@code timeUnit} are required.
+     */
     @JsonCreator
-    public RateLimitConfig(@JsonProperty(value = "requests", required = true) long requests,
-                           @JsonProperty(value = "timeUnit", required = true) TimeUnit timeUnit) {
+    public RateLimitRule(@JsonProperty("pattern") @Nullable String pattern,
+                         @JsonProperty(value = "requests", required = true) long requests,
+                         @JsonProperty(value = "timeUnit", required = true) TimeUnit timeUnit) {
+        checkArgument(pattern == null || !pattern.isEmpty(), "pattern must not be empty");
+        this.pattern = pattern != null ? Pattern.compile(pattern) : null;
         checkArgument(requests >= -1, "requests: %s (expected: >= -1)", requests);
         this.requests = requests;
         this.timeUnit = requireNonNull(timeUnit, "timeUnit");
+    }
+
+    /**
+     * Returns the regular expression matched against {@code projectName/repoName},
+     * or {@code null} for a global limit.
+     */
+    @Nullable
+    @JsonProperty
+    @JsonInclude(Include.NON_NULL)
+    public String pattern() {
+        return pattern != null ? pattern.pattern() : null;
     }
 
     /**
@@ -64,9 +98,19 @@ public final class RateLimitConfig {
         return timeUnit;
     }
 
+    /**
+     * Returns whether the entire {@code projectName/repoName} matches this rule,
+     * or {@code true} if no pattern is specified.
+     */
+    public boolean matches(String projectAndRepoName) {
+        return pattern == null || pattern.matcher(projectAndRepoName).matches();
+    }
+
     @Override
     public String toString() {
         return MoreObjects.toStringHelper(this)
+                          .omitNullValues()
+                          .add("pattern", pattern())
                           .add("requests", requests)
                           .add("timeUnit", timeUnit)
                           .toString();

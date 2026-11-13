@@ -27,7 +27,7 @@ import com.linecorp.armeria.common.HttpRequest;
 import com.linecorp.armeria.server.HttpService;
 import com.linecorp.armeria.server.annotation.DecoratorFactoryFunction;
 import com.linecorp.armeria.server.throttling.ThrottlingStrategy;
-import com.linecorp.centraldogma.server.RateLimitConfig;
+import com.linecorp.centraldogma.server.RateLimitRule;
 
 import io.micrometer.core.instrument.MeterRegistry;
 
@@ -39,7 +39,7 @@ public final class GlobalRateLimiter implements DecoratorFactoryFunction<GlobalR
     @Nullable
     private final ThrottlingStrategy<HttpRequest> strategy;
 
-    public GlobalRateLimiter(@Nullable RateLimitConfig config, MeterRegistry meterRegistry) {
+    public GlobalRateLimiter(@Nullable RateLimitRule config, MeterRegistry meterRegistry) {
         strategy = config == null || config.requests() == -1 ? null : newStrategy(
                 config.requests(), config.timeUnit(),
                 counter(meterRegistry, "global", "", "passed"),

@@ -46,9 +46,8 @@ import com.linecorp.armeria.server.RoutingResult;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.centraldogma.common.ProjectNotFoundException;
 import com.linecorp.centraldogma.common.RepositoryNotFoundException;
-import com.linecorp.centraldogma.server.RateLimitConfig;
+import com.linecorp.centraldogma.server.RateLimitRule;
 import com.linecorp.centraldogma.server.RateLimitingConfig;
-import com.linecorp.centraldogma.server.RepositoryRateLimitConfig;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
@@ -61,8 +60,8 @@ class GlobalRateLimiterTest {
     @Test
     void repositoryRejectionsDoNotConsumeGlobalTokens() throws Exception {
         final HttpService service = service(new RateLimitingConfig(
-                new RateLimitConfig(2L, TimeUnit.DAYS),
-                ImmutableList.of(new RepositoryRateLimitConfig(".*", 1L, TimeUnit.HOURS))));
+                new RateLimitRule(2L, TimeUnit.DAYS),
+                ImmutableList.of(new RateLimitRule(".*", 1L, TimeUnit.HOURS))));
         assertThat(push(service, "default", "one").status()).isEqualTo(HttpStatus.OK);
         assertRepositoryRejection(push(service, "default", "one"));
         assertRepositoryRejection(push(service, "default", "one"));
@@ -77,8 +76,8 @@ class GlobalRateLimiterTest {
     @Test
     void globalRejectionRetainsRepositoryToken() throws Exception {
         final HttpService service = service(new RateLimitingConfig(
-                new RateLimitConfig(1L, TimeUnit.DAYS),
-                ImmutableList.of(new RepositoryRateLimitConfig(".*", 2L, TimeUnit.HOURS))));
+                new RateLimitRule(1L, TimeUnit.DAYS),
+                ImmutableList.of(new RateLimitRule(".*", 2L, TimeUnit.HOURS))));
         assertThat(push(service, "default", "one").status()).isEqualTo(HttpStatus.OK);
         assertGlobalRejection(push(service, "default", "one"));
         assertRepositoryRejection(push(service, "default", "one"));
@@ -90,8 +89,8 @@ class GlobalRateLimiterTest {
     @Test
     void unmatchedAndUnlimitedRepositoriesStillUseGlobalBudget() throws Exception {
         final HttpService service = service(new RateLimitingConfig(
-                new RateLimitConfig(2L, TimeUnit.HOURS),
-                ImmutableList.of(new RepositoryRateLimitConfig("default/unlimited", -1L, TimeUnit.MINUTES))));
+                new RateLimitRule(2L, TimeUnit.HOURS),
+                ImmutableList.of(new RateLimitRule("default/unlimited", -1L, TimeUnit.MINUTES))));
         assertThat(push(service, "default", "unmatched").status()).isEqualTo(HttpStatus.OK);
         assertThat(push(service, "default", "unlimited").status()).isEqualTo(HttpStatus.OK);
         assertGlobalRejection(push(service, "default", "unlimited"));
@@ -102,8 +101,8 @@ class GlobalRateLimiterTest {
     @ValueSource(booleans = { true, false })
     void globalLimitIsOptional(boolean explicitlyDisabled) throws Exception {
         final HttpService service = service(new RateLimitingConfig(
-                explicitlyDisabled ? new RateLimitConfig(-1L, TimeUnit.DAYS) : null,
-                ImmutableList.of(new RepositoryRateLimitConfig("default/one", 1L, TimeUnit.HOURS))));
+                explicitlyDisabled ? new RateLimitRule(-1L, TimeUnit.DAYS) : null,
+                ImmutableList.of(new RateLimitRule("default/one", 1L, TimeUnit.HOURS))));
         assertThat(push(service, "default", "one").status()).isEqualTo(HttpStatus.OK);
         assertRepositoryRejection(push(service, "default", "one"));
         for (int i = 0; i < 5; i++) {
@@ -114,9 +113,9 @@ class GlobalRateLimiterTest {
     @Test
     void zeroRepositoryLimitRejectsAllRequestsWithoutConsumingGlobalTokens() throws Exception {
         final HttpService service = service(new RateLimitingConfig(
-                new RateLimitConfig(1L, TimeUnit.DAYS),
-                ImmutableList.of(new RepositoryRateLimitConfig("default/blocked", 0L, TimeUnit.MINUTES),
-                                 new RepositoryRateLimitConfig(".*", -1L, TimeUnit.DAYS))));
+                new RateLimitRule(1L, TimeUnit.DAYS),
+                ImmutableList.of(new RateLimitRule("default/blocked", 0L, TimeUnit.MINUTES),
+                                 new RateLimitRule(".*", -1L, TimeUnit.DAYS))));
         final AggregatedHttpResponse rejected = push(service, "default", "blocked");
         assertRepositoryRejection(rejected);
         assertThat(rejected.headers().get(HttpHeaderNames.RETRY_AFTER)).isNull();
@@ -131,8 +130,8 @@ class GlobalRateLimiterTest {
     @Test
     void zeroGlobalLimitRejectsAllRequestsIncludingUnlimitedRepositories() throws Exception {
         final HttpService service = service(new RateLimitingConfig(
-                new RateLimitConfig(0L, TimeUnit.DAYS),
-                ImmutableList.of(new RepositoryRateLimitConfig(".*", -1L, TimeUnit.MINUTES))));
+                new RateLimitRule(0L, TimeUnit.DAYS),
+                ImmutableList.of(new RateLimitRule(".*", -1L, TimeUnit.MINUTES))));
         final AggregatedHttpResponse rejected = push(service, "default", "one");
         assertGlobalRejection(rejected);
         assertThat(rejected.headers().get(HttpHeaderNames.RETRY_AFTER)).isNull();
@@ -147,7 +146,7 @@ class GlobalRateLimiterTest {
     @Test
     void globalOnlyLimitIsSharedByPushesAndReverts() throws Exception {
         final HttpService service = service(new RateLimitingConfig(
-                new RateLimitConfig(2L, TimeUnit.DAYS), null));
+                new RateLimitRule(2L, TimeUnit.DAYS), null));
         assertThat(request(service, "default", "one", "contents").status()).isEqualTo(HttpStatus.OK);
         assertThat(request(service, "other", "two", "revert").status()).isEqualTo(HttpStatus.OK);
         assertGlobalRejection(request(service, "default", "three", "contents"));
@@ -157,7 +156,7 @@ class GlobalRateLimiterTest {
     @Test
     void concurrentRequestsShareOneGlobalBucket() {
         final HttpService service = service(new RateLimitingConfig(
-                new RateLimitConfig(5L, TimeUnit.DAYS), null));
+                new RateLimitRule(5L, TimeUnit.DAYS), null));
         final List<CompletableFuture<HttpStatus>> requests = IntStream.range(0, 40)
                 .mapToObj(i -> CompletableFuture.supplyAsync(() -> {
                     try {
@@ -179,9 +178,9 @@ class GlobalRateLimiterTest {
     @ValueSource(booleans = { true, false })
     void exhaustedBucketsRefill(boolean global) throws Exception {
         final HttpService service = service(new RateLimitingConfig(
-                global ? new RateLimitConfig(1L, TimeUnit.SECONDS) : null,
+                global ? new RateLimitRule(1L, TimeUnit.SECONDS) : null,
                 global ? null : ImmutableList.of(
-                        new RepositoryRateLimitConfig(".*", 1L, TimeUnit.SECONDS))));
+                        new RateLimitRule(".*", 1L, TimeUnit.SECONDS))));
         assertThat(push(service, "default", "one").status()).isEqualTo(HttpStatus.OK);
         assertThat(push(service, "default", "one").status()).isEqualTo(HttpStatus.TOO_MANY_REQUESTS);
         await().atMost(Duration.ofSeconds(5)).untilAsserted(() ->
@@ -199,8 +198,8 @@ class GlobalRateLimiterTest {
                     .thenThrow(new RepositoryNotFoundException("missing"));
         }
         final HttpService service = service(new RateLimitingConfig(
-                new RateLimitConfig(1L, TimeUnit.DAYS),
-                repositoryLimited ? ImmutableList.of(new RepositoryRateLimitConfig(".*", 1L, TimeUnit.DAYS))
+                new RateLimitRule(1L, TimeUnit.DAYS),
+                repositoryLimited ? ImmutableList.of(new RateLimitRule(".*", 1L, TimeUnit.DAYS))
                                   : null));
         // Missing resources reach the delegate, but still consume a global token.
         assertThat(push(service, "missing", "missing").status()).isEqualTo(HttpStatus.OK);
@@ -213,8 +212,8 @@ class GlobalRateLimiterTest {
     @Test
     void hourlyAndDailyRefillPeriodsAreApplied() throws Exception {
         final HttpService service = service(new RateLimitingConfig(
-                new RateLimitConfig(1L, TimeUnit.DAYS),
-                ImmutableList.of(new RepositoryRateLimitConfig("default/one", 1L, TimeUnit.HOURS))));
+                new RateLimitRule(1L, TimeUnit.DAYS),
+                ImmutableList.of(new RateLimitRule("default/one", 1L, TimeUnit.HOURS))));
         assertThat(push(service, "default", "one").status()).isEqualTo(HttpStatus.OK);
         final HttpRequest repositoryRequest = HttpRequest.of(HttpMethod.POST, "/");
         final ServiceRequestContext repositoryContext = context(repositoryRequest, "default", "one");
