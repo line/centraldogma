@@ -51,6 +51,7 @@ import { detectChangeType } from 'dogma/features/file/StructuredFileSupport';
 import { useLocalMonaco } from 'dogma/features/file/MonacoLoader';
 import { Loading } from 'dogma/common/components/Loading';
 import { OverwriteFileModal } from 'dogma/features/file/OverwriteFileModal';
+import { FileDto } from 'dogma/features/file/FileDto';
 
 const FILE_PATH_PATTERN = /^[-_.0-9a-zA-Z]*[-_0-9a-zA-Z]+$/;
 
@@ -62,6 +63,16 @@ type PushData = {
   };
   changes: { path: string; type: string; rawContent: string }[];
 };
+
+// The list API returns only the entry itself for a file, and the children for a directory.
+function isFile(entries: FileDto[] | FileDto, path: string): boolean {
+  return (
+    Array.isArray(entries) &&
+    entries.length === 1 &&
+    entries[0].path === path &&
+    entries[0].type !== 'DIRECTORY'
+  );
+}
 
 type FormData = {
   name: string;
@@ -80,7 +91,9 @@ export const NewFile = ({
 }) => {
   const { colorMode } = useColorMode();
   const [addNewFle, { isLoading }] = usePushFileChangesMutation();
-  const [getFiles, { isFetching: isCheckingFile }] = useLazyGetFilesQuery();
+  const [getFiles] = useLazyGetFilesQuery();
+  // Several paths are checked at once, so a single query's isFetching cannot track them.
+  const [isCheckingFile, setCheckingFile] = useState(false);
   const {
     isOpen: isOverwriteModalOpen,
     onOpen: onOverwriteModalOpen,
@@ -95,6 +108,8 @@ export const NewFile = ({
   } = useForm<FormData>();
   const dispatch = useAppDispatch();
   const [prefixes] = useState(initialPrefixes);
+  const listFiles = (filePath: string) =>
+    getFiles({ projectName, repoName, filePath, revision: 'head', withContent: false }).unwrap();
   const pushNewFile = async (data: PushData) => {
     try {
       const response = await addNewFle({ projectName, repoName, data }).unwrap();
@@ -134,23 +149,42 @@ export const NewFile = ({
       ],
     };
 
+    // The list API treats an invalid path as a glob pattern, so validate the directory names first.
+    const invalidPrefix = prefixes.find((prefix) => !FILE_PATH_PATTERN.test(prefix));
+    if (invalidPrefix !== undefined) {
+      dispatch(
+        newNotification('Failed to create a new file', `Invalid directory name: ${invalidPrefix}`, 'error'),
+      );
+      return;
+    }
+
     // UPSERT silently overwrites an existing file, so ask the user before overwriting it.
-    let entries;
+    // Also check the parent paths because a file at any of them would be replaced with a directory.
+    const parentPaths = prefixes.map((_, i) => `/${prefixes.slice(0, i + 1).join('/')}`);
+    let parentEntries: (FileDto[] | FileDto)[];
+    let entries: FileDto[] | FileDto;
+    setCheckingFile(true);
     try {
       // The list API returns no content (null) if nothing exists at the path.
-      entries = await getFiles({
-        projectName,
-        repoName,
-        filePath: path,
-        revision: 'head',
-        withContent: false,
-      }).unwrap();
+      [parentEntries, entries] = await Promise.all([
+        Promise.all(parentPaths.map((parentPath) => listFiles(parentPath))),
+        listFiles(path),
+      ]);
     } catch (error) {
       dispatch(newNotification('Failed to create a new file', ErrorMessageParser.parse(error), 'error'));
       return;
+    } finally {
+      setCheckingFile(false);
+    }
+    const parentFilePath = parentPaths.find((parentPath, i) => isFile(parentEntries[i], parentPath));
+    if (parentFilePath) {
+      dispatch(
+        newNotification('Failed to create a new file', `A file already exists at ${parentFilePath}`, 'error'),
+      );
+      return;
     }
     if (Array.isArray(entries) && entries.length > 0) {
-      if (entries.length === 1 && entries[0].path === path && entries[0].type !== 'DIRECTORY') {
+      if (isFile(entries, path)) {
         setPendingData(data);
         onOverwriteModalOpen();
       } else {

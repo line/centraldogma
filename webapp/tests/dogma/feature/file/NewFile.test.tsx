@@ -21,8 +21,9 @@ const mockPushUnwrap = jest.fn();
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const mockPush = jest.fn((..._args: unknown[]) => ({ unwrap: mockPushUnwrap }));
 const mockGetFilesUnwrap = jest.fn();
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const mockGetFiles = jest.fn((..._args: unknown[]) => ({ unwrap: mockGetFilesUnwrap }));
+const mockGetFiles = jest.fn(({ filePath }: { filePath: string }) => ({
+  unwrap: () => mockGetFilesUnwrap(filePath),
+}));
 
 // The ESM-only 'yaml' package cannot be loaded by Jest. YAML files are not covered by these tests.
 jest.mock('yaml', () => ({ __esModule: true, default: { parse: jest.fn(), stringify: jest.fn() } }));
@@ -45,8 +46,10 @@ jest.mock('@monaco-editor/react', () => ({
   },
 }));
 
-function submitNewFile() {
-  const result = renderWithProviders(<NewFile projectName="foo" repoName="bar" initialPrefixes={['a']} />);
+function submitNewFile(initialPrefixes = ['a']) {
+  const result = renderWithProviders(
+    <NewFile projectName="foo" repoName="bar" initialPrefixes={initialPrefixes} />,
+  );
   const nameInput = result.getByPlaceholderText(/Type 1\) a file name/);
   fireEvent.change(nameInput, { target: { value: 'b.json' } });
   // react-hook-form picks up the name on blur because the input overrides its onChange handler.
@@ -71,11 +74,10 @@ describe('NewFile', () => {
     submitNewFile();
 
     await waitFor(() => expect(mockPush).toHaveBeenCalledTimes(1));
-    expect(mockGetFiles.mock.calls[0][0]).toMatchObject({
-      filePath: '/a/b.json',
-      revision: 'head',
-      withContent: false,
-    });
+    expect(mockGetFiles.mock.calls.map(([args]) => args)).toEqual([
+      { projectName: 'foo', repoName: 'bar', filePath: '/a', revision: 'head', withContent: false },
+      { projectName: 'foo', repoName: 'bar', filePath: '/a/b.json', revision: 'head', withContent: false },
+    ]);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     expect((mockPush.mock.calls[0][0] as any).data.changes).toEqual([
       { path: '/a/b.json', type: 'UPSERT_JSON', rawContent: '{"a": 1}' },
@@ -83,6 +85,7 @@ describe('NewFile', () => {
   });
 
   it('asks before overwriting an existing file', async () => {
+    // '/a' lists the same entry because 'b.json' is its only child.
     mockGetFilesUnwrap.mockResolvedValue([{ path: '/a/b.json', type: 'JSON' }]);
     const { findByText, getByRole } = submitNewFile();
 
@@ -94,35 +97,72 @@ describe('NewFile', () => {
   });
 
   it('does not overwrite an existing file when canceled', async () => {
+    // '/a' lists the same entry because 'b.json' is its only child.
     mockGetFilesUnwrap.mockResolvedValue([{ path: '/a/b.json', type: 'JSON' }]);
-    const { findByText, getAllByRole } = submitNewFile();
+    const { findByText, getAllByRole, queryByText } = submitNewFile();
 
     expect(await findByText('File already exists')).toBeTruthy();
     // The modal's Cancel button is rendered after the form's one.
     const cancelButtons = getAllByRole('button', { name: 'Cancel' });
     fireEvent.click(cancelButtons[cancelButtons.length - 1]);
 
-    await new Promise((resolve) => setTimeout(resolve, 50));
+    await waitFor(() => expect(queryByText('File already exists')).toBeNull());
     expect(mockPush).not.toHaveBeenCalled();
   });
 
   it('does not push when a directory exists at the path', async () => {
-    // The list API returns the children of a directory.
-    mockGetFilesUnwrap.mockResolvedValue([{ path: '/a/b.json/c.json', type: 'JSON' }]);
-    const { queryByText } = submitNewFile();
+    // The list API returns the children of a directory, with a trailing slash for a child directory.
+    mockGetFilesUnwrap.mockImplementation(async (filePath: string) =>
+      filePath === '/a'
+        ? [{ path: '/a/b.json/', type: 'DIRECTORY' }]
+        : [{ path: '/a/b.json/c.json', type: 'JSON' }],
+    );
+    const { queryByText, store } = submitNewFile();
 
-    await waitFor(() => expect(mockGetFiles).toHaveBeenCalledTimes(1));
-    await new Promise((resolve) => setTimeout(resolve, 50));
+    await waitFor(() =>
+      expect(store.getState().notification.description).toBe('A directory already exists at /a/b.json'),
+    );
     expect(mockPush).not.toHaveBeenCalled();
     expect(queryByText('File already exists')).toBeNull();
   });
 
   it('does not push when checking the file fails', async () => {
     mockGetFilesUnwrap.mockRejectedValue({ status: 500, data: { message: 'boom' } });
+    const { store } = submitNewFile();
+
+    await waitFor(() => expect(store.getState().notification.title).toBe('Failed to create a new file'));
+    expect(store.getState().notification.type).toBe('error');
+    expect(mockPush).not.toHaveBeenCalled();
+  });
+
+  it('does not push when a file exists at a parent path', async () => {
+    mockGetFilesUnwrap.mockImplementation(async (filePath: string) =>
+      filePath === '/a/b' ? [{ path: '/a/b', type: 'TEXT' }] : null,
+    );
+    const { queryByText, store } = submitNewFile(['a', 'b']);
+
+    await waitFor(() =>
+      expect(store.getState().notification.description).toBe('A file already exists at /a/b'),
+    );
+    expect(mockPush).not.toHaveBeenCalled();
+    expect(queryByText('File already exists')).toBeNull();
+  });
+
+  it('creates the file when the parent directory has only one child', async () => {
+    // The list API returns the only child of '/a', which must not be mistaken for a file at '/a'.
+    mockGetFilesUnwrap.mockImplementation(async (filePath: string) =>
+      filePath === '/a' ? [{ path: '/a/c.json', type: 'JSON' }] : null,
+    );
     submitNewFile();
 
-    await waitFor(() => expect(mockGetFiles).toHaveBeenCalledTimes(1));
-    await new Promise((resolve) => setTimeout(resolve, 50));
+    await waitFor(() => expect(mockPush).toHaveBeenCalledTimes(1));
+  });
+
+  it('does not check or push when a directory name is invalid', async () => {
+    const { store } = submitNewFile(['*']);
+
+    await waitFor(() => expect(store.getState().notification.description).toBe('Invalid directory name: *'));
+    expect(mockGetFiles).not.toHaveBeenCalled();
     expect(mockPush).not.toHaveBeenCalled();
   });
 });
