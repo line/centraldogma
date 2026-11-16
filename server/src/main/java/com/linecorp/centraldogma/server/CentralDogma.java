@@ -1018,7 +1018,8 @@ public class CentralDogma implements AutoCloseable {
         apiV1ServiceBuilder
                 .annotatedService(new ServerStatusService(executor, statusManager))
                 .annotatedService(new ProjectServiceV1(projectApiManager, executor))
-                .annotatedService(new RepositoryServiceV1(executor, mds, encryptionStorageManager))
+                .annotatedService(new RepositoryServiceV1(executor, mds, encryptionStorageManager,
+                                                          cfg.repositoryStatsWindowHours()))
                 .annotatedService(new CredentialServiceV1(projectApiManager, executor))
                 .annotatedService(new VariableServiceV1(pm, executor));
         if (LOGBACK_ENABLED) {

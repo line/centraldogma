@@ -40,6 +40,7 @@ import com.google.common.collect.ImmutableMap;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.logging.RequestOnlyLog;
 import com.linecorp.armeria.common.util.Exceptions;
+import com.linecorp.armeria.common.util.UnmodifiableFuture;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.annotation.Consumes;
 import com.linecorp.armeria.server.annotation.Delete;
@@ -73,6 +74,7 @@ import com.linecorp.centraldogma.server.storage.encryption.WrappedDekDetails;
 import com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
+import com.linecorp.centraldogma.server.storage.repository.RepositoryStats;
 
 import io.micrometer.core.instrument.Tag;
 
@@ -86,12 +88,15 @@ public class RepositoryServiceV1 extends AbstractService {
 
     private final MetadataService mds;
     private final EncryptionStorageManager encryptionStorageManager;
+    private final int repositoryStatsWindowHours;
 
     public RepositoryServiceV1(CommandExecutor executor, MetadataService mds,
-                               EncryptionStorageManager encryptionStorageManager) {
+                               EncryptionStorageManager encryptionStorageManager,
+                               int repositoryStatsWindowHours) {
         super(executor);
         this.mds = requireNonNull(mds, "mds");
         this.encryptionStorageManager = requireNonNull(encryptionStorageManager, "encryptionStorageManager");
+        this.repositoryStatsWindowHours = repositoryStatsWindowHours;
     }
 
     /**
@@ -140,6 +145,15 @@ public class RepositoryServiceV1 extends AbstractService {
                     "You must be an owner of project '%s' to retrieve removed repositories.",
                     project.name());
         });
+    }
+
+    @Get("/projects/{projectName}/repos/{repoName}/stats")
+    @RequiresRepositoryRole(RepositoryRole.READ)
+    public CompletableFuture<RepositoryStats> stats(Repository repository) {
+        if (repositoryStatsWindowHours == 0) {
+            return UnmodifiableFuture.completedFuture(RepositoryStats.disabled());
+        }
+        return repository.stats(repositoryStatsWindowHours);
     }
 
     private static ProjectMetadata projectMetadata(Project project) {

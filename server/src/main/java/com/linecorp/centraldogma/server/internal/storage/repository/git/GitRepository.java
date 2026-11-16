@@ -16,6 +16,7 @@
 
 package com.linecorp.centraldogma.server.internal.storage.repository.git;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.linecorp.centraldogma.server.internal.storage.repository.git.FailFastUtil.context;
 import static com.linecorp.centraldogma.server.internal.storage.repository.git.FailFastUtil.failFastIfTimedOut;
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -25,6 +26,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Field;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -34,6 +36,7 @@ import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executor;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
@@ -107,6 +110,7 @@ import com.linecorp.centraldogma.server.storage.repository.FindOption;
 import com.linecorp.centraldogma.server.storage.repository.FindOptions;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 import com.linecorp.centraldogma.server.storage.repository.RepositoryListener;
+import com.linecorp.centraldogma.server.storage.repository.RepositoryStats;
 
 /**
  * A {@link Repository} based on Git.
@@ -483,7 +487,6 @@ class GitRepository implements Repository {
         }, repositoryWorker);
     }
 
-    @VisibleForTesting
     List<Commit> blockingHistory(Revision from, Revision to, String pathPattern, int maxCommits) {
         requireNonNull(pathPattern, "pathPattern");
         requireNonNull(from, "from");
@@ -576,6 +579,33 @@ class GitRepository implements Repository {
         } finally {
             readUnlock();
         }
+    }
+
+    @Override
+    public CompletableFuture<RepositoryStats> stats(int windowHours) {
+        final ServiceRequestContext ctx = context();
+        return CompletableFuture.supplyAsync(() -> {
+            failFastIfTimedOut(this, logger, ctx, "stats", windowHours);
+            return blockingStats(windowHours);
+        }, repositoryWorker);
+    }
+
+    private RepositoryStats blockingStats(int windowHours) {
+        checkArgument(windowHours > 0, "windowHours: %s (expected: > 0)", windowHours);
+        final long startMillis = System.currentTimeMillis();
+        final int recommendedCount = 100;
+        final long boundaryMillis = startMillis - TimeUnit.HOURS.toMillis(windowHours);
+        final List<Commit> commits = blockingHistory(
+                Revision.HEAD, Revision.INIT, ALL_PATH, recommendedCount + 1);
+        int commitCount = 0;
+        for (Commit commit : commits) {
+            if (commit.when() <= boundaryMillis) {
+                break;
+            }
+            commitCount++;
+        }
+        return new RepositoryStats(true, windowHours, commitCount, recommendedCount,
+                                   Instant.ofEpochMilli(startMillis));
     }
 
     private static Commit toCommit(RevCommit revCommit) {
