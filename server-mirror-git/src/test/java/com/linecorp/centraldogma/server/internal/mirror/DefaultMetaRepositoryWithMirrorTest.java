@@ -36,6 +36,7 @@ import org.junit.jupiter.api.TestInfo;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.slf4j.LoggerFactory;
 
 import com.cronutils.model.CronType;
 import com.cronutils.model.definition.CronDefinitionBuilder;
@@ -49,6 +50,7 @@ import com.linecorp.centraldogma.internal.api.v1.MirrorRequest;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.credential.Credential;
 import com.linecorp.centraldogma.server.internal.credential.SshKeyCredential;
+import com.linecorp.centraldogma.server.internal.storage.repository.DefaultMetaRepository;
 import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryMetadataException;
 import com.linecorp.centraldogma.server.mirror.Mirror;
 import com.linecorp.centraldogma.server.mirror.MirrorDirection;
@@ -57,6 +59,11 @@ import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 import com.linecorp.centraldogma.server.storage.repository.MetaRepository;
 import com.linecorp.centraldogma.testing.internal.ProjectManagerExtension;
 import com.linecorp.centraldogma.testing.internal.TestUtil;
+
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 
 class DefaultMetaRepositoryWithMirrorTest {
 
@@ -114,6 +121,187 @@ class DefaultMetaRepositoryWithMirrorTest {
         assertThatThrownBy(() -> metaRepo.mirror("repo", "qux").join())
                 .isInstanceOf(CompletionException.class)
                 .hasCauseInstanceOf(RepositoryMetadataException.class);
+    }
+
+    @Test
+    void invalidMirrorDoesNotPreventOtherMirrorsFromLoading() {
+        final String aliceCredential = credentialName(project.name(), "alice");
+        final List<Change<?>> changes = ImmutableList.of(
+                Change.ofJsonUpsert(
+                        "/repos/foo/mirrors/foo.json",
+                        '{' +
+                        "  \"id\": \"foo\"," +
+                        "  \"enabled\": true," +
+                        "  \"schedule\": \"" + DEFAULT_SCHEDULE + "\"," +
+                        "  \"direction\": \"LOCAL_TO_REMOTE\"," +
+                        "  \"localRepo\": \"foo\"," +
+                        "  \"remoteUri\": \"git+ssh://foo.com/foo.git\"," +
+                        "  \"credentialName\": \"" + aliceCredential + '"' +
+                        '}'),
+                // not an object but an array
+                Change.ofJsonUpsert("/repos/foo/mirrors/array.json", "[]"),
+                // an empty object
+                Change.ofJsonUpsert("/repos/foo/mirrors/empty.json", "{}"),
+                // an invalid cron expression
+                Change.ofJsonUpsert(
+                        "/repos/foo/mirrors/bad-schedule.json",
+                        '{' +
+                        "  \"id\": \"bad-schedule\"," +
+                        "  \"enabled\": true," +
+                        "  \"schedule\": \"not a cron\"," +
+                        "  \"direction\": \"LOCAL_TO_REMOTE\"," +
+                        "  \"localRepo\": \"foo\"," +
+                        "  \"remoteUri\": \"git+ssh://foo.com/bar.git\"," +
+                        "  \"credentialName\": \"" + aliceCredential + '"' +
+                        '}'),
+                rawCredential(aliceCredential, "alice"));
+        metaRepo.commit(Revision.HEAD, 0, Author.SYSTEM, "", changes).join();
+        project.repos().create("foo", Author.SYSTEM);
+
+        // The invalid mirrors are skipped when loading all mirrors, ...
+        assertThat(metaRepo.mirrors().join()).extracting(Mirror::id).containsExactly("foo");
+        assertThat(metaRepo.mirrors("foo", true).join()).extracting(Mirror::id).containsExactly("foo");
+        // ... and the single-mirror lookup still surfaces the error.
+        assertThatThrownBy(() -> metaRepo.mirror("foo", "bad-schedule").join())
+                .isInstanceOf(CompletionException.class)
+                .hasCauseInstanceOf(RepositoryMetadataException.class);
+    }
+
+    @ValueSource(booleans = { true, false })
+    @ParameterizedTest
+    void invalidMirrorWarningDoesNotExposeCredentials(boolean repoSpecific) {
+        final String fakeToken = "fake-mirror-token";
+        final String invalidMirrorFile = "/repos/foo/mirrors/bad-uri.json";
+        metaRepo.commit(Revision.HEAD, 0, Author.SYSTEM, "", ImmutableList.of(
+                Change.ofJsonUpsert(
+                        "/repos/foo/mirrors/foo.json",
+                        '{' +
+                        "  \"id\": \"foo\"," +
+                        "  \"schedule\": \"" + DEFAULT_SCHEDULE + "\"," +
+                        "  \"direction\": \"REMOTE_TO_LOCAL\"," +
+                        "  \"localRepo\": \"foo\"," +
+                        "  \"remoteUri\": \"git+https://example.com/foo.git\"," +
+                        "  \"credentialName\": \"\"" +
+                        '}'),
+                Change.ofJsonUpsert(
+                        invalidMirrorFile,
+                        '{' +
+                        "  \"id\": \"bad-uri\"," +
+                        "  \"schedule\": \"" + DEFAULT_SCHEDULE + "\"," +
+                        "  \"direction\": \"REMOTE_TO_LOCAL\"," +
+                        "  \"localRepo\": \"foo\"," +
+                        "  \"remoteUri\": \"git+https://user:" + fakeToken +
+                        "@example.com/not-a-repo\"," +
+                        "  \"credentialName\": \"\"" +
+                        '}'))).join();
+        project.repos().create("foo", Author.SYSTEM);
+
+        // The parsing exception contains the URI, and the single-mirror lookup still surfaces it.
+        assertThatThrownBy(() -> metaRepo.mirror("foo", "bad-uri").join())
+                .isInstanceOf(CompletionException.class)
+                .hasCauseInstanceOf(RepositoryMetadataException.class)
+                .hasStackTraceContaining(fakeToken);
+
+        final Logger logger = (Logger) LoggerFactory.getLogger(DefaultMetaRepository.class);
+        final ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.start();
+        logger.addAppender(appender);
+        try {
+            final List<Mirror> mirrors =
+                    (repoSpecific ? metaRepo.mirrors("foo", true) : metaRepo.mirrors()).join();
+            assertThat(mirrors).extracting(Mirror::id).containsExactly("foo");
+            assertThat(appender.list).singleElement().satisfies(event -> {
+                assertThat(event.getLevel()).isEqualTo(Level.WARN);
+                assertThat(event.getFormattedMessage())
+                        .contains("Failed to load a mirror configuration", project.name(), invalidMirrorFile,
+                                  "exception: ValueInstantiationException")
+                        .doesNotContain(fakeToken);
+                assertThat(event.getThrowableProxy()).isNull();
+                assertThat(event.getArgumentArray())
+                        .containsExactly(project.name(), invalidMirrorFile, "ValueInstantiationException");
+            });
+        } finally {
+            logger.detachAppender(appender);
+            appender.stop();
+        }
+    }
+
+    @Test
+    void invalidCredentialDoesNotPreventOtherMirrorsFromLoading() {
+        final String aliceCredential = credentialName(project.name(), "alice");
+        final String brokenCredential = credentialName(project.name(), "broken");
+        final List<Change<?>> changes = ImmutableList.of(
+                Change.ofJsonUpsert(
+                        "/repos/foo/mirrors/foo.json",
+                        '{' +
+                        "  \"id\": \"foo\"," +
+                        "  \"enabled\": true," +
+                        "  \"schedule\": \"" + DEFAULT_SCHEDULE + "\"," +
+                        "  \"direction\": \"LOCAL_TO_REMOTE\"," +
+                        "  \"localRepo\": \"foo\"," +
+                        "  \"remoteUri\": \"git+ssh://foo.com/foo.git\"," +
+                        "  \"credentialName\": \"" + aliceCredential + '"' +
+                        '}'),
+                Change.ofJsonUpsert(
+                        "/repos/foo/mirrors/bar.json",
+                        '{' +
+                        "  \"id\": \"bar\"," +
+                        "  \"enabled\": true," +
+                        "  \"schedule\": \"" + DEFAULT_SCHEDULE + "\"," +
+                        "  \"direction\": \"REMOTE_TO_LOCAL\"," +
+                        "  \"localRepo\": \"foo\"," +
+                        "  \"remoteUri\": \"git+https://bar.com/bar.git\"," +
+                        "  \"credentialName\": \"" + brokenCredential + '"' +
+                        '}'),
+                rawCredential(aliceCredential, "alice"),
+                // an unknown credential type
+                Change.ofJsonUpsert(
+                        credentialFile(brokenCredential),
+                        '{' +
+                        "  \"name\": \"" + brokenCredential + "\"," +
+                        "  \"type\": \"secret-mistaken-for-type\"" +
+                        '}'));
+        metaRepo.commit(Revision.HEAD, 0, Author.SYSTEM, "", changes).join();
+        project.repos().create("foo", Author.SYSTEM);
+
+        final Logger logger = (Logger) LoggerFactory.getLogger(DefaultMetaRepository.class);
+        final ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.start();
+        logger.addAppender(appender);
+        try {
+            final List<Mirror> mirrors = metaRepo.mirrors().join().stream()
+                                                 .sorted(Comparator.comparing(Mirror::id))
+                                                 .collect(toImmutableList());
+            assertThat(mirrors).extracting(Mirror::id).containsExactly("bar", "foo");
+            // A mirror whose credential cannot be loaded is treated like a mirror whose credential is missing.
+            assertThat(mirrors.get(0).credential()).isSameAs(Credential.NONE);
+            assertThat(mirrors.get(1).credential()).isInstanceOf(SshKeyCredential.class);
+            assertThat(((SshKeyCredential) mirrors.get(1).credential()).username()).isEqualTo("alice");
+            assertThat(appender.list).singleElement().satisfies(event -> {
+                assertThat(event.getLevel()).isEqualTo(Level.WARN);
+                assertThat(event.getFormattedMessage())
+                        .contains("Skipping a malformed credential configuration",
+                                  "Mirrors referencing it will use no credentials",
+                                  project.name(), credentialFile(brokenCredential), "InvalidTypeIdException")
+                        .doesNotContain("secret-mistaken-for-type");
+                assertThat(event.getThrowableProxy()).isNull();
+            });
+            // The single-credential lookup still surfaces the error.
+            assertThatThrownBy(() -> metaRepo.credential(brokenCredential).join())
+                    .isInstanceOf(CompletionException.class)
+                    .hasCauseInstanceOf(RepositoryMetadataException.class);
+
+            metaRepo.commit(Revision.HEAD, 0, Author.SYSTEM, "",
+                            Change.ofRemoval(credentialFile(brokenCredential))).join();
+            appender.list.clear();
+            assertThat(metaRepo.mirrors().join()).extracting(Mirror::id)
+                                               .containsExactlyInAnyOrder("bar", "foo");
+            // A missing credential does not produce the malformed-credential warning.
+            assertThat(appender.list).isEmpty();
+        } finally {
+            logger.detachAppender(appender);
+            appender.stop();
+        }
     }
 
     @ValueSource(booleans = { true, false })
