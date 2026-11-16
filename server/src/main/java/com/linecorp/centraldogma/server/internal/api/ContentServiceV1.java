@@ -230,17 +230,6 @@ public class ContentServiceV1 extends AbstractService {
         }
     }
 
-    private void recordPushResult(Repository repository, @Nullable Throwable cause) {
-        final String result = cause == null ? "success" : "failure";
-        final String causeStr = cause == null ? "none" : Exceptions.peel(cause).getClass().getName();
-        meterRegistry.counter("commits.push.result",
-                              "project", repository.parent().name(),
-                              "repository", repository.name(),
-                              "result", result,
-                              "cause", causeStr)
-                     .increment();
-    }
-
     private CompletableFuture<Revision> push(long commitTimeMills, Author author, Repository repository,
                                              Revision revision, CommitMessageDto commitMessage,
                                              Iterable<Change<?>> changes) {
@@ -251,6 +240,17 @@ public class ContentServiceV1 extends AbstractService {
         return execute(Command.push(
                 commitTimeMills, author, repository.parent().name(), repository.name(),
                 revision, summary, detail, markup, changes));
+    }
+
+    private void recordPushResult(Repository repository, @Nullable Throwable cause) {
+        final String result = cause == null ? "success" : "failure";
+        final String causeStr = cause == null ? "none" : Exceptions.peel(cause).getClass().getName();
+        meterRegistry.counter("commits.push.result",
+                              "project", repository.parent().name(),
+                              "repository", repository.name(),
+                              "result", result,
+                              "cause", causeStr)
+                     .increment();
     }
 
     /**
