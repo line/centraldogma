@@ -28,12 +28,14 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Clock;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -167,8 +169,11 @@ class ZooKeeperCommandExecutorTest {
     @Test
     @Timeout(30)
     void agedLogCleanupRestoresWriteCapacity() throws Exception {
+        final Clock clock = mock(Clock.class);
+        when(clock.millis()).thenReturn(0L);
         try (Cluster cluster = Cluster.builder().numReplicas(1).logCounts(1, 2)
                                       .minLogAgeMillis(100)
+                                      .clock(clock)
                                       .build(ZooKeeperCommandExecutorTest::newMockDelegate)) {
             final ZooKeeperCommandExecutor executor = cluster.get(0).commandExecutor();
             executor.execute(Command.createProject(Author.SYSTEM, "first")).join();
@@ -176,6 +181,7 @@ class ZooKeeperCommandExecutorTest {
             assertThatThrownBy(() -> executor.execute(Command.createProject(Author.SYSTEM, "blocked")).join())
                     .hasCauseInstanceOf(ReplicationException.class);
 
+            when(clock.millis()).thenReturn(101L);
             await().atMost(Duration.ofSeconds(10)).ignoreExceptions().untilAsserted(() -> {
                 executor.execute(Command.createProject(Author.SYSTEM, "afterCleanup")).join();
             });

@@ -23,6 +23,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStreamReader;
 import java.nio.file.Files;
+import java.time.Clock;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
@@ -49,7 +50,7 @@ final class Replica {
 
     Replica(InstanceSpec spec, Map<Integer, ZooKeeperServerConfig> servers,
             Function<Command<?>, CompletableFuture<?>> delegate, boolean start,
-            int minimumLogCount, int maximumLogCount, long minLogAgeMillis) {
+            int minimumLogCount, int maximumLogCount, long minLogAgeMillis, Clock clock) {
         this.delegate = delegate;
 
         dataDir = spec.getDataDirectory();
@@ -83,7 +84,7 @@ final class Replica {
             protected <T> CompletableFuture<T> doExecute(ExecutionContext ctx, Command<T> command) {
                 return (CompletableFuture<T>) delegate.apply(command);
             }
-        }, meterRegistry, null, null, null, null, null);
+        }, meterRegistry, null, null, null, null, null, clock);
         commandExecutor.setLockTimeoutMillis(10000);
 
         startFuture = start ? commandExecutor.start() : null;

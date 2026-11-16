@@ -27,6 +27,7 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.time.Clock;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -138,6 +139,7 @@ public final class ZooKeeperCommandExecutor
     private final Map<String, ReplicationMetrics> replicationTimings = new ConcurrentHashMap<>();
 
     private final ZooKeeperReplicationConfig cfg;
+    private final Clock clock;
     private final File revisionFile;
     private final File zkConfFile;
     private final File zkDataDir;
@@ -245,7 +247,7 @@ public final class ZooKeeperCommandExecutor
                 return;
             }
 
-            final long minAllowedTimestamp = System.currentTimeMillis() - cfg.minLogAgeMillis();
+            final long minAllowedTimestamp = clock.millis() - cfg.minLogAgeMillis();
             final int targetCount = children.size() - cfg.minimumLogCount();
             final List<String> deletedPaths = new ArrayList<>(targetCount);
             children.sort(Comparator.comparingLong(Long::parseLong));
@@ -403,9 +405,24 @@ public final class ZooKeeperCommandExecutor
                                     @Nullable Consumer<CommandExecutor> onReleaseLeadership,
                                     @Nullable Consumer<CommandExecutor> onTakeZoneLeadership,
                                     @Nullable Consumer<CommandExecutor> onReleaseZoneLeadership) {
+        this(cfg, dataDir, delegate, meterRegistry, zone, onTakeLeadership, onReleaseLeadership,
+             onTakeZoneLeadership, onReleaseZoneLeadership, Clock.systemUTC());
+    }
+
+    @VisibleForTesting
+    ZooKeeperCommandExecutor(ZooKeeperReplicationConfig cfg,
+                             File dataDir, CommandExecutor delegate,
+                             MeterRegistry meterRegistry,
+                             @Nullable String zone,
+                             @Nullable Consumer<CommandExecutor> onTakeLeadership,
+                             @Nullable Consumer<CommandExecutor> onReleaseLeadership,
+                             @Nullable Consumer<CommandExecutor> onTakeZoneLeadership,
+                             @Nullable Consumer<CommandExecutor> onReleaseZoneLeadership,
+                             Clock clock) {
         super(onTakeLeadership, onReleaseLeadership, onTakeZoneLeadership, onReleaseZoneLeadership);
 
         this.cfg = requireNonNull(cfg, "cfg");
+        this.clock = requireNonNull(clock, "clock");
         requireNonNull(dataDir, "dataDir");
         revisionFile = new File(dataDir.getAbsolutePath() + File.separatorChar + "last_revision");
         zkConfFile = new File(dataDir.getAbsolutePath() + File.separatorChar +
@@ -1098,7 +1115,7 @@ public final class ZooKeeperCommandExecutor
             assert bytes.length > 0;
             bytes = Zstd.compress(bytes);
 
-            final LogMeta logMeta = new LogMeta(log.replicaId(), System.currentTimeMillis(), bytes.length,
+            final LogMeta logMeta = new LogMeta(log.replicaId(), clock.millis(), bytes.length,
                                                 true, null);
 
             final int count = (bytes.length + MAX_BYTES - 1) / MAX_BYTES;

@@ -18,6 +18,7 @@ package com.linecorp.centraldogma.server.internal.replication;
 import static java.util.Objects.requireNonNull;
 
 import java.net.ServerSocket;
+import java.time.Clock;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -50,6 +51,12 @@ final class ClusterBuilder {
     private int minimumLogCount = 1024;
     private int maximumLogCount = Integer.MAX_VALUE;
     private long minLogAgeMillis = TimeUnit.DAYS.toMillis(1);
+    private Clock clock = Clock.systemUTC();
+
+    ClusterBuilder clock(Clock clock) {
+        this.clock = requireNonNull(clock, "clock");
+        return this;
+    }
 
     ClusterBuilder logCounts(int minimumLogCount, int maximumLogCount) {
         this.minimumLogCount = minimumLogCount;
@@ -133,7 +140,7 @@ final class ClusterBuilder {
         final Builder<Replica> builder = ImmutableList.builder();
         for (InstanceSpec spec : specs) {
             final Replica r = new Replica(spec, servers, commandExecutorSupplier.get(), autoStart,
-                                          minimumLogCount, maximumLogCount, minLogAgeMillis);
+                                          minimumLogCount, maximumLogCount, minLogAgeMillis, clock);
             builder.add(r);
         }
 

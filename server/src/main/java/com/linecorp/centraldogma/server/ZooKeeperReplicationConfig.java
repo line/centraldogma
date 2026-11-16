@@ -340,6 +340,10 @@ public final class ZooKeeperReplicationConfig implements ReplicationConfig {
      * Returns the approximate maximum log count used as a write threshold. Commands are rejected
      * when the observed count reaches this value, but concurrent commands on different paths can exceed it.
      * If unspecified, {@link Integer#MAX_VALUE} is returned, effectively disabling the threshold.
+     *
+     * <p>When this threshold is enabled, the ZooKeeper client's {@code jute.maxbuffer} packet limit is
+     * automatically sized from this value unless {@code jute.maxbuffer} is explicitly configured.
+     * Use caution when decreasing this value, as it may also reduce the packet limit.
      */
     @JsonProperty
     public int maximumLogCount() {
