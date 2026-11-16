@@ -16,6 +16,7 @@
 
 package com.linecorp.centraldogma.server.internal.replication;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static java.util.Objects.requireNonNull;
 
@@ -59,6 +60,8 @@ import org.apache.curator.framework.state.ConnectionState;
 import org.apache.curator.retry.RetryForever;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
+import org.apache.zookeeper.client.ZKClientConfig;
+import org.apache.zookeeper.common.ZKConfig;
 import org.apache.zookeeper.data.Stat;
 import org.apache.zookeeper.server.auth.DigestLoginModule;
 import org.apache.zookeeper.server.auth.SASLAuthenticationProvider;
@@ -196,6 +199,8 @@ public final class ZooKeeperCommandExecutor
                     listenerInfo.onTakeLeadership.run();
                 }
 
+                final long cleanupIntervalMillis = Math.min(TimeUnit.MINUTES.toMillis(1),
+                                                            cfg.minLogAgeMillis());
                 while (curator.getState() == CuratorFrameworkState.STARTED) {
                     try {
                         deleteLogs();
@@ -208,7 +213,7 @@ public final class ZooKeeperCommandExecutor
                     }
                     synchronized (this) {
                         // Recheck aged logs even when rejected writes produce no child event.
-                        wait(Math.min(TimeUnit.MINUTES.toMillis(1), cfg.minLogAgeMillis()));
+                        wait(cleanupIntervalMillis);
                     }
                 }
             } catch (InterruptedException e) {
@@ -465,6 +470,10 @@ public final class ZooKeeperCommandExecutor
                            @Nullable Runnable onReleaseZoneLeadership) throws Exception {
         starting = true;
         try {
+            final ZKClientConfig zkClientConfig = new ZKClientConfig();
+            configureClientMaxBuffer(zkClientConfig, cfg.maximumLogCount(),
+                                     ZKClientConfig.CLIENT_MAX_PACKET_LENGTH_DEFAULT, 10);
+
             // Get the last replayed revision.
             try {
                 lastReplayedRevision = getLastReplayedRevision();
@@ -479,14 +488,19 @@ public final class ZooKeeperCommandExecutor
             retryPolicy = RETRY_POLICY_ALWAYS;
 
             // Start the Curator framework.
-            curator = CuratorFrameworkFactory.newClient(
-                    "127.0.0.1:" + quorumPeer.getClientPort(), cfg.timeoutMillis(), cfg.timeoutMillis(),
-                    (retryCount, elapsedTimeMs, sleeper) -> {
-                        if (starting && isStopping()) {
-                            return false;
-                        }
-                        return retryPolicy.allowRetry(retryCount, elapsedTimeMs, sleeper);
-                    });
+            curator = CuratorFrameworkFactory.builder()
+                                             .connectString("127.0.0.1:" + quorumPeer.getClientPort())
+                                             .sessionTimeoutMs(cfg.timeoutMillis())
+                                             .connectionTimeoutMs(cfg.timeoutMillis())
+                                             .retryPolicy((retryCount, elapsedTimeMs, sleeper) -> {
+                                                 if (starting && isStopping()) {
+                                                     return false;
+                                                 }
+                                                 return retryPolicy.allowRetry(retryCount, elapsedTimeMs,
+                                                                               sleeper);
+                                             })
+                                             .zkClientConfig(zkClientConfig)
+                                             .build();
 
             curator.start();
             validateZooKeeperLogsAndRevision();
@@ -553,6 +567,27 @@ public final class ZooKeeperCommandExecutor
         } finally {
             starting = false;
         }
+    }
+
+    @VisibleForTesting
+    static void configureClientMaxBuffer(ZKClientConfig config, int maximumLogCount,
+                                         int minimumPacketLength, int headroomPercentage) {
+        if (maximumLogCount == Integer.MAX_VALUE || config.getProperty(ZKConfig.JUTE_MAXBUFFER) != null) {
+            return;
+        }
+        checkArgument(headroomPercentage >= 0 && headroomPercentage <= 100,
+                      "headroomPercentage: %s (expected: 0-100)", headroomPercentage);
+
+        // Curator uses getChildren2: reply header (16), child count (4), Stat (68), and
+        // a length prefix (4) plus ten ASCII digits per child. The packet length prefix is excluded.
+        final long estimatedResponseSize = 88L + 14L * maximumLogCount;
+        // Reserve headroom for concurrent writes which may exceed maximumLogCount
+        final long maxBufferSize = Math.max(minimumPacketLength,
+                                           estimatedResponseSize +
+                                           estimatedResponseSize * headroomPercentage / 100);
+        checkArgument(maxBufferSize <= Integer.MAX_VALUE,
+                      "maximumLogCount is too large: %s", maximumLogCount);
+        config.setProperty(ZKConfig.JUTE_MAXBUFFER, Long.toString(maxBufferSize));
     }
 
     /**
