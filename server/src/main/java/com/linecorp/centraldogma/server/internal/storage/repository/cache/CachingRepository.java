@@ -36,6 +36,8 @@ import com.github.benmanes.caffeine.cache.Caffeine;
 import com.linecorp.armeria.common.CommonPools;
 import com.linecorp.armeria.common.RequestContext;
 import com.linecorp.armeria.common.util.Exceptions;
+import com.linecorp.armeria.common.util.SafeCloseable;
+import com.linecorp.armeria.internal.common.RequestContextUtil;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Commit;
@@ -72,7 +74,11 @@ final class CachingRepository implements Repository {
         this.cache = requireNonNull(cache, "cache");
         statsCache = Caffeine.newBuilder()
                              .expireAfterWrite(1, TimeUnit.MINUTES)
-                             .buildAsync((windowHours, unused) -> repo.stats(windowHours));
+                             .buildAsync((windowHours, unused) -> {
+                                 try (SafeCloseable ignored = RequestContextUtil.pop()) {
+                                     return repo.stats(windowHours);
+                                 }
+                             });
     }
 
     @Override

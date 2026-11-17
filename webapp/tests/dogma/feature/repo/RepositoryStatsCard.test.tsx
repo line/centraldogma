@@ -103,6 +103,7 @@ describe('RepositoryStatsCard', () => {
   afterEach(() => {
     cleanup();
     store.dispatch(apiSlice.util.resetApiState());
+    jest.useRealTimers();
     jest.restoreAllMocks();
   });
 
@@ -232,22 +233,21 @@ describe('RepositoryStatsCard', () => {
     expect(await screen.findByRole('tooltip')).toHaveTextContent('Above recommended frequency');
   });
 
-  it('clears the warning when commit frequency falls below the recommendation', async () => {
+  it('polls and clears the warning when commit frequency falls below the recommendation', async () => {
+    jest.useFakeTimers();
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
     fetchSpy.mockImplementationOnce(async () => response({ ...stats, commitCount: 101 }));
     renderWithProviders(<RepositoryStatsCard projectName="my-project" repoName="my-repo" />, { store });
     expect(await screen.findByText('100+/100')).toBeInTheDocument();
-    await userEvent.setup().hover(screen.getByRole('button', { name: 'Commit frequency information' }));
+    await user.hover(screen.getByRole('button', { name: 'Commit frequency information' }));
     expect(await screen.findByRole('tooltip')).toHaveTextContent('Above recommended frequency');
 
     await act(async () => {
-      await store.dispatch(
-        apiSlice.endpoints.getRepositoryStats.initiate(
-          { projectName: 'my-project', repoName: 'my-repo' },
-          { subscribe: false, forceRefetch: true },
-        ),
-      );
+      await jest.advanceTimersByTimeAsync(60_000);
     });
+    jest.useRealTimers();
 
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
     expect(await screen.findByText('42/100')).toBeInTheDocument();
     expect(screen.queryByText('Above recommended frequency')).not.toBeInTheDocument();
   });

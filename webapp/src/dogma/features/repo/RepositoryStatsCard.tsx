@@ -26,6 +26,7 @@ export const RepositoryStatsCard = ({ projectName, repoName }: { projectName: st
     {
       skip: !projectName || !repoName,
       refetchOnMountOrArgChange: 60,
+      pollingInterval: 60_000,
     },
   );
 
