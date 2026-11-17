@@ -36,7 +36,7 @@ import { CloseIcon, HamburgerIcon, MoonIcon, SunIcon } from '@chakra-ui/icons';
 import { default as RouteLink } from 'next/link';
 import { logout } from 'dogma/features/auth/authSlice';
 import Router from 'next/router';
-import { useGetTitleQuery, useIsXdsWebEnabledQuery } from 'dogma/features/api/apiSlice';
+import { useIsXdsWebEnabledQuery } from 'dogma/features/api/apiSlice';
 import { NewProject } from 'dogma/features/project/NewProject';
 import { usePathname } from 'next/navigation';
 import { useAppDispatch, useAppSelector } from 'dogma/hooks';
@@ -44,6 +44,7 @@ import { LabelledIcon } from 'dogma/common/components/LabelledIcon';
 import { FaUser } from 'react-icons/fa';
 import ProjectSearchBox from 'dogma/common/components/ProjectSearchBox';
 import { createLoginUrl } from 'dogma/util/auth';
+import { useSiteTitle } from 'dogma/common/components/PageTitle';
 
 interface TopMenu {
   name: string;
@@ -74,8 +75,7 @@ export const Navbar = () => {
   const pathname = usePathname();
   const isMobile = useBreakpointValue({ base: true, md: false }) ?? false;
 
-  const { data: titleDto } = useGetTitleQuery();
-  const title = titleDto?.title.replace('{{hostname}}', titleDto.hostname) || 'Central Dogma';
+  const title = useSiteTitle();
   const { data: xdsWebEnabled } = useIsXdsWebEnabledQuery();
   const topMenus: TopMenu[] = [
     { name: title, path: '/' },
@@ -91,7 +91,6 @@ export const Navbar = () => {
 
   return (
     <Box bg={useColorModeValue('gray.100', 'gray.900')} px={4}>
-      <title>{title}</title>
       <Flex h={16} alignItems="center" justifyContent="space-between" fontWeight="semibold">
         <IconButton
           size="md"

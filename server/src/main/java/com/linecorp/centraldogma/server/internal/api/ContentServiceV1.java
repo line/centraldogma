@@ -212,17 +212,22 @@ public class ContentServiceV1 extends AbstractService {
             User user,
             CommitMessageDto commitMessage,
             @RequestConverter(ChangesRequestConverter.class) Iterable<Change<?>> changes) {
-        final Author author = AuthUtil.getAuthor(user);
-        checkMetaRepoPush(user, repository.name(), changes);
-        meterRegistry.counter("commits.push",
-                              "project", repository.parent().name(),
-                              "repository", repository.name())
-                     .increment();
+        try {
+            final Author author = AuthUtil.getAuthor(user);
+            checkMetaRepoPush(user, repository.name(), changes);
+            meterRegistry.counter("commits.push",
+                                  "project", repository.parent().name(),
+                                  "repository", repository.name())
+                         .increment();
 
-        final long commitTimeMillis = System.currentTimeMillis();
-        return push(commitTimeMillis, author, repository, new Revision(revision), commitMessage, changes)
-                .toCompletableFuture()
-                .thenApply(rrev -> DtoConverter.newPushResultDto(rrev, commitTimeMillis));
+            final long commitTimeMillis = System.currentTimeMillis();
+            return push(commitTimeMillis, author, repository, new Revision(revision), commitMessage, changes)
+                    .thenApply(rrev -> DtoConverter.newPushResultDto(rrev, commitTimeMillis))
+                    .whenComplete((unused, cause) -> recordPushResult(repository, cause));
+        } catch (Throwable cause) {
+            recordPushResult(repository, cause);
+            throw cause;
+        }
     }
 
     private CompletableFuture<Revision> push(long commitTimeMills, Author author, Repository repository,
@@ -235,6 +240,17 @@ public class ContentServiceV1 extends AbstractService {
         return execute(Command.push(
                 commitTimeMills, author, repository.parent().name(), repository.name(),
                 revision, summary, detail, markup, changes));
+    }
+
+    private void recordPushResult(Repository repository, @Nullable Throwable cause) {
+        final String result = cause == null ? "success" : "failure";
+        final String causeStr = cause == null ? "none" : Exceptions.peel(cause).getClass().getName();
+        meterRegistry.counter("commits.push.result",
+                              "project", repository.parent().name(),
+                              "repository", repository.name(),
+                              "result", result,
+                              "cause", causeStr)
+                     .increment();
     }
 
     /**

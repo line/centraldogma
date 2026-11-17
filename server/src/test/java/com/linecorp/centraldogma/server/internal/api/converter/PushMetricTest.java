@@ -17,6 +17,7 @@
 package com.linecorp.centraldogma.server.internal.api.converter;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.awaitility.Awaitility.await;
 
 import org.junit.jupiter.api.Test;
@@ -24,6 +25,8 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 
 import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.common.Change;
+import com.linecorp.centraldogma.common.ChangeConflictException;
+import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
 import io.micrometer.core.instrument.Counter;
@@ -35,7 +38,7 @@ class PushMetricTest {
     static final CentralDogmaExtension dogma = new CentralDogmaExtension();
 
     @Test
-    void shouldIncreasePushCounter() {
+    void shouldRecordPushResult() {
         final String projectName = "myPro";
         final String repoName = "myRepo";
         final MeterRegistry meterRegistry = dogma.dogma().meterRegistry().get();
@@ -57,6 +60,21 @@ class PushMetricTest {
             assertThat(pushCounter0).isNotNull();
             // Check whether the push counter is increased by one.
             assertThat(pushCounter0.count()).isEqualTo(before + 1);
+            assertThat(meterRegistry.find("commits.push.result")
+                                    .tags("project", projectName, "repository", repoName,
+                                          "result", "success", "cause", "none")
+                                    .counter().count()).isEqualTo(1);
+        });
+
+        assertThatThrownBy(() -> client.forRepo(projectName, repoName)
+                                       .commit("Conflicting change", Change.ofTextUpsert("/a.txt", "b"))
+                                       .push(Revision.INIT).join())
+                .hasCauseInstanceOf(ChangeConflictException.class);
+        await().untilAsserted(() -> {
+            assertThat(meterRegistry.find("commits.push.result")
+                                    .tags("project", projectName, "repository", repoName,
+                                          "result", "failure", "cause", ChangeConflictException.class.getName())
+                                    .counter().count()).isEqualTo(1);
         });
     }
 }

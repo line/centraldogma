@@ -29,6 +29,7 @@ import { Breadcrumbs } from 'dogma/common/components/Breadcrumbs';
 import React from 'react';
 import MirrorAccessControlForm from 'dogma/features/settings/mirror-access/MirrorAccessControlForm';
 import { MirrorAccessControlRequest } from 'dogma/features/settings/mirror-access/MirrorAccessControl';
+import { PageTitle } from 'dogma/common/components/PageTitle';
 
 const MirrorAccessControlEditPage = () => {
   const router = useRouter();
@@ -61,6 +62,7 @@ const MirrorAccessControlEditPage = () => {
     <Deferred isLoading={isDataLoading} error={error}>
       {() => (
         <>
+          <PageTitle title={[`Edit ${id}`, 'Mirror Access Control', 'Settings']} />
           <Breadcrumbs path={router.asPath} omitIndexList={[0]} />
           <MirrorAccessControlForm
             defaultValue={data}

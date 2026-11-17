@@ -15,6 +15,7 @@
  */
 import { useRouter } from 'next/router';
 import { K8sAggregatorEditor } from 'dogma/features/xds/K8sAggregatorEditor';
+import { PageTitle } from 'dogma/common/components/PageTitle';
 
 const K8sAggregatorPage = () => {
   const router = useRouter();
@@ -25,7 +26,12 @@ const K8sAggregatorPage = () => {
   if (!group) {
     return null;
   }
-  return <K8sAggregatorEditor group={group} id={id} isNew={isNew} />;
+  return (
+    <>
+      <PageTitle title={[isNew ? 'New' : id, 'K8s Aggregators', group, 'xDS']} />
+      <K8sAggregatorEditor group={group} id={id} isNew={isNew} />
+    </>
+  );
 };
 
 export default K8sAggregatorPage;

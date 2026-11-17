@@ -14,6 +14,7 @@ import Head from 'next/head';
 import { useAppSelector } from 'dogma/hooks';
 import { ServerConfigLoader } from 'dogma/features/server-config/ServerConfigLoader';
 import { useMonacoPrefetch } from 'dogma/features/file/MonacoLoader';
+import { PageTitle } from 'dogma/common/components/PageTitle';
 
 const WEB_AUTH_LOGIN = '/web/auth/login';
 
@@ -67,6 +68,7 @@ const DogmaApp = ({ Component, pageProps }: AppPropsWithLayout) => {
     <StoreProvider>
       <ServerConfigLoader>
         <GlobalCsrfMetaTag />
+        <PageTitle />
         <ChakraProvider theme={theme}>
           <NotificationWrapper>
             <Authorized>{getLayout(<Component {...pageProps} />)}</Authorized>

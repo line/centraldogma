@@ -37,7 +37,7 @@ Maven:
 
 ## Creating a client
 
-First, we should create a new instance of `CentralDogma`:
+First, we should create a new instance of [com.linecorp.centraldogma.client.CentralDogma](type):
 
 ```java
 import com.linecorp.centraldogma.client.CentralDogma;
@@ -179,8 +179,8 @@ assert mergedEntry.content() instanceof JsonNode;
 System.err.println(mergedEntry.content());
 ```
 
-The `mergeFiles()` call above will retrieve the `MergedEntry` which contains a JSON document which
-is the result of merging the files specified in the `MergeQuery` sequentially.
+The `mergeFiles()` call above will retrieve the [MergedEntry](type) which contains a JSON document which
+is the result of merging the files specified in the [MergeQuery](type) sequentially.
 We specified `Revision.HEAD`, so the latest revision of `/a.json`, `/b.json` and `/c.json`
 will be merged. If you want to fetch at the specific revision, you can specify the revision as we
 did in [Getting a file](#getting-a-file).
@@ -238,7 +238,7 @@ Then, the content of the merged entry will be:
 
 Corresponding types of values should be same or one of the types must be `null` to replace.
 If their types do not match or neither value is `null`, you will get
-a `QueryExecutionException`.
+a [QueryExecutionException](type).
 
 :::
 
@@ -257,12 +257,12 @@ CompletableFuture<MergedEntry<JsonNode>> future =
 Note that we used `MergeSource.ofOptional("/b.json")`, which tells to include the `/b.json` file only if it
 exists in the repository. If it does not exist, `/a.json` and `/c.json` will be merged sequentially.
 The files specified as required must exist in the repository.
-You will get an `EntryNotFoundException` otherwise.
-You will get the `EntryNotFoundException` as well when you specify all of the
+You will get an [EntryNotFoundException](type) otherwise.
+You will get the [EntryNotFoundException](type) as well when you specify all of the
 files as optional and none of them exists.
 
 As we used `Query.ofJsonPath()` in [Getting a file](#getting-a-file), you can use `MergeQuery.ofJsonPath()` to
-retrieve the result of JSON path evaluation of the `MergedEntry`.
+retrieve the result of JSON path evaluation of the [MergedEntry](type).
 
 ```java
 CentralDogma dogma = ...;
@@ -275,7 +275,7 @@ CompletableFuture<MergedEntry<JsonNode>> future =
 ```
 
 Central Dogma server will apply the JSON path expression `$.someValue` to the content of the
-`MergedEntry`, and return the query result to the client.
+[MergedEntry](type), and return the query result to the client.
 
 ## Pushing a commit
 
@@ -380,7 +380,7 @@ sure your application is not affected when the servers have an issue.
 
 Alternatively, you can choose not to use `awaitInitialValue()` at all if the value being retrieved is not
 part of a critical path, e.g. span collection rate in distributed tracing. In such a case, you can simply
-add a callback to `Watcher` or poll the most recently retrieved value using the `latestValue()` method:
+add a callback to [Watcher](type) or poll the most recently retrieved value using the `latestValue()` method:
 
 ```java
 CentralDogma dogma = ...;
@@ -571,7 +571,8 @@ client profile JAR again.
 
 ## Spring Boot integration
 
-If you are using [Spring Framework](https://spring.io/), you can inject `CentralDogma`
+If you are using [Spring Framework](https://spring.io/), you can inject
+[com.linecorp.centraldogma.client.CentralDogma](type)
 client very easily. First, add the starter that matches your Spring Boot major version:
 
 - `centraldogma-client-spring-boot4-starter` requires Spring Boot 4 and Java 17 or later.
@@ -637,7 +638,7 @@ centraldogma:
   health-check-interval-millis: 15000
 ```
 
-Once configured correctly, a new `CentralDogma` client will be created and
+Once configured correctly, a new [com.linecorp.centraldogma.client.CentralDogma](type) client will be created and
 injected into your application like the following:
 
 ```java

@@ -16,12 +16,14 @@
 package com.linecorp.centraldogma.server.internal.replication;
 
 import static com.google.common.base.MoreObjects.firstNonNull;
+import static java.lang.Math.max;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.concurrent.TimeUnit;
 import java.util.function.ToDoubleFunction;
 
+import org.apache.zookeeper.server.DataNode;
 import org.apache.zookeeper.server.DataTree;
 import org.apache.zookeeper.server.DatadirCleanupManager;
 import org.apache.zookeeper.server.PurgeTxnLog;
@@ -30,6 +32,7 @@ import org.apache.zookeeper.server.ServerStats;
 import org.apache.zookeeper.server.ZKDatabase;
 import org.apache.zookeeper.server.ZooKeeperServer;
 import org.apache.zookeeper.server.persistence.FileTxnSnapLog;
+import org.apache.zookeeper.server.quorum.BufferStats;
 import org.apache.zookeeper.server.quorum.QuorumPeer;
 import org.apache.zookeeper.server.quorum.QuorumPeerConfig;
 import org.jspecify.annotations.Nullable;
@@ -124,6 +127,18 @@ final class EmbeddedZooKeeper extends QuorumPeer {
                                 self -> serverStats(self).getPacketsSent())
                        .register(meterRegistry);
 
+        Gauge.builder("replica.zk.client.response.size", this,
+                      self -> {
+                          final BufferStats stats = serverStats(self).getClientResponseStats();
+                          final int maxBufferSize = stats.getMaxBufferSize();
+                          stats.reset();
+                          return max(0, maxBufferSize);
+                      })
+             .baseUnit("bytes")
+             .description("Maximum ZooKeeper client response size since the previous read, " +
+                          "excluding the four-byte length prefix")
+             .register(meterRegistry);
+
         Gauge.builder("replica.zk.alive.client.connections", this,
                       self -> serverStats(self).getNumAliveClientConnections())
              .register(meterRegistry);
@@ -160,6 +175,21 @@ final class EmbeddedZooKeeper extends QuorumPeer {
                           final DataTree tree = dataTree(self);
                           return tree != null ? tree.getNodeCount() : 0;
                       })
+             .register(meterRegistry);
+
+        Gauge.builder("replica.zk.logs.children", this,
+                      self -> {
+                          final DataTree tree = dataTree(self);
+                          if (tree == null) {
+                              return 0;
+                          }
+                          final DataNode logs = tree.getNode("/dogma/logs");
+                          if (logs == null) {
+                              return 0;
+                          }
+                          return logs.getChildren().size();
+                      })
+             .description("Number of children under /dogma/logs")
              .register(meterRegistry);
 
         Gauge.builder("replica.zk.ephemerals", this,

@@ -59,6 +59,7 @@ import org.apache.curator.framework.state.ConnectionState;
 import org.apache.curator.retry.RetryForever;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
+import org.apache.zookeeper.data.Stat;
 import org.apache.zookeeper.server.auth.DigestLoginModule;
 import org.apache.zookeeper.server.auth.SASLAuthenticationProvider;
 import org.apache.zookeeper.server.quorum.QuorumPeer.ServerState;
@@ -95,6 +96,7 @@ import com.linecorp.centraldogma.server.command.RepositoryCommand;
 import com.linecorp.centraldogma.server.command.UpdateServerStatusCommand;
 import com.linecorp.centraldogma.server.internal.command.DefaultExecutionContext;
 
+import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.binder.jvm.ExecutorServiceMetrics;
@@ -139,6 +141,10 @@ public final class ZooKeeperCommandExecutor
     private final File zkLogDir;
     private final CommandExecutor delegate;
     private final MeterRegistry meterRegistry;
+    private final Counter deleteLogsBelowLimitCounter;
+    private final Counter deleteLogsNoDeletionCounter;
+    private final Counter deleteLogsDeletedCounter;
+    private final Counter deleteLogsFailureCounter;
 
     @Nullable
     private final String zone;
@@ -162,6 +168,7 @@ public final class ZooKeeperCommandExecutor
     @Nullable
     private volatile LeaderSelector zoneLeaderSelector;
     private volatile boolean createdParentNodes;
+    private volatile boolean starting;
     private volatile boolean canReplicate;
     // Highest ZooKeeper revision whose effect is in local data
     private volatile long lastReplayedRevision = -1;
@@ -190,7 +197,15 @@ public final class ZooKeeperCommandExecutor
                 }
 
                 while (curator.getState() == CuratorFrameworkState.STARTED) {
-                    deleteLogs();
+                    try {
+                        deleteLogs();
+                    } catch (InterruptedException e) {
+                        // Leadership is being released.
+                        throw e;
+                    } catch (Exception e) {
+                        deleteLogsFailureCounter.increment();
+                        throw e;
+                    }
                     synchronized (this) {
                         wait();
                     }
@@ -220,6 +235,7 @@ public final class ZooKeeperCommandExecutor
         private void deleteLogs() throws Exception {
             final List<String> children = curator.getChildren().forPath(absolutePath(LOG_PATH));
             if (children.size() <= cfg.maxLogCount()) {
+                deleteLogsBelowLimitCounter.increment();
                 return;
             }
 
@@ -252,6 +268,11 @@ public final class ZooKeeperCommandExecutor
                 }
             } finally {
                 logger.info("Deleted ZooKeeper nodes: {}", deletedPaths);
+            }
+            if (deletedPaths.isEmpty()) {
+                deleteLogsNoDeletionCounter.increment();
+            } else {
+                deleteLogsDeletedCounter.increment();
             }
         }
 
@@ -390,6 +411,18 @@ public final class ZooKeeperCommandExecutor
 
         this.delegate = requireNonNull(delegate, "delegate");
         this.meterRegistry = requireNonNull(meterRegistry, "meterRegistry");
+        deleteLogsBelowLimitCounter = Counter.builder("replica.zk.logs.delete.result")
+                                             .tag("result", "below_limit")
+                                             .register(meterRegistry);
+        deleteLogsNoDeletionCounter = Counter.builder("replica.zk.logs.delete.result")
+                                             .tag("result", "no_deletion")
+                                             .register(meterRegistry);
+        deleteLogsDeletedCounter = Counter.builder("replica.zk.logs.delete.result")
+                                          .tag("result", "deleted")
+                                          .register(meterRegistry);
+        deleteLogsFailureCounter = Counter.builder("replica.zk.logs.delete.result")
+                                          .tag("result", "failure")
+                                          .register(meterRegistry);
         this.zone = zone;
 
         // Register the metrics which are accessible even before started.
@@ -429,6 +462,7 @@ public final class ZooKeeperCommandExecutor
                            @Nullable Runnable onReleaseLeadership,
                            @Nullable Runnable onTakeZoneLeadership,
                            @Nullable Runnable onReleaseZoneLeadership) throws Exception {
+        starting = true;
         try {
             // Get the last replayed revision.
             try {
@@ -447,10 +481,16 @@ public final class ZooKeeperCommandExecutor
             curator = CuratorFrameworkFactory.newClient(
                     "127.0.0.1:" + quorumPeer.getClientPort(), cfg.timeoutMillis(), cfg.timeoutMillis(),
                     (retryCount, elapsedTimeMs, sleeper) -> {
+                        if (starting && isStopping()) {
+                            return false;
+                        }
                         return retryPolicy.allowRetry(retryCount, elapsedTimeMs, sleeper);
                     });
 
             curator.start();
+            validateZooKeeperLogsAndRevision();
+            createdParentNodes = false;
+            createParentNodes();
 
             // Start the log replay.
             logWatcherExecutor = ExecutorServiceMetrics.monitor(
@@ -509,6 +549,25 @@ public final class ZooKeeperCommandExecutor
             throw e;
         } catch (Exception e) {
             throw new ReplicationException(e);
+        } finally {
+            starting = false;
+        }
+    }
+
+    /**
+     * Rejects startup when {@code last_revision} is non-initial but ZooKeeper has no command logs.
+     */
+    private void validateZooKeeperLogsAndRevision() throws Exception {
+        if (lastReplayedRevision == -1) {
+            return;
+        }
+
+        // Normal log cleanup retains at least one child because maxLogCount is always positive.
+        final Stat logStat = curator.checkExists().forPath(absolutePath(LOG_PATH));
+        if (logStat == null || logStat.getNumChildren() == 0) {
+            throw new ReplicationException(
+                    "ZooKeeper command history is empty but " + revisionFile +
+                    " contains a non-initial checkpoint: " + lastReplayedRevision);
         }
     }
 
@@ -739,6 +798,8 @@ public final class ZooKeeperCommandExecutor
                         } catch (Exception e) {
                             logger.warn("Failed to close the Curator framework: {}", e.getMessage(), e);
                         } finally {
+                            // Cached locks are bound to the Curator client that was just closed.
+                            mutexMap.clear();
                             try {
                                 if (quorumPeer != null) {
                                     final long peerId = quorumPeer.getId();

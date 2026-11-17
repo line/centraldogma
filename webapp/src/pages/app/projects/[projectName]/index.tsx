@@ -7,6 +7,7 @@ import RepoList from 'dogma/features/repo/RepoList';
 import { useRouter } from 'next/router';
 import { FiBox } from 'react-icons/fi';
 import { ProjectSettingsButton } from 'dogma/common/components/ProjectSettingsButton';
+import { PageTitle } from 'dogma/common/components/PageTitle';
 
 const ProjectDetailPage = () => {
   const router = useRouter();
@@ -22,6 +23,7 @@ const ProjectDetailPage = () => {
     <Deferred isLoading={isLoading} error={error}>
       {() => (
         <Box p="2">
+          <PageTitle title={[projectName]} />
           <Breadcrumbs path={router.asPath.split('?')[0]} omitIndexList={[0]} />
           <Flex minWidth="max-content" alignItems="center" gap="2" mb={6}>
             <Heading size="lg">
