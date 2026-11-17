@@ -21,6 +21,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import com.fasterxml.jackson.databind.exc.InvalidTypeIdException;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -88,17 +90,19 @@ class ReplicationLogTest {
                              '}');
     }
 
-    @Test
-    void ignoresUnknownPropertiesInReplicationLog() throws Exception {
+    @ParameterizedTest
+    @ValueSource(booleans = { false, true })
+    void ignoresUnknownPropertiesInReplicationLog(boolean publishUpstreamCommitTag) throws Exception {
         final Command<Revision> command = Command.push(
                 1234L, AUTHOR, "project", "repo", new Revision(1), "summary", "detail", Markup.PLAINTEXT,
+                publishUpstreamCommitTag ? "0123456789abcdef0123456789abcdef01234567" : null,
+                publishUpstreamCommitTag,
                 ImmutableList.of(Change.ofTextUpsert("/file.txt", "content")));
         final ReplicationLog<Revision> log = new ReplicationLog<>(1, command, new Revision(2));
         final ObjectNode json = Jackson.valueToTree(log);
         json.put("futureLogField", true);
         final ObjectNode commandJson = (ObjectNode) json.get("command");
-        commandJson.put("upstreamCommitId", "0123456789abcdef0123456789abcdef01234567");
-        commandJson.put("publishUpstreamCommitTag", true);
+        commandJson.put("futureCommandField", true);
         ((ObjectNode) commandJson.get("author")).put("futureAuthorField", true);
 
         assertThat(Jackson.readValue(Jackson.writeValueAsBytes(json), ReplicationLog.class)).isEqualTo(log);
