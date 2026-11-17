@@ -130,9 +130,13 @@ Preserving the upstream commit history
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 By default a mirroring run pushes whatever the remote repository looks like at that moment as a single
-revision, so several remote commits merged in quick succession end up in one revision. For a linear history,
-turning on ``Preserve upstream commit history`` replays up to the latest 100 commits on the first run and
-each new commit on later runs when Central Dogma can resume from the previously mirrored remote HEAD.
+revision, so several remote commits merged in quick succession end up in one revision. Turning on
+``Preserve upstream commit history`` follows the configured branch's first-parent history, including merge
+commits. The initial fetch is limited to 100 generations. Later runs replay each new commit when Central
+Dogma can resume from the previously mirrored remote HEAD.
+
+Each merge revision contains the merged tree, including conflict resolutions. Commits made only on a
+merged feature branch are not replayed separately.
 
 Enabling history on an existing mirror does not backfill commits already represented by its current
 snapshot. Later upstream changes are preserved.
@@ -162,9 +166,9 @@ Central Dogma serves these tags over the Git HTTP protocol, so they can be used 
 
 Note the following limitations:
 
-- Central Dogma produces one snapshot at the current remote HEAD when the new upstream commits include a merge,
-  the update is non-fast-forward, or it cannot resume from the previously mirrored commit after checking the
-  latest 100 generations. With tag publishing enabled, the snapshot receives a tag for that remote HEAD only.
+- Central Dogma produces one snapshot at the current remote HEAD when the previously mirrored commit is
+  outside the fetched first-parent history, such as after a rewrite or cache loss. Cache recovery checks
+  the latest 100 generations. With tag publishing enabled, the snapshot receives a tag for that remote HEAD only.
 
 - **A remote commit that changes nothing within the mirrored path still creates a revision**, because the
   mirror state advances to that upstream commit. Expect this if ``remote path`` covers only a part of a busy

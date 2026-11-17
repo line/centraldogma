@@ -78,8 +78,8 @@ const emptyMirror: MirrorRequest = {
 };
 
 const historyHelperText =
-  'Replay linear commits individually: the latest 100 initially, then every new commit. ' +
-  'Cache loss, merges, and rewrites may fall back to a snapshot.';
+  'Replay first-parent commits, including merges. Initially fetch 100 generations, then replay new commits. ' +
+  'Cache loss or rewrites may fall back to a snapshot.';
 const unavailableHelperText = 'Available only for remote-to-Central Dogma Git mirrors.';
 
 const mockOnSubmit = jest.fn().mockResolvedValue(undefined);

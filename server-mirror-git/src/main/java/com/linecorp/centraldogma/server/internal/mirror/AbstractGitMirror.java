@@ -28,7 +28,6 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.concurrent.CompletionException;
 import java.util.function.Consumer;
 import java.util.regex.Pattern;
@@ -45,7 +44,6 @@ import org.eclipse.jgit.dircache.DirCacheEditor;
 import org.eclipse.jgit.dircache.DirCacheEditor.DeletePath;
 import org.eclipse.jgit.dircache.DirCacheEditor.PathEdit;
 import org.eclipse.jgit.dircache.DirCacheEntry;
-import org.eclipse.jgit.errors.MissingObjectException;
 import org.eclipse.jgit.errors.PackProtocolException;
 import org.eclipse.jgit.ignore.IgnoreNode.MatchResult;
 import org.eclipse.jgit.lib.CommitBuilder;
@@ -59,7 +57,6 @@ import org.eclipse.jgit.lib.Ref;
 import org.eclipse.jgit.lib.RefUpdate;
 import org.eclipse.jgit.lib.RefUpdate.Result;
 import org.eclipse.jgit.revwalk.RevCommit;
-import org.eclipse.jgit.revwalk.RevSort;
 import org.eclipse.jgit.revwalk.RevWalk;
 import org.eclipse.jgit.transport.FetchResult;
 import org.eclipse.jgit.transport.RefSpec;
@@ -428,48 +425,20 @@ abstract class AbstractGitMirror extends AbstractMirror {
         }
 
         try (RevWalk revWalk = new RevWalk(git.getRepository())) {
-            final RevCommit headCommit = revWalk.parseCommit(headCommitId);
-            final Set<ObjectId> shallowCommits =
-                    git.getRepository().getObjectDatabase().getShallowCommits();
-            RevCommit previousCommit = null;
-            if (previousCommitId != null) {
-                try {
-                    previousCommit = revWalk.parseCommit(previousCommitId);
-                } catch (MissingObjectException e) {
-                    return null;
-                }
-                if (!revWalk.isMergedInto(previousCommit, headCommit)) {
-                    // A non-fast-forward remote can only be represented by one snapshot at its new HEAD.
-                    return null;
-                }
-            }
-
-            revWalk.reset();
-            revWalk.sort(RevSort.TOPO);
-            revWalk.sort(RevSort.REVERSE, true);
-            revWalk.markStart(headCommit);
-            if (previousCommit != null) {
-                revWalk.markUninteresting(previousCommit);
-            }
             final ImmutableList.Builder<RevCommit> commits = ImmutableList.builder();
-            RevCommit expectedParent = previousCommit;
-            for (RevCommit commit : revWalk) {
-                final boolean isShallowBoundary = shallowCommits.contains(commit.getId());
-                final int rawParentCount = RevCommit.parse(commit.getRawBuffer()).getParentCount();
-                final boolean validFirstCommit = expectedParent == null && previousCommitId == null &&
-                                                 (rawParentCount == 0 ||
-                                                  isShallowBoundary && rawParentCount == 1);
-                final boolean continuesLinearHistory = expectedParent != null &&
-                                                       commit.getParentCount() == 1 &&
-                                                       commit.getParent(0).equals(expectedParent);
-                if (!validFirstCommit && !continuesLinearHistory) {
-                    logger.info("Remote history is not linear. Falling back to a single snapshot.");
-                    return null;
-                }
+            RevCommit commit = revWalk.parseCommit(headCommitId);
+            while (previousCommitId == null || !commit.equals(previousCommitId)) {
                 commits.add(commit);
-                expectedParent = commit;
+                if (commit.getParentCount() == 0) {
+                    if (previousCommitId != null) {
+                        // The previous HEAD is outside the fetched first-parent history.
+                        return null;
+                    }
+                    break;
+                }
+                commit = revWalk.parseCommit(commit.getParent(0));
             }
-            final ImmutableList<RevCommit> commitsToReplay = commits.build();
+            final ImmutableList<RevCommit> commitsToReplay = commits.build().reverse();
             return commitsToReplay.isEmpty() ? null : commitsToReplay;
         } catch (IOException e) {
             logger.warn("Failed to resolve the commits to replay from '{}'. " +

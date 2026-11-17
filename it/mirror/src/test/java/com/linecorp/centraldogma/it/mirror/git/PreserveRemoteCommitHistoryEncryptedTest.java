@@ -24,6 +24,8 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 
 import org.eclipse.jgit.api.Git;
+import org.eclipse.jgit.api.MergeCommand.FastForwardMode;
+import org.eclipse.jgit.api.MergeResult;
 import org.eclipse.jgit.lib.Constants;
 import org.eclipse.jgit.lib.ObjectId;
 import org.eclipse.jgit.lib.Repository;
@@ -152,6 +154,39 @@ class PreserveRemoteCommitHistoryEncryptedTest {
                                   StandardCharsets.UTF_8).trim())
                     .isEqualTo("secret-2");
         }
+    }
+
+    @Test
+    void preservesMergeCommitAndPublishesItsTag() throws Exception {
+        pushMirrorSettings(true);
+        mirroringService.mirror().join();
+        final Revision baseline = headRevision();
+
+        git.checkout().setCreateBranch(true).setName("feature").call();
+        final RevCommit feature = commitFile("feature.txt", "feature", "Feature update");
+        git.checkout().setName("master").call();
+        final RevCommit main = commitFile("encrypted.txt", "main", "Main update");
+        final MergeResult merge = git.merge().include(feature).setFastForward(FastForwardMode.NO_FF)
+                                     .setMessage("Merge feature").call();
+        assertThat(merge.getMergeStatus().isSuccessful()).isTrue();
+
+        mirroringService.mirror().join();
+
+        assertThat(headRevision()).isEqualTo(baseline.forward(2));
+        assertThat(fileContent(baseline.forward(1))).isEqualTo("main");
+        assertThat(client.getFiles(projectName, REPOSITORY_NAME, baseline.forward(1), PathPattern.all()).join())
+                .doesNotContainKey("/feature.txt");
+        assertThat(client.getFile(projectName, REPOSITORY_NAME, headRevision(), "/feature.txt").join()
+                         .contentAsText().trim()).isEqualTo("feature");
+        assertThat(client.getHistory(projectName, REPOSITORY_NAME, Revision.HEAD,
+                                     baseline.forward(1), PathPattern.all(), 0).join())
+                .extracting(Commit::upstreamCommitId)
+                .containsExactly(merge.getNewHead().name(), main.name());
+        final Repository repository =
+                dogma.projectManager().get(projectName).repos().get(REPOSITORY_NAME).jGitRepository();
+        assertThat(repository.exactRef(TAG_PREFIX + merge.getNewHead().name()).getObjectId())
+                .isEqualTo(repository.resolve(Constants.HEAD));
+        assertThat(repository.exactRef(TAG_PREFIX + feature.name())).isNull();
     }
 
     @Test

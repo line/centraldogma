@@ -51,6 +51,7 @@ import org.junit.jupiter.api.TestInfo;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.common.Author;
@@ -313,9 +314,10 @@ class PreserveRemoteCommitHistoryTest {
         assertThat(fileContent(headRevision(), "/counter.txt")).isEqualTo("99");
     }
 
-    @Test
-    void mergeGraphFallsBackToSingleSnapshot() throws Exception {
-        pushMirrorSettings(true);
+    @ParameterizedTest
+    @ValueSource(booleans = { false, true })
+    void replaysEachMergeOnTargetBranch(boolean publishRemoteCommitTags) throws Exception {
+        pushMirrorSettings(true, publishRemoteCommitTags);
         mirroringService.mirror().join();
         final Revision baseline = headRevision();
         final RevCommit base = git.log().setMaxCount(1).call().iterator().next();
@@ -329,21 +331,50 @@ class PreserveRemoteCommitHistoryTest {
         MergeResult result = git.merge().include(left).setFastForward(FastForwardMode.NO_FF)
                                 .setMessage("Merge left").call();
         assertThat(result.getMergeStatus().isSuccessful()).isTrue();
+        final ObjectId firstMerge = result.getNewHead();
         result = git.merge().include(right).setFastForward(FastForwardMode.NO_FF)
                     .setMessage("Merge right").call();
         assertThat(result.getMergeStatus().isSuccessful()).isTrue();
+        final ObjectId secondMerge = result.getNewHead();
 
         mirroringService.mirror().join();
 
-        assertThat(headRevision()).isEqualTo(baseline.forward(1));
+        assertThat(headRevision()).isEqualTo(baseline.forward(2));
+        assertThat(fileContent(baseline.forward(1), "/left.txt")).isEqualTo("left");
+        assertThat(client.getFiles(projName, REPO_FOO, baseline.forward(1), PathPattern.all()).join())
+                .doesNotContainKey("/right.txt");
         assertThat(fileContent(headRevision(), "/left.txt")).isEqualTo("left");
         assertThat(fileContent(headRevision(), "/right.txt")).isEqualTo("right");
-        assertThat(history(headRevision(), headRevision()).get(0).upstreamCommitId()).isNull();
-        assertThat(tagNames()).isEmpty();
+        final List<Commit> commits = history(headRevision(), baseline.forward(1));
+        assertThat(commits).extracting(Commit::summary).containsExactly("Merge right", "Merge left");
+        if (publishRemoteCommitTags) {
+            assertThat(commits).extracting(Commit::upstreamCommitId)
+                               .containsExactly(secondMerge.name(), firstMerge.name());
+            assertThat(tagNames()).contains(TAG_PREFIX + firstMerge.name(), TAG_PREFIX + secondMerge.name())
+                                  .doesNotContain(TAG_PREFIX + left.name(), TAG_PREFIX + right.name());
+            final File cloneDir = gitRepoDir.getRoot().resolve("first-merge-clone").toFile();
+            try (Git clone = Git.cloneRepository()
+                                .setURI("http://127.0.0.1:" + dogma.serverAddress().getPort() + '/' +
+                                        projName + '/' + REPO_FOO + ".git")
+                                .setBranch(TAG_PREFIX + firstMerge.name())
+                                .setDirectory(cloneDir)
+                                .setCredentialsProvider(
+                                        new UsernamePasswordCredentialsProvider("dogma", "anonymous"))
+                                .call()) {
+                assertThat(clone.getRepository().resolve(Constants.HEAD))
+                        .isEqualTo(tagObjectId(firstMerge.name()));
+                assertThat(new String(Files.readAllBytes(cloneDir.toPath().resolve("left.txt")),
+                                      StandardCharsets.UTF_8).trim()).isEqualTo("left");
+                assertThat(cloneDir.toPath().resolve("right.txt")).doesNotExist();
+            }
+        } else {
+            assertThat(commits).extracting(Commit::upstreamCommitId).containsOnlyNulls();
+            assertThat(tagNames()).isEmpty();
+        }
     }
 
     @Test
-    void mergeAtShallowBoundaryFallsBackToSingleSnapshot() throws Exception {
+    void replaysMergeAtShallowBoundary() throws Exception {
         final RevCommit base = git.log().setMaxCount(1).call().iterator().next();
 
         git.checkout().setCreateBranch(true).setName("left").setStartPoint(base).call();
@@ -360,7 +391,10 @@ class PreserveRemoteCommitHistoryTest {
         final Revision baseline = headRevision();
         mirroringService.mirror().join();
 
-        assertThat(headRevision()).isEqualTo(baseline.forward(1));
+        assertThat(headRevision()).isEqualTo(baseline.forward(100));
+        assertThat(fileContent(baseline.forward(1), "/left.txt")).isEqualTo("left");
+        assertThat(client.getFiles(projName, REPO_FOO, baseline.forward(1), PathPattern.all()).join())
+                .doesNotContainKey("/counter.txt");
         assertThat(fileContent(headRevision(), "/left.txt")).isEqualTo("left");
         assertThat(fileContent(headRevision(), "/counter.txt")).isEqualTo("98");
         assertThat(history(headRevision(), headRevision()).get(0).upstreamCommitId()).isNull();
@@ -368,7 +402,7 @@ class PreserveRemoteCommitHistoryTest {
     }
 
     @Test
-    void wideMergeGraphFallsBackToSingleSnapshot() throws Exception {
+    void replaysMergesWithoutReplayingFeatureBranchCommits() throws Exception {
         pushMirrorSettings(true);
         mirroringService.mirror().join();
         final Revision baseline = headRevision();
@@ -395,11 +429,92 @@ class PreserveRemoteCommitHistoryTest {
         assertThat(result.getMergeStatus().isSuccessful()).isTrue();
         mirroringService.mirror().join();
 
-        assertThat(headRevision()).isEqualTo(baseline.forward(1));
+        assertThat(headRevision()).isEqualTo(baseline.forward(2));
+        assertThat(fileContent(baseline.forward(1), "/left.txt")).isEqualTo("49");
+        assertThat(client.getFiles(projName, REPO_FOO, baseline.forward(1), PathPattern.all()).join())
+                .doesNotContainKey("/right.txt");
         assertThat(fileContent(headRevision(), "/left.txt")).isEqualTo("49");
         assertThat(fileContent(headRevision(), "/right.txt")).isEqualTo("49");
         assertThat(history(headRevision(), headRevision()).get(0).upstreamCommitId()).isNull();
         assertThat(tagNames()).isEmpty();
+    }
+
+    @Test
+    void firstRunReplaysTargetBranchIncludingMerges() throws Exception {
+        final RevCommit base = git.log().setMaxCount(1).call().iterator().next();
+        git.checkout().setCreateBranch(true).setName("feature").call();
+        final RevCommit feature = commitFile("feature.txt", "feature", "Feature update");
+        git.checkout().setName("master").call();
+        final RevCommit main = commitFile("main.txt", "main", "Main update");
+        final MergeResult merge = git.merge().include(feature).setFastForward(FastForwardMode.NO_FF)
+                                     .setMessage("Merge feature").call();
+        assertThat(merge.getMergeStatus().isSuccessful()).isTrue();
+
+        pushMirrorSettings(true, true);
+        final Revision baseline = headRevision();
+        mirroringService.mirror().join();
+
+        assertThat(headRevision()).isEqualTo(baseline.forward(3));
+        assertThat(client.getFiles(projName, REPO_FOO, baseline.forward(1), PathPattern.all()).join())
+                .doesNotContainKeys("/main.txt", "/feature.txt");
+        assertThat(fileContent(baseline.forward(2), "/main.txt")).isEqualTo("main");
+        assertThat(client.getFiles(projName, REPO_FOO, baseline.forward(2), PathPattern.all()).join())
+                .doesNotContainKey("/feature.txt");
+        assertThat(fileContent(headRevision(), "/feature.txt")).isEqualTo("feature");
+        assertThat(history(headRevision(), baseline.forward(1))).extracting(Commit::upstreamCommitId)
+                .containsExactly(merge.getNewHead().name(), main.name(), base.name());
+        assertThat(tagNames()).hasSize(3).doesNotContain(TAG_PREFIX + feature.name());
+    }
+
+    @Test
+    void replaysResolvedMergeTree() throws Exception {
+        commitFile("value.txt", "base", "Add value");
+        pushMirrorSettings(true, true);
+        mirroringService.mirror().join();
+        final Revision baseline = headRevision();
+
+        git.checkout().setCreateBranch(true).setName("feature").call();
+        final RevCommit feature = commitFile("value.txt", "feature", "Feature update");
+        git.checkout().setName("master").call();
+        final RevCommit main = commitFile("value.txt", "main", "Main update");
+        final MergeResult merge = git.merge().include(feature).setFastForward(FastForwardMode.NO_FF).call();
+        assertThat(merge.getMergeStatus()).isEqualTo(MergeResult.MergeStatus.CONFLICTING);
+        final RevCommit resolved = commitFile("value.txt", "resolved", "Resolve merge");
+        assertThat(resolved.getParentCount()).isEqualTo(2);
+
+        mirroringService.mirror().join();
+
+        assertThat(headRevision()).isEqualTo(baseline.forward(2));
+        assertThat(fileContent(baseline.forward(1), "/value.txt")).isEqualTo("main");
+        assertThat(fileContent(headRevision(), "/value.txt")).isEqualTo("resolved");
+        assertThat(history(headRevision(), baseline.forward(1))).extracting(Commit::upstreamCommitId)
+                .containsExactly(resolved.name(), main.name());
+        assertThat(tagNames()).doesNotContain(TAG_PREFIX + feature.name());
+    }
+
+    @Test
+    void previousHeadReachableOnlyThroughSecondParentFallsBackToSnapshot() throws Exception {
+        final RevCommit base = git.log().setMaxCount(1).call().iterator().next();
+        final RevCommit previous = commitFile("previous.txt", "previous", "Previous head");
+        pushMirrorSettings(true, true);
+        mirroringService.mirror().join();
+        final Revision baseline = headRevision();
+
+        git.checkout().setCreateBranch(true).setName("replacement").setStartPoint(base).call();
+        commitFile("replacement.txt", "replacement", "Replacement head");
+        final MergeResult merge = git.merge().include(previous).setFastForward(FastForwardMode.NO_FF)
+                                     .setMessage("Merge previous branch").call();
+        assertThat(merge.getMergeStatus().isSuccessful()).isTrue();
+        git.checkout().setName("master").call();
+        git.reset().setMode(ResetType.HARD).setRef(merge.getNewHead().name()).call();
+
+        mirroringService.mirror().join();
+
+        assertThat(headRevision()).isEqualTo(baseline.forward(1));
+        assertThat(fileContent(headRevision(), "/previous.txt")).isEqualTo("previous");
+        assertThat(fileContent(headRevision(), "/replacement.txt")).isEqualTo("replacement");
+        assertThat(history(headRevision(), headRevision()).get(0).upstreamCommitId())
+                .isEqualTo(merge.getNewHead().name());
     }
 
     @Test
