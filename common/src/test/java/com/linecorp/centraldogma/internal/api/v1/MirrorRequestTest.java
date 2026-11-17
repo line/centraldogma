@@ -22,6 +22,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import org.junit.jupiter.api.Test;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import com.linecorp.centraldogma.internal.CredentialUtil;
@@ -81,6 +82,16 @@ class MirrorRequestTest {
 
         assertIgnoresUnknownField(request, MirrorRequest.class);
         assertIgnoresUnknownField(dto, MirrorDto.class);
+    }
+
+    @Test
+    void ignoresUnknownFieldsWithHttpRequestMapper() throws Exception {
+        final MirrorRequest request = newMirror(credentialName("foo", "credential-id"));
+        final ObjectNode json = Jackson.valueToTree(request);
+        json.put("futureField", true);
+
+        assertThat(new ObjectMapper().readValue(Jackson.writeValueAsBytes(json), MirrorRequest.class))
+                .isEqualTo(request);
     }
 
     private static MirrorRequest newMirror(String credentialName) {
