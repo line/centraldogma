@@ -1,7 +1,28 @@
-import { render } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { Breadcrumbs } from 'dogma/common/components/Breadcrumbs';
 
 describe('Breadcrumbs', () => {
+  it.each(['@sample', 'part#one', 'key?value', 'a/b', 'a:b;c=d&x+y,z', '공백 이름', '%40literal'])(
+    'decodes the label %s once without changing the link destination',
+    (label) => {
+      const encoded = encodeURIComponent(label);
+      const { rerender } = render(<Breadcrumbs path={`/app/projects/${encoded}/settings`} />);
+      expect(screen.getByRole('link', { name: label })).toHaveAttribute('href', `/app/projects/${encoded}`);
+      rerender(<Breadcrumbs path={`/app/projects/${encoded}`} />);
+      expect(screen.getByText(label)).toBeVisible();
+    },
+  );
+
+  it.each(['?page=2', '#details', '?page=2#details'])(
+    'excludes URL query and fragment %s from labels and ancestor links',
+    (suffix) => {
+      render(<Breadcrumbs path={`/app/projects/%40sample/repos/example${suffix}`} />);
+      expect(screen.getByRole('link', { name: '@sample' })).toHaveAttribute('href', '/app/projects/%40sample');
+      expect(screen.getByText('example')).toBeVisible();
+      expect(screen.queryByText(`example${suffix}`)).not.toBeInTheDocument();
+    },
+  );
+
   it('renders the breadcrumb', () => {
     const { container } = render(<Breadcrumbs path={'/app/projects'} omitIndexList={[]} suffixes={{}} />);
     const crumb = container.querySelector('nav').firstChild.firstChild.firstChild;
