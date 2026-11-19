@@ -123,6 +123,9 @@ class GitRepository implements Repository {
 
     private static final Pattern CR = Pattern.compile("\r", Pattern.LITERAL);
 
+    // Recommended maximum number of commits within the configured repository statistics window.
+    private static final int RECOMMENDED_COMMIT_COUNT = 100;
+
     private static final Field revWalkObjectsField;
 
     static {
@@ -593,10 +596,9 @@ class GitRepository implements Repository {
     private RepositoryStats blockingStats(int windowHours) {
         checkArgument(windowHours > 0, "windowHours: %s (expected: > 0)", windowHours);
         final long startMillis = System.currentTimeMillis();
-        final int recommendedCount = 100;
         final long boundaryMillis = startMillis - TimeUnit.HOURS.toMillis(windowHours);
         final List<Commit> commits = blockingHistory(
-                Revision.HEAD, Revision.INIT, ALL_PATH, recommendedCount + 1);
+                Revision.HEAD, Revision.INIT, ALL_PATH, RECOMMENDED_COMMIT_COUNT + 1);
         int commitCount = 0;
         for (Commit commit : commits) {
             if (commit.when() <= boundaryMillis) {
@@ -604,7 +606,7 @@ class GitRepository implements Repository {
             }
             commitCount++;
         }
-        return new RepositoryStats(true, windowHours, commitCount, recommendedCount,
+        return new RepositoryStats(true, windowHours, commitCount, RECOMMENDED_COMMIT_COUNT,
                                    Instant.ofEpochMilli(startMillis));
     }
 

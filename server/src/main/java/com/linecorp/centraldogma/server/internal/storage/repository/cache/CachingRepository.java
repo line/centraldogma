@@ -99,7 +99,10 @@ final class CachingRepository implements Repository {
     @Override
     public CompletableFuture<RepositoryStats> stats(int windowHours) {
         checkArgument(windowHours > 0, "windowHours: %s (expected: > 0)", windowHours);
-        return statsCache.get(windowHours);
+        return statsCache.get(windowHours).handleAsync((result, cause) -> {
+            throwUnsafelyIfNonNull(cause);
+            return result;
+        }, executor());
     }
 
     @Override

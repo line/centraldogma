@@ -37,11 +37,15 @@ import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.Mock;
 
 import com.fasterxml.jackson.core.JsonParseException;
@@ -103,12 +107,59 @@ class CachingRepositoryTest {
             assertThat(RequestContext.<RequestContext>currentOrNull()).isSameAs(secondCtx);
         }
 
-        assertThat(first).isSameAs(second).isNotDone();
+        assertThat(first).isNotSameAs(second).isNotDone();
+        assertThat(second).isNotDone();
         final RepositoryStats stats = new RepositoryStats(true, 24, 42, 100, Instant.now());
         load.complete(stats);
         assertThat(first.join()).isSameAs(stats);
         assertThat(second.join()).isSameAs(stats);
         assertThat(repo.stats(24).join()).isSameAs(stats);
+        verify(delegateRepo).stats(24);
+        verifyNoMoreInteractions(delegateRepo);
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = { false, true })
+    void statsCallbacksRunOnCallerEventLoop(boolean fail) throws Exception {
+        final CachingRepository repo = newCachingRepo();
+        final CompletableFuture<RepositoryStats> load = new CompletableFuture<>();
+        when(delegateRepo.stats(24)).thenReturn(load);
+
+        final RepositoryStats stats = new RepositoryStats(true, 24, 42, 100, Instant.now());
+        final IllegalStateException failure = new IllegalStateException("stats load failed");
+        final List<CompletableFuture<Void>> callbacks = new ArrayList<>();
+        for (int i = 0; i < 2; i++) {
+            final ServiceRequestContext ctx =
+                    ServiceRequestContext.of(HttpRequest.of(HttpMethod.GET, "/stats"));
+            try (SafeCloseable ignored = ctx.push()) {
+                callbacks.add(repo.stats(24).handle((result, cause) -> {
+                    try (SafeCloseable ignored2 = ctx.push()) {
+                        assertThat(ctx.eventLoop().inEventLoop()).isTrue();
+                        if (fail) {
+                            assertThat(cause).hasCauseReference(failure);
+                        } else {
+                            assertThat(cause).isNull();
+                            assertThat(result).isSameAs(stats);
+                        }
+                    }
+                    return null;
+                }));
+            }
+        }
+
+        final ServiceRequestContext otherCtx =
+                ServiceRequestContext.of(HttpRequest.of(HttpMethod.GET, "/other"));
+        try (SafeCloseable ignored = otherCtx.push()) {
+            if (fail) {
+                load.completeExceptionally(failure);
+            } else {
+                load.complete(stats);
+            }
+        }
+
+        for (CompletableFuture<Void> callback : callbacks) {
+            callback.get(10, TimeUnit.SECONDS);
+        }
         verify(delegateRepo).stats(24);
         verifyNoMoreInteractions(delegateRepo);
     }
