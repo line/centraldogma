@@ -109,7 +109,7 @@ the authentication to.
               "signing": null,
               "encryption": null
             },
-            "signatureAlgorithm": "http://www.w3.org/2000/09/xmldsig#rsa-sha1"
+            "signatureAlgorithm": "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"
           },
           "acs": {
             "endpoints": [
@@ -180,7 +180,7 @@ The following describes the meaning of SAML-specific properties.
   - ``signatureAlgorithm`` (string)
 
     - a name of the signature algorithm for signing and encryption.
-      If unspecified, ``http://www.w3.org/2000/09/xmldsig#rsa-sha1`` is used by default.
+      If unspecified, ``http://www.w3.org/2001/04/xmldsig-more#rsa-sha256`` is used by default.
 
 - ``acs``
 
