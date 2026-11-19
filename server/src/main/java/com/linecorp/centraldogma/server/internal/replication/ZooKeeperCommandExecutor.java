@@ -16,6 +16,7 @@
 
 package com.linecorp.centraldogma.server.internal.replication;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static java.util.Objects.requireNonNull;
 
@@ -26,6 +27,7 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.time.Clock;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -59,6 +61,8 @@ import org.apache.curator.framework.state.ConnectionState;
 import org.apache.curator.retry.RetryForever;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
+import org.apache.zookeeper.client.ZKClientConfig;
+import org.apache.zookeeper.common.ZKConfig;
 import org.apache.zookeeper.data.Stat;
 import org.apache.zookeeper.server.auth.DigestLoginModule;
 import org.apache.zookeeper.server.auth.SASLAuthenticationProvider;
@@ -135,6 +139,7 @@ public final class ZooKeeperCommandExecutor
     private final Map<String, ReplicationMetrics> replicationTimings = new ConcurrentHashMap<>();
 
     private final ZooKeeperReplicationConfig cfg;
+    private final Clock clock;
     private final File revisionFile;
     private final File zkConfFile;
     private final File zkDataDir;
@@ -196,6 +201,8 @@ public final class ZooKeeperCommandExecutor
                     listenerInfo.onTakeLeadership.run();
                 }
 
+                final long cleanupIntervalMillis = Math.min(TimeUnit.MINUTES.toMillis(1),
+                                                            cfg.minLogAgeMillis());
                 while (curator.getState() == CuratorFrameworkState.STARTED) {
                     try {
                         deleteLogs();
@@ -207,7 +214,8 @@ public final class ZooKeeperCommandExecutor
                         throw e;
                     }
                     synchronized (this) {
-                        wait();
+                        // Recheck aged logs even when rejected writes produce no child event.
+                        wait(cleanupIntervalMillis);
                     }
                 }
             } catch (InterruptedException e) {
@@ -234,13 +242,13 @@ public final class ZooKeeperCommandExecutor
 
         private void deleteLogs() throws Exception {
             final List<String> children = curator.getChildren().forPath(absolutePath(LOG_PATH));
-            if (children.size() <= cfg.maxLogCount()) {
+            if (children.size() <= cfg.minimumLogCount()) {
                 deleteLogsBelowLimitCounter.increment();
                 return;
             }
 
-            final long minAllowedTimestamp = System.currentTimeMillis() - cfg.minLogAgeMillis();
-            final int targetCount = children.size() - cfg.maxLogCount();
+            final long minAllowedTimestamp = clock.millis() - cfg.minLogAgeMillis();
+            final int targetCount = children.size() - cfg.minimumLogCount();
             final List<String> deletedPaths = new ArrayList<>(targetCount);
             children.sort(Comparator.comparingLong(Long::parseLong));
             try {
@@ -397,9 +405,24 @@ public final class ZooKeeperCommandExecutor
                                     @Nullable Consumer<CommandExecutor> onReleaseLeadership,
                                     @Nullable Consumer<CommandExecutor> onTakeZoneLeadership,
                                     @Nullable Consumer<CommandExecutor> onReleaseZoneLeadership) {
+        this(cfg, dataDir, delegate, meterRegistry, zone, onTakeLeadership, onReleaseLeadership,
+             onTakeZoneLeadership, onReleaseZoneLeadership, Clock.systemUTC());
+    }
+
+    @VisibleForTesting
+    ZooKeeperCommandExecutor(ZooKeeperReplicationConfig cfg,
+                             File dataDir, CommandExecutor delegate,
+                             MeterRegistry meterRegistry,
+                             @Nullable String zone,
+                             @Nullable Consumer<CommandExecutor> onTakeLeadership,
+                             @Nullable Consumer<CommandExecutor> onReleaseLeadership,
+                             @Nullable Consumer<CommandExecutor> onTakeZoneLeadership,
+                             @Nullable Consumer<CommandExecutor> onReleaseZoneLeadership,
+                             Clock clock) {
         super(onTakeLeadership, onReleaseLeadership, onTakeZoneLeadership, onReleaseZoneLeadership);
 
         this.cfg = requireNonNull(cfg, "cfg");
+        this.clock = requireNonNull(clock, "clock");
         requireNonNull(dataDir, "dataDir");
         revisionFile = new File(dataDir.getAbsolutePath() + File.separatorChar + "last_revision");
         zkConfFile = new File(dataDir.getAbsolutePath() + File.separatorChar +
@@ -464,6 +487,10 @@ public final class ZooKeeperCommandExecutor
                            @Nullable Runnable onReleaseZoneLeadership) throws Exception {
         starting = true;
         try {
+            final ZKClientConfig zkClientConfig = new ZKClientConfig();
+            configureClientMaxBuffer(zkClientConfig, cfg.maximumLogCount(),
+                                     ZKClientConfig.CLIENT_MAX_PACKET_LENGTH_DEFAULT, 10);
+
             // Get the last replayed revision.
             try {
                 lastReplayedRevision = getLastReplayedRevision();
@@ -478,14 +505,19 @@ public final class ZooKeeperCommandExecutor
             retryPolicy = RETRY_POLICY_ALWAYS;
 
             // Start the Curator framework.
-            curator = CuratorFrameworkFactory.newClient(
-                    "127.0.0.1:" + quorumPeer.getClientPort(), cfg.timeoutMillis(), cfg.timeoutMillis(),
-                    (retryCount, elapsedTimeMs, sleeper) -> {
-                        if (starting && isStopping()) {
-                            return false;
-                        }
-                        return retryPolicy.allowRetry(retryCount, elapsedTimeMs, sleeper);
-                    });
+            curator = CuratorFrameworkFactory.builder()
+                                             .connectString("127.0.0.1:" + quorumPeer.getClientPort())
+                                             .sessionTimeoutMs(cfg.timeoutMillis())
+                                             .connectionTimeoutMs(cfg.timeoutMillis())
+                                             .retryPolicy((retryCount, elapsedTimeMs, sleeper) -> {
+                                                 if (starting && isStopping()) {
+                                                     return false;
+                                                 }
+                                                 return retryPolicy.allowRetry(retryCount, elapsedTimeMs,
+                                                                               sleeper);
+                                             })
+                                             .zkClientConfig(zkClientConfig)
+                                             .build();
 
             curator.start();
             validateZooKeeperLogsAndRevision();
@@ -552,6 +584,27 @@ public final class ZooKeeperCommandExecutor
         } finally {
             starting = false;
         }
+    }
+
+    @VisibleForTesting
+    static void configureClientMaxBuffer(ZKClientConfig config, int maximumLogCount,
+                                         int minimumPacketLength, int headroomPercentage) {
+        if (maximumLogCount == Integer.MAX_VALUE || config.getProperty(ZKConfig.JUTE_MAXBUFFER) != null) {
+            return;
+        }
+        checkArgument(headroomPercentage >= 0 && headroomPercentage <= 100,
+                      "headroomPercentage: %s (expected: 0-100)", headroomPercentage);
+
+        // Curator uses getChildren2: reply header (16), child count (4), Stat (68), and
+        // a length prefix (4) plus ten ASCII digits per child. The packet length prefix is excluded.
+        final long estimatedResponseSize = 88L + 14L * maximumLogCount;
+        // Reserve headroom for concurrent writes which may exceed maximumLogCount
+        final long maxBufferSize = Math.max(minimumPacketLength,
+                                           estimatedResponseSize +
+                                           estimatedResponseSize * headroomPercentage / 100);
+        checkArgument(maxBufferSize <= Integer.MAX_VALUE,
+                      "maximumLogCount is too large: %s", maximumLogCount);
+        config.setProperty(ZKConfig.JUTE_MAXBUFFER, Long.toString(maxBufferSize));
     }
 
     /**
@@ -1062,7 +1115,7 @@ public final class ZooKeeperCommandExecutor
             assert bytes.length > 0;
             bytes = Zstd.compress(bytes);
 
-            final LogMeta logMeta = new LogMeta(log.replicaId(), System.currentTimeMillis(), bytes.length,
+            final LogMeta logMeta = new LogMeta(log.replicaId(), clock.millis(), bytes.length,
                                                 true, null);
 
             final int count = (bytes.length + MAX_BYTES - 1) / MAX_BYTES;
@@ -1192,9 +1245,10 @@ public final class ZooKeeperCommandExecutor
             //     Other replicas may still append the logs with different execution paths, because, by design,
             //     two commands never conflict with each other if they have different execution paths.
 
+            final List<String> recentRevisions;
             timings.startLogReplay();
             try {
-                final List<String> recentRevisions = curator.getChildren().forPath(absolutePath(LOG_PATH));
+                recentRevisions = curator.getChildren().forPath(absolutePath(LOG_PATH));
                 if (!recentRevisions.isEmpty()) {
                     final long lastRevision = recentRevisions.stream().mapToLong(Long::parseLong).max()
                                                              .getAsLong();
@@ -1202,6 +1256,12 @@ public final class ZooKeeperCommandExecutor
                 }
             } finally {
                 timings.endLogReplay();
+            }
+
+            if (recentRevisions.size() >= cfg.maximumLogCount()) {
+                throw new ReplicationException("ZooKeeper command log write threshold reached " +
+                                               "(observed count: " + recentRevisions.size() +
+                                               ", maximumLogCount: " + cfg.maximumLogCount() + ')');
             }
 
             timings.startCommandExecution();

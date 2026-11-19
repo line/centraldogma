@@ -23,6 +23,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStreamReader;
 import java.nio.file.Files;
+import java.time.Clock;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
@@ -48,7 +49,8 @@ final class Replica {
     private final CompletableFuture<Void> startFuture;
 
     Replica(InstanceSpec spec, Map<Integer, ZooKeeperServerConfig> servers,
-            Function<Command<?>, CompletableFuture<?>> delegate, boolean start) {
+            Function<Command<?>, CompletableFuture<?>> delegate, boolean start,
+            int minimumLogCount, int maximumLogCount, long minLogAgeMillis, Clock clock) {
         this.delegate = delegate;
 
         dataDir = spec.getDataDirectory();
@@ -56,7 +58,8 @@ final class Replica {
 
         final int id = spec.getServerId();
         final ZooKeeperReplicationConfig zkCfg = new ZooKeeperReplicationConfig(
-                id, servers, "test-secret-for-replication-0123456789abcdef");
+                id, servers, "test-secret-for-replication-0123456789abcdef",
+                minimumLogCount, maximumLogCount, minLogAgeMillis);
 
         commandExecutor = new ZooKeeperCommandExecutor(
                 zkCfg, dataDir, new AbstractCommandExecutor(null, null, null, null) {
@@ -81,7 +84,7 @@ final class Replica {
             protected <T> CompletableFuture<T> doExecute(ExecutionContext ctx, Command<T> command) {
                 return (CompletableFuture<T>) delegate.apply(command);
             }
-        }, meterRegistry, null, null, null, null, null);
+        }, meterRegistry, null, null, null, null, null, clock);
         commandExecutor.setLockTimeoutMillis(10000);
 
         startFuture = start ? commandExecutor.start() : null;
