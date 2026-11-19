@@ -44,10 +44,10 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
 import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 import com.google.common.collect.ImmutableMap;
-import com.google.common.io.MoreFiles;
-import com.google.common.io.RecursiveDeleteOption;
 
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
@@ -169,23 +169,24 @@ class RemoteToLocalMirrorFetchTest {
         assertThat(baseRevisions).containsExactly(baseline, baseline.forward(1));
     }
 
-    @Test
-    void missingFetchCacheUsesABoundedFetch() throws Exception {
+    @CsvSource({ "49, 49", "50, 1", "51, 1" })
+    @ParameterizedTest
+    void missingFetchCacheUsesABoundedFetch(int numNewCommits, int expectedRevisions) throws Exception {
         final DefaultGitMirror mirror = newMirror("/", true);
-        for (int i = 0; i < 101; i++) {
+        for (int i = 0; i < 51; i++) {
             commitToRemote("initial.txt", Integer.toString(i));
         }
         assertThat(mirrorRemoteToLocal(mirror).mirrorStatus()).isEqualTo(MirrorStatus.SUCCESS);
         final Revision baseline = localRepo.normalizeNow(Revision.HEAD);
 
-        for (int i = 0; i < 101; i++) {
+        for (int i = 0; i < numNewCommits; i++) {
             commitToRemote("subsequent.txt", Integer.toString(i));
         }
-        MoreFiles.deleteRecursively(workDir.toPath(), RecursiveDeleteOption.ALLOW_INSECURE);
+        workDir = new File(tempDir.getRoot().toFile(), "empty-work-dir");
 
         assertThat(mirrorRemoteToLocal(mirror).mirrorStatus()).isEqualTo(MirrorStatus.SUCCESS);
-        assertThat(localRepo.normalizeNow(Revision.HEAD)).isEqualTo(baseline.forward(1));
-        assertThat(localContent("/subsequent.txt")).isEqualTo("100");
+        assertThat(localRepo.normalizeNow(Revision.HEAD)).isEqualTo(baseline.forward(expectedRevisions));
+        assertThat(localContent("/subsequent.txt")).isEqualTo(Integer.toString(numNewCommits - 1));
     }
 
     @Test

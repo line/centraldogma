@@ -78,7 +78,7 @@ const emptyMirror: MirrorRequest = {
 };
 
 const historyHelperText =
-  'Replay first-parent commits, including merges. Initially fetch 100 generations, then replay new commits. ' +
+  'Replay first-parent commits, including merges. Initially fetch 50 generations, then replay new commits. ' +
   'Cache loss or rewrites may fall back to a snapshot.';
 const unavailableHelperText = 'Available only for remote-to-Central Dogma Git mirrors.';
 

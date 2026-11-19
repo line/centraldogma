@@ -65,7 +65,7 @@ class AbstractGitMirrorFetchTest {
     @Test
     void initialFetchIsBounded() throws Exception {
         try (Repository repository = newRepository()) {
-            assertThat(AbstractGitMirror.fetchDepth(true, repository, HEAD, null)).isEqualTo(100);
+            assertThat(AbstractGitMirror.fetchDepth(true, repository, HEAD, null)).isEqualTo(50);
         }
     }
 
@@ -75,7 +75,7 @@ class AbstractGitMirrorFetchTest {
             final ObjectId previousCommit = createCommit(repository);
 
             assertThat(AbstractGitMirror.fetchDepth(true, repository, HEAD, mirrorState(previousCommit)))
-                    .isEqualTo(100);
+                    .isEqualTo(50);
         }
     }
 
@@ -89,7 +89,7 @@ class AbstractGitMirrorFetchTest {
 
             assertThat(AbstractGitMirror.fetchDepth(
                     true, repository, HEAD, mirrorState(missingPreviousCommit)))
-                    .isEqualTo(100);
+                    .isEqualTo(50);
         }
     }
 
@@ -98,7 +98,7 @@ class AbstractGitMirrorFetchTest {
         try (Repository repository = newRepository()) {
             final MirrorState mirrorState = new MirrorState("invalid", "invalid", null, null, null);
 
-            assertThat(AbstractGitMirror.fetchDepth(true, repository, HEAD, mirrorState)).isEqualTo(100);
+            assertThat(AbstractGitMirror.fetchDepth(true, repository, HEAD, mirrorState)).isEqualTo(50);
         }
     }
 
@@ -133,7 +133,7 @@ class AbstractGitMirrorFetchTest {
             setHead(repository, cachedHead);
 
             assertThat(AbstractGitMirror.fetchDepth(true, repository, HEAD, mirrorState(previousCommit)))
-                    .isEqualTo(100);
+                    .isEqualTo(50);
         }
     }
 
@@ -239,7 +239,7 @@ class AbstractGitMirrorFetchTest {
             when(retry.call()).thenReturn(retryResult);
 
             assertThat(AbstractGitMirror.fetchRemoteHeadWithRetry(git, HEAD, 0)).isSameAs(retryResult);
-            verify(retry).setDepth(100);
+            verify(retry).setDepth(50);
         }
     }
 

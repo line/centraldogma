@@ -166,13 +166,13 @@ class PreserveRemoteCommitHistoryTest {
         final Revision before = headRevision();
         mirroringService.mirror().join();
 
-        assertThat(headRevision()).isEqualTo(before.forward(100));
-        assertThat(fileContent(before.forward(1), "/counter.txt")).isEqualTo("50");
+        assertThat(headRevision()).isEqualTo(before.forward(50));
+        assertThat(fileContent(before.forward(1), "/counter.txt")).isEqualTo("100");
         assertThat(fileContent(headRevision(), "/counter.txt")).isEqualTo("149");
         final List<Commit> commits = history(headRevision(), before.forward(1));
-        assertThat(commits).hasSize(100);
+        assertThat(commits).hasSize(50);
         assertThat(commits.get(0).summary()).isEqualTo("Update counter 149");
-        assertThat(commits.get(99).summary()).isEqualTo("Update counter 50");
+        assertThat(commits.get(49).summary()).isEqualTo("Update counter 100");
         assertThat(commits).extracting(Commit::upstreamCommitId).containsOnlyNulls();
         assertThat(tagNames()).isEmpty();
     }
@@ -188,14 +188,15 @@ class PreserveRemoteCommitHistoryTest {
         final Revision before = headRevision();
         mirroringService.mirror().join();
 
-        assertThat(headRevision()).isEqualTo(before.forward(100));
+        assertThat(headRevision()).isEqualTo(before.forward(50));
         final List<Commit> mirroredCommits = history(headRevision(), before.forward(1));
-        assertThat(mirroredCommits).hasSize(100);
+        assertThat(mirroredCommits).hasSize(50);
         assertThat(mirroredCommits.get(0).upstreamCommitId()).isEqualTo(upstreamCommits.get(100).name());
-        assertThat(mirroredCommits.get(99).upstreamCommitId()).isEqualTo(upstreamCommits.get(1).name());
-        assertThat(tagNames()).hasSize(100)
-                              .doesNotContain(TAG_PREFIX + upstreamCommits.get(0).name())
-                              .contains(TAG_PREFIX + upstreamCommits.get(1).name(),
+        assertThat(mirroredCommits.get(49).upstreamCommitId()).isEqualTo(upstreamCommits.get(51).name());
+        assertThat(tagNames()).hasSize(50)
+                              .doesNotContain(TAG_PREFIX + upstreamCommits.get(0).name(),
+                                              TAG_PREFIX + upstreamCommits.get(50).name())
+                              .contains(TAG_PREFIX + upstreamCommits.get(51).name(),
                                         TAG_PREFIX + upstreamCommits.get(100).name());
     }
 
@@ -275,7 +276,7 @@ class PreserveRemoteCommitHistoryTest {
         final Revision before = headRevision();
         mirroringService.mirror().join();
         final Revision baseline = headRevision();
-        assertThat(baseline).isEqualTo(before.forward(100));
+        assertThat(baseline).isEqualTo(before.forward(50));
 
         for (int i = 0; i < 101; i++) {
             commitFile("counter.txt", Integer.toString(i), "Update counter " + i);
@@ -383,7 +384,7 @@ class PreserveRemoteCommitHistoryTest {
         final MergeResult result = git.merge().include(left).setFastForward(FastForwardMode.NO_FF)
                                       .setMessage("Merge left").call();
         assertThat(result.getMergeStatus().isSuccessful()).isTrue();
-        for (int i = 0; i < 99; i++) {
+        for (int i = 0; i < 49; i++) {
             commitFile("counter.txt", Integer.toString(i), "Update counter " + i);
         }
 
@@ -391,12 +392,12 @@ class PreserveRemoteCommitHistoryTest {
         final Revision baseline = headRevision();
         mirroringService.mirror().join();
 
-        assertThat(headRevision()).isEqualTo(baseline.forward(100));
+        assertThat(headRevision()).isEqualTo(baseline.forward(50));
         assertThat(fileContent(baseline.forward(1), "/left.txt")).isEqualTo("left");
         assertThat(client.getFiles(projName, REPO_FOO, baseline.forward(1), PathPattern.all()).join())
                 .doesNotContainKey("/counter.txt");
         assertThat(fileContent(headRevision(), "/left.txt")).isEqualTo("left");
-        assertThat(fileContent(headRevision(), "/counter.txt")).isEqualTo("98");
+        assertThat(fileContent(headRevision(), "/counter.txt")).isEqualTo("48");
         assertThat(history(headRevision(), headRevision()).get(0).upstreamCommitId()).isNull();
         assertThat(tagNames()).isEmpty();
     }

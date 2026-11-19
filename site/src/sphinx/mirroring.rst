@@ -132,7 +132,7 @@ Preserving the upstream commit history
 By default a mirroring run pushes whatever the remote repository looks like at that moment as a single
 revision, so several remote commits merged in quick succession end up in one revision. Turning on
 ``Preserve upstream commit history`` follows the configured branch's first-parent history, including merge
-commits. The initial fetch is limited to 100 generations. Later runs replay each new commit when Central
+commits. The initial fetch is limited to 50 generations. Later runs replay every new commit when Central
 Dogma can resume from the previously mirrored remote HEAD.
 
 Each merge revision contains the merged tree, including conflict resolutions. Commits made only on a
@@ -168,7 +168,7 @@ Note the following limitations:
 
 - Central Dogma produces one snapshot at the current remote HEAD when the previously mirrored commit is
   outside the fetched first-parent history, such as after a rewrite or cache loss. Cache recovery checks
-  the latest 100 generations. With tag publishing enabled, the snapshot receives a tag for that remote HEAD only.
+  the latest 50 generations. With tag publishing enabled, the snapshot receives a tag for that remote HEAD only.
 
 - **A remote commit that changes nothing within the mirrored path still creates a revision**, because the
   mirror state advances to that upstream commit. Expect this if ``remote path`` covers only a part of a busy

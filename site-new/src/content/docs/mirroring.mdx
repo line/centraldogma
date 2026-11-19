@@ -134,7 +134,7 @@ Here is the properties of the mirroring task:
 - **Default snapshot**: Central Dogma mirrors the HEAD of the configured branch as one revision instead
   of replaying individual commits.
 - **Preserved history**: Central Dogma follows the configured branch's first-parent history, including
-  merge commits. The initial fetch is limited to 100 generations. Later runs replay each new commit
+  merge commits. The initial fetch is limited to 50 generations. Later runs replay every new commit
   when Central Dogma can resume from the previously mirrored remote HEAD.
 
 Each merge revision contains the merged tree, including conflict resolutions. Commits made only on a
@@ -168,7 +168,7 @@ spring.cloud.config.label: dogma-3f2a1c9e8b7d6540a1b2c3d4e5f60718293a4b5c
 
 - Central Dogma produces one snapshot at the current remote HEAD when the previously mirrored commit is
   outside the fetched first-parent history, such as after a rewrite or cache loss. Cache recovery checks
-  the latest 100 generations. With tag publishing enabled, the snapshot receives a tag for that remote HEAD only.
+  the latest 50 generations. With tag publishing enabled, the snapshot receives a tag for that remote HEAD only.
 - With history preservation enabled, a remote commit outside the mirrored path still creates a revision
   because it advances the mirror state to that upstream commit.
 - Only one mirror targeting a repository may preserve upstream commit history. If tag publishing is

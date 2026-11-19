@@ -609,7 +609,7 @@ const MirrorForm = ({
             />
             <FormHelperText gridColumn="1 / -1" mt={1}>
               {canConfigureRemoteCommitOptions
-                ? 'Replay first-parent commits, including merges. Initially fetch 100 generations, then replay new commits. ' +
+                ? 'Replay first-parent commits, including merges. Initially fetch 50 generations, then replay new commits. ' +
                   'Cache loss or rewrites may fall back to a snapshot.'
                 : 'Available only for remote-to-Central Dogma Git mirrors.'}
             </FormHelperText>

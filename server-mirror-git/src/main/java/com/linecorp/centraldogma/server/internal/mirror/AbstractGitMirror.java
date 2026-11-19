@@ -108,7 +108,7 @@ abstract class AbstractGitMirror extends AbstractMirror {
     private static final int GIT_TIMEOUT_SECS = 60;
 
     // Bound the initial shallow fetch; later runs fetch every commit after the previous remote head.
-    private static final int INITIAL_FETCH_DEPTH = 100;
+    private static final int INITIAL_FETCH_DEPTH = 50;
 
     private static final String HEAD_REF_MASTER = Constants.R_HEADS + Constants.MASTER;
 
