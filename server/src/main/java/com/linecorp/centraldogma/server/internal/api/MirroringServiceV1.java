@@ -214,6 +214,9 @@ public class MirroringServiceV1 extends AbstractService {
     private CompletableFuture<PushResultDto> createOrUpdate(
             String projectName, String repoName, MirrorRequest newMirror,
             Author author, User user, boolean update) {
+        checkArgument(repoName.equals(newMirror.localRepo()),
+                      "The local repository (%s) must match the repository in the URL (%s)",
+                      newMirror.localRepo(), repoName);
         final MetaRepository metaRepo = metaRepo(projectName);
 
         return metaRepo.createMirrorPushCommand(repoName, newMirror, author, zoneConfig, update).thenCompose(
