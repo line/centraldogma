@@ -16,10 +16,7 @@ const FileContentPage = () => {
   const projectName = router.query.projectName ? (router.query.projectName as string) : '';
   const revision = router.query.revision ? (router.query.revision as string) : 'head';
   const filePath = toFilePath(router.query.path);
-  const fileName = router.asPath
-    .split('/')
-    .filter((v) => v.length > 0)
-    .pop();
+  const fileName = filePath.split('/').pop();
 
   const fileExtension = fileName.substring(fileName.lastIndexOf('.') + 1);
   const { data, isLoading, error } = useGetFileContentQuery(
