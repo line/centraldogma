@@ -28,16 +28,10 @@ import java.util.Map;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
-import java.util.concurrent.TimeUnit;
-
-import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
-import com.github.benmanes.caffeine.cache.Caffeine;
 
 import com.linecorp.armeria.common.CommonPools;
 import com.linecorp.armeria.common.RequestContext;
 import com.linecorp.armeria.common.util.Exceptions;
-import com.linecorp.armeria.common.util.SafeCloseable;
-import com.linecorp.armeria.internal.common.RequestContextUtil;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Commit;
@@ -67,18 +61,10 @@ final class CachingRepository implements Repository {
 
     private final Repository repo;
     private final RepositoryCache cache;
-    private final AsyncLoadingCache<Integer, RepositoryStats> statsCache;
 
     CachingRepository(Repository repo, RepositoryCache cache) {
         this.repo = requireNonNull(repo, "repo");
         this.cache = requireNonNull(cache, "cache");
-        statsCache = Caffeine.newBuilder()
-                             .expireAfterWrite(1, TimeUnit.MINUTES)
-                             .buildAsync((windowHours, unused) -> {
-                                 try (SafeCloseable ignored = RequestContextUtil.pop()) {
-                                     return repo.stats(windowHours);
-                                 }
-                             });
     }
 
     @Override
@@ -99,7 +85,7 @@ final class CachingRepository implements Repository {
     @Override
     public CompletableFuture<RepositoryStats> stats(int windowHours) {
         checkArgument(windowHours > 0, "windowHours: %s (expected: > 0)", windowHours);
-        return statsCache.get(windowHours).handleAsync((result, cause) -> {
+        return cache.getStats(repo, windowHours).handleAsync((result, cause) -> {
             throwUnsafelyIfNonNull(cause);
             return result;
         }, executor());
