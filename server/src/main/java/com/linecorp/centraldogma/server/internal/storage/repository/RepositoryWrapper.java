@@ -46,6 +46,7 @@ import com.linecorp.centraldogma.server.storage.repository.EntryTransformer;
 import com.linecorp.centraldogma.server.storage.repository.FindOption;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 import com.linecorp.centraldogma.server.storage.repository.RepositoryListener;
+import com.linecorp.centraldogma.server.storage.repository.RepositoryStats;
 
 public class RepositoryWrapper implements Repository {
 
@@ -145,6 +146,11 @@ public class RepositoryWrapper implements Repository {
     public CompletableFuture<List<Commit>> history(Revision from, Revision to,
                                                    String pathPattern, int maxCommits) {
         return unwrap().history(from, to, pathPattern, maxCommits);
+    }
+
+    @Override
+    public CompletableFuture<RepositoryStats> stats(int windowHours) {
+        return unwrap().stats(windowHours);
     }
 
     @Override

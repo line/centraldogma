@@ -17,6 +17,7 @@
 package com.linecorp.centraldogma.server.internal.storage.repository.cache;
 
 import static com.google.common.base.MoreObjects.toStringHelper;
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.linecorp.centraldogma.internal.Util.unsafeCast;
 import static com.linecorp.centraldogma.server.internal.api.HttpApiUtil.throwUnsafelyIfNonNull;
 import static java.util.Objects.requireNonNull;
@@ -51,6 +52,7 @@ import com.linecorp.centraldogma.server.storage.repository.DiffResultType;
 import com.linecorp.centraldogma.server.storage.repository.FindOption;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 import com.linecorp.centraldogma.server.storage.repository.RepositoryListener;
+import com.linecorp.centraldogma.server.storage.repository.RepositoryStats;
 
 final class CachingRepository implements Repository {
 
@@ -78,6 +80,15 @@ final class CachingRepository implements Repository {
     @Override
     public Author author() {
         return repo.author();
+    }
+
+    @Override
+    public CompletableFuture<RepositoryStats> stats(int windowHours) {
+        checkArgument(windowHours > 0, "windowHours: %s (expected: > 0)", windowHours);
+        return cache.getStats(repo, windowHours).handleAsync((result, cause) -> {
+            throwUnsafelyIfNonNull(cause);
+            return result;
+        }, executor());
     }
 
     @Override

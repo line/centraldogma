@@ -19,12 +19,14 @@ package com.linecorp.centraldogma.server.internal.storage.repository;
 import static java.util.Objects.requireNonNull;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.github.benmanes.caffeine.cache.AsyncCache;
+import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.CaffeineSpec;
 import com.github.benmanes.caffeine.cache.Weigher;
@@ -33,6 +35,8 @@ import com.google.common.base.MoreObjects;
 import com.linecorp.armeria.common.util.SafeCloseable;
 import com.linecorp.armeria.internal.common.RequestContextUtil;
 import com.linecorp.centraldogma.server.storage.repository.CacheableCall;
+import com.linecorp.centraldogma.server.storage.repository.Repository;
+import com.linecorp.centraldogma.server.storage.repository.RepositoryStats;
 
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.binder.cache.CaffeineCacheMetrics;
@@ -57,6 +61,7 @@ public final class RepositoryCache {
 
     @SuppressWarnings("rawtypes")
     private final AsyncCache<CacheableCall, Object> cache;
+    private final AsyncLoadingCache<StatsCacheKey, RepositoryStats> statsCache;
     private final String cacheSpec;
 
     @SuppressWarnings({ "rawtypes", "unchecked" })
@@ -72,6 +77,20 @@ public final class RepositoryCache {
                        .buildAsync();
 
         CaffeineCacheMetrics.monitor(meterRegistry, cache, "repository");
+
+        statsCache = Caffeine.newBuilder()
+                             .expireAfterWrite(1, TimeUnit.MINUTES)
+                             .recordStats()
+                             .buildAsync((key, unused) -> {
+                                 try (SafeCloseable ignored = RequestContextUtil.pop()) {
+                                     return key.repo.stats(key.windowHours);
+                                 }
+                             });
+        CaffeineCacheMetrics.monitor(meterRegistry, statsCache, "repositoryStats");
+    }
+
+    public CompletableFuture<RepositoryStats> getStats(Repository repo, int windowHours) {
+        return statsCache.get(new StatsCacheKey(repo, windowHours));
     }
 
     public <T> CompletableFuture<T> get(CacheableCall<T> call) {
@@ -99,6 +118,7 @@ public final class RepositoryCache {
 
     public void clear() {
         cache.synchronous().invalidateAll();
+        statsCache.synchronous().invalidateAll();
     }
 
     @Override
@@ -107,5 +127,30 @@ public final class RepositoryCache {
                           .add("spec", cacheSpec)
                           .add("stats", cache.synchronous().stats())
                           .toString();
+    }
+
+    private static final class StatsCacheKey {
+
+        private final Repository repo;
+        private final int windowHours;
+
+        StatsCacheKey(Repository repo, int windowHours) {
+            this.repo = requireNonNull(repo, "repo");
+            this.windowHours = windowHours;
+        }
+
+        @Override
+        public int hashCode() {
+            return System.identityHashCode(repo) * 31 + windowHours;
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            if (!(obj instanceof StatsCacheKey)) {
+                return false;
+            }
+            final StatsCacheKey that = (StatsCacheKey) obj;
+            return repo == that.repo && windowHours == that.windowHours;
+        }
     }
 }

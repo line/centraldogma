@@ -231,6 +231,7 @@ public final class CentralDogmaConfig {
     // Repository
     private final Integer numRepositoryWorkers;
     private final long maxRemovedRepositoryAgeMillis;
+    private final int repositoryStatsWindowHours;
 
     // Cache
     private final String repositoryCacheSpec;
@@ -303,6 +304,7 @@ public final class CentralDogmaConfig {
             @JsonProperty("management") @Nullable ManagementConfig managementConfig,
             @JsonProperty("zone") @Nullable ZoneConfig zoneConfig,
             @JsonProperty("enableThriftService") @Nullable Boolean enableThriftService,
+            @JsonProperty("repositoryStatsWindowHours") @Nullable Integer repositoryStatsWindowHours,
             @JsonProperty("rateLimiting") @Nullable RateLimitingConfig rateLimiting) {
 
         this.dataDir = requireNonNull(dataDir, "dataDir");
@@ -331,6 +333,9 @@ public final class CentralDogmaConfig {
                       "maxRemovedRepositoryAgeMillis: %s (expected: >= 0)", this.maxRemovedRepositoryAgeMillis);
         this.repositoryCacheSpec = validateCacheSpec(
                 firstNonNull(repositoryCacheSpec, DEFAULT_REPOSITORY_CACHE_SPEC));
+        this.repositoryStatsWindowHours = firstNonNull(repositoryStatsWindowHours, 0);
+        checkArgument(this.repositoryStatsWindowHours >= 0,
+                      "repositoryStatsWindowHours: %s (expected: >= 0)", this.repositoryStatsWindowHours);
 
         this.webAppEnabled = firstNonNull(webAppEnabled, true);
         this.webAppTitle = webAppTitle;
@@ -499,6 +504,14 @@ public final class CentralDogmaConfig {
     @JsonProperty
     public String repositoryCacheSpec() {
         return repositoryCacheSpec;
+    }
+
+    /**
+     * Returns the rolling window for repository statistics in hours, or {@code 0} if disabled.
+     */
+    @JsonProperty
+    public int repositoryStatsWindowHours() {
+        return repositoryStatsWindowHours;
     }
 
     /**

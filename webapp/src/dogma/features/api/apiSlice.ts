@@ -15,6 +15,7 @@
  */
 
 import { RepoDto } from 'dogma/features/repo/RepoDto';
+import { RepositoryStatsDto } from 'dogma/features/repo/RepositoryStatsDto';
 import { createApi } from '@reduxjs/toolkit/query/react';
 import { ProjectDto } from 'dogma/features/project/ProjectDto';
 import { baseQueryWithReauth } from 'dogma/features/api/baseQuery';
@@ -243,6 +244,9 @@ export const apiSlice = createApi({
     getRepos: builder.query<RepoDto[], string>({
       query: (projectName) => `/api/v1/projects/${projectName}/repos`,
       providesTags: ['Repo'],
+    }),
+    getRepositoryStats: builder.query<RepositoryStatsDto, { projectName: string; repoName: string }>({
+      query: ({ projectName, repoName }) => `/api/v1/projects/${projectName}/repos/${repoName}/stats`,
     }),
     addNewRepo: builder.mutation({
       query: ({ projectName, data }) => ({
@@ -658,6 +662,7 @@ export const {
   useDeleteAppIdentityRepositoryRoleMutation,
   // Repo
   useGetReposQuery,
+  useGetRepositoryStatsQuery,
   useAddNewRepoMutation,
   useDeleteRepoMutation,
   useRestoreRepoMutation,
