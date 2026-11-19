@@ -58,6 +58,10 @@ Creating a group
 Click "New Group" and enter a group ID. The ID must start with a lowercase letter and may contain
 lowercase letters, digits, ``_``, ``.`` and ``-``.
 
+Deleting a group soft-deletes its backing repository. The repository is retained for the configured
+``maxRemovedRepositoryAgeMillis`` period (seven days by default; see :doc:`setup-configuration`).
+The group ID cannot be reused until the repository is purged.
+
 .. image:: _images/xds_2.png
    :alt: Creating a new xDS group
 
