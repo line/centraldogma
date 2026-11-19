@@ -229,7 +229,8 @@ public final class SamlAuthProperties {
         /**
          * A default signature algorithm.
          */
-        private static final String DEFAULT_SIGNATURE_ALGORITHM = SignatureConstants.ALGO_ID_SIGNATURE_RSA_SHA256;
+        private static final String DEFAULT_SIGNATURE_ALGORITHM =
+                SignatureConstants.ALGO_ID_SIGNATURE_RSA_SHA256;
 
         /**
          * A type of the keystore. The default value is retrieved from
