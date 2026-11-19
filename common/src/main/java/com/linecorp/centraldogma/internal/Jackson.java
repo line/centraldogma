@@ -359,7 +359,9 @@ public final class Jackson {
             if (jsonPath.isDefinite()) {
                 throw e;
             }
-            // An indefinite path without '~' also returns an empty array.
+            // Return an empty array only if the path without '~' does not fail either,
+            // e.g. $.a[0,1] fails if 'a' is not an array.
+            JsonPath.parse(jsonNode, jsonPathCfg).read(jsonPath, JsonNode.class);
             return keys;
         }
 
@@ -379,6 +381,11 @@ public final class Jackson {
             final String path = pathNode.asText();
             if (selector == null) {
                 final JsonNode key = walk(jsonNode, path, 1, true);
+                if (key == null && isIndexOutOfBounds(jsonNode, path)) {
+                    // json-path also returns the paths of the missing indices, e.g. $['a'][1] for
+                    // $.a[0,1] on {"a":[10]}, and null for their values.
+                    continue;
+                }
                 checkArgument(key != null, "no key in path: %s", path);
                 keys.add(key);
                 continue;
@@ -390,7 +397,20 @@ public final class Jackson {
             checkArgument(parent != null, "no key in path: %s", path);
             distinctNames.stream().filter(parent::has).forEach(keys::add);
         }
-        return jsonPath.isDefinite() && selector == null ? keys.get(0) : keys;
+        if (jsonPath.isDefinite() && selector == null) {
+            return keys.isEmpty() ? NullNode.getInstance() : keys.get(0);
+        }
+        return keys;
+    }
+
+    private static boolean isIndexOutOfBounds(JsonNode jsonNode, String path) {
+        final int start = path.lastIndexOf('[');
+        if (start < 0 || start + 2 >= path.length() || !path.endsWith("]") ||
+            !path.substring(start + 1, path.length() - 1).chars().allMatch(Character::isDigit)) {
+            return false;
+        }
+        final JsonNode parent = walk(jsonNode, path.substring(0, start), 1, false);
+        return parent != null && parent.isArray();
     }
 
     /**

@@ -210,6 +210,26 @@ class JacksonTest {
     }
 
     @Test
+    void extractKeysOfArrayElementsWithTilde() throws IOException {
+        final JsonNode node = readTree("{\"a\": 1, \"b\": {\"x\": 1}, \"e\": [10]}");
+        // Missing indices are skipped. Their values are null.
+        assertThatJson(Jackson.extractTree(node, "$.e[0,1]~")).isEqualTo("[0]");
+        assertThatJson(Jackson.extractTree(node, "$.e[0,1]")).isEqualTo("[10, null]");
+        assertThatJson(Jackson.extractTree(node, "$.e[1]~")).isEqualTo("null");
+        assertThatJson(Jackson.extractTree(node, "$.e[1]")).isEqualTo("null");
+        assertThatJson(Jackson.extractTree(node, "$.e[0:5]~")).isEqualTo("[0]");
+
+        // An array selector on a non-array fails as it does without '~'.
+        for (String path : ImmutableList.of("$.a[0,1]", "$.b[0,1]", "$.b[0:2]", "$.a[0]")) {
+            assertThatThrownBy(() -> Jackson.extractTree(node, path))
+                    .isExactlyInstanceOf(QueryExecutionException.class);
+            assertThatThrownBy(() -> Jackson.extractTree(node, path + '~'))
+                    .isExactlyInstanceOf(QueryExecutionException.class);
+        }
+        assertThatJson(Jackson.extractTree(node, "$.a[*]~")).isEqualTo("[]");
+    }
+
+    @Test
     void extractKeysWithSpecialCharactersWithTilde() throws IOException {
         final JsonNode node = readTree("{\"a'b\": 1, \"c]d\": 2, \"e.f\": 3, \"g~\": 4," +
                                        " \"h['i\": { \"j']['k\": 5 }, \"l', 'm\": { \"n\": 6 }}");
