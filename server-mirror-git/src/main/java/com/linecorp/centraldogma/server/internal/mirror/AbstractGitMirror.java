@@ -26,6 +26,7 @@ import java.io.IOException;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletionException;
@@ -381,7 +382,7 @@ abstract class AbstractGitMirror extends AbstractMirror {
     private UpstreamCommitPlan readUpstreamCommits(
             GitWithAuth git, @Nullable MirrorState oldMirrorState, ObjectId headCommitId) throws IOException {
         if (preserveRemoteCommitHistory()) {
-            final ImmutableList<RevCommit> commitsToReplay =
+            final List<RevCommit> commitsToReplay =
                     commitsToReplay(git, oldMirrorState, headCommitId);
             if (commitsToReplay != null) {
                 final ImmutableList.Builder<UpstreamCommit> upstreamCommits =
@@ -408,8 +409,8 @@ abstract class AbstractGitMirror extends AbstractMirror {
     }
 
     @Nullable
-    private ImmutableList<RevCommit> commitsToReplay(GitWithAuth git, @Nullable MirrorState oldMirrorState,
-                                                     ObjectId headCommitId) {
+    private List<RevCommit> commitsToReplay(
+            GitWithAuth git, @Nullable MirrorState oldMirrorState, ObjectId headCommitId) {
         ObjectId previousCommitId = null;
         if (oldMirrorState != null) {
             final String remoteRevision = oldMirrorState.remoteRevision();
@@ -1119,7 +1120,7 @@ abstract class AbstractGitMirror extends AbstractMirror {
             this.snapshot = snapshot;
         }
 
-        ImmutableList<UpstreamCommit> commits() {
+        List<UpstreamCommit> commits() {
             return commits;
         }
 

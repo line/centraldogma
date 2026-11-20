@@ -22,6 +22,8 @@ import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
+import com.linecorp.armeria.common.HttpStatus;
+import com.linecorp.armeria.common.MediaType;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
 class JacksonRequestConverterFunctionTest {
@@ -30,7 +32,7 @@ class JacksonRequestConverterFunctionTest {
     static final CentralDogmaExtension dogma = new CentralDogmaExtension();
 
     @Test
-    void createProject() {
+    void createProjectWithNullAndUnknownFields() {
         // When creating a project, DefaultJacksonObjectMapper was used for converting JSON to
         // CreateProjectRequest.
         // https://github.com/line/armeria/blob/219ee3758b232ca9c47e03258a0a62f4cc4841c3/core/src/main/java/com/linecorp/armeria/internal/common/DefaultJacksonObjectMapperProvider.java#L30
@@ -38,7 +40,12 @@ class JacksonRequestConverterFunctionTest {
         // However, if there's the scala module in the classpath, the ObjectMapper disallows null value,
         // so it fails.
         // https://github.com/line/armeria/blob/219ee3758b232ca9c47e03258a0a62f4cc4841c3/core/src/main/java/com/linecorp/armeria/internal/common/DefaultJacksonObjectMapperProvider.java#L48
-        dogma.client().createProject("foo").join();
+        assertThat(dogma.httpClient().prepare()
+                        .post("/api/v1/projects")
+                        .content(MediaType.JSON,
+                                 "{\"name\":\"foo\",\"owners\":null,\"members\":null,\"futureField\":true}")
+                        .execute().aggregate().join().status())
+                .isEqualTo(HttpStatus.CREATED);
         final Set<String> projects = dogma.client().listProjects().join();
         // Admin contains intenal dogma project as well.
         assertThat(projects).containsExactlyInAnyOrder("foo", "dogma");
