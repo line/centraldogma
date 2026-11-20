@@ -26,6 +26,7 @@ import java.io.IOException;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -454,26 +455,28 @@ abstract class AbstractGitMirror extends AbstractMirror {
             CommandExecutor executor, UpstreamCommit upstreamCommit,
             Map<String, Change<?>> remoteChanges, String mirrorStatePath,
             Revision localRev, boolean compareContents) throws IOException {
-        final Map<String, Change<?>> changes = new HashMap<>(remoteChanges);
+        final Map<String, Change<?>> upserts = new HashMap<>(remoteChanges);
         final String sourceRevision = upstreamCommit.id().name();
         final MirrorState newMirrorState = new MirrorState(sourceRevision, sourceRevision, localRev.text(),
                                                            MirrorDirection.REMOTE_TO_LOCAL, hashString());
-        changes.put(mirrorStatePath, Change.ofJsonUpsert(mirrorStatePath,
+        upserts.put(mirrorStatePath, Change.ofJsonUpsert(mirrorStatePath,
                                                          Jackson.valueToTree(newMirrorState)));
         final Map<FindOption<?>, ?> findOptions =
                 compareContents ? FIND_ALL_WITH_CONTENT : FIND_ALL_WITHOUT_CONTENT;
         final Map<String, Entry<?>> oldEntries =
                 localRepo().find(localRev, localPath() + "**", findOptions).join();
-        if (compareContents && !hasChanges(changes, oldEntries)) {
+        if (compareContents && !hasChanges(upserts, oldEntries)) {
             return null;
         }
 
-        oldEntries.keySet().removeAll(changes.keySet());
+        oldEntries.keySet().removeAll(upserts.keySet());
+        final Map<String, Change<?>> changes = new LinkedHashMap<>();
         oldEntries.forEach((path, entry) -> {
-            if (entry.type() != EntryType.DIRECTORY && !changes.containsKey(path)) {
+            if (entry.type() != EntryType.DIRECTORY) {
                 changes.put(path, Change.ofRemoval(path));
             }
         });
+        changes.putAll(upserts);
         validateChanges(changes);
 
         logger.info(upstreamCommit.summary());

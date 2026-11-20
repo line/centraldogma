@@ -46,6 +46,7 @@ import org.junit.jupiter.api.TestInfo;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import com.google.common.collect.ImmutableMap;
 
@@ -303,6 +304,52 @@ class RemoteToLocalMirrorFetchTest {
         assertThat(localRepo.normalizeNow(Revision.HEAD)).isEqualTo(baseline.forward(2));
         assertThat(localRepo.find(Revision.HEAD, "/deleted.txt").join()).isEmpty();
         assertThat(localContent("/remaining.txt")).isEqualTo("keep me");
+    }
+
+    @ValueSource(booleans = { false, true })
+    @ParameterizedTest
+    void mirrorsDirectoryAndFileTransitions(boolean preserveRemoteCommitHistory) throws Exception {
+        final DefaultGitMirror mirror = newMirror("/", preserveRemoteCommitHistory);
+        commitToRemote("dir/child.txt", "before");
+        assertThat(mirrorRemoteToLocal(mirror).mirrorStatus()).isEqualTo(MirrorStatus.SUCCESS);
+        assertThat(localContent("/dir/child.txt")).isEqualTo("before");
+
+        remoteGit.rm().addFilepattern("dir/child.txt").call();
+        Files.deleteIfExists(gitWorkTree.toPath().resolve("dir"));
+        commitToRemote("dir", "file");
+
+        assertThat(mirrorRemoteToLocal(mirror).mirrorStatus()).isEqualTo(MirrorStatus.SUCCESS);
+        assertThat(localContent("/dir")).isEqualTo("file");
+        assertThat(localRepo.find(Revision.HEAD, "/dir/child.txt").join()).isEmpty();
+
+        remoteGit.rm().addFilepattern("dir").call();
+        commitToRemote("dir/child.txt", "after");
+
+        assertThat(mirrorRemoteToLocal(mirror).mirrorStatus()).isEqualTo(MirrorStatus.SUCCESS);
+        assertThat(localContent("/dir/child.txt")).isEqualTo("after");
+        assertThat(mirrorRemoteToLocal(mirror).mirrorStatus()).isEqualTo(MirrorStatus.UP_TO_DATE);
+    }
+
+    @Test
+    void replaysIntermediateDirectoryToFileTransition() throws Exception {
+        final DefaultGitMirror mirror = newMirror("/", true);
+        commitToRemote("dir/child.txt", "before");
+        assertThat(mirrorRemoteToLocal(mirror).mirrorStatus()).isEqualTo(MirrorStatus.SUCCESS);
+        assertThat(localContent("/dir/child.txt")).isEqualTo("before");
+        final Revision baseline = localRepo.normalizeNow(Revision.HEAD);
+
+        remoteGit.rm().addFilepattern("dir/child.txt").call();
+        Files.deleteIfExists(gitWorkTree.toPath().resolve("dir"));
+        commitToRemote("dir", "file");
+        remoteGit.rm().addFilepattern("dir").call();
+        commitToRemote("dir/child.txt", "after");
+
+        assertThat(mirrorRemoteToLocal(mirror).mirrorStatus()).isEqualTo(MirrorStatus.SUCCESS);
+        assertThat(localRepo.normalizeNow(Revision.HEAD)).isEqualTo(baseline.forward(2));
+        assertThat(localRepo.find(baseline.forward(1), "/dir").join().get("/dir").contentAsText().trim())
+                .isEqualTo("file");
+        assertThat(localContent("/dir/child.txt")).isEqualTo("after");
+        assertThat(mirrorRemoteToLocal(mirror).mirrorStatus()).isEqualTo(MirrorStatus.UP_TO_DATE);
     }
 
     @Test
