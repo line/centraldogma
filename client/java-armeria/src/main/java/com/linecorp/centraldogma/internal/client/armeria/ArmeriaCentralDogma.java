@@ -31,7 +31,6 @@ import static java.util.Objects.requireNonNull;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
-import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -120,6 +119,8 @@ import com.linecorp.centraldogma.internal.HistoryConstants;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.Util;
 import com.linecorp.centraldogma.internal.Yaml;
+import com.linecorp.centraldogma.internal.api.v1.CommitDto;
+import com.linecorp.centraldogma.internal.api.v1.CommitMessageDto;
 import com.linecorp.centraldogma.internal.api.v1.WatchTimeout;
 
 import io.micrometer.core.instrument.MeterRegistry;
@@ -1254,17 +1255,16 @@ public final class ArmeriaCentralDogma extends AbstractCentralDogma {
     }
 
     private static Commit toCommit(JsonNode node) {
-        final Revision revision = new Revision(getField(node, "revision").asInt());
-        final JsonNode authorNode = getField(node, "author");
-        final Author author = new Author(getField(authorNode, "name").asText(),
-                                         getField(authorNode, "email").asText());
-        final long pushedAt = Instant.from(DateTimeFormatter.ISO_INSTANT.parse(
-                getField(node, "pushedAt").asText())).toEpochMilli();
-        final JsonNode commitMessageNode = getField(node, "commitMessage");
-        final String summary = getField(commitMessageNode, "summary").asText();
-        final String detail = getField(commitMessageNode, "detail").asText();
-        final Markup markup = Markup.valueOf(getField(commitMessageNode, "markup").asText());
-        return new Commit(revision, author, pushedAt, summary, detail, markup);
+        try {
+            final CommitDto commit = Jackson.treeToValue(node, CommitDto.class);
+            final CommitMessageDto commitMessage = commit.commitMessage();
+            final long pushedAt = Instant.parse(commit.pushedAt()).toEpochMilli();
+            return new Commit(commit.revision(), commit.author(), pushedAt,
+                              commitMessage.summary(), commitMessage.detail(), commitMessage.markup(),
+                              commit.upstreamCommitId());
+        } catch (JsonParseException | JsonMappingException e) {
+            throw new IllegalStateException("Failed to parse a JSON node into Commit.", e);
+        }
     }
 
     private static <T> Change<T> toChange(JsonNode node) {

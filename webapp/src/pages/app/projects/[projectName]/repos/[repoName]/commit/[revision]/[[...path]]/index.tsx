@@ -10,9 +10,11 @@ import {
   Box,
   Button,
   ButtonGroup,
+  Flex,
   Heading,
   HStack,
   Spacer,
+  Stack,
   Text,
   Tooltip,
   useColorMode,
@@ -30,6 +32,7 @@ import { FaHistory } from 'react-icons/fa';
 import DiffView, { DiffMode } from 'dogma/common/components/DiffView';
 import DiffModeButton from 'dogma/common/components/DiffModeButton';
 import { PageTitle } from 'dogma/common/components/PageTitle';
+import { CommitSha } from 'dogma/features/history/CommitSha';
 
 const CommitViewPage = () => {
   const router = useRouter();
@@ -42,14 +45,14 @@ const CommitViewPage = () => {
   }
   const {
     data: historyData,
-    isLoading: historyLoading,
+    isFetching: historyFetching,
     error: historyError,
   } = useGetHistoryQuery({
     projectName,
     repoName,
     revision,
-    to: 1,
-    filePath,
+    to: revision,
+    filePath: '/**',
     maxCommits: 1,
   });
   const {
@@ -120,7 +123,13 @@ const CommitViewPage = () => {
 
   return (
     <Deferred
-      isLoading={historyLoading || oldHistoryLoading || isNewLoading || isOldLoading || isRevLoading}
+      isLoading={
+        (historyFetching && historyData?.[0]?.revision !== revision) ||
+        oldHistoryLoading ||
+        isNewLoading ||
+        isOldLoading ||
+        isRevLoading
+      }
       error={historyError || oldHistoryError || newError || revError || oldError0}
     >
       {() => {
@@ -148,9 +157,23 @@ const CommitViewPage = () => {
                 <Box>Commit {revision}</Box>
               </HStack>
             </Heading>
-            <HStack marginBottom={2}>
-              <Spacer />
-              <ButtonGroup marginRight={1}>
+            {historyData?.[0]?.upstreamCommitId && (
+              <Stack
+                direction={{ base: 'column', lg: 'row' }}
+                align="flex-start"
+                marginBottom={4}
+                spacing={{ base: 2, lg: 6 }}
+              >
+                <CommitSha label="Upstream" sha={historyData[0].upstreamCommitId} abbreviated={false} />
+              </Stack>
+            )}
+            <Flex
+              marginBottom={2}
+              gap={2}
+              flexWrap="wrap"
+              justifyContent={{ base: 'flex-start', md: 'flex-end' }}
+            >
+              <ButtonGroup>
                 <Tooltip label="Move to the previous commit">
                   {previousRevision > 0 ? (
                     <Button
@@ -219,7 +242,7 @@ const CommitViewPage = () => {
               >
                 Browse files
               </Button>
-            </HStack>
+            </Flex>
             <Box padding={3} bg={commitTitleColorMode}>
               <Heading size="md" paddingBottom={2}>
                 {history.commitMessage.summary}

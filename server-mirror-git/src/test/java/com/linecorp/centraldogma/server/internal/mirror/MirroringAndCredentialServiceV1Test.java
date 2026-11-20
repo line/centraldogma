@@ -30,6 +30,8 @@ import java.util.Set;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -191,6 +193,64 @@ class MirroringAndCredentialServiceV1Test {
         final MirrorDto mirror2 = getMirror(BAR_REPO, newMirror2.id());
         assertThat(mirror2.credentialName()).isEqualTo(
                 credentialName(FOO_PROJ, "PROJECT_CREDENTIAL"));
+    }
+
+    @CsvSource({
+            "false, false, false",
+            "false, true, false",
+            "false, true, true",
+            "true, false, false",
+            "true, true, false",
+            "true, true, true"
+    })
+    @ParameterizedTest
+    void rejectMismatchedMirrorRepository(boolean update, boolean preserveHistory, boolean publishTags) {
+        final String projectName = "mirror-target-" + update + '-' + preserveHistory + '-' + publishTags;
+        dogma.client().createProject(projectName).join();
+        dogma.client().createRepository(projectName, "target").join();
+        assertThat(systemAdminClient.prepare()
+                                    .post("/api/v1/metadata/{proj}/appIdentities")
+                                    .pathParam("proj", projectName)
+                                    .contentJson(ImmutableMap.of("id", "appId2", "role", "MEMBER"))
+                                    .execute().status()).isEqualTo(HttpStatus.OK);
+        assertThat(userClient.prepare()
+                             .post("/api/v1/projects/{proj}/repos")
+                             .pathParam("proj", projectName)
+                             .contentJson(ImmutableMap.of("name", "owned"))
+                             .execute().status()).isEqualTo(HttpStatus.CREATED);
+        assertThat(userClient.prepare()
+                             .get("/api/v1/projects/{proj}/repos/target/mirrors")
+                             .pathParam("proj", projectName)
+                             .execute().status()).isEqualTo(HttpStatus.FORBIDDEN);
+
+        final String mirrorsPath = "/api/v1/projects/" + projectName + "/repos/owned/mirrors";
+        final MirrorRequest original = new MirrorRequest(
+                update ? "mirror" : "existing-mirror", false, projectName, null, "REMOTE_TO_LOCAL",
+                "owned", "/", "git+https", "example.com/upstream.git", "/", "main", null, "", null,
+                preserveHistory, publishTags);
+        assertThat(userClient.prepare().post(mirrorsPath).contentJson(original).execute().status())
+                .isEqualTo(HttpStatus.CREATED);
+
+        final MirrorRequest mismatched = new MirrorRequest(
+                "mirror", false, projectName, null, "REMOTE_TO_LOCAL", "target", "/",
+                "git+https", "example.com/upstream.git", "/", "main", null, "", null,
+                preserveHistory, publishTags);
+        final AggregatedHttpResponse response =
+                update ? userClient.prepare().put(mirrorsPath + "/mirror").contentJson(mismatched).execute()
+                       : userClient.prepare().post(mirrorsPath).contentJson(mismatched).execute();
+        assertThat(response.status()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(response.contentUtf8()).contains("local repository (target)",
+                                                   "repository in the URL (owned)");
+
+        final ResponseEntity<List<MirrorDto>> savedMirrors =
+                userClient.prepare().get(mirrorsPath)
+                          .asJson(new TypeReference<List<MirrorDto>>() {})
+                          .execute();
+        assertThat(savedMirrors.status()).isEqualTo(HttpStatus.OK);
+        assertThat(savedMirrors.content()).singleElement()
+                                         .usingRecursiveComparison()
+                                         .ignoringFields("allow")
+                                         .isEqualTo(original);
     }
 
     private static void rejectInvalidRepositoryUri() {

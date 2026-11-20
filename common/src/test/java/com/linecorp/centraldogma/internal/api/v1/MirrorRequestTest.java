@@ -22,7 +22,10 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import org.junit.jupiter.api.Test;
 
+import com.fasterxml.jackson.databind.node.ObjectNode;
+
 import com.linecorp.centraldogma.internal.CredentialUtil;
+import com.linecorp.centraldogma.internal.Jackson;
 
 class MirrorRequestTest {
 
@@ -53,7 +56,39 @@ class MirrorRequestTest {
                 .isEqualTo(credentialName);
     }
 
+    @Test
+    void serializesHistoryAndTagOptionsOnlyWhenEnabled() throws Exception {
+        final String credentialName = credentialName("foo", "credential-id");
+
+        assertThat(Jackson.writeValueAsString(newMirror(credentialName, false, false)))
+                .doesNotContain("preserveRemoteCommitHistory", "publishRemoteCommitTags");
+        assertThat(Jackson.writeValueAsString(newMirror(credentialName, true, false)))
+                .contains("\"preserveRemoteCommitHistory\":true")
+                .doesNotContain("publishRemoteCommitTags");
+        assertThat(Jackson.writeValueAsString(newMirror(credentialName, false, true)))
+                .contains("\"publishRemoteCommitTags\":true")
+                .doesNotContain("preserveRemoteCommitHistory");
+    }
+
+    @Test
+    void ignoresUnknownFields() throws Exception {
+        final String credentialName = credentialName("foo", "credential-id");
+        final MirrorRequest request = newMirror(credentialName, true, true);
+        final MirrorDto dto = new MirrorDto(
+                "mirror-id", true, "foo", "0/1 * * * * ?", "REMOTE_TO_LOCAL", "bar", "/",
+                "git+ssh", "github.com/line/centraldogma-authtest.git", "/", "main", null,
+                credentialName, null, true, true, true);
+
+        assertIgnoresUnknownField(request, MirrorRequest.class);
+        assertIgnoresUnknownField(dto, MirrorDto.class);
+    }
+
     private static MirrorRequest newMirror(String credentialName) {
+        return newMirror(credentialName, false, false);
+    }
+
+    private static MirrorRequest newMirror(String credentialName, boolean preserveRemoteCommitHistory,
+                                           boolean publishRemoteCommitTags) {
         return new MirrorRequest("mirror-id",
                                  true,
                                  "foo",
@@ -67,6 +102,14 @@ class MirrorRequestTest {
                                  "main",
                                  null,
                                  credentialName,
-                                 null);
+                                 null,
+                                 preserveRemoteCommitHistory,
+                                 publishRemoteCommitTags);
+    }
+
+    private static <T> void assertIgnoresUnknownField(T value, Class<T> type) throws Exception {
+        final ObjectNode json = Jackson.valueToTree(value);
+        json.put("futureField", true);
+        assertThat(Jackson.treeToValue(json, type)).isEqualTo(value);
     }
 }

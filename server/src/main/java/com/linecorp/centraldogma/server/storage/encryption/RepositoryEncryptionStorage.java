@@ -38,6 +38,8 @@ import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Consumer;
 
 import javax.annotation.concurrent.GuardedBy;
@@ -61,6 +63,7 @@ import com.fasterxml.jackson.databind.JsonMappingException;
 import com.google.common.collect.ImmutableList;
 import com.google.common.primitives.Ints;
 
+import com.linecorp.armeria.common.util.SafeCloseable;
 import com.linecorp.armeria.internal.common.util.ReentrantShortLock;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.internal.storage.AesGcmSivCipher;
@@ -70,10 +73,13 @@ final class RepositoryEncryptionStorage {
 
     private static final Logger logger = LoggerFactory.getLogger(RepositoryEncryptionStorage.class);
     private static final int BATCH_WRITE_SIZE = 1000;
+    private static final int NUM_REPOSITORY_LOCKS = 1024;
 
     private final RocksDBStorage rocksDbStorage;
     private final KeyWrapper keyWrapper;
     private final String kekId;
+    private final ReentrantReadWriteLock[] repositoryLocks =
+            new ReentrantReadWriteLock[NUM_REPOSITORY_LOCKS];
 
     private final ReentrantShortLock lock = new ReentrantShortLock();
     @GuardedBy("lock")
@@ -83,6 +89,9 @@ final class RepositoryEncryptionStorage {
         this.rocksDbStorage = requireNonNull(rocksDbStorage, "rocksDbStorage");
         this.keyWrapper = requireNonNull(keyWrapper, "keyWrapper");
         this.kekId = requireNonNull(kekId, "kekId");
+        for (int i = 0; i < repositoryLocks.length; i++) {
+            repositoryLocks[i] = new ReentrantReadWriteLock();
+        }
     }
 
     CompletableFuture<String> generateWdek() {
@@ -299,6 +308,49 @@ final class RepositoryEncryptionStorage {
         }
     }
 
+    List<String> getRefNamesByPrefix(String projectName, String repoName, String prefix) {
+        requireNonNull(projectName, "projectName");
+        requireNonNull(repoName, "repoName");
+        requireNonNull(prefix, "prefix");
+        if (!prefix.startsWith(REFS)) {
+            throw new IllegalArgumentException("not a ref prefix: " + prefix);
+        }
+
+        final String repositoryPrefix = projectRepo(projectName, repoName) + '/';
+        final byte[] repositoryPrefixBytes = repositoryPrefix.getBytes(StandardCharsets.UTF_8);
+        final byte[] refPrefixBytes = (repositoryPrefix + prefix).getBytes(StandardCharsets.UTF_8);
+        final ImmutableList.Builder<String> refNames = ImmutableList.builder();
+        final ColumnFamilyHandle metadataColumnFamilyHandle =
+                rocksDbStorage.getColumnFamilyHandle(ENCRYPTION_METADATA_COLUMN_FAMILY);
+        try (RocksIterator iterator = rocksDbStorage.newIterator(metadataColumnFamilyHandle)) {
+            iterator.seek(refPrefixBytes);
+            while (iterator.isValid() && startsWith(iterator.key(), refPrefixBytes)) {
+                final byte[] metadataKey = iterator.key();
+                refNames.add(new String(metadataKey, repositoryPrefixBytes.length,
+                                        metadataKey.length - repositoryPrefixBytes.length,
+                                        StandardCharsets.UTF_8));
+                iterator.next();
+            }
+        }
+        return refNames.build();
+    }
+
+    SafeCloseable acquireRepositoryReadLock(String projectName, String repoName) {
+        return lockRepository(projectName, repoName, false);
+    }
+
+    SafeCloseable acquireRepositoryWriteLock(String projectName, String repoName) {
+        return lockRepository(projectName, repoName, true);
+    }
+
+    private SafeCloseable lockRepository(String projectName, String repoName, boolean write) {
+        final ReentrantReadWriteLock repositoryLock = repositoryLocks[
+                Math.floorMod(projectRepo(projectName, repoName).hashCode(), repositoryLocks.length)];
+        final Lock lock = write ? repositoryLock.writeLock() : repositoryLock.readLock();
+        lock.lock();
+        return lock::unlock;
+    }
+
     void putObject(byte[] metadataKey, byte[] metadataValue, byte[] key, byte[] value) {
         try (WriteBatch writeBatch = new WriteBatch();
              WriteOptions writeOptions = new WriteOptions()) {
@@ -365,6 +417,12 @@ final class RepositoryEncryptionStorage {
     }
 
     void reencryptRepositoryData(String projectName, String repoName) {
+        try (SafeCloseable ignored = acquireRepositoryWriteLock(projectName, repoName)) {
+            reencryptRepositoryData0(projectName, repoName);
+        }
+    }
+
+    private void reencryptRepositoryData0(String projectName, String repoName) {
         requireNonNull(projectName, "projectName");
         requireNonNull(repoName, "repoName");
 
@@ -482,7 +540,7 @@ final class RepositoryEncryptionStorage {
                         }
                     } else if (startsWith(metadataKey, headKeyBytes) ||
                                startsWith(metadataKey, refsKeyPrefixBytes)) {
-                        // MetadataKey: project/repo/HEAD or project/repo/refs/heads/master
+                        // MetadataKey: project/repo/HEAD or project/repo/refs/...
                         // MetadataValue: key version(4) + nonce(12)
                         idPart = Arrays.copyOfRange(metadataKey,
                                                     projectRepoPrefixBytes.length, metadataKey.length);
@@ -634,7 +692,7 @@ final class RepositoryEncryptionStorage {
                     } else if (startsWith(metadataKey, headKeyBytes) ||
                                startsWith(metadataKey, refsKeyPrefixBytes)) {
                         // MetadataKey: project/repo/HEAD or
-                        // MetadataKey: project/repo/refs/heads/master
+                        // MetadataKey: project/repo/refs/...
                         // idPart should be "HEAD" or "refs/..." so copy from projectRepoPrefixBytes.length
                         // MetadataValue: key version(4) + nonce(12)
                         idPart = Arrays.copyOfRange(metadataKey,
