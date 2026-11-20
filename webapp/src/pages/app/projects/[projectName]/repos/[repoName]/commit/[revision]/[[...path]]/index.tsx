@@ -45,14 +45,14 @@ const CommitViewPage = () => {
   }
   const {
     data: historyData,
-    isLoading: historyLoading,
+    isFetching: historyFetching,
     error: historyError,
   } = useGetHistoryQuery({
     projectName,
     repoName,
     revision,
-    to: 1,
-    filePath,
+    to: revision,
+    filePath: '/**',
     maxCommits: 1,
   });
   const {
@@ -123,7 +123,13 @@ const CommitViewPage = () => {
 
   return (
     <Deferred
-      isLoading={historyLoading || oldHistoryLoading || isNewLoading || isOldLoading || isRevLoading}
+      isLoading={
+        (historyFetching && historyData?.[0]?.revision !== revision) ||
+        oldHistoryLoading ||
+        isNewLoading ||
+        isOldLoading ||
+        isRevLoading
+      }
       error={historyError || oldHistoryError || newError || revError || oldError0}
     >
       {() => {
