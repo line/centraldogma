@@ -26,6 +26,10 @@ let mockRevision: string;
 let mockPath: string[] | undefined;
 let pendingCommitResponse: Promise<void> | undefined;
 let requestedPendingCommit: boolean;
+let pendingContentsResponse: Promise<void> | undefined;
+let pendingContentsRevision: number;
+let pendingContentsPath: string;
+let requestedPendingContents: boolean;
 
 jest.mock('next/router', () => ({
   useRouter: () => ({
@@ -69,6 +73,8 @@ beforeEach(() => {
   mockPath = ['a.json'];
   pendingCommitResponse = undefined;
   requestedPendingCommit = false;
+  pendingContentsResponse = undefined;
+  requestedPendingContents = false;
   jest.spyOn(global, 'fetch').mockImplementation(async (input) => {
     const request = input instanceof Request ? input : new Request(input);
     const url = new URL(request.url, 'http://localhost');
@@ -86,9 +92,16 @@ beforeEach(() => {
         .filter((commit) => commit.revision <= from && commit.revision >= to)
         .filter((commit) => path === '/**' || changedPaths[commit.revision] === path)
         .slice(0, maxCommits);
+      if ((data as HistoryDto[]).length === 0) {
+        return new Response(null, { status: 204 });
+      }
     } else if (url.pathname.includes('/contents/')) {
       const revision = Number(url.searchParams.get('revision'));
       const path = url.pathname.split('/contents')[1];
+      if (revision === pendingContentsRevision && path === pendingContentsPath && pendingContentsResponse) {
+        requestedPendingContents = true;
+        await pendingContentsResponse;
+      }
       data = Object.entries(changedPaths)
         .filter(
           ([changedAt, changedPath]) =>
@@ -119,6 +132,81 @@ afterEach(() => {
 });
 
 describe('CommitView metadata', () => {
+  it('renders a file addition when the previous history returns no content', async () => {
+    mockPath = ['b.json'];
+    renderWithProviders(<CommitViewPage />);
+
+    await screen.findByRole('heading', { name: 'Commit 3' });
+    expect(screen.getByRole('heading', { name: '/b.json' })).toBeInTheDocument();
+    expect(screen.getByText(upstreamB, { exact: true })).toBeInTheDocument();
+  });
+
+  it.each([
+    {
+      transition: 'revision',
+      initialRevision: '3',
+      initialPath: undefined,
+      revision: '4',
+      path: undefined,
+      contentsRevision: 4,
+      contentsPath: '/**',
+    },
+    {
+      transition: 'path',
+      initialRevision: '3',
+      initialPath: undefined,
+      revision: '3',
+      path: ['a.json'],
+      contentsRevision: 3,
+      contentsPath: '/a.json',
+    },
+    {
+      transition: 'previous contents',
+      initialRevision: '4',
+      initialPath: ['b.json'],
+      revision: '4',
+      path: undefined,
+      contentsRevision: 3,
+      contentsPath: '/**',
+    },
+  ])('waits for current contents after a $transition transition', async (next) => {
+    mockRevision = next.initialRevision;
+    mockPath = next.initialPath;
+    const { rerender, store } = renderWithProviders(<CommitViewPage />);
+    await screen.findByRole('heading', { name: `Commit ${next.initialRevision}` });
+
+    let finishResponse: () => void;
+    pendingContentsResponse = new Promise<void>((resolve) => {
+      finishResponse = resolve;
+    });
+    pendingContentsRevision = next.contentsRevision;
+    pendingContentsPath = next.contentsPath;
+    mockRevision = next.revision;
+    mockPath = next.path;
+    rerender(<CommitViewPage />);
+    await waitFor(() => expect(requestedPendingContents).toBe(true));
+    await waitFor(() =>
+      expect(
+        Object.values(store.getState().api.queries).filter((query) => query.status === 'pending'),
+      ).toHaveLength(1),
+    );
+    try {
+      await waitFor(() => expect(screen.queryByRole('heading', { name: '/b.json' })).not.toBeInTheDocument());
+      expect(screen.queryByRole('heading', { name: `Commit ${next.revision}` })).not.toBeInTheDocument();
+    } finally {
+      await act(async () => finishResponse());
+    }
+
+    await screen.findByRole('heading', { name: `Commit ${next.revision}` });
+    if (next.revision === '4') {
+      expect(screen.getByRole('heading', { name: '/c.json' })).toBeInTheDocument();
+      expect(screen.queryByText('Upstream', { exact: true })).not.toBeInTheDocument();
+    } else {
+      expect(screen.queryByRole('heading', { name: '/b.json' })).not.toBeInTheDocument();
+      expect(screen.getByText(upstreamB, { exact: true })).toBeInTheDocument();
+    }
+  });
+
   it('shows the requested commit when the selected file was last changed in an earlier revision', async () => {
     renderWithProviders(<CommitViewPage />);
 

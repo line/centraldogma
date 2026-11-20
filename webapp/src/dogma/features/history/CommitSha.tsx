@@ -65,8 +65,21 @@ export const CommitSha = ({ label, sha, abbreviated = true, showLabel = true }: 
           variant="ghost"
           flexShrink={0}
           onClick={async () => {
-            await navigator.clipboard.writeText(sha);
-            dispatch(newNotification('', `${copyLabel} copied to clipboard`, 'success'));
+            try {
+              if (!navigator.clipboard?.writeText) {
+                throw new Error('Clipboard API is unavailable');
+              }
+              await navigator.clipboard.writeText(sha);
+              dispatch(newNotification('', `${copyLabel} copied to clipboard`, 'success'));
+            } catch {
+              dispatch(
+                newNotification(
+                  `Failed to copy ${copyLabel}`,
+                  'Clipboard access is unavailable or was denied.',
+                  'error',
+                ),
+              );
+            }
           }}
         />
       </Tooltip>

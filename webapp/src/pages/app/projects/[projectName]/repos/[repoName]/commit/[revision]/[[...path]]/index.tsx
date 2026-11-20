@@ -44,7 +44,7 @@ const CommitViewPage = () => {
     filePath = '/**';
   }
   const {
-    data: historyData,
+    currentData: historyData,
     isFetching: historyFetching,
     error: historyError,
   } = useGetHistoryQuery({
@@ -56,8 +56,8 @@ const CommitViewPage = () => {
     maxCommits: 1,
   });
   const {
-    data: oldHistoryData,
-    isLoading: oldHistoryLoading,
+    currentData: oldHistoryData,
+    isFetching: oldHistoryFetching,
     error: oldHistoryError,
   } = useGetHistoryQuery(
     {
@@ -73,8 +73,8 @@ const CommitViewPage = () => {
     },
   );
   const {
-    data: newData,
-    isLoading: isNewLoading,
+    currentData: newData,
+    isFetching: newFetching,
     error: newError,
   } = useGetFilesQuery({
     projectName,
@@ -83,25 +83,26 @@ const CommitViewPage = () => {
     filePath,
     withContent: true,
   });
+  const previousRevision = revision > 2 ? oldHistoryData?.[0]?.revision : undefined;
   const {
-    data: oldData,
-    isLoading: isOldLoading,
+    currentData: oldData,
+    isFetching: oldFetching,
     error: oldError,
   } = useGetFilesQuery(
     {
       projectName,
       repoName,
-      revision: oldHistoryData?.[0]?.revision || 1,
+      revision: previousRevision || 1,
       filePath,
       withContent: true,
     },
     {
-      skip: !oldHistoryData || oldHistoryData.length == 0,
+      skip: !previousRevision,
     },
   );
   const {
-    data: headRev,
-    isLoading: isRevLoading,
+    currentData: headRev,
+    isFetching: revFetching,
     error: revError,
   } = useGetNormalisedRevisionQuery({
     projectName,
@@ -124,11 +125,11 @@ const CommitViewPage = () => {
   return (
     <Deferred
       isLoading={
-        (historyFetching && historyData?.[0]?.revision !== revision) ||
-        oldHistoryLoading ||
-        isNewLoading ||
-        isOldLoading ||
-        isRevLoading
+        (historyFetching && !historyData) ||
+        (revision > 2 && oldHistoryFetching && !oldHistoryData) ||
+        (newFetching && !newData) ||
+        (!!previousRevision && oldFetching && !oldData) ||
+        (revFetching && !headRev)
       }
       error={historyError || oldHistoryError || newError || revError || oldError0}
     >
@@ -138,10 +139,6 @@ const CommitViewPage = () => {
         }
 
         const history = historyData[0];
-        let previousRevision;
-        if (revision > 2 && oldHistoryData && oldHistoryData.length > 0) {
-          previousRevision = oldHistoryData[0].revision;
-        }
         const oldData0 = !previousRevision ? [] : oldData || [];
         const newData0 = newData || [];
         const hasNext = filePath == '/**' && revision !== headRev.revision;
