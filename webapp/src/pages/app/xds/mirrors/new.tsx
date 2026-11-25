@@ -25,6 +25,7 @@ import { newNotification } from 'dogma/features/notification/notificationSlice';
 import ErrorMessageParser from 'dogma/features/services/ErrorMessageParser';
 import { MirrorRequest } from 'dogma/features/repo/settings/mirrors/MirrorRequest';
 import MirrorForm from 'dogma/features/repo/settings/mirrors/MirrorForm';
+import { PageTitle } from 'dogma/common/components/PageTitle';
 
 const XdsNewMirrorPage = () => {
   const router = useRouter();
@@ -78,6 +79,7 @@ const XdsNewMirrorPage = () => {
 
   return (
     <>
+      <PageTitle title={['New', 'Mirroring', group, 'xDS']} />
       <Breadcrumb mb={4} color="gray.500" fontSize="sm">
         <BreadcrumbItem>
           <BreadcrumbLink as={RouteLink} href="/app/xds">

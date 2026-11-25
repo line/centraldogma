@@ -28,9 +28,17 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
+import java.io.File;
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.time.Clock;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -44,6 +52,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
@@ -88,6 +97,97 @@ class ZooKeeperCommandExecutorTest {
     private static final Change<JsonNode> normalizedChange =
             Change.ofJsonPatch("/foo.json",
                                "[{\"op\":\"safeReplace\",\"path\":\"/a\",\"oldValue\":\"b\",\"value\":\"c\"}]");
+
+    @Test
+    @Timeout(30)
+    void defaultMaximumLogCountDoesNotRejectWrites() throws Exception {
+        try (Cluster cluster = Cluster.builder().numReplicas(1).logCounts(1, Integer.MAX_VALUE)
+                                      .build(ZooKeeperCommandExecutorTest::newMockDelegate)) {
+            final ZooKeeperCommandExecutor executor = cluster.get(0).commandExecutor();
+            executor.execute(Command.createProject(Author.SYSTEM, "first")).join();
+            executor.execute(Command.createProject(Author.SYSTEM, "second")).join();
+            executor.execute(Command.createProject(Author.SYSTEM, "third")).join();
+            assertThat(executor.loadLog(2)).isNotNull();
+        }
+    }
+
+    @Test
+    @Timeout(60)
+    void rejectsAtObservedThresholdBeforeDelegateExecution() throws Exception {
+        try (Cluster cluster = Cluster.builder().numReplicas(1).logCounts(1, 2)
+                                      .build(ZooKeeperCommandExecutorTest::newMockDelegate)) {
+            final Replica replica = cluster.get(0);
+            final ZooKeeperCommandExecutor executor = replica.commandExecutor();
+            executor.execute(Command.createProject(Author.SYSTEM, "first")).join();
+            executor.execute(Command.createProject(Author.SYSTEM, "second")).join();
+
+            final Command<?> rejected = Command.createProject(Author.SYSTEM, "rejected");
+            assertThatThrownBy(() -> executor.execute(rejected).join())
+                    .hasCauseInstanceOf(ReplicationException.class)
+                    .hasMessageContaining("observed count: 2");
+            verify(replica.delegate(), times(0)).apply(eq(rejected));
+            assertThat(executor.isWritable()).isTrue();
+        }
+    }
+
+    @Test
+    @Timeout(60)
+    void concurrentIndependentPathsCanExceedThreshold() throws Exception {
+        final CountDownLatch entered = new CountDownLatch(2);
+        final CompletableFuture<Revision> release = new CompletableFuture<>();
+        final Command<Revision> second = Command.push(null, Author.SYSTEM, "project", "second",
+                                                      new Revision(1), "", "", Markup.PLAINTEXT,
+                                                      ImmutableList.of());
+        final Command<Revision> third = Command.push(null, Author.SYSTEM, "project", "third",
+                                                     new Revision(1), "", "", Markup.PLAINTEXT,
+                                                     ImmutableList.of());
+        final Supplier<Function<Command<?>, CompletableFuture<?>>> delegateSupplier = () -> command -> {
+            if (command.equals(second) || command.equals(third)) {
+                entered.countDown();
+                return release;
+            }
+            return completedFuture(null);
+        };
+
+        try (Cluster cluster = Cluster.builder().numReplicas(3).logCounts(1, 2).build(delegateSupplier)) {
+            final ZooKeeperCommandExecutor first = cluster.get(0).commandExecutor();
+            first.execute(Command.createProject(Author.SYSTEM, "first")).join();
+            try {
+                final CompletableFuture<Revision> secondResult = first.execute(second);
+                final CompletableFuture<Revision> thirdResult = cluster.get(1).commandExecutor().execute(third);
+                assertThat(entered.await(10, TimeUnit.SECONDS)).isTrue();
+                release.complete(new Revision(2));
+                secondResult.join();
+                thirdResult.join();
+                assertThat(first.loadLog(2)).isNotNull();
+            } finally {
+                release.complete(new Revision(2));
+            }
+        }
+    }
+
+    @Test
+    @Timeout(30)
+    void agedLogCleanupRestoresWriteCapacity() throws Exception {
+        final Clock clock = mock(Clock.class);
+        when(clock.millis()).thenReturn(0L);
+        try (Cluster cluster = Cluster.builder().numReplicas(1).logCounts(1, 2)
+                                      .minLogAgeMillis(100)
+                                      .clock(clock)
+                                      .build(ZooKeeperCommandExecutorTest::newMockDelegate)) {
+            final ZooKeeperCommandExecutor executor = cluster.get(0).commandExecutor();
+            executor.execute(Command.createProject(Author.SYSTEM, "first")).join();
+            executor.execute(Command.createProject(Author.SYSTEM, "second")).join();
+            assertThatThrownBy(() -> executor.execute(Command.createProject(Author.SYSTEM, "blocked")).join())
+                    .hasCauseInstanceOf(ReplicationException.class);
+
+            when(clock.millis()).thenReturn(101L);
+            await().atMost(Duration.ofSeconds(10)).ignoreExceptions().untilAsserted(() -> {
+                executor.execute(Command.createProject(Author.SYSTEM, "afterCleanup")).join();
+            });
+            assertThat(executor.isWritable()).isTrue();
+        }
+    }
 
     @Test
     void testLogWatch() throws Exception {
@@ -520,6 +620,11 @@ class ZooKeeperCommandExecutorTest {
                                             "replica.zk.latency#value{type=max}",
                                             "replica.zk.latency#value{type=min}",
                                             "replica.zk.log.dir.size#value",
+                                            "replica.zk.logs.children#value",
+                                            "replica.zk.logs.delete.result#count{result=below_limit}",
+                                            "replica.zk.logs.delete.result#count{result=no_deletion}",
+                                            "replica.zk.logs.delete.result#count{result=deleted}",
+                                            "replica.zk.logs.delete.result#count{result=failure}",
                                             "replica.zk.nodes#value",
                                             "replica.zk.outstanding.requests#value",
                                             "replica.zk.packets.received#count",
@@ -652,13 +757,43 @@ class ZooKeeperCommandExecutorTest {
             // Keep the ZooKeeper log but rewind the local progress file, then restart.
             replica.commandExecutor().stop().join();
             java.nio.file.Files.writeString(
-                    new java.io.File(replica.dataDir(), "last_revision").toPath(), "-1");
+                    new File(replica.dataDir(), "last_revision").toPath(), "-1");
             replica.commandExecutor().start().join();
 
             // Both revisions are replayed again instead of being skipped.
             await().untilAsserted(() -> verify(replica.delegate(), times(2)).apply(eq(command1)));
             await().untilAsserted(() -> verify(replica.delegate(), times(2)).apply(eq(command2)));
             assertThat(replica.commandExecutor().isWritable()).isTrue();
+        }
+    }
+
+    @Test
+    @Timeout(60)
+    void rejectsStartupAfterZooKeeperHistoryResetWithRetainedCheckpoint() throws Exception {
+        try (Cluster cluster = Cluster.builder().numReplicas(1)
+                                      .build(ZooKeeperCommandExecutorTest::newMockDelegate)) {
+            final Replica replica = cluster.get(0);
+            replica.commandExecutor().execute(Command.createProject(Author.SYSTEM, "p")).join();
+            replica.commandExecutor().execute(Command.createRepository(Author.SYSTEM, "p", "r")).join();
+            assertThat(replica.localRevision()).isEqualTo(1L);
+
+            replica.commandExecutor().stop().join();
+            final Path zkDir = new File(replica.dataDir(), "_zookeeper").toPath();
+            try (Stream<Path> paths = Files.walk(zkDir)) {
+                paths.sorted(Comparator.reverseOrder()).forEach(path -> {
+                    try {
+                        Files.delete(path);
+                    } catch (IOException e) {
+                        throw new UncheckedIOException(e);
+                    }
+                });
+            }
+
+            assertThatThrownBy(() -> replica.commandExecutor().start().join())
+                    .hasRootCauseInstanceOf(ReplicationException.class)
+                    .hasMessageContaining("ZooKeeper command history is empty");
+            assertThat(replica.commandExecutor().isStarted()).isFalse();
+            assertThat(replica.localRevision()).isEqualTo(1L);
         }
     }
 
@@ -745,6 +880,68 @@ class ZooKeeperCommandExecutorTest {
             self.commandExecutor().start().join();
             assertThat(self.commandExecutor().isWritable()).isTrue();
             assertThat(self.localRevision()).isEqualTo(1L);
+        }
+    }
+
+    /**
+     * A replay still in flight when the executor stops must finish and record its progress durably,
+     * because closing the log watcher cancels its tasks with an interrupt. Otherwise the command is
+     * applied to the local data while last_revision is not advanced, and the next start-up applies it
+     * a second time.
+     */
+    @Test
+    @Timeout(120)
+    void inFlightReplayOnStopIsRecordedAndNotReplayed() throws Exception {
+        final CountDownLatch replayEntered = new CountDownLatch(1);
+        final CountDownLatch proceed = new CountDownLatch(1);
+        final AtomicInteger replayCount = new AtomicInteger();
+        final AtomicInteger replicaIndex = new AtomicInteger();
+        final Supplier<Function<Command<?>, CompletableFuture<?>>> delegateSupplier = () -> {
+            final boolean replaying = replicaIndex.getAndIncrement() == 1;
+            final Function<Command<?>, CompletableFuture<?>> base = newMockDelegate();
+            return command -> {
+                if (replaying && command != null && command.type() == CommandType.CREATE_REPOSITORY) {
+                    // Park inside replayLogs() so we can stop while the replay is in flight.
+                    replayCount.incrementAndGet();
+                    replayEntered.countDown();
+                    return CompletableFuture.supplyAsync(() -> {
+                        try {
+                            proceed.await();
+                        } catch (InterruptedException e) {
+                            throw new RuntimeException(e);
+                        }
+                        return null;
+                    }, CommonPools.blockingTaskExecutor());
+                }
+                return base.apply(command);
+            };
+        };
+
+        try (Cluster cluster = Cluster.builder().numReplicas(3).build(delegateSupplier)) {
+            final Replica origin = cluster.get(0);
+            final Replica replaying = cluster.get(1);
+            origin.commandExecutor().execute(Command.createProject(Author.SYSTEM, "p")).join();
+            await().untilAsserted(() -> assertThat(replaying.localRevision()).isEqualTo(0L));
+
+            // Park the replay of revision 1, then stop while it is in flight.
+            origin.commandExecutor().execute(Command.createRepository(Author.SYSTEM, "p", "r")).join();
+            assertThat(replayEntered.await(10, TimeUnit.SECONDS)).isTrue();
+            final CompletableFuture<Void> stopFuture = replaying.commandExecutor().stop();
+            // The shutdown must not finish while the replay is parked; that is the barrier doing its job.
+            assertThatThrownBy(() -> stopFuture.get(3, TimeUnit.SECONDS))
+                    .isInstanceOf(TimeoutException.class);
+            proceed.countDown();
+            stopFuture.join();
+
+            // The replay finished before the log watcher was closed, so its progress is durable.
+            assertThat(replaying.localRevision()).isEqualTo(1L);
+
+            // Catch up on a later revision to prove revision 1 was not applied a second time.
+            replaying.commandExecutor().start().join();
+            origin.commandExecutor().execute(Command.createProject(Author.SYSTEM, "p2")).join();
+            await().untilAsserted(() -> assertThat(replaying.localRevision()).isEqualTo(2L));
+            assertThat(replayCount).hasValue(1);
+            assertThat(replaying.commandExecutor().isWritable()).isTrue();
         }
     }
 

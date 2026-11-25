@@ -13,10 +13,11 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
-import Editor, { loader } from '@monaco-editor/react';
+import Editor from '@monaco-editor/react';
 import { useColorMode } from '@chakra-ui/react';
 import { useEffect, useState } from 'react';
 import { Loading } from 'dogma/common/components/Loading';
+import { loadMonaco } from 'dogma/features/file/MonacoLoader';
 
 interface JsonEditorProps {
   value: string;
@@ -40,14 +41,15 @@ export const JsonEditor = ({
 
   useEffect(() => {
     let active = true;
-    (async () => {
-      const monaco = await import('monaco-editor');
-      loader.config({ monaco });
-      await loader.init();
-      if (active) {
-        setReady(true);
-      }
-    })();
+    loadMonaco()
+      .then(() => {
+        if (active) {
+          setReady(true);
+        }
+      })
+      .catch((err) => {
+        console.error('Failed to load local monaco-editor:', err);
+      });
     return () => {
       active = false;
     };

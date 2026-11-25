@@ -231,6 +231,7 @@ public final class CentralDogmaConfig {
     // Repository
     private final Integer numRepositoryWorkers;
     private final long maxRemovedRepositoryAgeMillis;
+    private final int repositoryStatsWindowHours;
 
     // Cache
     private final String repositoryCacheSpec;
@@ -272,6 +273,8 @@ public final class CentralDogmaConfig {
 
     private final boolean enableThriftService;
 
+    private final RateLimitingConfig rateLimiting;
+
     CentralDogmaConfig(
             @JsonProperty(value = "dataDir", required = true) File dataDir,
             @JsonProperty(value = "ports", required = true)
@@ -300,7 +303,9 @@ public final class CentralDogmaConfig {
             @JsonProperty("pluginConfigs") @Nullable List<PluginConfig> pluginConfigs,
             @JsonProperty("management") @Nullable ManagementConfig managementConfig,
             @JsonProperty("zone") @Nullable ZoneConfig zoneConfig,
-            @JsonProperty("enableThriftService") @Nullable Boolean enableThriftService) {
+            @JsonProperty("enableThriftService") @Nullable Boolean enableThriftService,
+            @JsonProperty("repositoryStatsWindowHours") @Nullable Integer repositoryStatsWindowHours,
+            @JsonProperty("rateLimiting") @Nullable RateLimitingConfig rateLimiting) {
 
         this.dataDir = requireNonNull(dataDir, "dataDir");
         this.ports = ImmutableList.copyOf(requireNonNull(ports, "ports"));
@@ -328,6 +333,9 @@ public final class CentralDogmaConfig {
                       "maxRemovedRepositoryAgeMillis: %s (expected: >= 0)", this.maxRemovedRepositoryAgeMillis);
         this.repositoryCacheSpec = validateCacheSpec(
                 firstNonNull(repositoryCacheSpec, DEFAULT_REPOSITORY_CACHE_SPEC));
+        this.repositoryStatsWindowHours = firstNonNull(repositoryStatsWindowHours, 0);
+        checkArgument(this.repositoryStatsWindowHours >= 0,
+                      "repositoryStatsWindowHours: %s (expected: >= 0)", this.repositoryStatsWindowHours);
 
         this.webAppEnabled = firstNonNull(webAppEnabled, true);
         this.webAppTitle = webAppTitle;
@@ -353,6 +361,7 @@ public final class CentralDogmaConfig {
         this.managementConfig = managementConfig;
         this.zoneConfig = zoneConfig;
         this.enableThriftService = firstNonNull(enableThriftService, true);
+        this.rateLimiting = firstNonNull(rateLimiting, RateLimitingConfig.DISABLED);
     }
 
     /**
@@ -498,6 +507,14 @@ public final class CentralDogmaConfig {
     }
 
     /**
+     * Returns the rolling window for repository statistics in hours, or {@code 0} if disabled.
+     */
+    @JsonProperty
+    public int repositoryStatsWindowHours() {
+        return repositoryStatsWindowHours;
+    }
+
+    /**
      * Returns the graceful shutdown timeout.
      */
     @JsonProperty
@@ -607,6 +624,14 @@ public final class CentralDogmaConfig {
     @JsonProperty
     public boolean enableThriftService() {
         return enableThriftService;
+    }
+
+    /**
+     * Returns the per-server global and repository rate limits for content pushes and reverts.
+     */
+    @JsonProperty
+    public RateLimitingConfig rateLimiting() {
+        return rateLimiting;
     }
 
     @Override

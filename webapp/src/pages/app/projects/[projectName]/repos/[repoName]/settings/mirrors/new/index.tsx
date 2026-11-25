@@ -26,6 +26,7 @@ import { Breadcrumbs } from 'dogma/common/components/Breadcrumbs';
 import React from 'react';
 import { MirrorRequest } from 'dogma/features/repo/settings/mirrors/MirrorRequest';
 import MirrorForm from 'dogma/features/repo/settings/mirrors/MirrorForm';
+import { PageTitle } from 'dogma/common/components/PageTitle';
 
 const NewMirrorPage = () => {
   const router = useRouter();
@@ -78,6 +79,7 @@ const NewMirrorPage = () => {
 
   return (
     <>
+      <PageTitle title={['New', 'Mirrors', repoName, projectName]} />
       <Breadcrumbs path={router.asPath} omitIndexList={[0]} />
       <MirrorForm
         projectName={projectName}

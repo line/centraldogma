@@ -62,6 +62,7 @@ final class ShiroCentralDogmaTestServer {
                 // Enable the legacy webapp
                 // .webAppEnabled(true)
                 .port(PORT, SessionProtocol.HTTP)
+                .repositoryStatsWindowHours(24)
                 .systemAdministrators(USERNAME)
                 .cors("http://127.0.0.1:36462", "http://127.0.0.1:3000", "http://localhost:36462",
                       "http://localhost:3000")

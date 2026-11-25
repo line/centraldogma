@@ -45,9 +45,11 @@ import {
   useReactTable,
 } from '@tanstack/react-table';
 import { FetchBaseQueryError } from '@reduxjs/toolkit/query';
+import * as jsYaml from 'js-yaml';
 import { useCallback, useMemo, useState } from 'react';
 import { VscGitCommit } from 'react-icons/vsc';
 import { DataTable } from 'dogma/features/xds/DataTable';
+import { useClampPageIndex, useUrlPagination } from 'dogma/common/components/table/useUrlPagination';
 import { Deferred } from 'dogma/common/components/Deferred';
 import { Loading } from 'dogma/common/components/Loading';
 import { Author } from 'dogma/common/components/Author';
@@ -57,22 +59,23 @@ import { HistoryDto } from 'dogma/features/history/HistoryDto';
 import { FileDto } from 'dogma/features/file/FileDto';
 import { useGetGroupHistoryQuery } from 'dogma/features/xds/xdsApiSlice';
 import { useGetFileContentQuery, useGetFilesQuery } from 'dogma/features/api/apiSlice';
-import { XDS_PROJECT } from 'dogma/features/xds/XdsTypes';
+import { XDS_PAGE_SIZES, XDS_PROJECT } from 'dogma/features/xds/XdsTypes';
 
 const columnHelper = createColumnHelper<HistoryDto>();
 
 // The most recent commits to show. Each xDS resource create/update/delete is one commit.
 const MAX_COMMITS = 100;
 
-// Re-serializes JSON content so the before/after sides of the diff have identical formatting and only real
-// changes stand out. Returns '' when the file is absent at that revision (a create or delete).
+// Parses the YAML resource and re-serializes it as pretty JSON so the before/after sides of the diff have
+// identical formatting and only real changes stand out. Returns '' when the file is absent at that revision
+// (a create or delete). jsYaml.load also accepts JSON, since JSON is a subset of YAML.
 function prettyContent(content: string | undefined, rawContent: string | undefined): string {
   const raw = content ?? rawContent;
-  if (raw == null) {
+  if (!raw) {
     return '';
   }
   try {
-    return JSON.stringify(JSON.parse(raw), null, 2);
+    return JSON.stringify(jsYaml.load(raw), null, 2);
   } catch {
     return raw;
   }
@@ -256,7 +259,7 @@ const CommitDiffModal = ({
 };
 
 // Shows the change history (commit log) of a group. When `filePath` is given, the history is scoped to that
-// single resource file (e.g. '/clusters/foo.json') and each commit is clickable to see its before/after diff;
+// single resource file (e.g. '/clusters/foo.yaml') and each commit is clickable to see its before/after diff;
 // otherwise it covers the whole group and each commit is still clickable to see all files changed.
 export const ResourceHistory = ({ group, filePath }: { group: string; filePath?: string }) => {
   const { data, isLoading, error } = useGetGroupHistoryQuery(
@@ -321,15 +324,22 @@ export const ResourceHistory = ({ group, filePath }: { group: string; filePath?:
 
   // Memoized so the table receives a stable data reference across re-renders (react-table requires this).
   const rows = useMemo(() => data || [], [data]);
+  const { pagination, onPaginationChange } = useUrlPagination({ pageSizes: XDS_PAGE_SIZES });
   const table = useReactTable({
     data: rows,
     columns,
+    state: { pagination },
+    onPaginationChange,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
-    initialState: { pagination: { pageSize: 10 } },
+    // Pagination is controlled via the URL (useUrlPagination); auto-reset would discard the page restored
+    // from the URL as soon as the history finishes loading.
+    autoResetPageIndex: false,
   });
+  // Auto-reset is off, so keep the page index within bounds if the history is truncated to fewer pages.
+  useClampPageIndex(table);
 
   return (
     <Deferred isLoading={isLoading} error={error}>
@@ -369,7 +379,7 @@ export const ResourceHistory = ({ group, filePath }: { group: string; filePath?:
                     value={pageSize}
                     onChange={(e) => table.setPageSize(Number(e.target.value))}
                   >
-                    {[10, 20, 50, 100].map((size) => (
+                    {XDS_PAGE_SIZES.map((size) => (
                       <option key={size} value={size}>
                         {size} / page
                       </option>

@@ -542,6 +542,14 @@ public interface Repository {
     CompletableFuture<List<Commit>> history(Revision from, Revision to, String pathPattern, int maxCommits);
 
     /**
+     * Returns approximate repository stats over the specified rolling window on this replica.
+     * The count is bounded at one more than {@link RepositoryStats#recommendedCount()}.
+     *
+     * @param windowHours the positive window size in hours
+     */
+    CompletableFuture<RepositoryStats> stats(int windowHours);
+
+    /**
      * Returns the latest {@link Revision} if there are any {@link Change}s since {@code lastKnownRevision}
      * that affected the path matched by the specified {@code pathPattern}. The behavior of this method could
      * be represented as the following code:

@@ -51,10 +51,11 @@ import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.ResponseEntity;
 import com.linecorp.armeria.common.auth.AuthToken;
 import com.linecorp.centraldogma.client.CentralDogma;
-import com.linecorp.centraldogma.client.CentralDogmaRepository;
 import com.linecorp.centraldogma.client.armeria.ArmeriaCentralDogmaBuilder;
+import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.MirrorException;
+import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.api.v1.MirrorRequest;
 import com.linecorp.centraldogma.internal.api.v1.PushResultDto;
@@ -65,7 +66,6 @@ import com.linecorp.centraldogma.server.internal.storage.repository.MirrorConfig
 import com.linecorp.centraldogma.server.mirror.MirrorDirection;
 import com.linecorp.centraldogma.server.mirror.MirrorResult;
 import com.linecorp.centraldogma.server.mirror.MirroringServicePluginConfig;
-import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.testing.internal.CentralDogmaReplicationExtension;
 import com.linecorp.centraldogma.testing.internal.CentralDogmaRuleDelegate;
 import com.linecorp.centraldogma.testing.internal.auth.TestAuthProviderFactory;
@@ -180,8 +180,6 @@ class ZoneAwareMirrorTest {
 
     @Test
     void shouldWarnUnknownZoneForScheduledJob() throws Exception {
-        final CentralDogma client = cluster.servers().get(0).client();
-        final CentralDogmaRepository repo = client.forRepo(FOO_PROJ, Project.REPO_DOGMA);
         final String mirrorId = TEST_MIRROR_ID + "-unknown-zone";
         final String unknownZone = "unknown-zone";
 
@@ -218,8 +216,15 @@ class ZoneAwareMirrorTest {
         final Change<JsonNode> change = Change.ofJsonUpsert(
                 "/repos/bar-unknown-zone/mirrors/" + mirrorId + ".json",
                 Jackson.writeValueAsString(mirrorConfig));
-        repo.commit("Add a mirror having an invalid zone", change)
-            .push().join();
+        // The mirror pins an unknown zone, which the mirroring REST API would reject, so the config is
+        // committed directly to each replica's meta repository (bypassing the push API) to simulate a
+        // mirror whose zone became invalid after a zone-configuration change.
+        for (CentralDogmaRuleDelegate server : cluster.servers()) {
+            server.projectManager().get(FOO_PROJ).metaRepo()
+                  .commit(Revision.HEAD, System.currentTimeMillis(), Author.SYSTEM,
+                          "Add a mirror having an invalid zone", change)
+                  .join();
+        }
 
         await().untilAsserted(() -> {
             // Wait for 3 mirror tasks to be run to verify all jobs are executed in the same zone.

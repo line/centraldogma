@@ -36,11 +36,16 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
+import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.Mock;
 
 import com.fasterxml.jackson.core.JsonParseException;
@@ -49,7 +54,12 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
+import com.linecorp.armeria.common.HttpMethod;
+import com.linecorp.armeria.common.HttpRequest;
+import com.linecorp.armeria.common.RequestContext;
 import com.linecorp.armeria.common.metric.NoopMeterRegistry;
+import com.linecorp.armeria.common.util.SafeCloseable;
+import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Commit;
 import com.linecorp.centraldogma.common.Entry;
@@ -65,11 +75,94 @@ import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryCa
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.repository.DiffResultType;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
+import com.linecorp.centraldogma.server.storage.repository.RepositoryStats;
 
 class CachingRepositoryTest {
 
     @Mock
     private Repository delegateRepo;
+
+    @Test
+    void statsLoadIsSharedWithoutRequestContext() {
+        final CachingRepository repo = newCachingRepo();
+        final CompletableFuture<RepositoryStats> load = new CompletableFuture<>();
+        when(delegateRepo.stats(24)).thenAnswer(invocation -> {
+            assertThat(RequestContext.<RequestContext>currentOrNull()).isNull();
+            return load;
+        });
+
+        final ServiceRequestContext firstCtx =
+                ServiceRequestContext.of(HttpRequest.of(HttpMethod.GET, "/stats"));
+        final CompletableFuture<RepositoryStats> first;
+        try (SafeCloseable ignored = firstCtx.push()) {
+            first = repo.stats(24);
+            assertThat(RequestContext.<RequestContext>currentOrNull()).isSameAs(firstCtx);
+        }
+
+        final ServiceRequestContext secondCtx =
+                ServiceRequestContext.of(HttpRequest.of(HttpMethod.GET, "/stats"));
+        final CompletableFuture<RepositoryStats> second;
+        try (SafeCloseable ignored = secondCtx.push()) {
+            second = repo.stats(24);
+            assertThat(RequestContext.<RequestContext>currentOrNull()).isSameAs(secondCtx);
+        }
+
+        assertThat(first).isNotSameAs(second).isNotDone();
+        assertThat(second).isNotDone();
+        final RepositoryStats stats = new RepositoryStats(true, 24, 42, 100, Instant.now());
+        load.complete(stats);
+        assertThat(first.join()).isSameAs(stats);
+        assertThat(second.join()).isSameAs(stats);
+        assertThat(repo.stats(24).join()).isSameAs(stats);
+        verify(delegateRepo).stats(24);
+        verifyNoMoreInteractions(delegateRepo);
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = { false, true })
+    void statsCallbacksRunOnCallerEventLoop(boolean fail) throws Exception {
+        final CachingRepository repo = newCachingRepo();
+        final CompletableFuture<RepositoryStats> load = new CompletableFuture<>();
+        when(delegateRepo.stats(24)).thenReturn(load);
+
+        final RepositoryStats stats = new RepositoryStats(true, 24, 42, 100, Instant.now());
+        final IllegalStateException failure = new IllegalStateException("stats load failed");
+        final List<CompletableFuture<Void>> callbacks = new ArrayList<>();
+        for (int i = 0; i < 2; i++) {
+            final ServiceRequestContext ctx =
+                    ServiceRequestContext.of(HttpRequest.of(HttpMethod.GET, "/stats"));
+            try (SafeCloseable ignored = ctx.push()) {
+                callbacks.add(repo.stats(24).handle((result, cause) -> {
+                    try (SafeCloseable ignored2 = ctx.push()) {
+                        assertThat(ctx.eventLoop().inEventLoop()).isTrue();
+                        if (fail) {
+                            assertThat(cause).hasCauseReference(failure);
+                        } else {
+                            assertThat(cause).isNull();
+                            assertThat(result).isSameAs(stats);
+                        }
+                    }
+                    return null;
+                }));
+            }
+        }
+
+        final ServiceRequestContext otherCtx =
+                ServiceRequestContext.of(HttpRequest.of(HttpMethod.GET, "/other"));
+        try (SafeCloseable ignored = otherCtx.push()) {
+            if (fail) {
+                load.completeExceptionally(failure);
+            } else {
+                load.complete(stats);
+            }
+        }
+
+        for (CompletableFuture<Void> callback : callbacks) {
+            callback.get(10, TimeUnit.SECONDS);
+        }
+        verify(delegateRepo).stats(24);
+        verifyNoMoreInteractions(delegateRepo);
+    }
 
     @Test
     void identityQuery() {

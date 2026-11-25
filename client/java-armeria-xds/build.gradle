@@ -1,5 +1,6 @@
 dependencies {
     api project(':client:java-armeria')
+    api project(':xds-api')
 
     // Armeria
     api libs.armeria.xds

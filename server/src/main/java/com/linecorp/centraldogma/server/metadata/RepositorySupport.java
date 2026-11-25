@@ -66,6 +66,13 @@ final class RepositorySupport<T> {
         return fetch(projectManager().get(projectName).repos().get(repoName), path);
     }
 
+    CompletableFuture<HolderWithRevision<T>> fetch(String projectName, String repoName, String path,
+                                                   Revision revision) {
+        requireNonNull(projectName, "projectName");
+        requireNonNull(repoName, "repoName");
+        return fetch(projectManager().get(projectName).repos().get(repoName), path, revision);
+    }
+
     private CompletableFuture<HolderWithRevision<T>> fetch(Repository repository, String path) {
         requireNonNull(path, "path");
         final Revision revision = normalize(repository);

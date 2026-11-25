@@ -18,11 +18,13 @@ package com.linecorp.centraldogma.server.internal.replication;
 import static java.util.Objects.requireNonNull;
 
 import java.net.ServerSocket;
+import java.time.Clock;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.function.ToIntBiFunction;
@@ -46,6 +48,26 @@ final class ClusterBuilder {
     private int numReplicas = 5;
     private int numGroups = 1;
     private boolean autoStart = true;
+    private int minimumLogCount = 1024;
+    private int maximumLogCount = Integer.MAX_VALUE;
+    private long minLogAgeMillis = TimeUnit.DAYS.toMillis(1);
+    private Clock clock = Clock.systemUTC();
+
+    ClusterBuilder clock(Clock clock) {
+        this.clock = requireNonNull(clock, "clock");
+        return this;
+    }
+
+    ClusterBuilder logCounts(int minimumLogCount, int maximumLogCount) {
+        this.minimumLogCount = minimumLogCount;
+        this.maximumLogCount = maximumLogCount;
+        return this;
+    }
+
+    ClusterBuilder minLogAgeMillis(long minLogAgeMillis) {
+        this.minLogAgeMillis = minLogAgeMillis;
+        return this;
+    }
 
     ClusterBuilder numReplicas(int numReplicas) {
         this.numReplicas = numReplicas;
@@ -117,7 +139,8 @@ final class ClusterBuilder {
 
         final Builder<Replica> builder = ImmutableList.builder();
         for (InstanceSpec spec : specs) {
-            final Replica r = new Replica(spec, servers, commandExecutorSupplier.get(), autoStart);
+            final Replica r = new Replica(spec, servers, commandExecutorSupplier.get(), autoStart,
+                                          minimumLogCount, maximumLogCount, minLogAgeMillis, clock);
             builder.add(r);
         }
 

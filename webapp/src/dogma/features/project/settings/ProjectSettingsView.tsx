@@ -21,6 +21,7 @@ import { ReactNode } from 'react';
 import { ProjectMetadataDto } from 'dogma/features/project/ProjectMetadataDto';
 import Link from 'next/link';
 import { Breadcrumbs } from 'dogma/common/components/Breadcrumbs';
+import { PageTitle } from 'dogma/common/components/PageTitle';
 import { useRouter } from 'next/router';
 import { useAppSelector } from 'dogma/hooks';
 import { FiBox } from 'react-icons/fi';
@@ -107,6 +108,7 @@ const ProjectSettingsView = ({ projectName, currentTab, children }: ProjectSetti
     <Deferred isLoading={isLoading} error={queryError}>
       {() => (
         <Box p="2">
+          <PageTitle title={[currentTab.charAt(0).toUpperCase() + currentTab.slice(1), projectName]} />
           <Breadcrumbs path={router.asPath} omitIndexList={[0]} />
           <Flex minWidth="max-content" alignItems="center" gap="2" mb={6}>
             <Heading size="lg">

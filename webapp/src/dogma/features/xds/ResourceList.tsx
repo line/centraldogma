@@ -30,8 +30,15 @@ import { useMemo, useState } from 'react';
 import { DataTable } from 'dogma/features/xds/DataTable';
 import { DeleteConfirmationModal } from 'dogma/common/components/DeleteConfirmationModal';
 import { Deferred } from 'dogma/common/components/Deferred';
+import { useClampPageIndex, useUrlPagination } from 'dogma/common/components/table/useUrlPagination';
 import { useDeleteResourceMutation, useListResourcesQuery } from 'dogma/features/xds/xdsApiSlice';
-import { resourceName, XdsResourceDto, XdsResourceType, XDS_RESOURCE_META } from 'dogma/features/xds/XdsTypes';
+import {
+  resourceName,
+  XdsResourceDto,
+  XdsResourceType,
+  XDS_PAGE_SIZES,
+  XDS_RESOURCE_META,
+} from 'dogma/features/xds/XdsTypes';
 import { useGroupWriteAccess } from 'dogma/features/xds/useGroupWriteAccess';
 import { useAppDispatch } from 'dogma/hooks';
 import { newNotification } from 'dogma/features/notification/notificationSlice';
@@ -124,15 +131,22 @@ export const ResourceList = ({ group, type }: { group: string; type: XdsResource
 
   // Memoized so the table receives a stable data reference across re-renders (react-table requires this).
   const resources = useMemo(() => data || [], [data]);
+  const { pagination, onPaginationChange } = useUrlPagination({ pageSizes: XDS_PAGE_SIZES });
   const table = useReactTable({
     data: resources,
     columns,
+    state: { pagination },
+    onPaginationChange,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
-    initialState: { pagination: { pageSize: 10 } },
+    // Pagination is controlled via the URL (useUrlPagination); auto-reset would discard the page restored
+    // from the URL as soon as the resources finish loading.
+    autoResetPageIndex: false,
   });
+  // Auto-reset is off, so keep the page index within bounds when a deletion shrinks the list to fewer pages.
+  useClampPageIndex(table);
 
   return (
     <Deferred isLoading={isLoading} error={error}>
@@ -188,7 +202,7 @@ export const ResourceList = ({ group, type }: { group: string; type: XdsResource
                     value={pageSize}
                     onChange={(e) => table.setPageSize(Number(e.target.value))}
                   >
-                    {[10, 20, 50, 100].map((size) => (
+                    {XDS_PAGE_SIZES.map((size) => (
                       <option key={size} value={size}>
                         {size} / page
                       </option>

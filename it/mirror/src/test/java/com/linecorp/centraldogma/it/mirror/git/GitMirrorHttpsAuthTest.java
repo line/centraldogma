@@ -17,8 +17,8 @@
 package com.linecorp.centraldogma.it.mirror.git;
 
 import static com.google.common.base.MoreObjects.firstNonNull;
-import static com.linecorp.centraldogma.internal.CredentialUtil.credentialFile;
 import static com.linecorp.centraldogma.internal.CredentialUtil.credentialName;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.Collection;
 
@@ -33,13 +33,18 @@ import org.junit.jupiter.params.provider.MethodSource;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.ImmutableSet;
 
+import com.linecorp.armeria.client.BlockingWebClient;
+import com.linecorp.armeria.common.HttpStatus;
+import com.linecorp.armeria.common.ResponseEntity;
 import com.linecorp.centraldogma.client.CentralDogma;
-import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.internal.api.v1.MirrorRequest;
+import com.linecorp.centraldogma.internal.api.v1.PushResultDto;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.server.MirroringService;
+import com.linecorp.centraldogma.server.credential.CreateCredentialRequest;
+import com.linecorp.centraldogma.server.credential.Credential;
 import com.linecorp.centraldogma.server.mirror.MirroringServicePluginConfig;
-import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
 class GitMirrorHttpsAuthTest {
@@ -99,27 +104,40 @@ class GitMirrorHttpsAuthTest {
     @ParameterizedTest(name = "{0}, {1}")
     @MethodSource("arguments")
     @DisabledIf("noCredentials")
-    void httpsAuth(String projName, String gitUri, JsonNode credential) {
+    void httpsAuth(String projName, String gitUri, JsonNode credential) throws Exception {
         client.createProject(projName).join();
         client.createRepository(projName, "main").join();
 
-        // Add /credentials/{id}.json and /mirrors/{id}.json
         final String credentialName = credential.get("name").asText();
-        client.forRepo(projName, Project.REPO_DOGMA)
-              .commit("Add a mirror",
-                      Change.ofJsonUpsert(credentialFile(credentialName), credential),
-                      Change.ofJsonUpsert("/repos/main/mirrors/main.json",
-                                          '{' +
-                                          "  \"id\": \"main\"," +
-                                          "  \"enabled\": true," +
-                                          "  \"type\": \"single\"," +
-                                          "  \"direction\": \"REMOTE_TO_LOCAL\"," +
-                                          "  \"localRepo\": \"main\"," +
-                                          "  \"localPath\": \"/\"," +
-                                          "  \"remoteUri\": \"" + gitUri + "\"," +
-                                          "  \"credentialName\": \"" + credentialName + '"' +
-                                          '}'))
-              .push().join();
+        final String credentialId = credentialName.substring(credentialName.lastIndexOf('/') + 1);
+        final BlockingWebClient webClient = dogma.blockingHttpClient();
+
+        final CreateCredentialRequest credentialRequest =
+                new CreateCredentialRequest(credentialId, Jackson.treeToValue(credential, Credential.class));
+        final ResponseEntity<PushResultDto> credentialResponse =
+                webClient.prepare()
+                         .post("/api/v1/projects/{proj}/credentials")
+                         .pathParam("proj", projName)
+                         .contentJson(credentialRequest)
+                         .asJson(PushResultDto.class)
+                         .execute();
+        assertThat(credentialResponse.status()).isEqualTo(HttpStatus.CREATED);
+
+        // git+https://github.com/line/centraldogma-authtest.git
+        final String remoteScheme = "git+https";
+        final String remoteUrl = gitUri.substring((remoteScheme + "://").length());
+        final MirrorRequest mirror =
+                new MirrorRequest("main", true, projName, "0 0 0 1 1 ? 2099", "REMOTE_TO_LOCAL", "main",
+                                  "/", remoteScheme, remoteUrl, "/", "main", null, credentialName, null);
+        final ResponseEntity<PushResultDto> mirrorResponse =
+                webClient.prepare()
+                         .post("/api/v1/projects/{proj}/repos/{repo}/mirrors")
+                         .pathParam("proj", projName)
+                         .pathParam("repo", "main")
+                         .contentJson(mirror)
+                         .asJson(PushResultDto.class)
+                         .execute();
+        assertThat(mirrorResponse.status()).isEqualTo(HttpStatus.CREATED);
 
         // Try to perform mirroring to see if authentication works as expected.
         mirroringService.mirror().join();

@@ -19,6 +19,8 @@ import { ChakraLink } from 'dogma/common/components/ChakraLink';
 import { FaHistory } from 'react-icons/fa';
 import { makeTraversalFileLinks, toFilePath } from 'dogma/util/path-util';
 import { WithRepositoryRole } from 'dogma/features/auth/RepositoryRole';
+import { PageTitle } from 'dogma/common/components/PageTitle';
+import { RepositoryStatsCard } from 'dogma/features/repo/RepositoryStatsCard';
 
 const RepositoryDetailPage = () => {
   const router = useRouter();
@@ -95,40 +97,50 @@ cat ${project}/${repo}${path}`;
         files = Array.isArray(files) ? files : [files];
         return (
           <Box p="2">
-            <Breadcrumbs path={directoryPath} omitIndexList={[0, 3, 5, 6]} suffixes={{ 4: '/tree/head' }} />
-            <Flex minWidth="max-content" alignItems="center" gap="2" mb={6}>
-              <Heading size="lg">
-                {filePath ? (
-                  <HStack gap={0}>
-                    <Box color={'teal'} marginRight={2}>
-                      <FcOpenedFolder />
-                    </Box>
-                    {makeTraversalFileLinks(projectName, repoName, 'tree/head', filePath).map(
-                      ({ segment, url }) => {
-                        return (
-                          <Box key={url}>
-                            {'/'}
-                            <ChakraLink href={url}>{segment}</ChakraLink>
-                          </Box>
-                        );
-                      },
+            <PageTitle title={[filePath, `Revision ${revision}`, repoName, projectName]} />
+            <Flex
+              direction={{ base: 'column', md: 'row' }}
+              alignItems={{ base: 'stretch', md: 'center' }}
+              gap={4}
+              mb={6}
+            >
+              <Box flex={1} minW={0}>
+                <Breadcrumbs path={directoryPath} omitIndexList={[0, 3, 5, 6]} suffixes={{ 4: '/tree/head' }} />
+                <Flex flexWrap="wrap" alignItems="center" gap="2">
+                  <Heading size="lg">
+                    {filePath ? (
+                      <HStack gap={0}>
+                        <Box color={'teal'} marginRight={2}>
+                          <FcOpenedFolder />
+                        </Box>
+                        {makeTraversalFileLinks(projectName, repoName, 'tree/head', filePath).map(
+                          ({ segment, url }) => {
+                            return (
+                              <Box key={url}>
+                                {'/'}
+                                <ChakraLink href={url}>{segment}</ChakraLink>
+                              </Box>
+                            );
+                          },
+                        )}
+                      </HStack>
+                    ) : (
+                      <HStack>
+                        <Box color={'teal'}>
+                          <GoRepo />
+                        </Box>
+                        <Box color={'teal'}>{repoName}</Box>
+                      </HStack>
                     )}
-                  </HStack>
-                ) : (
-                  <HStack>
-                    <Box color={'teal'}>
-                      <GoRepo />
-                    </Box>
-                    <Box color={'teal'}>{repoName}</Box>
-                  </HStack>
-                )}
-              </Heading>
-              <Tooltip label="Go to History to view all revisions">
-                <Tag borderRadius="full" colorScheme="blue">
-                  Revision {revision} <InfoIcon ml={2} />
-                </Tag>
-              </Tooltip>
-              <Spacer />
+                  </Heading>
+                  <Tooltip label="Go to History to view all revisions">
+                    <Tag borderRadius="full" colorScheme="blue">
+                      Revision {revision} <InfoIcon ml={2} />
+                    </Tag>
+                  </Tooltip>
+                </Flex>
+              </Box>
+              <RepositoryStatsCard projectName={projectName} repoName={repoName} />
             </Flex>
             <Flex gap={2}>
               <Spacer />

@@ -16,7 +16,6 @@
 
 package com.linecorp.centraldogma.it.mirror.git;
 
-import static com.linecorp.centraldogma.internal.CredentialUtil.credentialFile;
 import static com.linecorp.centraldogma.internal.CredentialUtil.credentialName;
 import static com.linecorp.centraldogma.internal.CredentialUtil.projectCredentialFile;
 import static com.linecorp.centraldogma.it.mirror.git.GitTestUtil.getFileContent;
@@ -47,15 +46,20 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 
 import com.google.common.collect.ImmutableList;
 
+import com.linecorp.armeria.common.HttpStatus;
+import com.linecorp.armeria.common.ResponseEntity;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.MirrorException;
 import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.internal.api.v1.MirrorRequest;
+import com.linecorp.centraldogma.internal.api.v1.PushResultDto;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.server.MirroringService;
+import com.linecorp.centraldogma.server.credential.CreateCredentialRequest;
+import com.linecorp.centraldogma.server.internal.credential.SshKeyCredential;
 import com.linecorp.centraldogma.server.internal.mirror.MirrorState;
 import com.linecorp.centraldogma.server.mirror.MirrorDirection;
 import com.linecorp.centraldogma.server.mirror.MirroringServicePluginConfig;
-import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.testing.internal.TestUtil;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
@@ -83,8 +87,6 @@ class ForceRefUpdateTest {
     private static MirroringService mirroringService;
     private String projName;
     private KeyPair keyPair;
-    private String privateKey;
-    private String publicKey;
 
     @BeforeAll
     static void init() {
@@ -99,18 +101,14 @@ class ForceRefUpdateTest {
 
         final KeyPairGenerator kpg = KeyPairGenerator.getInstance("RSA");
         keyPair = kpg.generateKeyPair();
-        privateKey = Jackson.escapeText(KeyPairUtilsTest.toPemFormat(keyPair.getPrivate()));
-        publicKey = Jackson.escapeText(KeyPairUtilsTest.toPemFormat(keyPair.getPublic()));
     }
 
     @AfterEach
     void afterEach() {
-        dogma.client()
-             .forRepo(projName, Project.REPO_DOGMA)
-             .commit("cleanup",
-                     Change.ofRemoval(projectCredentialFile("ssh-key-id")),
-                     Change.ofRemoval("/repos/" + REPO_FOO + "/mirrors/foo.json"))
-             .push().join();
+        GitTestUtil.commitToMetaRepo(
+                dogma, projName, "cleanup",
+                Change.ofRemoval(projectCredentialFile("ssh-key-id")),
+                Change.ofRemoval("/repos/" + REPO_FOO + "/mirrors/foo.json"));
     }
 
     @Test
@@ -135,8 +133,9 @@ class ForceRefUpdateTest {
             sshd.start();
 
             final String gitUri = "git+ssh://127.0.0.1:" + sshd.getPort() + "/.git/";
+            // The credential must exist before creating a git+ssh mirror that references it.
+            pushCredentials();
             pushMirror(gitUri, MirrorDirection.LOCAL_TO_REMOTE);
-            pushCredentials(publicKey, privateKey);
 
             // 1. Perform the initial mirroring.
             mirroringService.mirror().join();
@@ -201,37 +200,42 @@ class ForceRefUpdateTest {
         }
     }
 
-    private void pushCredentials(String pubKey, String privKey) {
+    private void pushCredentials() {
         final String name = credentialName(projName, "ssh-key-id");
-        dogma.client().forRepo(projName, Project.REPO_DOGMA)
-             .commit("Add a mirror",
-                     Change.ofJsonUpsert(credentialFile(name),
-                                         '{' +
-                                         "  \"name\": \"" + name + "\"," +
-                                         "  \"type\": \"SSH_KEY\"," +
-                                         "  \"username\": \"" + "git" + "\"," +
-                                         "  \"publicKey\": \"" + pubKey + "\"," +
-                                         "  \"privateKey\": \"" + privKey + '"' +
-                                         '}')
-             ).push().join();
+        // Use the raw PEM text; the typed DTO is JSON-encoded by the client, which escapes it exactly once.
+        final CreateCredentialRequest credential = new CreateCredentialRequest(
+                "ssh-key-id",
+                new SshKeyCredential(name, "git",
+                                     KeyPairUtilsTest.toPemFormat(keyPair.getPublic()),
+                                     KeyPairUtilsTest.toPemFormat(keyPair.getPrivate()), null));
+        final ResponseEntity<PushResultDto> response =
+                dogma.blockingHttpClient().prepare()
+                     .post("/api/v1/projects/{proj}/credentials")
+                     .pathParam("proj", projName)
+                     .contentJson(credential)
+                     .asJson(PushResultDto.class)
+                     .execute();
+        assertThat(response.status()).isEqualTo(HttpStatus.CREATED);
     }
 
     private void pushMirror(String gitUri, MirrorDirection mirrorDirection) {
-        dogma.client().forRepo(projName, Project.REPO_DOGMA)
-             .commit("Add a mirror",
-                     Change.ofJsonUpsert("/repos/" + REPO_FOO + "/mirrors/foo.json",
-                                         '{' +
-                                         "  \"id\": \"foo\"," +
-                                         "  \"enabled\": true," +
-                                         "  \"type\": \"single\"," +
-                                         "  \"direction\": \"" + mirrorDirection.name() + "\"," +
-                                         "  \"localRepo\": \"" + REPO_FOO + "\"," +
-                                         "  \"localPath\": \"/\"," +
-                                         "  \"remoteUri\": \"" + gitUri + "\"," +
-                                         "  \"schedule\": \"0 0 0 1 1 ? 2099\"," +
-                                         "  \"credentialName\": \"" +
-                                         credentialName(projName, "ssh-key-id") + '"' +
-                                         '}'))
-             .push().join();
+        final String remoteScheme = "git+ssh";
+        String remoteUrl = gitUri.substring((remoteScheme + "://").length());
+        if (remoteUrl.endsWith("/")) {
+            remoteUrl = remoteUrl.substring(0, remoteUrl.length() - 1);
+        }
+        final MirrorRequest mirror =
+                new MirrorRequest("foo", true, projName, "0 0 0 1 1 ? 2099", mirrorDirection.name(), REPO_FOO,
+                                  "/", remoteScheme, remoteUrl, "/", "master", null,
+                                  credentialName(projName, "ssh-key-id"), null);
+        final ResponseEntity<PushResultDto> response =
+                dogma.blockingHttpClient().prepare()
+                     .post("/api/v1/projects/{proj}/repos/{repo}/mirrors")
+                     .pathParam("proj", projName)
+                     .pathParam("repo", REPO_FOO)
+                     .contentJson(mirror)
+                     .asJson(PushResultDto.class)
+                     .execute();
+        assertThat(response.status()).isEqualTo(HttpStatus.CREATED);
     }
 }

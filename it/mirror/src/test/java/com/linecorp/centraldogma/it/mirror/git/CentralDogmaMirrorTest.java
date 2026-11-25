@@ -16,7 +16,6 @@
 
 package com.linecorp.centraldogma.it.mirror.git;
 
-import static com.linecorp.centraldogma.internal.CredentialUtil.credentialFile;
 import static com.linecorp.centraldogma.internal.CredentialUtil.credentialName;
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.PASSWORD;
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.USERNAME;
@@ -25,7 +24,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.net.InetSocketAddress;
 import java.util.Map;
-import java.util.concurrent.CompletionException;
 
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.AfterEach;
@@ -35,19 +33,24 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
+import com.linecorp.armeria.client.BlockingWebClient;
 import com.linecorp.armeria.client.WebClient;
+import com.linecorp.armeria.common.HttpStatus;
+import com.linecorp.armeria.common.ResponseEntity;
 import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.MirrorException;
 import com.linecorp.centraldogma.common.PathPattern;
-import com.linecorp.centraldogma.common.RedundantChangeException;
 import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.internal.api.v1.MirrorRequest;
+import com.linecorp.centraldogma.internal.api.v1.PushResultDto;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.server.MirroringService;
+import com.linecorp.centraldogma.server.credential.CreateCredentialRequest;
+import com.linecorp.centraldogma.server.internal.credential.AccessTokenCredential;
 import com.linecorp.centraldogma.server.mirror.MirrorDirection;
 import com.linecorp.centraldogma.server.mirror.MirroringServicePluginConfig;
-import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.testing.internal.TestUtil;
 import com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil;
 import com.linecorp.centraldogma.testing.internal.auth.TestAuthProviderFactory;
@@ -342,46 +345,35 @@ class CentralDogmaMirrorTest {
 
     private void pushMirrorSettings(String localPath, String remotePath,
                                     MirrorDirection direction, @Nullable String gitignore) {
-        final InetSocketAddress remoteAddr = remoteDogma.serverAddress();
-        final String remoteUri = "dogma://" + remoteAddr.getHostString() + ':' + remoteAddr.getPort() +
-                                 '/' + projName + '/' + REPO_FOO + ".dogma" + remotePath;
+        final BlockingWebClient client = localDogma.blockingHttpClient();
 
         final String credId = "access-token";
         final String credName = credentialName(projName, credId);
-        try {
-            localClient.forRepo(projName, Project.REPO_DOGMA)
-                       .commit("Add credential",
-                               Change.ofJsonUpsert(credentialFile(credName),
-                                                   "{ \"type\": \"ACCESS_TOKEN\"," +
-                                                   "  \"name\": \"" + credName + "\"," +
-                                                   "  \"accessToken\": \"" + remoteAccessToken + "\" }"))
-                       .push().join();
-        } catch (CompletionException e) {
-            if (!(e.getCause() instanceof RedundantChangeException)) {
-                throw e;
-            }
-        }
+        final CreateCredentialRequest credential =
+                new CreateCredentialRequest(credId, new AccessTokenCredential(credName, remoteAccessToken));
+        final ResponseEntity<PushResultDto> credentialResponse =
+                client.prepare()
+                      .post("/api/v1/projects/{proj}/credentials")
+                      .pathParam("proj", projName)
+                      .contentJson(credential)
+                      .asJson(PushResultDto.class)
+                      .execute();
+        assertThat(credentialResponse.status()).isEqualTo(HttpStatus.CREATED);
 
-        final StringBuilder config = new StringBuilder();
-        config.append('{')
-              .append("  \"id\": \"foo\",")
-              .append("  \"enabled\": true,")
-              .append("  \"direction\": \"").append(direction).append("\",")
-              .append("  \"localRepo\": \"").append(REPO_FOO).append("\",")
-              .append("  \"localPath\": \"").append(localPath).append("\",")
-              .append("  \"remoteUri\": \"").append(remoteUri).append("\",")
-              .append("  \"schedule\": \"0 0 0 1 1 ? 2099\",")
-              .append("  \"credentialName\": \"").append(credName).append('"');
-        if (gitignore != null) {
-            config.append(",  \"gitignore\": \"").append(gitignore.replace("\n", "\\n")).append('"');
-        }
-        config.append('}');
-
-        localClient.forRepo(projName, Project.REPO_DOGMA)
-                   .commit("Add mirror config",
-                           Change.ofJsonUpsert(
-                                   "/repos/" + REPO_FOO + "/mirrors/foo.json",
-                                   config.toString()))
-                   .push().join();
+        final InetSocketAddress remoteAddr = remoteDogma.serverAddress();
+        final String remoteUrl = remoteAddr.getHostString() + ':' + remoteAddr.getPort() +
+                                 '/' + projName + '/' + REPO_FOO + ".dogma";
+        final MirrorRequest mirror =
+                new MirrorRequest("foo", true, projName, "0 0 0 1 1 ? 2099", direction.name(), REPO_FOO,
+                                  localPath, "dogma", remoteUrl, remotePath, "", gitignore, credName, null);
+        final ResponseEntity<PushResultDto> response =
+                client.prepare()
+                      .post("/api/v1/projects/{proj}/repos/{repo}/mirrors")
+                      .pathParam("proj", projName)
+                      .pathParam("repo", REPO_FOO)
+                      .contentJson(mirror)
+                      .asJson(PushResultDto.class)
+                      .execute();
+        assertThat(response.status()).isEqualTo(HttpStatus.CREATED);
     }
 }

@@ -329,13 +329,16 @@ abstract class AbstractGitMirror extends AbstractMirror {
             headBranchRef = getHeadBranchRef(git);
             final MirrorState oldMirrorState = localCurrentMirrorState(mirrorStatePath, localRev);
 
-            // Update the head commit ID again because there's a chance a commit is pushed between the
-            // getHeadBranchRefName and fetchRemoteHeadAndGetCommitId calls.
-            headCommitId = fetchRemoteHeadAndGetCommitId(git, headBranchRef.getName());
-            mirrorDecision = shouldRunRemoteToLocal(oldMirrorState, localRev.backward(1), headCommitId);
+            // Decide with the advertised commit ID so that an up-to-date repository does not fetch objects.
+            mirrorDecision = shouldRunRemoteToLocal(oldMirrorState, localRev.backward(1),
+                                                    headBranchRef.getObjectId());
             if (mirrorDecision == MirrorDecision.SKIP) {
                 return newMirrorResultForUpToDate(headBranchRef, triggeredTime);
             }
+
+            // Update the head commit ID again because there's a chance a commit is pushed between the
+            // getHeadBranchRef and fetchRemoteHeadAndGetCommitId calls.
+            headCommitId = fetchRemoteHeadAndGetCommitId(git, headBranchRef.getName());
         } catch (Exception e) {
             String message = "Failed to fetch the remote repository '" + git.remoteUri() +
                              "' to the local repository '" + localPath() + "'.";

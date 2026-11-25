@@ -8,6 +8,7 @@
 **/src/main/gen-java
 **/src/test/gen-java
 **/gen-src
+/*/.docusaurus
 *.log
 /data
 /*/*/data

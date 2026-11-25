@@ -36,6 +36,7 @@ import { GoDiff } from 'react-icons/go';
 import DiffView, { DiffMode } from 'dogma/common/components/DiffView';
 import DiffModeButton from 'dogma/common/components/DiffModeButton';
 import { useForm } from 'react-hook-form';
+import { PageTitle } from 'dogma/common/components/PageTitle';
 
 type FormData = {
   baseRevision: number;
@@ -101,6 +102,7 @@ const ChangesViewPage = () => {
       {() => {
         return (
           <Box>
+            <PageTitle title={[`Changes ${baseRevision}..${headRevision}`, repoName, projectName]} />
             <Breadcrumbs path={router.asPath} omitIndexList={[0, 3, 6, 7, 8]} unlinkedList={[5]} />
             <Heading size="lg" marginBottom={5}>
               <HStack color="teal">

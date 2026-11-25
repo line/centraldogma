@@ -30,6 +30,92 @@ class ZooKeeperReplicationConfigTest {
     private static final String TEST_SECRET = "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6";
 
     @Test
+    void logCountNamesAndDefaults() throws Exception {
+        final String defaultsJson =
+                "{\"method\":\"ZOOKEEPER\",\"serverId\":1,\"secret\":\"" + TEST_SECRET + "\"," +
+                "\"servers\":{\"1\":{\"host\":\"127.0.0.1\",\"quorumPort\":100,\"electionPort\":101}}}";
+        final ZooKeeperReplicationConfig defaults =
+                Jackson.readValue(defaultsJson, ZooKeeperReplicationConfig.class);
+        assertThat(defaults.minimumLogCount()).isEqualTo(1024);
+        assertThat(defaults.maximumLogCount()).isEqualTo(Integer.MAX_VALUE);
+
+        final String nullMaximumJson =
+                "{\"method\":\"ZOOKEEPER\",\"serverId\":1,\"secret\":\"" + TEST_SECRET + "\"," +
+                "\"servers\":{\"1\":{\"host\":\"127.0.0.1\",\"quorumPort\":100,\"electionPort\":101}}," +
+                "\"maximumLogCount\":null}";
+        final ZooKeeperReplicationConfig nullMaximum =
+                Jackson.readValue(nullMaximumJson, ZooKeeperReplicationConfig.class);
+        assertThat(nullMaximum.maximumLogCount()).isEqualTo(Integer.MAX_VALUE);
+
+        final String legacyJson =
+                "{\"method\":\"ZOOKEEPER\",\"serverId\":1,\"secret\":\"" + TEST_SECRET + "\"," +
+                "\"servers\":{\"1\":{\"host\":\"127.0.0.1\",\"quorumPort\":100,\"electionPort\":101}}," +
+                "\"maxLogCount\":20}";
+        final ZooKeeperReplicationConfig legacy =
+                Jackson.readValue(legacyJson, ZooKeeperReplicationConfig.class);
+        assertThat(legacy.minimumLogCount()).isEqualTo(20);
+        assertThat(legacy.maxLogCount()).isEqualTo(20);
+
+        final String renamedJson =
+                "{\"method\":\"ZOOKEEPER\",\"serverId\":1,\"secret\":\"" + TEST_SECRET + "\"," +
+                "\"servers\":{\"1\":{\"host\":\"127.0.0.1\",\"quorumPort\":100,\"electionPort\":101}}," +
+                "\"minimumLogCount\":20,\"maximumLogCount\":30}";
+        final ZooKeeperReplicationConfig renamed = Jackson.readValue(
+                renamedJson, ZooKeeperReplicationConfig.class);
+        assertThat(renamed.minimumLogCount()).isEqualTo(20);
+        assertThat(renamed.maximumLogCount()).isEqualTo(30);
+        final String serialized = Jackson.writeValueAsString(legacy);
+        assertThat(serialized).contains("\"minimumLogCount\":20", "\"maximumLogCount\":2147483647")
+                              .doesNotContain("\"maxLogCount\"");
+    }
+
+    @Test
+    void invalidLogCounts() throws Exception {
+        for (String json : new String[] {
+                "{\"method\":\"ZOOKEEPER\",\"serverId\":1,\"secret\":\"" + TEST_SECRET + "\"," +
+                "\"servers\":{\"1\":{\"host\":\"127.0.0.1\",\"quorumPort\":100,\"electionPort\":101}}," +
+                "\"maxLogCount\":0}",
+                "{\"method\":\"ZOOKEEPER\",\"serverId\":1,\"secret\":\"" + TEST_SECRET + "\"," +
+                "\"servers\":{\"1\":{\"host\":\"127.0.0.1\",\"quorumPort\":100,\"electionPort\":101}}," +
+                "\"maxLogCount\":-1}" }) {
+            final ZooKeeperReplicationConfig legacy = Jackson.readValue(
+                    json, ZooKeeperReplicationConfig.class);
+            assertThat(legacy.minimumLogCount()).isEqualTo(1024);
+        }
+        for (String json : new String[] {
+                "{\"method\":\"ZOOKEEPER\",\"serverId\":1,\"secret\":\"" + TEST_SECRET + "\"," +
+                "\"servers\":{\"1\":{\"host\":\"127.0.0.1\",\"quorumPort\":100,\"electionPort\":101}}," +
+                "\"minimumLogCount\":0}",
+                "{\"method\":\"ZOOKEEPER\",\"serverId\":1,\"secret\":\"" + TEST_SECRET + "\"," +
+                "\"servers\":{\"1\":{\"host\":\"127.0.0.1\",\"quorumPort\":100,\"electionPort\":101}}," +
+                "\"minimumLogCount\":-1}",
+                "{\"method\":\"ZOOKEEPER\",\"serverId\":1,\"secret\":\"" + TEST_SECRET + "\"," +
+                "\"servers\":{\"1\":{\"host\":\"127.0.0.1\",\"quorumPort\":100,\"electionPort\":101}}," +
+                "\"maximumLogCount\":0}",
+                "{\"method\":\"ZOOKEEPER\",\"serverId\":1,\"secret\":\"" + TEST_SECRET + "\"," +
+                "\"servers\":{\"1\":{\"host\":\"127.0.0.1\",\"quorumPort\":100,\"electionPort\":101}}," +
+                "\"maximumLogCount\":-1}",
+                "{\"method\":\"ZOOKEEPER\",\"serverId\":1,\"secret\":\"" + TEST_SECRET + "\"," +
+                "\"servers\":{\"1\":{\"host\":\"127.0.0.1\",\"quorumPort\":100,\"electionPort\":101}}," +
+                "\"minimumLogCount\":20,\"maximumLogCount\":20}",
+                "{\"method\":\"ZOOKEEPER\",\"serverId\":1,\"secret\":\"" + TEST_SECRET + "\"," +
+                "\"servers\":{\"1\":{\"host\":\"127.0.0.1\",\"quorumPort\":100,\"electionPort\":101}}," +
+                "\"minimumLogCount\":21,\"maximumLogCount\":20}",
+                "{\"method\":\"ZOOKEEPER\",\"serverId\":1,\"secret\":\"" + TEST_SECRET + "\"," +
+                "\"servers\":{\"1\":{\"host\":\"127.0.0.1\",\"quorumPort\":100,\"electionPort\":101}}," +
+                "\"maximumLogCount\":1024}",
+                "{\"method\":\"ZOOKEEPER\",\"serverId\":1,\"secret\":\"" + TEST_SECRET + "\"," +
+                "\"servers\":{\"1\":{\"host\":\"127.0.0.1\",\"quorumPort\":100,\"electionPort\":101}}," +
+                "\"maxLogCount\":20,\"minimumLogCount\":20}",
+                "{\"method\":\"ZOOKEEPER\",\"serverId\":1,\"secret\":\"" + TEST_SECRET + "\"," +
+                "\"servers\":{\"1\":{\"host\":\"127.0.0.1\",\"quorumPort\":100,\"electionPort\":101}}," +
+                "\"maxLogCount\":0,\"minimumLogCount\":20}" }) {
+            assertThatThrownBy(() -> Jackson.readValue(json, ZooKeeperReplicationConfig.class))
+                    .hasCauseInstanceOf(IllegalArgumentException.class);
+        }
+    }
+
+    @Test
     void testJsonConversion() throws Exception {
         final String json =
                 '{' +
@@ -75,6 +161,7 @@ class ZooKeeperReplicationConfigTest {
         // secret is not serialized in JSON output.
         final String serialized = Jackson.writeValueAsString(cfg);
         assertThat(serialized).doesNotContain("secret");
+        assertThat(serialized).contains("\"minimumLogCount\":18").doesNotContain("\"maxLogCount\"");
     }
 
     @Test

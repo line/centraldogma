@@ -148,11 +148,13 @@ import com.linecorp.centraldogma.server.internal.admin.service.UserService;
 import com.linecorp.centraldogma.server.internal.api.ContentServiceV1;
 import com.linecorp.centraldogma.server.internal.api.CredentialServiceV1;
 import com.linecorp.centraldogma.server.internal.api.GitHttpService;
+import com.linecorp.centraldogma.server.internal.api.GlobalRateLimiter;
 import com.linecorp.centraldogma.server.internal.api.HttpApiExceptionHandler;
 import com.linecorp.centraldogma.server.internal.api.LoggerService;
 import com.linecorp.centraldogma.server.internal.api.MetadataApiService;
 import com.linecorp.centraldogma.server.internal.api.MirroringServiceV1;
 import com.linecorp.centraldogma.server.internal.api.ProjectServiceV1;
+import com.linecorp.centraldogma.server.internal.api.RepositoryRateLimiter;
 import com.linecorp.centraldogma.server.internal.api.RepositoryServiceV1;
 import com.linecorp.centraldogma.server.internal.api.WatchService;
 import com.linecorp.centraldogma.server.internal.api.auth.ApplicationCertificateAuthorizer;
@@ -259,6 +261,11 @@ public class CentralDogma implements AutoCloseable {
     }
 
     private static final int DEFAULT_MAX_FRAME_LENGTH = 1024 * 1024; // 1 MiB
+
+    // Keep enough room for its upstream growth while raising the FileService cache-entry limit above Armeria's
+    // 64 KiB default. Otherwise heavy Monaco chunks and workers would be re-read from the classpath on every
+    // request instead of being served from the in-memory cache.
+    static final int WEBAPP_MAX_CACHE_ENTRY_SIZE_BYTES = 2 * 1024 * 1024; // 2 MiB
 
     /**
      * Creates a new instance from the given configuration file.
@@ -986,7 +993,9 @@ public class CentralDogma implements AutoCloseable {
                 new JacksonRequestConverterFunction(new ObjectMapper()),
                 new HttpApiRequestConverter(projectApiManager),
                 new RequiresRepositoryRoleDecoratorFactory(mds),
-                new RequiresProjectRoleDecoratorFactory(mds)
+                new RequiresProjectRoleDecoratorFactory(mds),
+                new RepositoryRateLimiter(cfg.rateLimiting().repositories(), pm, meterRegistry),
+                new GlobalRateLimiter(cfg.rateLimiting().global(), meterRegistry)
         );
         sb.dependencyInjector(dependencyInjector, false)
           // TODO(ikhoon): Consider exposing ReflectiveDependencyInjector as a public API via
@@ -1013,7 +1022,8 @@ public class CentralDogma implements AutoCloseable {
         apiV1ServiceBuilder
                 .annotatedService(new ServerStatusService(executor, statusManager))
                 .annotatedService(new ProjectServiceV1(projectApiManager, executor))
-                .annotatedService(new RepositoryServiceV1(executor, mds, encryptionStorageManager))
+                .annotatedService(new RepositoryServiceV1(executor, mds, encryptionStorageManager,
+                                                          cfg.repositoryStatsWindowHours()))
                 .annotatedService(new CredentialServiceV1(projectApiManager, executor))
                 .annotatedService(new VariableServiceV1(pm, executor));
         if (LOGBACK_ENABLED) {
@@ -1116,6 +1126,7 @@ public class CentralDogma implements AutoCloseable {
                                 .cacheControl(ServerCacheControl.REVALIDATED)
                                 .autoDecompress(true)
                                 .serveCompressedFiles(true)
+                                .maxCacheEntrySizeBytes(WEBAPP_MAX_CACHE_ENTRY_SIZE_BYTES)
                                 .fallbackFileExtensions("html")
                                 .build());
         }

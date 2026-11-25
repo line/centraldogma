@@ -31,12 +31,16 @@ import static org.awaitility.Awaitility.await;
 import java.io.IOException;
 import java.net.URI;
 import java.net.UnknownHostException;
+import java.time.Instant;
+import java.util.concurrent.TimeUnit;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -61,6 +65,7 @@ import com.linecorp.armeria.common.auth.AuthToken;
 import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.client.CentralDogmaRepository;
 import com.linecorp.centraldogma.client.armeria.ArmeriaCentralDogmaBuilder;
+import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.ProjectNotFoundException;
 import com.linecorp.centraldogma.common.ProjectRole;
@@ -81,6 +86,7 @@ import com.linecorp.centraldogma.server.internal.credential.AccessTokenCredentia
 import com.linecorp.centraldogma.server.metadata.ProjectMetadata;
 import com.linecorp.centraldogma.server.metadata.Roles;
 import com.linecorp.centraldogma.server.storage.project.Project;
+import com.linecorp.centraldogma.server.storage.repository.Repository;
 import com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil;
 import com.linecorp.centraldogma.testing.internal.auth.TestAuthProviderFactory;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
@@ -92,6 +98,7 @@ class RepositoryServiceV1Test {
 
         @Override
         protected void configure(CentralDogmaBuilder builder) {
+            builder.repositoryStatsWindowHours(24);
             builder.systemAdministrators(TestAuthMessageUtil.USERNAME);
             builder.authProviderFactory(new TestAuthProviderFactory());
         }
@@ -127,6 +134,59 @@ class RepositoryServiceV1Test {
                                                                        TestAuthMessageUtil.PASSWORD2,
                                                                        "appId2", false)))
                                .build();
+    }
+
+    @Test
+    void statsRequiresReadPermission() throws Exception {
+        final String repoName = "activityRepo";
+        createRepositoryAndValidate(systemAdminClient, repoName);
+        final String path = REPOS_PREFIX + '/' + repoName + "/stats";
+        final HttpRequest projectRoles = HttpRequest.builder()
+                .post("/api/v1/metadata/myPro/repos/" + repoName + "/roles/projects")
+                .contentJson(Jackson.readTree("{\"member\":null,\"guest\":null}"))
+                .build();
+        assertThat(systemAdminClient.execute(projectRoles).aggregate().join().status())
+                .isEqualTo(HttpStatus.OK);
+        // Give this user READ access independent of project membership.
+        final HttpRequest roleRequest = HttpRequest.builder()
+                .post("/api/v1/metadata/myPro/repos/" + repoName + "/roles/users")
+                .contentJson(new MetadataApiService.IdAndRepositoryRole(
+                        TestAuthMessageUtil.USERNAME2, RepositoryRole.READ))
+                .build();
+        assertThat(systemAdminClient.execute(roleRequest).aggregate().join().status()).isEqualTo(HttpStatus.OK);
+        final AggregatedHttpResponse response = userClient.get(path).aggregate().join();
+        assertThat(response.status()).isEqualTo(HttpStatus.OK);
+        final JsonNode stats = Jackson.readTree(response.contentUtf8());
+        assertThat(stats).hasSize(5);
+        assertThat(stats.get("enabled").asBoolean()).isTrue();
+        assertThat(stats.get("windowHours").asInt()).isEqualTo(24);
+        assertThat(stats.get("commitCount").asInt()).isOne();
+        assertThat(stats.get("recommendedCount").asInt()).isEqualTo(100);
+        assertThat(Instant.parse(stats.get("updatedAt").asText())).isBeforeOrEqualTo(Instant.now());
+        // The repository administration endpoint requires ADMIN, proving READ was sufficient above.
+        assertThat(userClient.get(REPOS_PREFIX + '/' + repoName).aggregate().join().status())
+                .isEqualTo(HttpStatus.FORBIDDEN);
+        assertThat(tokenClient.get(path).aggregate().join().status()).isEqualTo(HttpStatus.FORBIDDEN);
+        assertThat(systemAdminClient.get(REPOS_PREFIX + "/absent/stats").aggregate().join().status())
+                .isEqualTo(HttpStatus.NOT_FOUND);
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = { 99, 100, 101, 102 })
+    void statsReturnsCountBoundedAtOneMoreThanTheRecommendation(int commitCount) throws Exception {
+        final String repoName = "activityCapped" + commitCount;
+        createRepository(systemAdminClient, repoName);
+        final Repository repository = dogma.projectManager().get("myPro").repos().get(repoName);
+        final long now = System.currentTimeMillis();
+        for (int i = 1; i < commitCount; i++) {
+            repository.commit(Revision.HEAD, now, Author.SYSTEM, "commit",
+                              Change.ofTextUpsert("/value.txt", "" + i)).join();
+        }
+        final AggregatedHttpResponse response = systemAdminClient
+                .get(REPOS_PREFIX + '/' + repoName + "/stats").aggregate().join();
+        assertThat(response.status()).isEqualTo(HttpStatus.OK);
+        final JsonNode stats = Jackson.readTree(response.contentUtf8());
+        assertThat(stats.get("commitCount").asInt()).isEqualTo(Math.min(commitCount, 101));
     }
 
     @Test
@@ -408,6 +468,51 @@ class RepositoryServiceV1Test {
     }
 
     @Nested
+    class RepositoryStatsWindowTest {
+
+        @RegisterExtension
+        final CentralDogmaExtension dogma = new CentralDogmaExtension() {
+            @Override
+            protected void configure(CentralDogmaBuilder builder) {
+                builder.repositoryStatsWindowHours(48);
+            }
+
+            @Override
+            protected void configureHttpClient(WebClientBuilder builder) {
+                builder.addHeader(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous");
+            }
+
+            @Override
+            protected boolean runForEachTest() {
+                return true;
+            }
+        };
+
+        @Test
+        void statsUsesConfiguredWindow() throws Exception {
+            createProject(dogma.httpClient());
+            createRepository(dogma.httpClient(), "stats");
+            final Repository repository = dogma.projectManager().get("myPro").repos().get("stats");
+            final long now = System.currentTimeMillis();
+            repository.commit(Revision.HEAD, now - TimeUnit.HOURS.toMillis(36), Author.SYSTEM, "older",
+                              Change.ofTextUpsert("/value.txt", "older")).join();
+            repository.commit(Revision.HEAD, now, Author.SYSTEM, "recent",
+                              Change.ofTextUpsert("/value.txt", "recent")).join();
+            final AggregatedHttpResponse response = dogma.httpClient()
+                    .get(REPOS_PREFIX + "/stats/stats").aggregate().join();
+            assertThat(response.status()).isEqualTo(HttpStatus.OK);
+            final JsonNode stats = Jackson.readTree(response.contentUtf8());
+            assertThat(stats.get("enabled").asBoolean()).isTrue();
+            assertThat(stats.get("windowHours").asInt()).isEqualTo(48);
+            assertThat(stats.get("commitCount").asInt()).isEqualTo(3);
+            final JsonNode configs = Jackson.readTree(dogma.httpClient().get("/configs")
+                                                          .aggregate().join().contentUtf8());
+            assertThat(configs.has("repositoryStatsWindowHours")).isFalse();
+            assertThat(configs.get("mtlsEnabled").asBoolean()).isFalse();
+        }
+    }
+
+    @Nested
     class RepositoriesTest {
 
         @RegisterExtension
@@ -426,6 +531,21 @@ class RepositoryServiceV1Test {
         @BeforeEach
         void setUp() {
             createProject(dogma.httpClient());
+        }
+
+        @Test
+        void statsIsDisabledByDefault() throws Exception {
+            createRepository(dogma.httpClient(), "stats");
+            final Instant beforeRequest = Instant.now();
+            final AggregatedHttpResponse response = dogma.httpClient()
+                    .get(REPOS_PREFIX + "/stats/stats").aggregate().join();
+            assertThat(response.status()).isEqualTo(HttpStatus.OK);
+            final JsonNode stats = Jackson.readTree(response.contentUtf8());
+            assertThat(stats.get("enabled").asBoolean()).isFalse();
+            assertThat(stats.get("windowHours").asInt()).isZero();
+            assertThat(stats.get("commitCount").asInt()).isZero();
+            assertThat(stats.get("recommendedCount").asInt()).isZero();
+            assertThat(Instant.parse(stats.get("updatedAt").asText())).isBetween(beforeRequest, Instant.now());
         }
 
         @Test

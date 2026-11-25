@@ -37,14 +37,14 @@ import {
 } from '@tanstack/react-table';
 import { useMemo, useState } from 'react';
 import { DataTable } from 'dogma/features/xds/DataTable';
-import { GroupDto } from 'dogma/features/xds/XdsTypes';
+import { GroupDto, XDS_PAGE_SIZES } from 'dogma/features/xds/XdsTypes';
+import { useClampPageIndex, useUrlPagination } from 'dogma/common/components/table/useUrlPagination';
 
 const columnHelper = createColumnHelper<GroupDto>();
 
-const PAGE_SIZES = [10, 20, 50, 100];
-
 export const GroupList = ({ groups }: { groups: GroupDto[] }) => {
   const [globalFilter, setGlobalFilter] = useState('');
+  const { pagination, onPaginationChange } = useUrlPagination({ pageSizes: XDS_PAGE_SIZES });
 
   // The group can be deleted from within the group (group detail page), not from this list, so that deletion
   // requires opening the group first.
@@ -69,14 +69,28 @@ export const GroupList = ({ groups }: { groups: GroupDto[] }) => {
   const table = useReactTable({
     data: groups,
     columns,
-    state: { globalFilter },
+    state: { globalFilter, pagination },
     onGlobalFilterChange: setGlobalFilter,
+    onPaginationChange,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
-    initialState: { pagination: { pageSize: 10 } },
+    // Pagination is controlled via the URL (useUrlPagination); auto-reset would discard the page restored
+    // from the URL as soon as the groups finish loading.
+    autoResetPageIndex: false,
   });
+  // Auto-reset is off, so keep the page index within bounds when a filter narrows the list to fewer pages.
+  useClampPageIndex(table);
+
+  // With auto-reset disabled, filtering no longer moves back to the first page on its own, so a narrowing
+  // filter could otherwise strand the user on a now-empty later page. Reset explicitly instead.
+  const handleFilterChange = (value: string) => {
+    setGlobalFilter(value);
+    if (pagination.pageIndex !== 0) {
+      table.setPageIndex(0);
+    }
+  };
 
   if (groups.length === 0) {
     return <Text color="gray.500">No groups yet. Create one to get started.</Text>;
@@ -96,7 +110,7 @@ export const GroupList = ({ groups }: { groups: GroupDto[] }) => {
           <Input
             placeholder="Search groups"
             value={globalFilter}
-            onChange={(e) => setGlobalFilter(e.target.value)}
+            onChange={(e) => handleFilterChange(e.target.value)}
           />
         </InputGroup>
       </HStack>
@@ -124,7 +138,7 @@ export const GroupList = ({ groups }: { groups: GroupDto[] }) => {
           Next
         </Button>
         <Select size="sm" w="auto" value={pageSize} onChange={(e) => table.setPageSize(Number(e.target.value))}>
-          {PAGE_SIZES.map((size) => (
+          {XDS_PAGE_SIZES.map((size) => (
             <option key={size} value={size}>
               {size} / page
             </option>

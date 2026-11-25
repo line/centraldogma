@@ -26,7 +26,26 @@ import org.eclipse.jgit.revwalk.RevWalk;
 import org.eclipse.jgit.treewalk.TreeWalk;
 import org.jspecify.annotations.Nullable;
 
+import com.linecorp.centraldogma.common.Author;
+import com.linecorp.centraldogma.common.Change;
+import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
+
 public final class GitTestUtil {
+
+    /**
+     * Commits the given mirror or credential {@code changes} directly to the meta repository of
+     * {@code projectName}, bypassing the push API. Only a system administrator may write mirror and
+     * credential files through the push API (see {@code ContentServiceV1.checkMetaRepoPush}), so tests
+     * that need to inject such files (e.g. legacy or otherwise invalid configurations) commit them at the
+     * storage layer.
+     */
+    public static void commitToMetaRepo(CentralDogmaExtension dogma, String projectName,
+                                        String summary, Change<?>... changes) {
+        dogma.projectManager().get(projectName).metaRepo()
+             .commit(Revision.HEAD, System.currentTimeMillis(), Author.SYSTEM, summary, changes)
+             .join();
+    }
 
     public static byte @Nullable [] getFileContent(Git git, ObjectId commitId, String fileName)
             throws IOException {

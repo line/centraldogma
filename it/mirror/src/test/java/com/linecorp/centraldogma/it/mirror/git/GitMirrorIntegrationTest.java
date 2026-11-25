@@ -17,8 +17,6 @@
 package com.linecorp.centraldogma.it.mirror.git;
 
 import static com.google.common.base.MoreObjects.firstNonNull;
-import static com.linecorp.centraldogma.internal.CredentialUtil.credentialFile;
-import static com.linecorp.centraldogma.internal.CredentialUtil.credentialName;
 import static net.javacrumbs.jsonunit.fluent.JsonFluentAssert.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -33,7 +31,6 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CompletionException;
 
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.MergeCommand.FastForwardMode;
@@ -63,16 +60,19 @@ import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.hash.Hashing;
 
+import com.linecorp.armeria.common.HttpStatus;
+import com.linecorp.armeria.common.ResponseEntity;
 import com.linecorp.centraldogma.client.CentralDogma;
-import com.linecorp.centraldogma.common.CentralDogmaException;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Commit;
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.MirrorException;
 import com.linecorp.centraldogma.common.PathPattern;
-import com.linecorp.centraldogma.common.RedundantChangeException;
+import com.linecorp.centraldogma.common.PushResult;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.internal.api.v1.MirrorRequest;
+import com.linecorp.centraldogma.internal.api.v1.PushResultDto;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.server.MirroringService;
 import com.linecorp.centraldogma.server.internal.JGitUtil;
@@ -286,13 +286,29 @@ class GitMirrorIntegrationTest {
 
     @Test
     void remoteToLocal_gitignore() throws Exception {
-        pushMirrorSettings(null, "/first#master", "\"/exclude_if_root.txt\\nexclude_dir\"");
+        pushMirrorSettings(null, "/first#master", "/exclude_if_root.txt\nexclude_dir");
         checkGitignore("/first/#master");
     }
 
     @Test
     void remoteToLocal_gitignore_with_array() throws Exception {
-        pushMirrorSettings(null, "/first#master", "[\"/exclude_if_root.txt\", \"exclude_dir\"]");
+        // An array-form gitignore is only supported for backward compatibility and cannot be expressed via
+        // the mirroring REST API (MirrorRequest.gitignore is a string), so the config is committed directly
+        // to the meta repository.
+        GitTestUtil.commitToMetaRepo(
+                dogma, projName, "Add a mirror",
+                Change.ofJsonUpsert("/repos/" + REPO_FOO + "/mirrors/foo.json",
+                                    '{' +
+                                    "  \"id\": \"foo\"," +
+                                    "  \"enabled\": true," +
+                                    "  \"direction\": \"REMOTE_TO_LOCAL\"," +
+                                    "  \"localRepo\": \"" + REPO_FOO + "\"," +
+                                    "  \"localPath\": \"/\"," +
+                                    "  \"remoteUri\": \"" + gitUri + "/first#master\"," +
+                                    "  \"schedule\": \"0 0 0 1 1 ? 2099\"," +
+                                    "  \"credentialName\": \"\"," +
+                                    "  \"gitignore\": [\"/exclude_if_root.txt\", \"exclude_dir\"]" +
+                                    '}'));
         checkGitignore("/first/#master");
     }
 
@@ -535,10 +551,13 @@ class GitMirrorIntegrationTest {
 
     @CsvSource({ "meta", "dogma" })
     @ParameterizedTest
-    void cannotMirrorToInternalRepositories(String localRepo) {
-        assertThatThrownBy(() -> pushMirrorSettingsWithLocalRepo(localRepo, "/", "/", null))
-                .hasCauseInstanceOf(CentralDogmaException.class)
-                .hasMessageContaining("invalid localRepo: " + localRepo);
+    void systemAdminCanPushMirrorFileViaPushApi(String localRepo) {
+        final PushResult result =
+                client.forRepo(projName, Project.REPO_DOGMA)
+                      .commit("Add a mirror",
+                              Change.ofJsonUpsert("/repos/" + localRepo + "/mirrors/foo.json", "{}"))
+                      .push().join();
+        assertThat(result.revision().major()).isPositive();
     }
 
     @Test
@@ -710,47 +729,37 @@ class GitMirrorIntegrationTest {
 
     private void pushMirrorSettings(String mirrorId, String localRepo, @Nullable String localPath,
                                     @Nullable String remotePath, @Nullable String gitignore) {
-        final String localPath0 = localPath == null ? "/" : localPath;
-        final String remoteUri = gitUri + firstNonNull(remotePath, "");
-        final String credentialName = credentialName(projName, "none");
-        try {
-            client.forRepo(projName, Project.REPO_DOGMA)
-                  .commit("Add /credentials/none",
-                          Change.ofJsonUpsert(credentialFile(credentialName),
-                                              "{ " +
-                                              "\"type\": \"NONE\", " +
-                                              "\"name\": \"" + credentialName + "\", " +
-                                              "\"enabled\": true " +
-                                              '}'))
-                  .push().join();
-        } catch (CompletionException e) {
-            if (e.getCause() instanceof RedundantChangeException) {
-                // The same content can be pushed several times.
-            } else {
-                throw e;
-            }
-        }
-        client.forRepo(projName, Project.REPO_DOGMA)
-              .commit("Add /repos/" + localRepo + "/mirrors/" + mirrorId + ".json",
-                      Change.ofJsonUpsert("/repos/" + localRepo + "/mirrors/" + mirrorId + ".json",
-                                          '{' +
-                                          "  \"id\": \"" + mirrorId + "\"," +
-                                          "  \"enabled\": true," +
-                                          "  \"type\": \"single\"," +
-                                          "  \"direction\": \"REMOTE_TO_LOCAL\"," +
-                                          "  \"localRepo\": \"" + localRepo + "\"," +
-                                          "  \"localPath\": \"" + localPath0 + "\"," +
-                                          "  \"remoteUri\": \"" + remoteUri + "\"," +
-                                          "  \"schedule\": \"0 0 0 1 1 ? 2099\"," +
-                                          "  \"credentialName\": \"" + credentialName + "\"," +
-                                          "  \"gitignore\": " + firstNonNull(gitignore, "\"\"") +
-                                          '}'))
-              .push().join();
+        final ResponseEntity<PushResultDto> response =
+                dogma.blockingHttpClient().prepare()
+                     .post("/api/v1/projects/{proj}/repos/{repo}/mirrors")
+                     .pathParam("proj", projName)
+                     .pathParam("repo", localRepo)
+                     .contentJson(newMirrorRequest(mirrorId, localRepo, localPath, remotePath, gitignore))
+                     .asJson(PushResultDto.class)
+                     .execute();
+        assertThat(response.status()).isEqualTo(HttpStatus.CREATED);
     }
 
-    private void pushMirrorSettingsWithLocalRepo(String localRepo, @Nullable String localPath,
-                                                 @Nullable String remotePath, @Nullable String gitignore) {
-        pushMirrorSettings("foo", localRepo, localPath, remotePath, gitignore);
+    // git+file:///abs/path/.git -> (scheme: "git+file", url: "/abs/path/.git")
+    // The remote path may carry the branch as a URI fragment, e.g. "/first#master".
+    private MirrorRequest newMirrorRequest(String mirrorId, String localRepo, @Nullable String localPath,
+                                           @Nullable String remotePath, @Nullable String gitignore) {
+        final String remoteScheme = "git+file";
+        final String remoteUrl = gitUri.substring((remoteScheme + "://").length());
+        String remotePath0 = firstNonNull(remotePath, "/");
+        // The test git repositories use the 'master' branch by default.
+        String remoteBranch = "master";
+        final int fragmentIndex = remotePath0.indexOf('#');
+        if (fragmentIndex >= 0) {
+            remoteBranch = remotePath0.substring(fragmentIndex + 1);
+            remotePath0 = remotePath0.substring(0, fragmentIndex);
+        }
+        if (remotePath0.isEmpty()) {
+            remotePath0 = "/";
+        }
+        return new MirrorRequest(mirrorId, true, projName, "0 0 0 1 1 ? 2099", "REMOTE_TO_LOCAL",
+                                 localRepo, firstNonNull(localPath, "/"), remoteScheme, remoteUrl,
+                                 remotePath0, remoteBranch, gitignore, "", null);
     }
 
     private Entry<JsonNode> expectedMirrorState(Revision revision, String localPath, String remotePath)

@@ -1,0 +1,197 @@
+---
+title: Encryption at rest
+description: Configure repository encryption, migrate existing repositories, and manage encryption keys.
+---
+
+# Encryption at rest
+
+Central Dogma can encrypt repository data on disk using AES-256-GCM-SIV. Encrypted repositories store
+their Git objects and references in RocksDB under `dataDir/_rocks`.
+
+Encryption is disabled by default. To enable it, provide a key management integration and configure
+the `encryption` property in [`conf/dogma.json`](setup-configuration.mdx).
+
+## How keys are managed
+
+Central Dogma uses envelope encryption:
+
+- A **key encryption key (KEK)** in your key management system protects repository keys. The `kekId`
+  configuration property identifies this key.
+- Each encrypted repository has a versioned **data encryption key (DEK)**. Central Dogma stores the
+  wrapped DEK (**WDEK**) and its KEK ID, and unwraps the DEK when needed.
+- Each Git object has its own data key, protected by the repository DEK. References and revision
+  mappings also use the repository DEK. This lets Central Dogma rotate a repository key without
+  rewriting every encrypted Git object.
+
+### Provide a KeyWrapper
+
+The server requires exactly one implementation of
+`com.linecorp.centraldogma.server.storage.encryption.KeyWrapper` on its classpath. Central Dogma does
+not include a production key management provider. Implement these operations using your key management
+system:
+
+| Method | Responsibility |
+| --- | --- |
+| `wrap(byte[] dek, String kekId)` | Wrap a data key with the specified KEK and return its encoded wrapped form. |
+| `unwrap(String wdek, String kekId)` | Unwrap a stored key using the specified KEK and return the original key bytes. |
+| `rewrap(String wdek, String oldKekId, String newKekId)` | Protect the same data key with the new KEK. |
+
+Each method returns a `CompletableFuture`. The implementation must support the KEK IDs stored with
+existing keys as well as the currently configured `kekId`.
+
+Register the implementation through Java's `ServiceLoader`. In your provider JAR, add this file:
+
+```text
+META-INF/services/com.linecorp.centraldogma.server.storage.encryption.KeyWrapper
+```
+
+Its contents must be the fully qualified name of your implementation, for example:
+
+```text
+com.example.dogma.KmsKeyWrapper
+```
+
+## Enable encryption
+
+Add the following property to `conf/dogma.json`, replacing `your-kek-id` with an identifier understood
+by your `KeyWrapper`, then restart the server:
+
+```json
+{
+  "encryption": {
+    "enabled": true,
+    "kekId": "your-kek-id",
+    "encryptSessionCookie": false
+  }
+}
+```
+
+| Property | Default | Description |
+| --- | --- | --- |
+| `enabled` | `false` | Enables encrypted repository storage and the key management APIs. |
+| `kekId` | `null` | KEK identifier used to wrap newly generated keys. Required when `enabled` is `true`. |
+| `encryptSessionCookie` | `false` | Enables session cookie encryption. Effective only when `enabled` is `true`. |
+
+Use the same encryption settings and compatible key management integrations on every replica before
+creating or migrating encrypted repositories.
+
+:::note
+
+Once encryption has been enabled for a data directory, keep it enabled. Central Dogma creates
+`dataDir/.encryption-enabled` to record this state and rejects an explicitly disabled configuration
+afterward. An existing `dataDir/_rocks` directory also prevents startup with encryption disabled or
+omitted. Do not delete these files to bypass the checks.
+
+:::
+
+## Create encrypted repositories
+
+New projects created through the project API after encryption is enabled have an encrypted `dogma`
+repository, which stores their metadata. New repositories created through the repository API inherit
+encryption, even if the request omits `encrypt` or sets it to `false`.
+
+Existing projects are unchanged. To create an encrypted repository in an existing unencrypted project,
+explicitly request `"encrypt": true`:
+
+```shell
+curl --fail-with-body -X POST \
+  "https://your-dogma.com/api/v1/projects/my-project/repos" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"name":"my-repo","encrypt":true}'
+```
+
+## Migrate existing repositories
+
+Enabling encryption does not convert existing repositories. A system administrator can migrate each
+repository with:
+
+```shell
+curl --fail-with-body -X POST \
+  "https://your-dogma.com/api/v1/projects/my-project/repos/my-repo/migrate/encrypted" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+The repository must be unencrypted. For ordinary
+projects, its status must be `active`; the server temporarily changes it to `read-only` during
+migration and restores it to `active` afterward. Schedule the operation when writes can be paused.
+The API disables its server-side request timeout for migration, so allow enough time in your client.
+
+Migration copies the repository's revision history into encrypted storage. After success, verify the
+repository's contents and history through the API. `GET /api/v1/wdeks` lists its wrapped repository
+key, including the project name, repository name, DEK version and KEK ID.
+
+## Manage keys
+
+The following endpoints are available when encryption is enabled and require system administrator
+privileges. Paths are relative to `/api/v1`.
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `GET` | `/wdeks` | List all stored repository WDEK versions, including their KEK IDs. |
+| `POST` | `/projects/{projectName}/repos/{repoName}/wdeks/rotate` | Generate a new repository DEK version. |
+| `POST` | `/keys/rewrap` | Rewrap stored keys with the configured KEK. |
+| `GET` | `/masterkeys/session` | Get the current session master key's version, KEK ID and creation time. |
+| `POST` | `/masterkeys/session/rotate` | Generate a new session master key version. |
+
+The session master key endpoints additionally require `encryptSessionCookie: true`. The metadata
+endpoint does not return the session master key material.
+
+### Rotate a repository DEK
+
+```shell
+curl --fail-with-body -X POST \
+  "https://your-dogma.com/api/v1/projects/my-project/repos/my-repo/wdeks/rotate" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+By default, subsequent writes use the new DEK version, while existing data remains readable using
+older versions. To update existing stored entries to the new repository DEK as part of the operation,
+add `?reencrypt=true`:
+
+```shell
+curl --fail-with-body -X POST \
+  "https://your-dogma.com/api/v1/projects/my-project/repos/my-repo/wdeks/rotate?reencrypt=true" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+For Git objects, this rewraps their individual data keys with the new repository DEK. It also
+re-encrypts references and revision mappings.
+
+### Change the KEK
+
+Changing `kekId` affects newly wrapped keys. Existing wrapped keys retain their recorded KEK IDs until
+they are rewrapped:
+
+1. Grant every replica access to the new KEK while retaining access to the old KEKs.
+2. Update `encryption.kekId` on every replica and restart them with the new configuration.
+3. Call the rewrap endpoint:
+
+   ```shell
+   curl --fail-with-body -X POST \
+     "https://your-dogma.com/api/v1/keys/rewrap" \
+     -H "Authorization: Bearer $TOKEN"
+   ```
+
+4. Check `GET /api/v1/wdeks` and the logs on every replica to confirm that the stored key versions were
+   rewrapped. If session cookie encryption is enabled, check the session key rewrap logs as well;
+   `GET /api/v1/masterkeys/session` reports only the current version.
+
+Rewrapping covers all stored repository DEK versions and, when session cookie encryption is enabled,
+the stored session master keys. It preserves the underlying key material and does not re-encrypt
+repository contents.
+
+## Session cookie encryption
+
+Set both `encryption.enabled` and `encryption.encryptSessionCookie` to `true` to encrypt authentication
+session cookies. This requires a configured `KeyWrapper`. Central Dogma stores versioned session master keys
+wrapped with the configured KEK and derives the keys used to protect cookies from them.
+This option is separate from repository storage encryption and defaults to `false`.
+
+Rotate the session master key with:
+
+```shell
+curl --fail-with-body -X POST \
+  "https://your-dogma.com/api/v1/masterkeys/session/rotate" \
+  -H "Authorization: Bearer $TOKEN"
+```

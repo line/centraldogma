@@ -20,18 +20,24 @@ import java.util.Map;
 
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Objects;
+import com.google.common.collect.ImmutableList;
 
 import io.envoyproxy.controlplane.cache.Resources.ResourceType;
 import io.envoyproxy.controlplane.cache.SnapshotResources;
 import io.envoyproxy.controlplane.cache.VersionedResource;
 import io.envoyproxy.controlplane.cache.v3.Snapshot;
 import io.envoyproxy.envoy.config.cluster.v3.Cluster;
+import io.envoyproxy.envoy.config.core.v3.TypedExtensionConfig;
 import io.envoyproxy.envoy.config.endpoint.v3.ClusterLoadAssignment;
 import io.envoyproxy.envoy.config.listener.v3.Listener;
 import io.envoyproxy.envoy.config.route.v3.RouteConfiguration;
 import io.envoyproxy.envoy.extensions.transport_sockets.tls.v3.Secret;
 
 final class CentralDogmaSnapshot extends Snapshot {
+
+    // Central Dogma does not serve ECDS resources.
+    private static final SnapshotResources<TypedExtensionConfig> EMPTY_EXTENSION_CONFIGS =
+            SnapshotResources.create(ImmutableList.of(), "empty_resources");
 
     private final SnapshotResources<Cluster> clusters;
     private final SnapshotResources<ClusterLoadAssignment> endpoints;
@@ -73,6 +79,11 @@ final class CentralDogmaSnapshot extends Snapshot {
     @Override
     public SnapshotResources<Secret> secrets() {
         return secrets;
+    }
+
+    @Override
+    public SnapshotResources<TypedExtensionConfig> extensionConfigs() {
+        return EMPTY_EXTENSION_CONFIGS;
     }
 
     String clustersVersion() {

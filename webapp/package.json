@@ -9,7 +9,7 @@
     "develop": "NEXT_PUBLIC_HOST=\"http://127.0.0.1:36462\" NEXT_ENV=\"development\" next dev --hostname 127.0.0.1",
     "backend": "../gradlew runTestShiroServer -PnoWeb",
     "mock": "NEXT_ENV=\"development\" next dev",
-    "build": "next build",
+    "build": "next build && node scripts/compress-static.mjs",
     "start": "next start",
     "lint": "next lint",
     "lint:fix": "next lint --fix --ext .json,.js,.jsx,.ts,.tsx .",
@@ -47,7 +47,7 @@
   "devDependencies": {
     "@faker-js/faker": "^7.6.0",
     "@next/bundle-analyzer": "^14.2.4",
-    "@playwright/test": "^1.45.1",
+    "@playwright/test": "^1.64.1",
     "@testing-library/jest-dom": "^6.4.6",
     "@testing-library/react": "^16.0.0",
     "@testing-library/user-event": "^14.5.2",

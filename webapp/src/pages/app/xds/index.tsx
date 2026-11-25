@@ -21,6 +21,7 @@ import { useGetGroupsQuery } from 'dogma/features/xds/xdsApiSlice';
 import { GroupList } from 'dogma/features/xds/GroupList';
 import { NewGroup } from 'dogma/features/xds/NewGroup';
 import { useAppSelector } from 'dogma/hooks';
+import { PageTitle } from 'dogma/common/components/PageTitle';
 
 const GroupsPage = () => {
   const { user } = useAppSelector((state) => state.auth);
@@ -31,6 +32,7 @@ const GroupsPage = () => {
     <Deferred isLoading={isLoading} error={error}>
       {() => (
         <Box p="2">
+          <PageTitle title={['Groups', 'xDS']} />
           <Flex alignItems="center" gap="2" mb={6}>
             <Heading size="lg" color="teal">
               xDS Groups

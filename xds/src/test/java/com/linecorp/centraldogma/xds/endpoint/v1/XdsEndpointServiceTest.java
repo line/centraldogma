@@ -181,7 +181,7 @@ public class XdsEndpointServiceTest {
 
     @Test
     void createEndpointReturnAlreadyExistsWhenYamlExists() throws Exception {
-        // Pre-populate the repo with a YAML endpoint (simulating a JSON→YAML migration).
+        // Pre-populate the repo with a YAML endpoint.
         final String clusterName = "groups/foo/clusters/yaml-exists.1";
         final ClusterLoadAssignment initial = loadAssignment(clusterName, "127.0.0.1", 8080);
         dogma.client().forRepo(INTERNAL_PROJECT_XDS, "foo")
@@ -198,18 +198,16 @@ public class XdsEndpointServiceTest {
         assertThat(response.contentUtf8()).contains("groups/foo/endpoints/yaml-exists.1");
         assertThat(response.contentUtf8()).doesNotContain("groups/foo/clusters/yaml-exists.1");
 
-        // The original .yaml file must still be the only file present (no new .json created).
+        // The original .yaml file must still be present and unchanged.
         final Repository repo =
                 dogma.projectManager().get(INTERNAL_PROJECT_XDS).repos().get("foo");
         assertThat(repo.find(Revision.HEAD, ENDPOINTS_DIRECTORY + "yaml-exists.1.yaml",
                              FindOptions.FIND_ONE_WITHOUT_CONTENT).join()).isNotEmpty();
-        assertThat(repo.find(Revision.HEAD, ENDPOINTS_DIRECTORY + "yaml-exists.1.json",
-                             FindOptions.FIND_ONE_WITHOUT_CONTENT).join()).isEmpty();
     }
 
     @Test
     void updateYamlEndpointViaHttp() throws Exception {
-        // Push an endpoint as YAML directly (simulating a JSON→YAML migration).
+        // Push an endpoint as YAML directly.
         final String clusterName = "groups/foo/clusters/yaml-endpoint/1";
         final String endpointName = "groups/foo/endpoints/yaml-endpoint/1";
         final ClusterLoadAssignment initial = loadAssignment(clusterName, "127.0.0.1", 8080);
@@ -220,7 +218,7 @@ public class XdsEndpointServiceTest {
              .push().join();
         checkEndpointsViaDiscoveryRequest(dogma.httpClient().uri(), initial, clusterName);
 
-        // Update via the HTTP API — updateOrDelete must locate the .yaml file, not create a new .json.
+        // Update via the HTTP API — updateOrDelete must locate the .yaml file.
         final ClusterLoadAssignment updated =
                 initial.toBuilder().setClusterName(clusterName)
                        .addEndpoints(LocalityLbEndpoints.newBuilder()
@@ -229,13 +227,11 @@ public class XdsEndpointServiceTest {
         final AggregatedHttpResponse response = updateEndpoint("yaml-endpoint/1", updated);
         assertOk(response);
 
-        // The .yaml file must have been updated in-place; no new .json file should exist.
+        // The .yaml file must have been updated in-place.
         final Repository repo =
                 dogma.projectManager().get(INTERNAL_PROJECT_XDS).repos().get("foo");
         assertThat(repo.find(Revision.HEAD, ENDPOINTS_DIRECTORY + "yaml-endpoint/1.yaml",
                              FindOptions.FIND_ONE_WITHOUT_CONTENT).join()).isNotEmpty();
-        assertThat(repo.find(Revision.HEAD, ENDPOINTS_DIRECTORY + "yaml-endpoint/1.json",
-                             FindOptions.FIND_ONE_WITHOUT_CONTENT).join()).isEmpty();
 
         final ClusterLoadAssignment.Builder endpointBuilder = ClusterLoadAssignment.newBuilder();
         JSON_MESSAGE_MARSHALLER.mergeValue(Yaml.readTree(response.contentUtf8()).traverse(), endpointBuilder);

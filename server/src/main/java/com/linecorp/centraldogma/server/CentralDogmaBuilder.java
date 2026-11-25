@@ -16,6 +16,7 @@
 
 package com.linecorp.centraldogma.server;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.linecorp.centraldogma.server.auth.AuthConfig.DEFAULT_SESSION_CACHE_SPEC;
 import static com.linecorp.centraldogma.server.auth.AuthConfig.DEFAULT_SESSION_TIMEOUT_MILLIS;
 import static com.linecorp.centraldogma.server.auth.AuthConfig.DEFAULT_SESSION_VALIDATION_SCHEDULE;
@@ -102,6 +103,7 @@ public final class CentralDogmaBuilder {
     private final File dataDir;
     private int numRepositoryWorkers = DEFAULT_NUM_REPOSITORY_WORKERS;
     private long maxRemovedRepositoryAgeMillis = DEFAULT_MAX_REMOVED_REPOSITORY_AGE_MILLIS;
+    private int repositoryStatsWindowHours;
 
     @Nullable
     private String repositoryCacheSpec = DEFAULT_REPOSITORY_CACHE_SPEC;
@@ -138,6 +140,8 @@ public final class CentralDogmaBuilder {
     @Nullable
     private ZoneConfig zoneConfig;
     private boolean enableThriftService = true;
+
+    private RateLimitingConfig rateLimiting = RateLimitingConfig.DISABLED;
 
     /**
      * Creates a new builder with the specified data directory.
@@ -373,6 +377,16 @@ public final class CentralDogmaBuilder {
     }
 
     /**
+     * Sets the rolling window for repository statistics in hours. {@code 0} disables statistics (the default).
+     */
+    public CentralDogmaBuilder repositoryStatsWindowHours(int repositoryStatsWindowHours) {
+        checkArgument(repositoryStatsWindowHours >= 0,
+                      "repositoryStatsWindowHours: %s (expected: >= 0)", repositoryStatsWindowHours);
+        this.repositoryStatsWindowHours = repositoryStatsWindowHours;
+        return this;
+    }
+
+    /**
      * Sets whether administrative web application is enabled or not.
      * If unspecified, the administrative web application is enabled.
      */
@@ -597,6 +611,16 @@ public final class CentralDogmaBuilder {
     }
 
     /**
+     * Sets the per-server global and repository rate limits for content pushes and reverts.
+     * The first matching repository rule is checked before the global limit.
+     * Rate limiting is disabled by default.
+     */
+    public CentralDogmaBuilder rateLimiting(RateLimitingConfig rateLimiting) {
+        this.rateLimiting = requireNonNull(rateLimiting, "rateLimiting");
+        return this;
+    }
+
+    /**
      * Returns a newly-created {@link CentralDogma} server.
      */
     public CentralDogma build() {
@@ -628,6 +652,6 @@ public final class CentralDogmaBuilder {
                                       webAppEnabled, webAppTitle, replicationConfig,
                                       null, accessLogFormat, authCfg,
                                       corsConfig, pluginConfigs, managementConfig, zoneConfig,
-                                      enableThriftService);
+                                      enableThriftService, repositoryStatsWindowHours, rateLimiting);
     }
 }

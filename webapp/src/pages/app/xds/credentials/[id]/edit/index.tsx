@@ -25,6 +25,7 @@ import ErrorMessageParser from 'dogma/features/services/ErrorMessageParser';
 import { Deferred } from 'dogma/common/components/Deferred';
 import { CredentialDto } from 'dogma/features/project/settings/credentials/CredentialDto';
 import CredentialForm from 'dogma/features/project/settings/credentials/CredentialForm';
+import { PageTitle } from 'dogma/common/components/PageTitle';
 
 const XdsCredentialEditPage = () => {
   const router = useRouter();
@@ -67,6 +68,7 @@ const XdsCredentialEditPage = () => {
     <Deferred isLoading={isCredentialLoading} error={error}>
       {() => (
         <>
+          <PageTitle title={[`Edit ${id}`, 'Credentials', group, 'xDS']} />
           <Breadcrumb mb={4} color="gray.500" fontSize="sm">
             <BreadcrumbItem>
               <BreadcrumbLink as={RouteLink} href="/app/xds">

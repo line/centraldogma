@@ -46,7 +46,7 @@ class XdsResourceWatchingServiceTest {
     private static final BlockingQueue<String> queue = new LinkedBlockingQueue<>();
 
     @Test
-    void yamlFilesAreHandledLikeJson() throws InterruptedException {
+    void yamlFilesAreHandled() throws InterruptedException {
         final BlockingQueue<String> localQueue = new LinkedBlockingQueue<>();
         final CentralDogma client = dogma.client();
         client.createProject("yaml-watch-test").join();
@@ -190,31 +190,25 @@ class XdsResourceWatchingServiceTest {
         final Project project = dogma.projectManager().get("foo");
         final TestXdsResourceWatchingService watchingService = new TestXdsResourceWatchingService(project);
         watchingService.init();
-        client.forRepo("foo", "bar").commit("Add a file", Change.ofJsonUpsert("/a.json", "1"))
+        client.forRepo("foo", "bar").commit("Add a file", Change.ofYamlUpsert("/a.yaml", "key: value"))
               .push().join();
-        assertThat(queue.take()).isEqualTo("handleXdsResource: /a.json");
+        assertThat(queue.take()).isEqualTo("handleXdsResource: /a.yaml");
         assertThat(queue.take()).isEqualTo("diff handled: bar");
 
         client.createRepository("foo", "baz").join();
-        client.forRepo("foo", "baz").commit("Add a file", Change.ofJsonUpsert("/b.json", "1"))
+        client.forRepo("foo", "baz").commit("Add a file", Change.ofYamlUpsert("/b.yaml", "key: value"))
               .push().join();
-        assertThat(queue.take()).isEqualTo("handleXdsResource: /b.json");
+        assertThat(queue.take()).isEqualTo("handleXdsResource: /b.yaml");
         assertThat(queue.take()).isEqualTo("diff handled: baz");
 
-        client.forRepo("foo", "baz").commit("Update the file", Change.ofJsonUpsert("/b.json", "2"))
+        client.forRepo("foo", "baz").commit("Update the file", Change.ofYamlUpsert("/b.yaml", "key: updated"))
               .push().join();
-        assertThat(queue.take()).isEqualTo("handleXdsResource: /b.json");
+        assertThat(queue.take()).isEqualTo("handleXdsResource: /b.yaml");
         assertThat(queue.take()).isEqualTo("diff handled: baz");
 
-        client.forRepo("foo", "bar").commit("Remove a file", Change.ofRemoval("/a.json"))
+        client.forRepo("foo", "bar").commit("Remove a file", Change.ofRemoval("/a.yaml"))
               .push().join();
-        assertThat(queue.take()).isEqualTo("/a.json removed");
-        assertThat(queue.take()).isEqualTo("diff handled: bar");
-
-        // YAML files are also handled (new format).
-        client.forRepo("foo", "bar").commit("Add a YAML file", Change.ofYamlUpsert("/c.yaml", "key: value"))
-              .push().join();
-        assertThat(queue.take()).isEqualTo("handleXdsResource: /c.yaml");
+        assertThat(queue.take()).isEqualTo("/a.yaml removed");
         assertThat(queue.take()).isEqualTo("diff handled: bar");
 
         client.removeRepository("foo", "bar").join();
