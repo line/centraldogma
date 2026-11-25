@@ -23,7 +23,7 @@ describe('CommitSha', () => {
   const writeText = jest.fn().mockResolvedValue(undefined);
 
   beforeEach(() => {
-    writeText.mockClear();
+    writeText.mockReset().mockResolvedValue(undefined);
     Object.defineProperty(navigator, 'clipboard', {
       configurable: true,
       value: { writeText },
@@ -31,12 +31,28 @@ describe('CommitSha', () => {
   });
 
   it('copies the upstream commit SHA', async () => {
-    renderWithProviders(<CommitSha label="Upstream" sha={sha} />);
+    const { store } = renderWithProviders(<CommitSha label="Upstream" sha={sha} />);
 
     expect(screen.getByText('0123456')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Copy Upstream SHA' }));
 
     await waitFor(() => expect(writeText).toHaveBeenCalledWith(sha));
+    await waitFor(() => expect(store.getState().notification.type).toBe('success'));
+  });
+
+  it.each(['permission denied', 'API unavailable'])('reports a copy failure: %s', async (failure) => {
+    if (failure === 'API unavailable') {
+      Object.defineProperty(navigator, 'clipboard', { configurable: true, value: undefined });
+    } else {
+      writeText.mockRejectedValue(new DOMException('Clipboard access denied', 'NotAllowedError'));
+    }
+    const { store } = renderWithProviders(<CommitSha label="Upstream" sha={sha} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Copy Upstream SHA' }));
+
+    await waitFor(() => expect(store.getState().notification.type).toBe('error'));
+    expect(store.getState().notification.title).toBe('Failed to copy Upstream SHA');
+    expect(store.getState().notification.description).toBe('Clipboard access is unavailable or was denied.');
   });
 
   it('shows the full upstream commit ID when abbreviation is disabled', () => {
