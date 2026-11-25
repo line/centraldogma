@@ -15,6 +15,8 @@ const config: Config = {
   url: 'https://line.github.io',
   // Central Dogma is served under a project path, unlike Armeria which has its own domain.
   baseUrl: '/centraldogma/',
+  trailingSlash: false,
+  clientModules: ['./src/legacy-docs-urls.ts'],
 
   organizationName: 'line',
   projectName: 'centraldogma',
@@ -41,6 +43,7 @@ const config: Config = {
       'classic',
       {
         docs: {
+          routeBasePath: '/',
           sidebarPath: './sidebars.ts',
           path: 'src/content/docs',
           editUrl: 'https://github.com/line/centraldogma/edit/main/site-new/',
@@ -90,7 +93,7 @@ const config: Config = {
       links: [
         {
           title: 'Docs',
-          items: [{ label: 'Documentation', to: '/docs' }],
+          items: [{ label: 'Documentation', to: '/' }],
         },
         {
           title: 'Community',

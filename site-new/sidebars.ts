@@ -10,7 +10,7 @@ const sidebars: SidebarsConfig = {
     {
       type: 'category',
       label: 'Setting up',
-      link: { type: 'generated-index', title: 'Setting up' },
+      link: { type: 'generated-index', title: 'Setting up', slug: '/setup' },
       items: [
         'setup-installation',
         'setup-configuration',
