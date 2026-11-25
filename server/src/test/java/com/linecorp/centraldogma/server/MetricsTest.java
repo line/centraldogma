@@ -17,6 +17,8 @@ package com.linecorp.centraldogma.server;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.lang.management.ManagementFactory;
+
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.extension.RegisterExtension;
@@ -55,6 +57,23 @@ class MetricsTest {
                   .join();
         }
     };
+
+    @Test
+    void jvmThreadDeadlockMetrics() {
+        final MeterRegistry meterRegistry = dogma.dogma().meterRegistry().get();
+        assertThat(meterRegistry.get("jvm.threads.deadlocked.monitor").gauge().value()).isNotNegative();
+
+        final AggregatedHttpResponse res = dogma.httpClient().get("/monitor/metrics").aggregate().join();
+        assertThat(res.status()).isEqualTo(HttpStatus.OK);
+        assertThat(res.contentUtf8()).contains("# TYPE jvm_threads_deadlocked_monitor_threads gauge\n",
+                                             "\njvm_threads_deadlocked_monitor_threads ");
+
+        if (ManagementFactory.getThreadMXBean().isSynchronizerUsageSupported()) {
+            assertThat(meterRegistry.get("jvm.threads.deadlocked").gauge().value()).isNotNegative();
+            assertThat(res.contentUtf8()).contains("# TYPE jvm_threads_deadlocked_threads gauge\n",
+                                                 "\njvm_threads_deadlocked_threads ");
+        }
+    }
 
     @Test
     void metrics() {
