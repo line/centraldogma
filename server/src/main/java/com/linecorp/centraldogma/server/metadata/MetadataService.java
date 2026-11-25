@@ -1090,38 +1090,34 @@ public class MetadataService {
                 // The app identity is not allowed with the GUEST permission.
                 return null;
             }
-            return repositoryRole(roles, repositoryRole, projectRole);
+            return repositoryRole(roles, repositoryRole, projectRole, appIdentity.allowGuestAccess());
         }
         final RepositoryRole repositoryRole = roles.users().get(user.id());
         final Member projectUser = metadata.memberOrDefault(user.id(), null);
         final ProjectRole projectRole = projectUser != null ? projectUser.role() : ProjectRole.GUEST;
-        return repositoryRole(roles, repositoryRole, projectRole);
+        return repositoryRole(roles, repositoryRole, projectRole, true);
     }
 
     @Nullable
     private static RepositoryRole repositoryRole(Roles roles, @Nullable RepositoryRole repositoryRole,
-                                                 ProjectRole projectRole) {
+                                                 ProjectRole projectRole, boolean allowGuestAccess) {
         if (projectRole == ProjectRole.OWNER) {
             return RepositoryRole.ADMIN;
         }
 
-        final RepositoryRole memberOrGuestRole;
-        if (projectRole == ProjectRole.MEMBER) {
-            memberOrGuestRole = roles.projectRoles().member();
-        } else {
-            assert projectRole == ProjectRole.GUEST;
-            memberOrGuestRole = roles.projectRoles().guest();
-        }
+        final ProjectRoles projectRoles = roles.projectRoles();
+        final RepositoryRole memberRole = projectRole == ProjectRole.MEMBER ? projectRoles.member() : null;
 
-        if (repositoryRole == RepositoryRole.ADMIN || memberOrGuestRole == RepositoryRole.ADMIN) {
+        if (repositoryRole == RepositoryRole.ADMIN || memberRole == RepositoryRole.ADMIN) {
             return RepositoryRole.ADMIN;
         }
 
-        if (repositoryRole == RepositoryRole.WRITE || memberOrGuestRole == RepositoryRole.WRITE) {
+        if (repositoryRole == RepositoryRole.WRITE || memberRole == RepositoryRole.WRITE) {
             return RepositoryRole.WRITE;
         }
 
-        if (repositoryRole == RepositoryRole.READ || memberOrGuestRole == RepositoryRole.READ) {
+        if (repositoryRole == RepositoryRole.READ || memberRole == RepositoryRole.READ ||
+            (allowGuestAccess && projectRoles.guest() == RepositoryRole.READ)) {
             return RepositoryRole.READ;
         }
 

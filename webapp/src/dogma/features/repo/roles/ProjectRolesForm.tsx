@@ -68,7 +68,7 @@ export const ProjectRolesForm = ({
                       <Radio value="ADMIN">Admin</Radio>
                       <Radio value="WRITE">Write</Radio>
                       <Radio value="READ">Read</Radio>
-                      <Radio value="NONE">Forbidden</Radio>
+                      <Radio value="NONE">No member role</Radio>
                     </HStack>
                   </RadioGroup>
                 )}

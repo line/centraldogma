@@ -19,6 +19,7 @@ package com.linecorp.centraldogma.server.metadata;
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.getAccessToken;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.awaitility.Awaitility.await;
 
 import java.net.UnknownHostException;
 import java.util.concurrent.CompletionException;
@@ -60,6 +61,7 @@ class TokenGuestPermissionTest {
     private static final String FOO_PROJ = "foo";
     private static final String BAR_REPO = "bar";
     private static final String PRIVATE_REPO = "qux";
+    private static final String PUBLIC_WITHOUT_MEMBER_ROLE = "no-member-role";
 
     @RegisterExtension
     static final CentralDogmaExtension dogma = new CentralDogmaExtension() {
@@ -85,6 +87,9 @@ class TokenGuestPermissionTest {
             final CentralDogmaRepository privateRepo =
                     client.createRepository(FOO_PROJ, PRIVATE_REPO).join();
             privateRepo.commit("test", Change.ofTextUpsert("/a.txt", "secret")).push().join();
+            final CentralDogmaRepository publicRepo =
+                    client.createRepository(FOO_PROJ, PUBLIC_WITHOUT_MEMBER_ROLE).join();
+            publicRepo.commit("test", Change.ofTextUpsert("/a.txt", "public")).push().join();
         }
     };
 
@@ -102,6 +107,13 @@ class TokenGuestPermissionTest {
 
         assertThat(response.status()).isEqualTo(HttpStatus.OK);
         assertThat(response.content().major()).isGreaterThan(1);
+
+        assertThat(client.prepare()
+                         .post("/api/v1/metadata/{proj}/repos/{repo}/roles/projects")
+                         .pathParam("proj", FOO_PROJ)
+                         .pathParam("repo", PUBLIC_WITHOUT_MEMBER_ROLE)
+                         .contentJson(ProjectRoles.of(null, RepositoryRole.READ))
+                         .execute().status()).isEqualTo(HttpStatus.OK);
     }
 
     @Test
@@ -134,21 +146,18 @@ class TokenGuestPermissionTest {
           .hasMessageContaining("You must have the READ repository role to access the 'foo/bar'");
 
         // Register the token with the member role.
-        final ResponseEntity<Revision> res =
-                client.prepare()
-                      .post("/api/v1/metadata/{proj}/appIdentities")
-                      .pathParam("proj", FOO_PROJ)
-                      .contentJson(
-                              new IdAndProjectRole(appId, ProjectRole.MEMBER))
-                      .asJson(Revision.class)
-                      .execute();
-        assertThat(res.status()).isEqualTo(HttpStatus.OK);
+        registerAppIdentityAsMember(client, appId);
 
         // The token has been registered as a member role so the access should be allowed now.
         final Entry<?> entry = dogmaClient.forRepo(FOO_PROJ, BAR_REPO)
                                           .file("/a.txt")
                                           .get().join();
         assertThat(entry.contentAsText().trim()).isEqualTo("foo");
+
+        assertThatThrownBy(() -> dogmaClient.forRepo(FOO_PROJ, PUBLIC_WITHOUT_MEMBER_ROLE)
+                                            .file("/a.txt").get().join())
+                .isInstanceOf(CompletionException.class)
+                .hasCauseInstanceOf(PermissionException.class);
     }
 
     @Test
@@ -198,10 +207,31 @@ class TokenGuestPermissionTest {
         }).isInstanceOf(CompletionException.class)
           .hasCauseInstanceOf(PermissionException.class)
           .hasMessageContaining("You must have the READ repository role to access the 'foo/qux'");
+
+        registerAppIdentityAsMember(client, appId);
+        final Entry<?> publicEntry = dogmaClient.forRepo(FOO_PROJ, PUBLIC_WITHOUT_MEMBER_ROLE)
+                                                .file("/a.txt").get().join();
+        assertThat(publicEntry.contentAsText().trim()).isEqualTo("public");
+    }
+
+    private static void registerAppIdentityAsMember(BlockingWebClient client, String appId) {
+        assertThat(client.prepare()
+                         .post("/api/v1/metadata/{proj}/appIdentities")
+                         .pathParam("proj", FOO_PROJ)
+                         .contentJson(new IdAndProjectRole(appId, ProjectRole.MEMBER))
+                         .execute().status()).isEqualTo(HttpStatus.OK);
+        await().untilAsserted(() -> assertThat(projectMetadata().appIds()).containsKey(appId));
+    }
+
+    private static ProjectMetadata projectMetadata() {
+        return dogma.blockingHttpClient().prepare()
+                    .get("/api/v1/projects/" + FOO_PROJ)
+                    .asJson(ProjectMetadata.class, new ObjectMapper())
+                    .execute().content();
     }
 
     @Test
-    void testNonMemberUser() throws Exception {
+    void signedInUserRetainsPublicReadAfterJoiningProject() throws Exception {
         // A signed-in user who is not a project member reads the public repository, but not the
         // private one.
         final WebClient client = WebClient.of("http://127.0.0.1:" + dogma.serverAddress().getPort());
@@ -237,6 +267,20 @@ class TokenGuestPermissionTest {
         final AggregatedHttpResponse unauthenticated =
                 WebClient.of(client.uri()).blocking().get("/api/v1/projects/foo/repos/bar/list/a.txt");
         assertThat(unauthenticated.status()).isEqualTo(HttpStatus.UNAUTHORIZED);
+
+        final String publicFile = "/api/v1/projects/foo/repos/" + PUBLIC_WITHOUT_MEMBER_ROLE + "/list/a.txt";
+        assertThat(userClient.get(publicFile).status()).isEqualTo(HttpStatus.OK);
+
+        final AggregatedHttpResponse currentUser = userClient.get("/api/v0/users/me");
+        assertThat(currentUser.status()).isEqualTo(HttpStatus.OK);
+        final String memberId = Jackson.readTree(currentUser.contentUtf8()).get("email").asText();
+        assertThat(dogma.blockingHttpClient().prepare()
+                        .post("/api/v1/metadata/{proj}/members")
+                        .pathParam("proj", FOO_PROJ)
+                        .contentJson(new IdAndProjectRole(memberId, ProjectRole.MEMBER))
+                        .execute().status()).isEqualTo(HttpStatus.OK);
+        await().untilAsserted(() -> assertThat(projectMetadata().members()).containsKey(memberId));
+        assertThat(userClient.get(publicFile).status()).isEqualTo(HttpStatus.OK);
     }
 
     @Test

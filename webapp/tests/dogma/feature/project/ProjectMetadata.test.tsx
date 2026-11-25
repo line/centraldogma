@@ -185,6 +185,19 @@ describe('ProjectMetadataDto', () => {
       expect(role).toBe('WRITE');
     });
 
+    it('gives a public repository member READ without a member role', () => {
+      const member = { email: 'member@example.com', systemAdmin: false } as UserDto;
+      const repo = mockMetadata.repos.repo1;
+      const metadata: ProjectMetadataDto = {
+        ...mockMetadata,
+        repos: {
+          repo1: { ...repo, roles: { ...repo.roles, users: {}, projects: { member: null, guest: 'READ' } } },
+        },
+      };
+
+      expect(findUserRepositoryRole('repo1', member, metadata)).toBe('READ');
+    });
+
     it('should return null for empty metadata', () => {
       const role = findUserRepositoryRole('repo1', mockUser, {} as ProjectMetadataDto);
       expect(role).toBeNull();

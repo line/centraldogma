@@ -344,19 +344,20 @@ access control levels. There are three repository roles, which are ``READ``, ``W
 ``ADMIN`` implies ``WRITE``, and ``WRITE`` implies ``READ``.
 
 Every access of HTTP API will be controlled by the access control system. A request is allowed only if the
-user of the request has a sufficient repository role. The effective role of a user is the highest of the
-role granted to the user directly and the role granted to the user's project role (member or guest) in the
-repository configuration. A system administrator and an owner of the project always have the ``ADMIN``
-role for every repository of the project.
+user of the request has a sufficient repository role. The effective role is the highest of the user's
+direct repository role, the configured member role if the user belongs to the project, and read access to
+public repositories. A system administrator and an owner of the project always have the ``ADMIN`` role
+for every repository of the project.
 
 Public repositories
 ^^^^^^^^^^^^^^^^^^^
 
 A repository whose guest role is ``READ`` is a *public* repository. A public repository can be read by
 everyone who can sign in to the Central Dogma server — and by the application tokens and certificates
-with guest access allowed — without being granted any role. Making a repository public only grants read
-access; writing still requires a ``WRITE`` or higher role granted explicitly. A repository is private by
-default; you can switch the visibility in the ``Roles`` tab of the repository settings page.
+with guest access allowed — without being granted any role. Eligible project members can read a public
+repository even when it grants no member role. Writing still requires a ``WRITE`` or higher role.
+A repository is private by default; you can switch the visibility in the ``Roles`` tab of the
+repository settings page.
 
 A project owner can prevent the repositories of the project from being made public by disabling
 ``Allow public repositories`` in the project settings. Disabling it is rejected while the project still
