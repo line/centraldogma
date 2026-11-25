@@ -233,7 +233,7 @@ public class RepositoryServiceV1 extends AbstractService {
         final CommandExecutor commandExecutor = executor();
         final CompletableFuture<Revision> future =
                 RepositoryServiceUtil.createRepository(commandExecutor, mds, author, project.name(), repoName,
-                                                       projectRoles, encrypt, encryptionStorageManager);
+                                                       true, projectRoles, encrypt, encryptionStorageManager);
         return future.handle(returnOrThrow(() -> {
             final Repository repository = project.repos().get(repoName);
             return newRepositoryDto(repository, repositoryStatus(repository));
