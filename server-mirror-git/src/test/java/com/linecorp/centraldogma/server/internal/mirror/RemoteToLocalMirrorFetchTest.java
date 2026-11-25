@@ -37,6 +37,7 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
 import org.eclipse.jgit.api.Git;
@@ -234,7 +235,7 @@ class RemoteToLocalMirrorFetchTest {
     }
 
     @Test
-    void replayedCommitsUseLatestRevisionAfterInterveningLocalCommit() throws Exception {
+    void replayFailsAfterInterveningLocalCommitAndResumes() throws Exception {
         final DefaultGitMirror mirror = newMirror("/", true);
         commitToRemote("initial.txt", "0");
         assertThat(mirrorRemoteToLocal(mirror).mirrorStatus()).isEqualTo(MirrorStatus.SUCCESS);
@@ -248,10 +249,19 @@ class RemoteToLocalMirrorFetchTest {
                         pmExtension.executor(), baseRevisions,
                         Change.ofTextUpsert("/outside.txt", "local"));
 
-        assertThat(mirrorRemoteToLocal(mirror, executor).mirrorStatus()).isEqualTo(MirrorStatus.SUCCESS);
-        assertThat(baseRevisions).containsExactly(baseline, baseline.forward(2));
+        assertThatThrownBy(() -> mirrorRemoteToLocal(mirror, executor))
+                .hasRootCauseInstanceOf(ChangeConflictException.class);
+        assertThat(baseRevisions).containsExactly(baseline, baseline.forward(1));
+        assertThat(localRepo.normalizeNow(Revision.HEAD)).isEqualTo(baseline.forward(2));
+        assertThat(localContent("/first.txt")).isEqualTo("1");
+        assertThat(localContent("/outside.txt")).isEqualTo("local");
+        assertThat(localRepo.find(Revision.HEAD, "/second.txt").join()).isEmpty();
+
+        assertThat(mirrorRemoteToLocal(mirror).mirrorStatus()).isEqualTo(MirrorStatus.SUCCESS);
         assertThat(localRepo.normalizeNow(Revision.HEAD)).isEqualTo(baseline.forward(3));
+        assertThat(localContent("/second.txt")).isEqualTo("2");
         assertThat(localRepo.find(Revision.HEAD, "/outside.txt").join()).isEmpty();
+        assertThat(mirrorRemoteToLocal(mirror).mirrorStatus()).isEqualTo(MirrorStatus.UP_TO_DATE);
     }
 
     @Test
@@ -315,7 +325,7 @@ class RemoteToLocalMirrorFetchTest {
     }
 
     @Test
-    void replayRestoresFileDeletedByInterveningLocalCommit() throws Exception {
+    void replayFailsAfterInterveningDeletionAndRestoresItOnNextRun() throws Exception {
         final DefaultGitMirror mirror = newMirror("/", true);
         commitToRemote("initial.txt", "0");
         assertThat(mirrorRemoteToLocal(mirror).mirrorStatus()).isEqualTo(MirrorStatus.SUCCESS);
@@ -328,9 +338,18 @@ class RemoteToLocalMirrorFetchTest {
                 new InterveningCommitExecutor(
                         pmExtension.executor(), baseRevisions, Change.ofRemoval("/initial.txt"));
 
-        assertThat(mirrorRemoteToLocal(mirror, executor).mirrorStatus()).isEqualTo(MirrorStatus.SUCCESS);
-        assertThat(baseRevisions).containsExactly(baseline, baseline.forward(2));
+        assertThatThrownBy(() -> mirrorRemoteToLocal(mirror, executor))
+                .hasRootCauseInstanceOf(ChangeConflictException.class);
+        assertThat(baseRevisions).containsExactly(baseline, baseline.forward(1));
+        assertThat(localRepo.normalizeNow(Revision.HEAD)).isEqualTo(baseline.forward(2));
+        assertThat(localRepo.find(Revision.HEAD, "/initial.txt").join()).isEmpty();
+        assertThat(localRepo.find(Revision.HEAD, "/second.txt").join()).isEmpty();
+
+        assertThat(mirrorRemoteToLocal(mirror).mirrorStatus()).isEqualTo(MirrorStatus.SUCCESS);
+        assertThat(localRepo.normalizeNow(Revision.HEAD)).isEqualTo(baseline.forward(3));
         assertThat(localContent("/initial.txt")).isEqualTo("0");
+        assertThat(localContent("/second.txt")).isEqualTo("2");
+        assertThat(mirrorRemoteToLocal(mirror).mirrorStatus()).isEqualTo(MirrorStatus.UP_TO_DATE);
     }
 
     @Test
@@ -342,6 +361,7 @@ class RemoteToLocalMirrorFetchTest {
         final DefaultGitMirror mirror = newMirror("/target", true);
         commitToRemote("initial.txt", "0");
         assertThat(mirrorRemoteToLocal(mirror).mirrorStatus()).isEqualTo(MirrorStatus.SUCCESS);
+        final Revision baseline = localRepo.normalizeNow(Revision.HEAD);
 
         commitToRemote("first.txt", "1");
         commitToRemote("second.txt", "2");
@@ -349,9 +369,18 @@ class RemoteToLocalMirrorFetchTest {
                 new InterveningCommitExecutor(
                         pmExtension.executor(), new ArrayList<>(), Change.ofRemoval("/outside.txt"));
 
-        assertThat(mirrorRemoteToLocal(mirror, executor).mirrorStatus()).isEqualTo(MirrorStatus.SUCCESS);
+        assertThatThrownBy(() -> mirrorRemoteToLocal(mirror, executor))
+                .hasRootCauseInstanceOf(ChangeConflictException.class);
+        assertThat(localRepo.normalizeNow(Revision.HEAD)).isEqualTo(baseline.forward(2));
+        assertThat(localRepo.find(Revision.HEAD, "/target/second.txt").join()).isEmpty();
+        assertThat(localRepo.find(Revision.HEAD, "/outside.txt").join()).isEmpty();
+
+        assertThat(mirrorRemoteToLocal(mirror).mirrorStatus()).isEqualTo(MirrorStatus.SUCCESS);
+        assertThat(localRepo.normalizeNow(Revision.HEAD)).isEqualTo(baseline.forward(3));
         assertThat(localRepo.find(Revision.HEAD, "/outside.txt").join()).isEmpty();
         assertThat(localContent("/target/initial.txt")).isEqualTo("0");
+        assertThat(localContent("/target/second.txt")).isEqualTo("2");
+        assertThat(mirrorRemoteToLocal(mirror).mirrorStatus()).isEqualTo(MirrorStatus.UP_TO_DATE);
     }
 
     @Test
@@ -359,6 +388,7 @@ class RemoteToLocalMirrorFetchTest {
         final DefaultGitMirror mirror = newMirror("/target", true);
         commitToRemote("initial.txt", "0");
         assertThat(mirrorRemoteToLocal(mirror).mirrorStatus()).isEqualTo(MirrorStatus.SUCCESS);
+        final Revision baseline = localRepo.normalizeNow(Revision.HEAD);
 
         commitToRemote("first.txt", "1");
         commitToRemote("second.txt", "2");
@@ -367,9 +397,18 @@ class RemoteToLocalMirrorFetchTest {
                         pmExtension.executor(), new ArrayList<>(),
                         Change.ofTextUpsert("/outside.txt", "local"));
 
-        assertThat(mirrorRemoteToLocal(mirror, executor).mirrorStatus()).isEqualTo(MirrorStatus.SUCCESS);
+        assertThatThrownBy(() -> mirrorRemoteToLocal(mirror, executor))
+                .hasRootCauseInstanceOf(ChangeConflictException.class);
+        assertThat(localRepo.normalizeNow(Revision.HEAD)).isEqualTo(baseline.forward(2));
+        assertThat(localContent("/outside.txt")).isEqualTo("local");
+        assertThat(localRepo.find(Revision.HEAD, "/target/second.txt").join()).isEmpty();
+
+        assertThat(mirrorRemoteToLocal(mirror).mirrorStatus()).isEqualTo(MirrorStatus.SUCCESS);
+        assertThat(localRepo.normalizeNow(Revision.HEAD)).isEqualTo(baseline.forward(3));
         assertThat(localContent("/outside.txt")).isEqualTo("local");
         assertThat(localContent("/target/initial.txt")).isEqualTo("0");
+        assertThat(localContent("/target/second.txt")).isEqualTo("2");
+        assertThat(mirrorRemoteToLocal(mirror).mirrorStatus()).isEqualTo(MirrorStatus.UP_TO_DATE);
     }
 
     @Test
@@ -469,6 +508,44 @@ class RemoteToLocalMirrorFetchTest {
 
         assertThat(mirrorRemoteToLocal(mirror, executor).mirrorStatus()).isEqualTo(MirrorStatus.SUCCESS);
         assertThat(baseRevisions).containsExactly(baseline);
+    }
+
+    @ValueSource(booleans = { false, true })
+    @ParameterizedTest
+    void interveningCommitDuringFetchFailsAndNextRunSucceeds(boolean preserveRemoteCommitHistory)
+            throws Exception {
+        final DefaultGitMirror mirror = newMirror("/", preserveRemoteCommitHistory);
+        commitToRemote("first.txt", "1");
+        final Revision baseline = localRepo.normalizeNow(Revision.HEAD);
+        final List<Revision> baseRevisions = new ArrayList<>();
+        final CommandExecutor executor = new CapturingCommandExecutor(pmExtension.executor(), baseRevisions);
+        final AtomicBoolean insertedLocalCommit = new AtomicBoolean();
+        final Consumer<TransportCommand<?, ?>> configurator = command -> {
+            if (insertedLocalCommit.compareAndSet(false, true)) {
+                pmExtension.executor().execute(
+                        Command.push(Author.SYSTEM, projectName, REPO_FOO, Revision.HEAD,
+                                     "Local change", "", Markup.PLAINTEXT,
+                                     Change.ofTextUpsert("/outside.txt", "local")))
+                           .join();
+            }
+        };
+        final URIish remoteUri = new URIish(gitUri.substring("git+".length()));
+        try (GitWithAuth git = mirror.openGit(workDir, remoteUri, configurator)) {
+            assertThatThrownBy(() -> mirror.mirrorRemoteToLocal(
+                    git, executor, MAX_NUM_FILES, MAX_NUM_BYTES, Instant.now()))
+                    .hasRootCauseInstanceOf(ChangeConflictException.class);
+        }
+        assertThat(baseRevisions).containsExactly(baseline);
+        assertThat(localRepo.normalizeNow(Revision.HEAD)).isEqualTo(baseline.forward(1));
+        assertThat(localContent("/outside.txt")).isEqualTo("local");
+        assertThat(localRepo.find(Revision.HEAD, "/first.txt").join()).isEmpty();
+        assertThat(localRepo.find(Revision.HEAD, "/mirror_state.json").join()).isEmpty();
+
+        assertThat(mirrorRemoteToLocal(mirror).mirrorStatus()).isEqualTo(MirrorStatus.SUCCESS);
+        assertThat(localRepo.normalizeNow(Revision.HEAD))
+                .isEqualTo(baseline.forward(preserveRemoteCommitHistory ? 3 : 2));
+        assertThat(localContent("/first.txt")).isEqualTo("1");
+        assertThat(mirrorRemoteToLocal(mirror).mirrorStatus()).isEqualTo(MirrorStatus.UP_TO_DATE);
     }
 
     private DefaultGitMirror newMirror(String localPath) {

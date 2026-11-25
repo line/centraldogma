@@ -29,7 +29,6 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletionException;
 import java.util.function.Consumer;
@@ -80,7 +79,6 @@ import com.google.common.collect.ImmutableSet;
 
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
-import com.linecorp.centraldogma.common.ChangeConflictException;
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.EntryType;
 import com.linecorp.centraldogma.common.Markup;
@@ -1139,16 +1137,6 @@ abstract class AbstractGitMirror extends AbstractMirror {
             Revision revision = null;
             int committed = 0;
             for (UpstreamCommit upstreamCommit : commits) {
-                if (!snapshot) {
-                    final Revision head = localRepo().normalizeNow(Revision.HEAD);
-                    if (!head.equals(localRev) &&
-                        !Objects.equals(localCurrentMirrorState(mirrorStatePath, localRev),
-                                        localCurrentMirrorState(mirrorStatePath, head))) {
-                        throw new ChangeConflictException("Mirror state changed during history replay: " +
-                                                          mirrorStatePath);
-                    }
-                    localRev = head;
-                }
                 final Map<String, Change<?>> remoteChanges =
                         collectRemoteChanges(git, upstreamCommit.id(), maxNumFiles, maxNumBytes);
                 final Revision committedRevision =
