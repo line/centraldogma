@@ -286,15 +286,12 @@ port 443 in front of the configured server port. Then open
 Use HTTP only for localhost or local development.
 You may configure a project with HTTP APIs, but we recommend the web UI because it is easier and simpler.
 
-Everyone who is logged in is able to create a new project, and he or she would be an owner of the project.
-If you have the right to configure a project, in other words, if you are an owner of the project,
-you can access the configuration UI of the project by clicking the cog icon which is shown on the right
-of the project name.
+Anyone who is signed in can create a project and becomes its owner. Project owners can configure it
+by choosing **Project Settings** on the project page.
 
-![Project list with the configuration cog icon](./_images/auth_1.png)
+![Project page with the Project Settings button](./_images/auth_1.png)
 
-If you click the icon, you can see the configuration UI for a project like below. In this page, you can
-add a user or a token as a member of the project and can also remove them from the project.
+Use the **Members** tab to manage users and the **App Identities** tab to manage application identities.
 
 ![Project configuration UI](./_images/auth_2.png)
 
@@ -309,10 +306,8 @@ of `Owner` and `Member` role in the UI. More information about the role is as fo
 
 - `Owner` of a project
 
-  - the administrator of a project. A user who creates a project is to be an owner of the project by
-    default. Owners can add a user or a token as an owner or a member of the project, and can create
-    a new repository. Also, they can remove the repository or the project from the system and can
-    configure permissions for each role, member and token.
+  - the administrator of a project. Owners can create and remove repositories, remove the project, manage
+    project members and application identities, and configure their repository roles.
 
 - `Member` of a project
 
@@ -325,31 +320,33 @@ of `Owner` and `Member` role in the UI. More information about the role is as fo
 
 :::note
 
-Do not forget to make a new `Application Token` before adding a token to a project. `Add a token`
-button would be disabled if there is no token. The cog icon on the right of the `Tokens` title
-brings you to the `Application Token` management page.
+Create an application identity under **Settings → Application Identities** before adding it to a project.
 
 :::
 
-You can see the configuration UI for a repository when you click the name of repository in the
-`Repository Permission` list. The following image shows the configuration of the repository called `main`.
-In this page, you can do the followings.
+Open **Repository Settings** to configure repository roles. Use **Roles** to set the role granted to
+project members and choose the repository's visibility. Use **Users** and **App Identities** to grant
+roles to individual users or application identities.
 
-- Changing the role of a member or a token in a project
-- Setting permissions of each role for a repository
-- Setting permissions of a specific member or token for a repository
+![Repository settings with member roles and visibility](./_images/auth_3.png)
 
-![Repository permission configuration](./_images/auth_3.png)
+The available repository roles are `READ`, `WRITE`, and `ADMIN`. `ADMIN` includes `WRITE`, and
+`WRITE` includes `READ`. A user's effective role is the highest of their direct repository role,
+the configured member role if they belong to the project, and any read access granted by public visibility.
+Project owners and system administrators have `ADMIN` on every repository in the project.
 
-Permissions can be specified for a repository only. So a user can configure their repositories with different
-access control levels. There are only two permission types currently, which are `READ` and `WRITE`.
-`WRITE` permission implies `READ` permission, so you cannot give only WRITE permission to a user,
-a token or any role.
+### Public repositories
 
-Every access of HTTP API will be controlled by the access control system. A request is allowed only if the
-user of the request has sufficient permissions. If permissions for the user are specified in the repository
-configuration, it would be used first to control the request. If it does not exist, permissions for each role
-of the repository would be used to do that.
+A repository whose guest role is `READ` is public. Signed-in users and application tokens or mTLS
+certificates with guest access enabled can read it without a repository role. Eligible project
+members retain this access even if the repository grants no member role. Writing requires `WRITE` or
+`ADMIN`.
+
+Repositories are private by default. If the project allows public repositories, check
+**Make this repository public** when creating one or select **Public** later in **Repository Settings → Roles**.
+
+Project owners can disable **Allow public repositories** in **Project Settings** once all public
+repositories in the project are private.
 
 ### Application Token
 
@@ -359,12 +356,10 @@ server via HTTP API and get a session token. But it is inconvenient and the user
 code because the user should log in again when the session token is expired. `Application Token` would be
 useful for this case.
 
-`Application Token` is like a virtual user, so it can have any role in a project. Also, its permissions
-can be specified in a repository configuration like a member. To get a new token, a user can use
-`Application Tokens` menu of the web UI. `Application ID` has to be unique to identify where a client
-request comes from.
+An application token can have project and repository roles like a user. Create one under
+**Settings → Application Identities**. Each application identity has a unique application ID.
 
-![Application token management](./_images/auth_4.png)
+![Application identity management](./_images/auth_4.png)
 
 Anyone who is logged into the Central Dogma can create a new `Application Token`, and the token is shared
 for everyone. So any owner of a project can add any token to their project. However only both the token
@@ -386,3 +381,7 @@ without losing the roles and permissions granted to the application ID:
 There are two levels of a token, which are `System Admin` and `User`. `System Admin` level token can be
 created by only the system administrators. A client who sends a request with the token is allowed to access
 system administrator-level APIs.
+
+Guest access is off by default for new tokens and mTLS certificates. Enable it at creation to let the
+application identity read public repository content without a repository role. System administrator
+identities can always read public repositories.

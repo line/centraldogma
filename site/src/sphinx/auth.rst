@@ -356,8 +356,9 @@ A repository whose guest role is ``READ`` is a *public* repository. A public rep
 everyone who can sign in to the Central Dogma server — and by the application tokens and certificates
 with guest access allowed — without being granted any role. Eligible project members can read a public
 repository even when it grants no member role. Writing still requires a ``WRITE`` or higher role.
-A repository is private by default; you can switch the visibility in the ``Roles`` tab of the
-repository settings page.
+A repository is private by default. If the project allows public repositories, check
+``Make this repository public`` when creating one or select ``Public`` later in the ``Roles`` tab
+of the repository settings page.
 
 A project owner can prevent the repositories of the project from being made public by disabling
 ``Allow public repositories`` in the project settings. Disabling it is rejected while the project still
@@ -400,7 +401,6 @@ There are two levels of a token, which are ``System Admin`` and ``User``. ``Syst
 created by only the system administrators. A client who sends a request with the token is allowed to access
 system administrator-level APIs.
 
-When creating an application identity — a token or an mTLS certificate — you can also choose its scope.
-By default, it can access only the projects and repositories it is granted a role for. If you allow
-*guest access* when creating it, it can additionally read public repositories without being granted any
-role. A ``System Admin`` level application identity always allows guest access.
+Guest access is off by default for new tokens and mTLS certificates. Enable it at creation to let the
+application identity read public repository content without a repository role. System administrator
+identities can always read public repositories.
