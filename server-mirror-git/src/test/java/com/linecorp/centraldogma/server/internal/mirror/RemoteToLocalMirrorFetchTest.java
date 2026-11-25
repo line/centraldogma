@@ -33,6 +33,10 @@ import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 import org.eclipse.jgit.api.Git;
@@ -43,6 +47,7 @@ import org.eclipse.jgit.transport.URIish;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
+import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -52,6 +57,7 @@ import com.google.common.collect.ImmutableMap;
 
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
+import com.linecorp.centraldogma.common.ChangeConflictException;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.server.command.AbstractPushCommand;
@@ -78,7 +84,23 @@ class RemoteToLocalMirrorFetchTest {
     private static final String REPO_FOO = "foo";
 
     @RegisterExtension
-    static final ProjectManagerExtension pmExtension = new ProjectManagerExtension();
+    static final ProjectManagerExtension pmExtension = new ProjectManagerExtension() {
+        private final ExecutorService worker = Executors.newFixedThreadPool(1);
+
+        @Override
+        protected Executor newWorker() {
+            return worker;
+        }
+
+        @Override
+        public void after(ExtensionContext context) throws Exception {
+            try {
+                super.after(context);
+            } finally {
+                worker.shutdownNow();
+            }
+        }
+    };
 
     @RegisterExtension
     final TemporaryFolderExtension tempDir = new TemporaryFolderExtension() {
@@ -230,6 +252,66 @@ class RemoteToLocalMirrorFetchTest {
         assertThat(baseRevisions).containsExactly(baseline, baseline.forward(2));
         assertThat(localRepo.normalizeNow(Revision.HEAD)).isEqualTo(baseline.forward(3));
         assertThat(localRepo.find(Revision.HEAD, "/outside.txt").join()).isEmpty();
+    }
+
+    @Test
+    void overlappingReplayDoesNotMoveMirrorStateBackwards() throws Exception {
+        final DefaultGitMirror mirror = newMirror("/", true);
+        commitToRemote("counter.txt", "0");
+        assertThat(mirrorRemoteToLocal(mirror).mirrorStatus()).isEqualTo(MirrorStatus.SUCCESS);
+        final Revision baseline = localRepo.normalizeNow(Revision.HEAD);
+        commitToRemote("counter.txt", "1");
+        commitToRemote("counter.txt", "2");
+
+        final CompletableFuture<Void> firstCommit = new CompletableFuture<>();
+        final CompletableFuture<Void> resume = new CompletableFuture<>();
+        final CommandExecutor executor = new CapturingCommandExecutor(
+                pmExtension.executor(), new ArrayList<>()) {
+            private boolean paused;
+
+            @Override
+            public <T> CompletableFuture<T> execute(ExecutionContext ctx, Command<T> command) {
+                final CompletableFuture<T> result = super.execute(ctx, command);
+                if (paused || !(command instanceof AbstractPushCommand)) {
+                    return result;
+                }
+                paused = true;
+                return result.thenCompose(value -> {
+                    firstCommit.complete(null);
+                    return resume.thenApply(unused -> value);
+                });
+            }
+        };
+        final DefaultGitMirror secondMirror = newMirror("/", true);
+        final File secondCache = new File(tempDir.getRoot().toFile(), "second-cache");
+        final URIish remoteUri = new URIish(gitUri.substring("git+".length()));
+        // Open both caches on this thread because distinct paths can share a striped lock.
+        try (GitWithAuth firstGit = mirror.openGit(workDir, remoteUri, command -> {});
+             GitWithAuth secondGit = secondMirror.openGit(secondCache, remoteUri, command -> {})) {
+            final CompletableFuture<MirrorResult> firstRun = CompletableFuture.supplyAsync(() -> {
+                try {
+                    return mirror.mirrorRemoteToLocal(firstGit, executor, MAX_NUM_FILES, MAX_NUM_BYTES,
+                                                      Instant.now());
+                } catch (Exception e) {
+                    throw new CompletionException(e);
+                }
+            });
+            try {
+                firstCommit.get(10, TimeUnit.SECONDS);
+                commitToRemote("counter.txt", "3");
+                assertThat(secondMirror.mirrorRemoteToLocal(secondGit, pmExtension.executor(),
+                                                           MAX_NUM_FILES, MAX_NUM_BYTES, Instant.now())
+                                       .mirrorStatus()).isEqualTo(MirrorStatus.SUCCESS);
+            } finally {
+                resume.complete(null);
+                firstRun.handle((unused, cause) -> cause).get(10, TimeUnit.SECONDS);
+            }
+
+            assertThat(localContent("/counter.txt")).isEqualTo("3");
+            assertThat(localRepo.normalizeNow(Revision.HEAD)).isEqualTo(baseline.forward(3));
+            assertThatThrownBy(firstRun::join).hasRootCauseInstanceOf(ChangeConflictException.class);
+        }
+        assertThat(mirrorRemoteToLocal(mirror).mirrorStatus()).isEqualTo(MirrorStatus.UP_TO_DATE);
     }
 
     @Test
