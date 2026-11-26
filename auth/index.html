@@ -1,0 +1,351 @@
+<!doctype html><html lang=en dir=ltr class="docs-wrapper plugin-docs plugin-id-default docs-version-current docs-doc-page docs-doc-id-auth" data-has-hydrated=false><head><meta charset=UTF-8><meta name=generator content="Docusaurus v3.10.2"><title data-rh=true>Authentication and access control | Central Dogma</title><meta data-rh=true name=viewport content="width=device-width, initial-scale=1.0"/><meta data-rh=true name=twitter:card content=summary_large_image /><meta data-rh=true property=og:url content=https://line.github.io/centraldogma/auth /><meta data-rh=true property=og:locale content=en /><meta data-rh=true name=docusaurus_locale content=en /><meta data-rh=true name=docsearch:language content=en /><meta data-rh=true name=docusaurus_version content=current /><meta data-rh=true name=docusaurus_tag content=docs-default-current /><meta data-rh=true name=docsearch:version content=current /><meta data-rh=true name=docsearch:docusaurus_tag content=docs-default-current /><meta data-rh=true property=og:title content="Authentication and access control | Central Dogma"/><meta data-rh=true name=description content="Configure SAML or Apache Shiro authentication, project roles, repository permissions and application tokens."/><meta data-rh=true property=og:description content="Configure SAML or Apache Shiro authentication, project roles, repository permissions and application tokens."/><link data-rh=true rel=icon href=/centraldogma/img/favicon.ico /><link data-rh=true rel=canonical href=https://line.github.io/centraldogma/auth /><link data-rh=true rel=alternate href=https://line.github.io/centraldogma/auth hreflang=en /><link data-rh=true rel=alternate href=https://line.github.io/centraldogma/auth hreflang=x-default /><script data-rh=true type=application/ld+json>{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","item":"https://line.github.io/centraldogma/auth","name":"Authentication and access control","position":1}]}</script><link rel=stylesheet href=/centraldogma/assets/css/styles.35dc2e59.css /><script src=/centraldogma/assets/js/runtime~main.11d0ac62.js defer></script><script src=/centraldogma/assets/js/main.1f68fdea.js defer></script></head><body><svg style="display: none;"><defs>
+<symbol id=theme-svg-external-link viewBox="0 0 24 24"><path fill=currentColor d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"/></symbol>
+</defs></svg>
+<script>!function(){var t=function(){try{return new URLSearchParams(window.location.search).get("docusaurus-theme")}catch(t){}}()||function(){try{return window.localStorage.getItem("theme-c05")}catch(t){}}();document.documentElement.setAttribute("data-theme",t||(window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light")),document.documentElement.setAttribute("data-theme-choice",t||"system")}(),function(){try{for(var[t,e]of new URLSearchParams(window.location.search).entries())if(t.startsWith("docusaurus-data-")){var a=t.replace("docusaurus-data-","data-");document.documentElement.setAttribute(a,e)}}catch(t){}}()</script><div id=__docusaurus><link rel=preload as=image href=/centraldogma/img/logo.png /><div role=region aria-label="Skip to main content"><a class=skipToContent_fXgn href=#__docusaurus_skipToContent_fallback>Skip to main content</a></div><nav aria-label=Main class="theme-layout-navbar navbar navbar--fixed-top"><div class=navbar__inner><div class="theme-layout-navbar-left navbar__items"><button aria-label="Toggle navigation bar" aria-expanded=false class="navbar__toggle clean-btn" type=button><svg width=30 height=30 viewBox="0 0 30 30" aria-hidden=true><path stroke=currentColor stroke-linecap=round stroke-miterlimit=10 stroke-width=2 d="M4 7h22M4 15h22M4 23h22"/></svg></button><a class=navbar__brand href=/centraldogma/><div class=navbar__logo><img src=/centraldogma/img/logo.png alt="Central Dogma" class="themedComponent_mlkZ themedComponent--light_NVdE"/><img src=/centraldogma/img/logo.png alt="Central Dogma" class="themedComponent_mlkZ themedComponent--dark_xIcU"/></div><b class="navbar__title text--truncate">Central Dogma</b></a><a aria-current=page class="navbar__item navbar__link navbar__link--active" href=/centraldogma/>Documentation</a><a href=https://github.com/line/centraldogma/releases target=_blank rel="noopener noreferrer" class="navbar__item navbar__link">Release notes<svg width=13.5 height=13.5 aria-label="(opens in new tab)" class=iconExternalLink_nPIU><use href=#theme-svg-external-link /></svg></a></div><div class="theme-layout-navbar-right navbar__items navbar__items--right"><a href=https://github.com/line/centraldogma target=_blank rel="noopener noreferrer" class="navbar__item navbar__link">GitHub<svg width=13.5 height=13.5 aria-label="(opens in new tab)" class=iconExternalLink_nPIU><use href=#theme-svg-external-link /></svg></a><div class="toggle_vylO colorModeToggle_DEke"><button class="clean-btn toggleButton_gllP toggleButtonDisabled_aARS" type=button disabled title="system mode" aria-label="Switch between dark and light mode (currently system mode)"><svg viewBox="0 0 24 24" width=24 height=24 aria-hidden=true class="toggleIcon_g3eP lightToggleIcon_pyhR"><path fill=currentColor d="M12,9c1.65,0,3,1.35,3,3s-1.35,3-3,3s-3-1.35-3-3S10.35,9,12,9 M12,7c-2.76,0-5,2.24-5,5s2.24,5,5,5s5-2.24,5-5 S14.76,7,12,7L12,7z M2,13l2,0c0.55,0,1-0.45,1-1s-0.45-1-1-1l-2,0c-0.55,0-1,0.45-1,1S1.45,13,2,13z M20,13l2,0c0.55,0,1-0.45,1-1 s-0.45-1-1-1l-2,0c-0.55,0-1,0.45-1,1S19.45,13,20,13z M11,2v2c0,0.55,0.45,1,1,1s1-0.45,1-1V2c0-0.55-0.45-1-1-1S11,1.45,11,2z M11,20v2c0,0.55,0.45,1,1,1s1-0.45,1-1v-2c0-0.55-0.45-1-1-1C11.45,19,11,19.45,11,20z M5.99,4.58c-0.39-0.39-1.03-0.39-1.41,0 c-0.39,0.39-0.39,1.03,0,1.41l1.06,1.06c0.39,0.39,1.03,0.39,1.41,0s0.39-1.03,0-1.41L5.99,4.58z M18.36,16.95 c-0.39-0.39-1.03-0.39-1.41,0c-0.39,0.39-0.39,1.03,0,1.41l1.06,1.06c0.39,0.39,1.03,0.39,1.41,0c0.39-0.39,0.39-1.03,0-1.41 L18.36,16.95z M19.42,5.99c0.39-0.39,0.39-1.03,0-1.41c-0.39-0.39-1.03-0.39-1.41,0l-1.06,1.06c-0.39,0.39-0.39,1.03,0,1.41 s1.03,0.39,1.41,0L19.42,5.99z M7.05,18.36c0.39-0.39,0.39-1.03,0-1.41c-0.39-0.39-1.03-0.39-1.41,0l-1.06,1.06 c-0.39,0.39-0.39,1.03,0,1.41s1.03,0.39,1.41,0L7.05,18.36z"/></svg><svg viewBox="0 0 24 24" width=24 height=24 aria-hidden=true class="toggleIcon_g3eP darkToggleIcon_wfgR"><path fill=currentColor d="M9.37,5.51C9.19,6.15,9.1,6.82,9.1,7.5c0,4.08,3.32,7.4,7.4,7.4c0.68,0,1.35-0.09,1.99-0.27C17.45,17.19,14.93,19,12,19 c-3.86,0-7-3.14-7-7C5,9.07,6.81,6.55,9.37,5.51z M12,3c-4.97,0-9,4.03-9,9s4.03,9,9,9s9-4.03,9-9c0-0.46-0.04-0.92-0.1-1.36 c-0.98,1.37-2.58,2.26-4.4,2.26c-2.98,0-5.4-2.42-5.4-5.4c0-1.81,0.89-3.42,2.26-4.4C12.92,3.04,12.46,3,12,3L12,3z"/></svg><svg viewBox="0 0 24 24" width=24 height=24 aria-hidden=true class="toggleIcon_g3eP systemToggleIcon_QzmC"><path fill=currentColor d="m12 21c4.971 0 9-4.029 9-9s-4.029-9-9-9-9 4.029-9 9 4.029 9 9 9zm4.95-13.95c1.313 1.313 2.05 3.093 2.05 4.95s-0.738 3.637-2.05 4.95c-1.313 1.313-3.093 2.05-4.95 2.05v-14c1.857 0 3.637 0.737 4.95 2.05z"/></svg></button></div><div class=navbarSearchContainer_Bca1></div></div></div><div role=presentation class=navbar-sidebar__backdrop></div></nav><div id=__docusaurus_skipToContent_fallback class="theme-layout-main main-wrapper mainWrapper_z2l0"><div class=docsWrapper_hBAB><button aria-label="Scroll back to top" class="clean-btn theme-back-to-top-button backToTopButton_sjWU" type=button></button><div class=docRoot_UBD9><aside class="theme-doc-sidebar-container docSidebarContainer_YfHR"><div class=sidebarViewport_aRkj><div class=sidebar_njMd><nav aria-label="Docs sidebar" class="menu thin-scrollbar menu_SIkG"><ul class="theme-doc-sidebar-menu menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class=menu__link href=/centraldogma/><span class=linkLabel_WmDU>Welcome to Central Dogma</span></a><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item menu__list-item--collapsed"><div class=menu__list-item-collapsible><a class="categoryLink_byQd menu__link menu__link--sublist" href=/centraldogma/category/setting-up><span class=categoryLinkLabel_W154>Setting up</span></a><button aria-label="Expand sidebar category 'Setting up'" aria-expanded=false type=button class="clean-btn menu__caret"></button></div><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class=menu__link href=/centraldogma/concepts><span class=linkLabel_WmDU>Concepts</span></a><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class=menu__link href=/centraldogma/client-cli><span class=linkLabel_WmDU>Command-line client</span></a><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class=menu__link href=/centraldogma/client-java><span class=linkLabel_WmDU>Java client library</span></a><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class=menu__link href=/centraldogma/templates-variables><span class=linkLabel_WmDU>Templates and variables</span></a><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class=menu__link href=/centraldogma/mirroring><span class=linkLabel_WmDU>Mirroring</span></a><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class=menu__link href=/centraldogma/xds><span class=linkLabel_WmDU>xDS control plane</span></a><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link menu__link--active" aria-current=page href=/centraldogma/auth><span class=linkLabel_WmDU>Authentication and access control</span></a><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class=menu__link href=/centraldogma/known-issues><span class=linkLabel_WmDU>Known issues</span></a></ul></nav><button type=button title="Collapse sidebar" aria-label="Collapse sidebar" class="button button--secondary button--outline collapseSidebarButton_PEFL"><svg width=20 height=20 aria-hidden=true class=collapseSidebarButtonIcon_kv0_><g fill=#7a7a7a><path d="M9.992 10.023c0 .2-.062.399-.172.547l-4.996 7.492a.982.982 0 01-.828.454H1c-.55 0-1-.453-1-1 0-.2.059-.403.168-.551l4.629-6.942L.168 3.078A.939.939 0 010 2.528c0-.548.45-.997 1-.997h2.996c.352 0 .649.18.828.45L9.82 9.472c.11.148.172.347.172.55zm0 0"/><path d="M19.98 10.023c0 .2-.058.399-.168.547l-4.996 7.492a.987.987 0 01-.828.454h-3c-.547 0-.996-.453-.996-1 0-.2.059-.403.168-.551l4.625-6.942-4.625-6.945a.939.939 0 01-.168-.55 1 1 0 01.996-.997h3c.348 0 .649.18.828.45l4.996 7.492c.11.148.168.347.168.55zm0 0"/></g></svg></button></div></div></aside><main class=docMainContainer_TBSr><div class="container padding-top--md padding-bottom--lg"><div class=row><div class="col docItemCol_VOVn"><div class=docItemContainer_Djhp><article><nav class="theme-doc-breadcrumbs breadcrumbsContainer_Z_bl" aria-label=Breadcrumbs><ul class=breadcrumbs><li class=breadcrumbs__item><a aria-label="Home page" class=breadcrumbs__link href=/centraldogma/><svg viewBox="0 0 24 24" class=breadcrumbHomeIcon_YNFT><path d="M10 19v-5h4v5c0 .55.45 1 1 1h3c.55 0 1-.45 1-1v-7h1.7c.46 0 .68-.57.33-.87L12.67 3.6c-.38-.34-.96-.34-1.34 0l-8.36 7.53c-.34.3-.13.87.33.87H5v7c0 .55.45 1 1 1h3c.55 0 1-.45 1-1z" fill=currentColor /></svg></a><li class="breadcrumbs__item breadcrumbs__item--active"><span class=breadcrumbs__link>Authentication and access control</span></ul></nav><div class="tocCollapsible_ETCw theme-doc-toc-mobile tocMobile_ITEo"><button type=button class="clean-btn tocCollapsibleButton_TO0P">On this page</button></div><div class="theme-doc-markdown markdown"><header><h1>Authentication and Access Control</h1></header>
+<p>Central Dogma provides the following modules to configure its authentication layer:</p>
+<ul>
+<li class=""><code>server-auth-saml</code>, which is based on <a href=https://wiki.shibboleth.net/confluence/display/OS30/Home target=_blank rel="noopener noreferrer" class="">OpenSAML</a></li>
+<li class=""><code>server-auth-shiro</code>, which is based on <a href=https://shiro.apache.org/ target=_blank rel="noopener noreferrer" class="">Apache Shiro</a></li>
+</ul>
+<p>They are included in the distribution by default so that you can configure the authentication layer with
+the following instruction.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id=basic-authentication-configuration>Basic authentication configuration<a href=#basic-authentication-configuration class=hash-link aria-label="Direct link to Basic authentication configuration" title="Direct link to Basic authentication configuration" translate=no>​</a></h2>
+<p>The first step to configure the authentication layer is adding <code>authentication</code> property to the
+<code>conf/dogma.json</code>. The authentication is disabled when <code>authentication</code> property is <code>null</code>.
+The authentication configuration consists of the following properties:</p>
+<div class="language-json codeBlockContainer_Ckt0 theme-code-block" style=--prism-color:#393A34;--prism-background-color:#f6f8fa><div class=codeBlockContent_QJqH><pre tabindex=0 class="prism-code language-json codeBlock_bY9V thin-scrollbar" style=color:#393A34;background-color:#f6f8fa><code class=codeBlockLines_e6Vv><div class=token-line style=color:#393A34><span class="token punctuation" style=color:#393A34>{</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">  ...</span><br/></div><div class=token-line style=color:#393A34><span class="token plain">  </span><span class="token property" style=color:#36acaa>"authentication"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token punctuation" style=color:#393A34>{</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">    </span><span class="token property" style=color:#36acaa>"factoryClassName"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token string" style=color:#e3116c>"the fully-qualified class name of an AuthenticationProviderFactory"</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">    </span><span class="token property" style=color:#36acaa>"systemAdministrators"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token punctuation" style=color:#393A34>[</span><span class="token punctuation" style=color:#393A34>]</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">    </span><span class="token property" style=color:#36acaa>"caseSensitiveLoginNames"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token boolean" style=color:#36acaa>false</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">    </span><span class="token property" style=color:#36acaa>"sessionCacheSpec"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token string" style=color:#e3116c>"maximumSize=8192,expireAfterWrite=604800s"</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">    </span><span class="token property" style=color:#36acaa>"sessionTimeoutMillis"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token number" style=color:#36acaa>604800000</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">    </span><span class="token property" style=color:#36acaa>"sessionValidationSchedule"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token string" style=color:#e3116c>"0 30 */4 ? * *"</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">    </span><span class="token property" style=color:#36acaa>"properties"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token null keyword" style=color:#00009f>null</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">  </span><span class="token punctuation" style=color:#393A34>}</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain"></span><span class="token punctuation" style=color:#393A34>}</span><br/></div></code></pre></div></div>
+<ul>
+<li class="">
+<p><code>factoryClassName</code> (string)</p>
+<ul>
+<li class="">the fully-qualified class name of the <code><a href=https://javadoc.io/doc/com.linecorp.centraldogma/centraldogma-javadoc/latest/com/linecorp/centraldogma/server/auth/AuthProviderFactory.html title=AuthProviderFactory>AuthProviderFactory<span class=suffix_sw1f></span></a></code> implementation.
+Can be one of
+<code>com.linecorp.centraldogma.server.auth.saml.SamlAuthProviderFactory</code> or
+<code>com.linecorp.centraldogma.server.auth.shiro.ShiroAuthProviderFactory</code>.</li>
+</ul>
+</li>
+<li class="">
+<p><code>systemAdministrators</code> (string array)</p>
+<ul>
+<li class="">login names of the system administrators. A user who has a login name specified here will get the
+system administrator role.</li>
+</ul>
+</li>
+<li class="">
+<p><code>caseSensitiveLoginNames</code> (boolean)</p>
+<ul>
+<li class="">whether case-sensitive matching is performed when login names are compared. Disabled by default
+(case-insensitive).</li>
+</ul>
+</li>
+<li class="">
+<p><code>sessionCacheSpec</code> (string)</p>
+<ul>
+<li class="">the cache specification string which determines the capacity and behavior of the cache for the session
+information of the server. Refer to <a href=https://static.javadoc.io/com.github.ben-manes.caffeine/caffeine/2.6.2/com/github/benmanes/caffeine/cache/CaffeineSpec.html target=_blank rel="noopener noreferrer" class="">the Caffeine API documentation</a> for more information.</li>
+</ul>
+</li>
+<li class="">
+<p><code>sessionTimeoutMillis</code> (integer)</p>
+<ul>
+<li class="">the session timeout for web-based administrative console, in milliseconds. If <code>null</code>, the default value
+of '604800000 milliseconds' (7 days) is used.</li>
+</ul>
+</li>
+<li class="">
+<p><code>sessionValidationSchedule</code> (string)</p>
+<ul>
+<li class="">a <a href=https://www.quartz-scheduler.org/documentation/quartz-2.3.0/tutorials/crontrigger.html target=_blank rel="noopener noreferrer" class="">Quartz cron expression</a>
+that describes when the task for revalidating the existing sessions is
+supposed to be triggered. If unspecified, <code>0 30 */4 ? * *</code> (at 0:30, 4:30, 8:30, 12:30, 16:30 and 20:30
+for every day) is used.</li>
+</ul>
+</li>
+<li class="">
+<p><code>properties</code> (object)</p>
+<ul>
+<li class="">an object which describes authentication provider specific properties.</li>
+</ul>
+</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id=configuring-authentication-with-saml>Configuring authentication with SAML<a href=#configuring-authentication-with-saml class=hash-link aria-label="Direct link to Configuring authentication with SAML" title="Direct link to Configuring authentication with SAML" translate=no>​</a></h2>
+<p><a href=https://en.wikipedia.org/wiki/Security_Assertion_Markup_Language target=_blank rel="noopener noreferrer" class="">Security Assertion Markup Language (SAML)</a>
+is an open standard for exchanging authentication and authorization
+data between an identity provider and a service provider. In this protocol, Central Dogma acts as a service
+provider. So, you need to fill the <code>properties</code> with information of an identity provider that you delegate
+the authentication to.</p>
+<div class="language-json codeBlockContainer_Ckt0 theme-code-block" style=--prism-color:#393A34;--prism-background-color:#f6f8fa><div class=codeBlockContent_QJqH><pre tabindex=0 class="prism-code language-json codeBlock_bY9V thin-scrollbar" style=color:#393A34;background-color:#f6f8fa><code class=codeBlockLines_e6Vv><div class=token-line style=color:#393A34><span class="token punctuation" style=color:#393A34>{</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">  ...</span><br/></div><div class=token-line style=color:#393A34><span class="token plain">  </span><span class="token property" style=color:#36acaa>"authentication"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token punctuation" style=color:#393A34>{</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">    </span><span class="token property" style=color:#36acaa>"factoryClassName"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token string" style=color:#e3116c>"com.linecorp.centraldogma.server.auth.saml.SamlAuthProviderFactory"</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">    </span><span class="token property" style=color:#36acaa>"systemAdministrators"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token punctuation" style=color:#393A34>[</span><span class="token punctuation" style=color:#393A34>]</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">    </span><span class="token property" style=color:#36acaa>"caseSensitiveLoginNames"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token boolean" style=color:#36acaa>false</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">    </span><span class="token property" style=color:#36acaa>"sessionCacheSpec"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token string" style=color:#e3116c>"maximumSize=8192,expireAfterWrite=604800s"</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">    </span><span class="token property" style=color:#36acaa>"sessionTimeoutMillis"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token number" style=color:#36acaa>604800000</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">    </span><span class="token property" style=color:#36acaa>"sessionValidationSchedule"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token string" style=color:#e3116c>"0 30 */4 ? * *"</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">    </span><span class="token property" style=color:#36acaa>"properties"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token punctuation" style=color:#393A34>{</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">      </span><span class="token property" style=color:#36acaa>"entityId"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token string" style=color:#e3116c>"dogma"</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">      </span><span class="token property" style=color:#36acaa>"hostname"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token string" style=color:#e3116c>"dogma-example.linecorp.com"</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">      </span><span class="token property" style=color:#36acaa>"signingKey"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token string" style=color:#e3116c>"signing"</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">      </span><span class="token property" style=color:#36acaa>"encryptionKey"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token string" style=color:#e3116c>"encryption"</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">      </span><span class="token property" style=color:#36acaa>"keyStore"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token punctuation" style=color:#393A34>{</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">        </span><span class="token property" style=color:#36acaa>"type"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token string" style=color:#e3116c>"PKCS12"</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">        </span><span class="token property" style=color:#36acaa>"path"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token string" style=color:#e3116c>"./conf/saml.jks"</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">        </span><span class="token property" style=color:#36acaa>"password"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token null keyword" style=color:#00009f>null</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">        </span><span class="token property" style=color:#36acaa>"keyPasswords"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token punctuation" style=color:#393A34>{</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">          </span><span class="token property" style=color:#36acaa>"signing"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token null keyword" style=color:#00009f>null</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">          </span><span class="token property" style=color:#36acaa>"encryption"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token null keyword" style=color:#00009f>null</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">        </span><span class="token punctuation" style=color:#393A34>}</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">        </span><span class="token property" style=color:#36acaa>"signatureAlgorithm"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token string" style=color:#e3116c>"http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">      </span><span class="token punctuation" style=color:#393A34>}</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">      </span><span class="token property" style=color:#36acaa>"acs"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token punctuation" style=color:#393A34>{</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">        </span><span class="token property" style=color:#36acaa>"endpoints"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token punctuation" style=color:#393A34>[</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">          </span><span class="token punctuation" style=color:#393A34>{</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">            </span><span class="token property" style=color:#36acaa>"uri"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token string" style=color:#e3116c>"https://dogma-example.linecorp.com/saml/acs/post"</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">            </span><span class="token property" style=color:#36acaa>"binding"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token string" style=color:#e3116c>"HTTP_POST"</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">          </span><span class="token punctuation" style=color:#393A34>}</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">          </span><span class="token punctuation" style=color:#393A34>{</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">            </span><span class="token property" style=color:#36acaa>"uri"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token string" style=color:#e3116c>"https://dogma-example.linecorp.com/saml/acs/redirect"</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">            </span><span class="token property" style=color:#36acaa>"binding"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token string" style=color:#e3116c>"HTTP_REDIRECT"</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">          </span><span class="token punctuation" style=color:#393A34>}</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">        </span><span class="token punctuation" style=color:#393A34>]</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">      </span><span class="token punctuation" style=color:#393A34>}</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">      </span><span class="token property" style=color:#36acaa>"idp"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token punctuation" style=color:#393A34>{</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">        </span><span class="token property" style=color:#36acaa>"entityId"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token string" style=color:#e3116c>"some-idp"</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">        </span><span class="token property" style=color:#36acaa>"uri"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token string" style=color:#e3116c>"https://idp.some-service.com/saml/single_sign_on_service"</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">        </span><span class="token property" style=color:#36acaa>"binding"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token string" style=color:#e3116c>"HTTP_POST"</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">        </span><span class="token property" style=color:#36acaa>"signingKey"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token string" style=color:#e3116c>"some-idp"</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">        </span><span class="token property" style=color:#36acaa>"encryptionKey"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token string" style=color:#e3116c>"some-idp"</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">        </span><span class="token property" style=color:#36acaa>"subjectLoginNameIdFormat"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token string" style=color:#e3116c>"urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress"</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">        </span><span class="token property" style=color:#36acaa>"attributeLoginName"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token null keyword" style=color:#00009f>null</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">      </span><span class="token punctuation" style=color:#393A34>}</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">    </span><span class="token punctuation" style=color:#393A34>}</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">  </span><span class="token punctuation" style=color:#393A34>}</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain"></span><span class="token punctuation" style=color:#393A34>}</span><br/></div></code></pre></div></div>
+<p>The following describes the meaning of SAML-specific properties.</p>
+<ul>
+<li class="">
+<p><code>entityId</code> (string)</p>
+<ul>
+<li class="">an identifier of this service provider.</li>
+</ul>
+</li>
+<li class="">
+<p><code>hostname</code> (string)</p>
+<ul>
+<li class="">a host name which is used for generating URLs for an assertion consumer service, a metadata service and
+a single logout service that are served by this service provider. It should be accessible from a user
+browser.</li>
+</ul>
+</li>
+<li class="">
+<p><code>signingKey</code> (string)</p>
+<ul>
+<li class="">the name of a private key which is used for signing. If unspecified, <code>signing</code> is used by default.
+Executing <a href=https://docs.oracle.com/en/java/javase/11/tools/keytool.html target=_blank rel="noopener noreferrer" class="">keytool</a> with <code>-genkeypair</code> command
+helps you to create a new key pair in your keystore.</li>
+</ul>
+</li>
+<li class="">
+<p><code>encryptionKey</code> (string)</p>
+<ul>
+<li class="">the name of a private key which is used for encryption. If unspecified, <code>encryption</code> is used by default.</li>
+</ul>
+</li>
+<li class="">
+<p><code>keyStore</code></p>
+<ul>
+<li class="">
+<p>the keystore which is used to encrypt and decrypt exchanged messages.</p>
+</li>
+<li class="">
+<p><code>type</code> (string)</p>
+<ul>
+<li class="">the type of the keystore. If unspecified, the type retrieved from
+<code>java.security.KeyStore.getDefaultType()</code> is used by default.</li>
+</ul>
+</li>
+<li class="">
+<p><code>path</code> (string)</p>
+<ul>
+<li class="">the location of the keystore file.</li>
+</ul>
+</li>
+<li class="">
+<p><code>password</code> (string)</p>
+<ul>
+<li class="">the password of the keystore.</li>
+</ul>
+</li>
+<li class="">
+<p><code>keyPasswords</code> (map of string key-value pairs)</p>
+<ul>
+<li class="">a map of a key name and its password. If the password is unspecified, the empty string is used by default.</li>
+</ul>
+</li>
+<li class="">
+<p><code>signatureAlgorithm</code> (string)</p>
+<ul>
+<li class="">a name of the signature algorithm for signing and encryption.
+If unspecified, the legacy <code>http://www.w3.org/2000/09/xmldsig#rsa-sha1</code> algorithm is used by default.
+Configure <code>http://www.w3.org/2001/04/xmldsig-more#rsa-sha256</code> for stronger signatures.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="">
+<p><code>acs</code></p>
+<ul>
+<li class="">
+<p>the assertion consumer service configuration. If unspecified, the default value is used which is
+<code>{scheme}://{hostname}:{port}/saml/acs/post</code> and <code>{scheme}://{hostname}:{port}/saml/acs/redirect</code>.</p>
+</li>
+<li class="">
+<p><code>endpoints</code> (array of object)</p>
+<ul>
+<li class="">
+<p>an array of assertion consumer service endpoints. Each endpoint has the following properties:</p>
+</li>
+<li class="">
+<p><code>uri</code> (string)</p>
+<ul>
+<li class="">a uri where a SAML response is supposed to be sent to.</li>
+</ul>
+</li>
+<li class="">
+<p><code>binding</code> (string)</p>
+<ul>
+<li class="">a binding protocol of the <code>uri</code>. It can be one of <code>HTTP_POST</code> or <code>HTTP_REDIRECT</code>.
+If unspecified, <code>HTTP_POST</code> is used by default.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="">
+<p><code>idp</code></p>
+<ul>
+<li class="">
+<p>the identity provider configuration.</p>
+</li>
+<li class="">
+<p><code>entityId</code> (string)</p>
+<ul>
+<li class="">an identifier of the identity provider.</li>
+</ul>
+</li>
+<li class="">
+<p><code>uri</code> (string)</p>
+<ul>
+<li class="">a URL where an authentication request is supposed to be sent to.</li>
+</ul>
+</li>
+<li class="">
+<p><code>binding</code> (string)</p>
+<ul>
+<li class="">a binding protocol of the <code>uri</code>. If unspecified, <code>urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST</code>
+is used by default. It can be simply specified as <code>HTTP_POST</code> or <code>HTTP_REDIRECT</code>.</li>
+</ul>
+</li>
+<li class="">
+<p><code>signingKey</code> (string)</p>
+<ul>
+<li class="">the name of a certificate for signing, which is provided by the identity provider.
+If unspecified, the <code>entityId</code> is used by default. Executing
+<a href=https://docs.oracle.com/en/java/javase/11/tools/keytool.html target=_blank rel="noopener noreferrer" class="">keytool</a> with <code>-importcert</code> command
+helps you to import a certificate of an identity provider to your keystore.</li>
+</ul>
+</li>
+<li class="">
+<p><code>encryptionKey</code> (string)</p>
+<ul>
+<li class="">the name of a certificate for encryption, which is provided by the identity provider.
+If unspecified, the <code>entityId</code> is used by default.</li>
+</ul>
+</li>
+<li class="">
+<p><code>subjectLoginNameIdFormat</code> (string)</p>
+<ul>
+<li class="">the name ID format of a subject which holds a login name.
+If unspecified, <code>urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress</code> is used by default.
+It means that the email address handed from the identity provider is used as a login name in the
+authentication layer. You need to consult with the metadata of the identity provider before configuring
+this property.</li>
+</ul>
+</li>
+<li class="">
+<p><code>attributeLoginName</code> (string)</p>
+<ul>
+<li class="">the attribute name which holds a login name. Some identity provider provides a login name by an attribute,
+instead of a name ID. In this case, you can configure this property, and then set <code>subjectLoginNameIdFormat</code>
+to <code>null</code> in order to avoid treating an email address as a login name.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id=configuring-authentication-with-apache-shiro>Configuring authentication with Apache Shiro<a href=#configuring-authentication-with-apache-shiro class=hash-link aria-label="Direct link to Configuring authentication with Apache Shiro" title="Direct link to Configuring authentication with Apache Shiro" translate=no>​</a></h2>
+<p><a href=https://shiro.apache.org/ target=_blank rel="noopener noreferrer" class="">Apache Shiro</a> is a Java security framework that performs authentication, authorization, cryptography,
+and session management. Central Dogma leverages its authentication feature to authenticate a user.
+If you want to configure the authentication layer with <a href=https://shiro.apache.org/ target=_blank rel="noopener noreferrer" class="">Apache Shiro</a>, you should configure the <code>authentication</code>
+property in your <code>conf/dogma.json</code> as follows. Note that the path of your INI configuration file is specified
+in the <code>properties</code> property.</p>
+<div class="language-json codeBlockContainer_Ckt0 theme-code-block" style=--prism-color:#393A34;--prism-background-color:#f6f8fa><div class=codeBlockContent_QJqH><pre tabindex=0 class="prism-code language-json codeBlock_bY9V thin-scrollbar" style=color:#393A34;background-color:#f6f8fa><code class=codeBlockLines_e6Vv><div class=token-line style=color:#393A34><span class="token punctuation" style=color:#393A34>{</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">  ...</span><br/></div><div class=token-line style=color:#393A34><span class="token plain">  </span><span class="token property" style=color:#36acaa>"authentication"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token punctuation" style=color:#393A34>{</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">    </span><span class="token property" style=color:#36acaa>"factoryClassName"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token string" style=color:#e3116c>"com.linecorp.centraldogma.server.auth.shiro.ShiroAuthProviderFactory"</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">    </span><span class="token property" style=color:#36acaa>"systemAdministrators"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token punctuation" style=color:#393A34>[</span><span class="token punctuation" style=color:#393A34>]</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">    </span><span class="token property" style=color:#36acaa>"caseSensitiveLoginNames"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token boolean" style=color:#36acaa>false</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">    </span><span class="token property" style=color:#36acaa>"sessionCacheSpec"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token string" style=color:#e3116c>"maximumSize=8192,expireAfterWrite=604800s"</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">    </span><span class="token property" style=color:#36acaa>"sessionTimeoutMillis"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token number" style=color:#36acaa>604800000</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">    </span><span class="token property" style=color:#36acaa>"sessionValidationSchedule"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token string" style=color:#e3116c>"0 30 */4 ? * *"</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">    </span><span class="token property" style=color:#36acaa>"properties"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token string" style=color:#e3116c>"./conf/shiro.ini"</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">  </span><span class="token punctuation" style=color:#393A34>}</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain"></span><span class="token punctuation" style=color:#393A34>}</span><br/></div></code></pre></div></div>
+<p>You may configure <code>conf/shiro.ini</code> simply as follows, which uses a local database system of <a href=https://shiro.apache.org/ target=_blank rel="noopener noreferrer" class="">Apache Shiro</a>:</p>
+<div class="language-ini codeBlockContainer_Ckt0 theme-code-block" style=--prism-color:#393A34;--prism-background-color:#f6f8fa><div class=codeBlockContent_QJqH><pre tabindex=0 class="prism-code language-ini codeBlock_bY9V thin-scrollbar" style=color:#393A34;background-color:#f6f8fa><code class=codeBlockLines_e6Vv><div class=token-line style=color:#393A34><span class="token plain">[users]</span><br/></div><div class=token-line style=color:#393A34><span class="token plain">system-admin = system-admin-secret</span><br/></div><div class=token-line style=color:#393A34><span class="token plain">dogma-admin = dogma-admin-secret</span><br/></div></code></pre></div></div>
+<div class="theme-admonition theme-admonition-note admonition_xJq3 alert alert--secondary"><div class=admonitionHeading_Gvgb><span class=admonitionIcon_Rf37><svg viewBox="0 0 14 16"><path fill-rule=evenodd d="M6.3 5.69a.942.942 0 0 1-.28-.7c0-.28.09-.52.28-.7.19-.18.42-.28.7-.28.28 0 .52.09.7.28.18.19.28.42.28.7 0 .28-.09.52-.28.7a1 1 0 0 1-.7.3c-.28 0-.52-.11-.7-.3zM8 7.99c-.02-.25-.11-.48-.31-.69-.2-.19-.42-.3-.69-.31H6c-.27.02-.48.13-.69.31-.2.2-.3.44-.31.69h1v3c.02.27.11.5.31.69.2.2.42.31.69.31h1c.27 0 .48-.11.69-.31.2-.19.3-.42.31-.69H8V7.98v.01zM7 2.3c-3.14 0-5.7 2.54-5.7 5.68 0 3.14 2.56 5.7 5.7 5.7s5.7-2.55 5.7-5.7c0-3.15-2.56-5.69-5.7-5.69v.01zM7 .98c3.86 0 7 3.14 7 7s-3.14 7-7 7-7-3.12-7-7 3.14-7 7-7z"/></svg></span>note</div><div class=admonitionContent_BuS1><p><a href=https://shiro.apache.org/ target=_blank rel="noopener noreferrer" class="">Apache Shiro</a> supports RDBMS or LDAP based security system as well. You can find the example
+configuration files under the <code>conf/</code> directory in the distribution.</div></div>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id=access-control>Access Control<a href=#access-control class=hash-link aria-label="Direct link to Access Control" title="Direct link to Access Control" translate=no>​</a></h2>
+<p>One way to configure the access control system for Central Dogma is to use the web UI.
+For remote access to an authenticated server, expose a public HTTPS endpoint on port 443. Either configure the
+server's <a class="" href=/centraldogma/setup-configuration#configuring-tls>HTTPS listener</a> for port 443 or put a TLS reverse proxy on
+port 443 in front of the configured server port. Then open
+<code>https://{your-central-dogma-domain-or-ip}:443</code> in your web browser.
+Use HTTP only for localhost or local development.
+You may configure a project with HTTP APIs, but we recommend the web UI because it is easier and simpler.</p>
+<p>Everyone who is logged in is able to create a new project, and he or she would be an owner of the project.
+If you have the right to configure a project, in other words, if you are an owner of the project,
+you can access the configuration UI of the project by clicking the cog icon which is shown on the right
+of the project name.</p>
+<p><img decoding=async loading=lazy alt="Project list with the configuration cog icon" src=/centraldogma/assets/images/auth_1-49d17ef43de5e3c6cf306c9f008d1059.png width=1012 height=295 class=img_ev3q /></p>
+<p>If you click the icon, you can see the configuration UI for a project like below. In this page, you can
+add a user or a token as a member of the project and can also remove them from the project.</p>
+<p><img decoding=async loading=lazy alt="Project configuration UI" src=/centraldogma/assets/images/auth_2-dba05192e14f3ca9601f2052df5ac2da.png width=1012 height=915 class=img_ev3q /></p>
+<p>When you add a user as a member of the project, you need to choose the role of the member.
+There are 4 user role types in the access control system of Central Dogma, but you can choose one
+of <code>Owner</code> and <code>Member</code> role in the UI. More information about the role is as follows.</p>
+<ul>
+<li class="">
+<p><code>System Administrator</code></p>
+<ul>
+<li class="">the user that all permissions are assigned to, a.k.a 'super user'. Only a system administrator can restore
+removed project. The system administrators can be configured in <code>conf/dogma.json</code> as described the above.</li>
+</ul>
+</li>
+<li class="">
+<p><code>Owner</code> of a project</p>
+<ul>
+<li class="">the administrator of a project. A user who creates a project is to be an owner of the project by
+default. Owners can add a user or a token as an owner or a member of the project, and can create
+a new repository. Also, they can remove the repository or the project from the system and can
+configure permissions for each role, member and token.</li>
+</ul>
+</li>
+<li class="">
+<p><code>Member</code> of a project</p>
+<ul>
+<li class="">users who can see the configuration of a project, but members are not allowed to change the configuration.</li>
+</ul>
+</li>
+<li class="">
+<p><code>Guest</code> of a project</p>
+<ul>
+<li class="">users who is logged in but is neither an owner nor a member of a project. Guests are not allowed to see
+the configuration of a project.</li>
+</ul>
+</li>
+</ul>
+<div class="theme-admonition theme-admonition-note admonition_xJq3 alert alert--secondary"><div class=admonitionHeading_Gvgb><span class=admonitionIcon_Rf37><svg viewBox="0 0 14 16"><path fill-rule=evenodd d="M6.3 5.69a.942.942 0 0 1-.28-.7c0-.28.09-.52.28-.7.19-.18.42-.28.7-.28.28 0 .52.09.7.28.18.19.28.42.28.7 0 .28-.09.52-.28.7a1 1 0 0 1-.7.3c-.28 0-.52-.11-.7-.3zM8 7.99c-.02-.25-.11-.48-.31-.69-.2-.19-.42-.3-.69-.31H6c-.27.02-.48.13-.69.31-.2.2-.3.44-.31.69h1v3c.02.27.11.5.31.69.2.2.42.31.69.31h1c.27 0 .48-.11.69-.31.2-.19.3-.42.31-.69H8V7.98v.01zM7 2.3c-3.14 0-5.7 2.54-5.7 5.68 0 3.14 2.56 5.7 5.7 5.7s5.7-2.55 5.7-5.7c0-3.15-2.56-5.69-5.7-5.69v.01zM7 .98c3.86 0 7 3.14 7 7s-3.14 7-7 7-7-3.12-7-7 3.14-7 7-7z"/></svg></span>note</div><div class=admonitionContent_BuS1><p>Do not forget to make a new <code>Application Token</code> before adding a token to a project. <code>Add a token</code>
+button would be disabled if there is no token. The cog icon on the right of the <code>Tokens</code> title
+brings you to the <code>Application Token</code> management page.</div></div>
+<p>You can see the configuration UI for a repository when you click the name of repository in the
+<code>Repository Permission</code> list. The following image shows the configuration of the repository called <code>main</code>.
+In this page, you can do the followings.</p>
+<ul>
+<li class="">Changing the role of a member or a token in a project</li>
+<li class="">Setting permissions of each role for a repository</li>
+<li class="">Setting permissions of a specific member or token for a repository</li>
+</ul>
+<p><img decoding=async loading=lazy alt="Repository permission configuration" src=/centraldogma/assets/images/auth_3-253a2c166e7104424a8f1d1f8aa4b804.png width=1010 height=828 class=img_ev3q /></p>
+<p>Permissions can be specified for a repository only. So a user can configure their repositories with different
+access control levels. There are only two permission types currently, which are <code>READ</code> and <code>WRITE</code>.
+<code>WRITE</code> permission implies <code>READ</code> permission, so you cannot give only WRITE permission to a user,
+a token or any role.</p>
+<p>Every access of HTTP API will be controlled by the access control system. A request is allowed only if the
+user of the request has sufficient permissions. If permissions for the user are specified in the repository
+configuration, it would be used first to control the request. If it does not exist, permissions for each role
+of the repository would be used to do that.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id=application-token>Application Token<a href=#application-token class=hash-link aria-label="Direct link to Application Token" title="Direct link to Application Token" translate=no>​</a></h3>
+<p>When a user uses the web UI, he or she should login first to get a token for a new web session. But what
+should a user do when he or she uses one of Central Dogma clients? The user may log in to a Central Dogma
+server via HTTP API and get a session token. But it is inconvenient and the user may write more complicated
+code because the user should log in again when the session token is expired. <code>Application Token</code> would be
+useful for this case.</p>
+<p><code>Application Token</code> is like a virtual user, so it can have any role in a project. Also, its permissions
+can be specified in a repository configuration like a member. To get a new token, a user can use
+<code>Application Tokens</code> menu of the web UI. <code>Application ID</code> has to be unique to identify where a client
+request comes from.</p>
+<p><img decoding=async loading=lazy alt="Application token management" src=/centraldogma/assets/images/auth_4-fc20b41741a925d03c39a11d8f55fea5.png width=1010 height=335 class=img_ev3q /></p>
+<p>Anyone who is logged into the Central Dogma can create a new <code>Application Token</code>, and the token is shared
+for everyone. So any owner of a project can add any token to their project. However only both the token
+creator and the system administrator are allowed to deactivate, remove and/or regenerate the token.</p>
+<p>If the secret of a token is leaked, the token creator or a system administrator can rotate the secret
+without losing the roles and permissions granted to the application ID:</p>
+<ol>
+<li class="">Deactivate the token. The leaked secret is revoked and stops authenticating. Note that it may take
+a short time for the change to be propagated to the authorization cache of each server.</li>
+<li class="">Regenerate the secret with the <code>Regenerate secret</code> button of the web UI or
+<code>POST /api/v1/appIdentities/{appId}/secret</code>. A newly-generated secret is issued to the same
+application ID, but it does not authenticate yet because the token is still deactivated. A token
+must be deactivated before its secret is regenerated.</li>
+<li class="">Distribute the new secret to the clients of the token.</li>
+<li class="">Activate the token. The new secret starts authenticating once the activation is propagated to the
+authorization cache of each server.</li>
+</ol>
+<p>There are two levels of a token, which are <code>System Admin</code> and <code>User</code>. <code>System Admin</code> level token can be
+created by only the system administrators. A client who sends a request with the token is allowed to access
+system administrator-level APIs.</div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col noPrint_WFHX"><a href=https://github.com/line/centraldogma/edit/main/site-new/src/content/docs/auth.mdx target=_blank rel="noopener noreferrer" class=theme-edit-this-page><svg fill=currentColor height=20 width=20 viewBox="0 0 40 40" class=iconEdit_Z9Sw aria-hidden=true><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"/></g></svg>Edit this page</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"><a class="pagination-nav__link pagination-nav__link--prev" href=/centraldogma/xds><div class=pagination-nav__sublabel>Previous</div><div class=pagination-nav__label>xDS control plane</div></a><a class="pagination-nav__link pagination-nav__link--next" href=/centraldogma/known-issues><div class=pagination-nav__sublabel>Next</div><div class=pagination-nav__label>Known issues</div></a></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href=#basic-authentication-configuration class="table-of-contents__link toc-highlight">Basic authentication configuration</a><li><a href=#configuring-authentication-with-saml class="table-of-contents__link toc-highlight">Configuring authentication with SAML</a><li><a href=#configuring-authentication-with-apache-shiro class="table-of-contents__link toc-highlight">Configuring authentication with Apache Shiro</a><li><a href=#access-control class="table-of-contents__link toc-highlight">Access Control</a><ul><li><a href=#application-token class="table-of-contents__link toc-highlight">Application Token</a></ul></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="row footer__links"><div class="theme-layout-footer-column col footer__col"><div class=footer__title>Docs</div><ul class="footer__items clean-list"><li class=footer__item><a class=footer__link-item href=/centraldogma/>Documentation</a></ul></div><div class="theme-layout-footer-column col footer__col"><div class=footer__title>Community</div><ul class="footer__items clean-list"><li class=footer__item><a href=https://github.com/line/centraldogma/issues target=_blank rel="noopener noreferrer" class=footer__link-item>Issues<svg width=13.5 height=13.5 aria-label="(opens in new tab)" class=iconExternalLink_nPIU><use href=#theme-svg-external-link /></svg></a><li class=footer__item><a href=https://armeria.dev/s/discord target=_blank rel="noopener noreferrer" class=footer__link-item>Discord<svg width=13.5 height=13.5 aria-label="(opens in new tab)" class=iconExternalLink_nPIU><use href=#theme-svg-external-link /></svg></a></ul></div><div class="theme-layout-footer-column col footer__col"><div class=footer__title>More</div><ul class="footer__items clean-list"><li class=footer__item><a href=https://github.com/line/centraldogma/releases target=_blank rel="noopener noreferrer" class=footer__link-item>Release notes<svg width=13.5 height=13.5 aria-label="(opens in new tab)" class=iconExternalLink_nPIU><use href=#theme-svg-external-link /></svg></a><li class=footer__item><a href=https://github.com/line/centraldogma/blob/main/CONTRIBUTING.md target=_blank rel="noopener noreferrer" class=footer__link-item>Contributing<svg width=13.5 height=13.5 aria-label="(opens in new tab)" class=iconExternalLink_nPIU><use href=#theme-svg-external-link /></svg></a><li class=footer__item><a href=https://github.com/line/centraldogma/blob/main/LICENSE.txt target=_blank rel="noopener noreferrer" class=footer__link-item>License<svg width=13.5 height=13.5 aria-label="(opens in new tab)" class=iconExternalLink_nPIU><use href=#theme-svg-external-link /></svg></a></ul></div></div><div class="footer__bottom text--center"><div class=footer__copyright>© 2017-2026 LY Corporation</div></div></div></footer></div></body>

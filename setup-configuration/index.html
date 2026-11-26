@@ -1,0 +1,645 @@
+<!doctype html><html lang=en dir=ltr class="docs-wrapper plugin-docs plugin-id-default docs-version-current docs-doc-page docs-doc-id-setup-configuration" data-has-hydrated=false><head><meta charset=UTF-8><meta name=generator content="Docusaurus v3.10.2"><title data-rh=true>Configuration | Central Dogma</title><meta data-rh=true name=viewport content="width=device-width, initial-scale=1.0"/><meta data-rh=true name=twitter:card content=summary_large_image /><meta data-rh=true property=og:url content=https://line.github.io/centraldogma/setup-configuration /><meta data-rh=true property=og:locale content=en /><meta data-rh=true name=docusaurus_locale content=en /><meta data-rh=true name=docsearch:language content=en /><meta data-rh=true name=docusaurus_version content=current /><meta data-rh=true name=docusaurus_tag content=docs-default-current /><meta data-rh=true name=docsearch:version content=current /><meta data-rh=true name=docsearch:docusaurus_tag content=docs-default-current /><meta data-rh=true property=og:title content="Configuration | Central Dogma"/><meta data-rh=true name=description content="Every property of conf/dogma.json, from ports, TLS and encryption to replication, plugins and management."/><meta data-rh=true property=og:description content="Every property of conf/dogma.json, from ports, TLS and encryption to replication, plugins and management."/><link data-rh=true rel=icon href=/centraldogma/img/favicon.ico /><link data-rh=true rel=canonical href=https://line.github.io/centraldogma/setup-configuration /><link data-rh=true rel=alternate href=https://line.github.io/centraldogma/setup-configuration hreflang=en /><link data-rh=true rel=alternate href=https://line.github.io/centraldogma/setup-configuration hreflang=x-default /><script data-rh=true type=application/ld+json>{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","item":"https://line.github.io/centraldogma/category/setting-up","name":"Setting up","position":1},{"@type":"ListItem","item":"https://line.github.io/centraldogma/setup-configuration","name":"Configuration","position":2}]}</script><link rel=stylesheet href=/centraldogma/assets/css/styles.35dc2e59.css /><script src=/centraldogma/assets/js/runtime~main.11d0ac62.js defer></script><script src=/centraldogma/assets/js/main.1f68fdea.js defer></script></head><body><svg style="display: none;"><defs>
+<symbol id=theme-svg-external-link viewBox="0 0 24 24"><path fill=currentColor d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"/></symbol>
+</defs></svg>
+<script>!function(){var t=function(){try{return new URLSearchParams(window.location.search).get("docusaurus-theme")}catch(t){}}()||function(){try{return window.localStorage.getItem("theme-c05")}catch(t){}}();document.documentElement.setAttribute("data-theme",t||(window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light")),document.documentElement.setAttribute("data-theme-choice",t||"system")}(),function(){try{for(var[t,e]of new URLSearchParams(window.location.search).entries())if(t.startsWith("docusaurus-data-")){var a=t.replace("docusaurus-data-","data-");document.documentElement.setAttribute(a,e)}}catch(t){}}()</script><div id=__docusaurus><link rel=preload as=image href=/centraldogma/img/logo.png /><div role=region aria-label="Skip to main content"><a class=skipToContent_fXgn href=#__docusaurus_skipToContent_fallback>Skip to main content</a></div><nav aria-label=Main class="theme-layout-navbar navbar navbar--fixed-top"><div class=navbar__inner><div class="theme-layout-navbar-left navbar__items"><button aria-label="Toggle navigation bar" aria-expanded=false class="navbar__toggle clean-btn" type=button><svg width=30 height=30 viewBox="0 0 30 30" aria-hidden=true><path stroke=currentColor stroke-linecap=round stroke-miterlimit=10 stroke-width=2 d="M4 7h22M4 15h22M4 23h22"/></svg></button><a class=navbar__brand href=/centraldogma/><div class=navbar__logo><img src=/centraldogma/img/logo.png alt="Central Dogma" class="themedComponent_mlkZ themedComponent--light_NVdE"/><img src=/centraldogma/img/logo.png alt="Central Dogma" class="themedComponent_mlkZ themedComponent--dark_xIcU"/></div><b class="navbar__title text--truncate">Central Dogma</b></a><a aria-current=page class="navbar__item navbar__link navbar__link--active" href=/centraldogma/>Documentation</a><a href=https://github.com/line/centraldogma/releases target=_blank rel="noopener noreferrer" class="navbar__item navbar__link">Release notes<svg width=13.5 height=13.5 aria-label="(opens in new tab)" class=iconExternalLink_nPIU><use href=#theme-svg-external-link /></svg></a></div><div class="theme-layout-navbar-right navbar__items navbar__items--right"><a href=https://github.com/line/centraldogma target=_blank rel="noopener noreferrer" class="navbar__item navbar__link">GitHub<svg width=13.5 height=13.5 aria-label="(opens in new tab)" class=iconExternalLink_nPIU><use href=#theme-svg-external-link /></svg></a><div class="toggle_vylO colorModeToggle_DEke"><button class="clean-btn toggleButton_gllP toggleButtonDisabled_aARS" type=button disabled title="system mode" aria-label="Switch between dark and light mode (currently system mode)"><svg viewBox="0 0 24 24" width=24 height=24 aria-hidden=true class="toggleIcon_g3eP lightToggleIcon_pyhR"><path fill=currentColor d="M12,9c1.65,0,3,1.35,3,3s-1.35,3-3,3s-3-1.35-3-3S10.35,9,12,9 M12,7c-2.76,0-5,2.24-5,5s2.24,5,5,5s5-2.24,5-5 S14.76,7,12,7L12,7z M2,13l2,0c0.55,0,1-0.45,1-1s-0.45-1-1-1l-2,0c-0.55,0-1,0.45-1,1S1.45,13,2,13z M20,13l2,0c0.55,0,1-0.45,1-1 s-0.45-1-1-1l-2,0c-0.55,0-1,0.45-1,1S19.45,13,20,13z M11,2v2c0,0.55,0.45,1,1,1s1-0.45,1-1V2c0-0.55-0.45-1-1-1S11,1.45,11,2z M11,20v2c0,0.55,0.45,1,1,1s1-0.45,1-1v-2c0-0.55-0.45-1-1-1C11.45,19,11,19.45,11,20z M5.99,4.58c-0.39-0.39-1.03-0.39-1.41,0 c-0.39,0.39-0.39,1.03,0,1.41l1.06,1.06c0.39,0.39,1.03,0.39,1.41,0s0.39-1.03,0-1.41L5.99,4.58z M18.36,16.95 c-0.39-0.39-1.03-0.39-1.41,0c-0.39,0.39-0.39,1.03,0,1.41l1.06,1.06c0.39,0.39,1.03,0.39,1.41,0c0.39-0.39,0.39-1.03,0-1.41 L18.36,16.95z M19.42,5.99c0.39-0.39,0.39-1.03,0-1.41c-0.39-0.39-1.03-0.39-1.41,0l-1.06,1.06c-0.39,0.39-0.39,1.03,0,1.41 s1.03,0.39,1.41,0L19.42,5.99z M7.05,18.36c0.39-0.39,0.39-1.03,0-1.41c-0.39-0.39-1.03-0.39-1.41,0l-1.06,1.06 c-0.39,0.39-0.39,1.03,0,1.41s1.03,0.39,1.41,0L7.05,18.36z"/></svg><svg viewBox="0 0 24 24" width=24 height=24 aria-hidden=true class="toggleIcon_g3eP darkToggleIcon_wfgR"><path fill=currentColor d="M9.37,5.51C9.19,6.15,9.1,6.82,9.1,7.5c0,4.08,3.32,7.4,7.4,7.4c0.68,0,1.35-0.09,1.99-0.27C17.45,17.19,14.93,19,12,19 c-3.86,0-7-3.14-7-7C5,9.07,6.81,6.55,9.37,5.51z M12,3c-4.97,0-9,4.03-9,9s4.03,9,9,9s9-4.03,9-9c0-0.46-0.04-0.92-0.1-1.36 c-0.98,1.37-2.58,2.26-4.4,2.26c-2.98,0-5.4-2.42-5.4-5.4c0-1.81,0.89-3.42,2.26-4.4C12.92,3.04,12.46,3,12,3L12,3z"/></svg><svg viewBox="0 0 24 24" width=24 height=24 aria-hidden=true class="toggleIcon_g3eP systemToggleIcon_QzmC"><path fill=currentColor d="m12 21c4.971 0 9-4.029 9-9s-4.029-9-9-9-9 4.029-9 9 4.029 9 9 9zm4.95-13.95c1.313 1.313 2.05 3.093 2.05 4.95s-0.738 3.637-2.05 4.95c-1.313 1.313-3.093 2.05-4.95 2.05v-14c1.857 0 3.637 0.737 4.95 2.05z"/></svg></button></div><div class=navbarSearchContainer_Bca1></div></div></div><div role=presentation class=navbar-sidebar__backdrop></div></nav><div id=__docusaurus_skipToContent_fallback class="theme-layout-main main-wrapper mainWrapper_z2l0"><div class=docsWrapper_hBAB><button aria-label="Scroll back to top" class="clean-btn theme-back-to-top-button backToTopButton_sjWU" type=button></button><div class=docRoot_UBD9><aside class="theme-doc-sidebar-container docSidebarContainer_YfHR"><div class=sidebarViewport_aRkj><div class=sidebar_njMd><nav aria-label="Docs sidebar" class="menu thin-scrollbar menu_SIkG"><ul class="theme-doc-sidebar-menu menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class=menu__link href=/centraldogma/><span class=linkLabel_WmDU>Welcome to Central Dogma</span></a><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class=menu__list-item-collapsible><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--active" href=/centraldogma/category/setting-up><span class=categoryLinkLabel_W154>Setting up</span></a><button aria-label="Collapse sidebar category 'Setting up'" aria-expanded=true type=button class="clean-btn menu__caret"></button></div><ul class=menu__list><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class=menu__link tabindex=0 href=/centraldogma/setup-installation><span class=linkLabel_WmDU>Installation</span></a><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link menu__link--active" aria-current=page tabindex=0 href=/centraldogma/setup-configuration><span class=linkLabel_WmDU>Configuration</span></a><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class=menu__link tabindex=0 href=/centraldogma/encryption-at-rest><span class=linkLabel_WmDU>Encryption at rest</span></a></ul><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class=menu__link href=/centraldogma/concepts><span class=linkLabel_WmDU>Concepts</span></a><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class=menu__link href=/centraldogma/client-cli><span class=linkLabel_WmDU>Command-line client</span></a><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class=menu__link href=/centraldogma/client-java><span class=linkLabel_WmDU>Java client library</span></a><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class=menu__link href=/centraldogma/templates-variables><span class=linkLabel_WmDU>Templates and variables</span></a><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class=menu__link href=/centraldogma/mirroring><span class=linkLabel_WmDU>Mirroring</span></a><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class=menu__link href=/centraldogma/xds><span class=linkLabel_WmDU>xDS control plane</span></a><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class=menu__link href=/centraldogma/auth><span class=linkLabel_WmDU>Authentication and access control</span></a><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class=menu__link href=/centraldogma/known-issues><span class=linkLabel_WmDU>Known issues</span></a></ul></nav><button type=button title="Collapse sidebar" aria-label="Collapse sidebar" class="button button--secondary button--outline collapseSidebarButton_PEFL"><svg width=20 height=20 aria-hidden=true class=collapseSidebarButtonIcon_kv0_><g fill=#7a7a7a><path d="M9.992 10.023c0 .2-.062.399-.172.547l-4.996 7.492a.982.982 0 01-.828.454H1c-.55 0-1-.453-1-1 0-.2.059-.403.168-.551l4.629-6.942L.168 3.078A.939.939 0 010 2.528c0-.548.45-.997 1-.997h2.996c.352 0 .649.18.828.45L9.82 9.472c.11.148.172.347.172.55zm0 0"/><path d="M19.98 10.023c0 .2-.058.399-.168.547l-4.996 7.492a.987.987 0 01-.828.454h-3c-.547 0-.996-.453-.996-1 0-.2.059-.403.168-.551l4.625-6.942-4.625-6.945a.939.939 0 01-.168-.55 1 1 0 01.996-.997h3c.348 0 .649.18.828.45l4.996 7.492c.11.148.168.347.168.55zm0 0"/></g></svg></button></div></div></aside><main class=docMainContainer_TBSr><div class="container padding-top--md padding-bottom--lg"><div class=row><div class="col docItemCol_VOVn"><div class=docItemContainer_Djhp><article><nav class="theme-doc-breadcrumbs breadcrumbsContainer_Z_bl" aria-label=Breadcrumbs><ul class=breadcrumbs><li class=breadcrumbs__item><a aria-label="Home page" class=breadcrumbs__link href=/centraldogma/><svg viewBox="0 0 24 24" class=breadcrumbHomeIcon_YNFT><path d="M10 19v-5h4v5c0 .55.45 1 1 1h3c.55 0 1-.45 1-1v-7h1.7c.46 0 .68-.57.33-.87L12.67 3.6c-.38-.34-.96-.34-1.34 0l-8.36 7.53c-.34.3-.13.87.33.87H5v7c0 .55.45 1 1 1h3c.55 0 1-.45 1-1z" fill=currentColor /></svg></a><li class=breadcrumbs__item><a class=breadcrumbs__link href=/centraldogma/category/setting-up><span>Setting up</span></a><li class="breadcrumbs__item breadcrumbs__item--active"><span class=breadcrumbs__link>Configuration</span></ul></nav><div class="tocCollapsible_ETCw theme-doc-toc-mobile tocMobile_ITEo"><button type=button class="clean-btn tocCollapsibleButton_TO0P">On this page</button></div><div class="theme-doc-markdown markdown"><header><h1>Configuration</h1></header>
+<p>The main configuration file is located at <code>conf/dogma.json</code>, with most properties set to their sensible
+defaults:</p>
+<div class="language-json codeBlockContainer_Ckt0 theme-code-block" style=--prism-color:#393A34;--prism-background-color:#f6f8fa><div class=codeBlockContent_QJqH><pre tabindex=0 class="prism-code language-json codeBlock_bY9V thin-scrollbar" style=color:#393A34;background-color:#f6f8fa><code class=codeBlockLines_e6Vv><div class=token-line style=color:#393A34><span class="token punctuation" style=color:#393A34>{</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">  </span><span class="token property" style=color:#36acaa>"dataDir"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token string" style=color:#e3116c>"./data"</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">  </span><span class="token property" style=color:#36acaa>"ports"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token punctuation" style=color:#393A34>[</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">    </span><span class="token punctuation" style=color:#393A34>{</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">      </span><span class="token property" style=color:#36acaa>"localAddress"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token punctuation" style=color:#393A34>{</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">        </span><span class="token property" style=color:#36acaa>"host"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token string" style=color:#e3116c>"*"</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">        </span><span class="token property" style=color:#36acaa>"port"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token number" style=color:#36acaa>36462</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">      </span><span class="token punctuation" style=color:#393A34>}</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">      </span><span class="token property" style=color:#36acaa>"protocols"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token punctuation" style=color:#393A34>[</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">        </span><span class="token string" style=color:#e3116c>"http"</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">      </span><span class="token punctuation" style=color:#393A34>]</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">    </span><span class="token punctuation" style=color:#393A34>}</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">  </span><span class="token punctuation" style=color:#393A34>]</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">  </span><span class="token property" style=color:#36acaa>"tls"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token null keyword" style=color:#00009f>null</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">  </span><span class="token property" style=color:#36acaa>"encryption"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token null keyword" style=color:#00009f>null</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">  </span><span class="token property" style=color:#36acaa>"trustedProxyAddresses"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token null keyword" style=color:#00009f>null</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">  </span><span class="token property" style=color:#36acaa>"clientAddressSources"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token null keyword" style=color:#00009f>null</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">  </span><span class="token property" style=color:#36acaa>"numWorkers"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token null keyword" style=color:#00009f>null</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">  </span><span class="token property" style=color:#36acaa>"maxNumConnections"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token null keyword" style=color:#00009f>null</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">  </span><span class="token property" style=color:#36acaa>"requestTimeoutMillis"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token null keyword" style=color:#00009f>null</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">  </span><span class="token property" style=color:#36acaa>"idleTimeoutMillis"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token null keyword" style=color:#00009f>null</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">  </span><span class="token property" style=color:#36acaa>"maxFrameLength"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token null keyword" style=color:#00009f>null</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">  </span><span class="token property" style=color:#36acaa>"numRepositoryWorkers"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token number" style=color:#36acaa>16</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">  </span><span class="token property" style=color:#36acaa>"maxRemovedRepositoryAgeMillis"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token null keyword" style=color:#00009f>null</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">  </span><span class="token property" style=color:#36acaa>"repositoryCacheSpec"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token string" style=color:#e3116c>"maximumWeight=134217728,expireAfterAccess=5m"</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">  </span><span class="token property" style=color:#36acaa>"rateLimiting"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token punctuation" style=color:#393A34>{</span><span class="token punctuation" style=color:#393A34>}</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">  </span><span class="token property" style=color:#36acaa>"webAppEnabled"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token boolean" style=color:#36acaa>true</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">  </span><span class="token property" style=color:#36acaa>"webAppTitle"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token null keyword" style=color:#00009f>null</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">  </span><span class="token property" style=color:#36acaa>"gracefulShutdownTimeout"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token punctuation" style=color:#393A34>{</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">    </span><span class="token property" style=color:#36acaa>"quietPeriodMillis"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token number" style=color:#36acaa>1000</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">    </span><span class="token property" style=color:#36acaa>"timeoutMillis"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token number" style=color:#36acaa>10000</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">  </span><span class="token punctuation" style=color:#393A34>}</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">  </span><span class="token property" style=color:#36acaa>"replication"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token punctuation" style=color:#393A34>{</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">    </span><span class="token property" style=color:#36acaa>"method"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token string" style=color:#e3116c>"NONE"</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">  </span><span class="token punctuation" style=color:#393A34>}</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">  </span><span class="token property" style=color:#36acaa>"accessLogFormat"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token string" style=color:#e3116c>"common"</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">  </span><span class="token property" style=color:#36acaa>"authentication"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token null keyword" style=color:#00009f>null</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">  </span><span class="token property" style=color:#36acaa>"cors"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token null keyword" style=color:#00009f>null</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">  </span><span class="token property" style=color:#36acaa>"pluginConfigs"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token punctuation" style=color:#393A34>[</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">    </span><span class="token punctuation" style=color:#393A34>{</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">      </span><span class="token property" style=color:#36acaa>"type"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token string" style=color:#e3116c>"com.linecorp.centraldogma.server.mirror.MirroringServicePluginConfig"</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">      </span><span class="token property" style=color:#36acaa>"enabled"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token boolean" style=color:#36acaa>true</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">      </span><span class="token property" style=color:#36acaa>"numMirroringThreads"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token null keyword" style=color:#00009f>null</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">      </span><span class="token property" style=color:#36acaa>"maxNumFilesPerMirror"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token null keyword" style=color:#00009f>null</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">      </span><span class="token property" style=color:#36acaa>"maxNumBytesPerMirror"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token null keyword" style=color:#00009f>null</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">      </span><span class="token property" style=color:#36acaa>"trustedHostKeys"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token null keyword" style=color:#00009f>null</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">    </span><span class="token punctuation" style=color:#393A34>}</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">  </span><span class="token punctuation" style=color:#393A34>]</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">  </span><span class="token property" style=color:#36acaa>"management"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token punctuation" style=color:#393A34>{</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">    </span><span class="token property" style=color:#36acaa>"address"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token string" style=color:#e3116c>"127.0.0.1"</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">    </span><span class="token property" style=color:#36acaa>"port"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token number" style=color:#36acaa>36463</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">    </span><span class="token property" style=color:#36acaa>"protocol"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token null keyword" style=color:#00009f>null</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">    </span><span class="token property" style=color:#36acaa>"path"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token null keyword" style=color:#00009f>null</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">  </span><span class="token punctuation" style=color:#393A34>}</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">  </span><span class="token property" style=color:#36acaa>"zone"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token null keyword" style=color:#00009f>null</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain"></span><span class="token punctuation" style=color:#393A34>}</span><br/></div></code></pre></div></div>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id=core-properties>Core properties<a href=#core-properties class=hash-link aria-label="Direct link to Core properties" title="Direct link to Core properties" translate=no>​</a></h2>
+<ul>
+<li class="">
+<p><code>dataDir</code> (string)</p>
+<ul>
+<li class="">the path to the data directory which contains the repositories served by Central Dogma and
+other stateful data. Can be a relative path from the root directory of the distribution.</li>
+</ul>
+</li>
+<li class="">
+<p><code>ports</code></p>
+<ul>
+<li class="">
+<p>the server ports that serve the incoming requests.</p>
+</li>
+<li class="">
+<p><code>localAddress</code> - the bind address of server socket.</p>
+<ul>
+<li class="">
+<p><code>host</code> (string)</p>
+<ul>
+<li class="">the IP address or <code>*</code> to bind to all network interfaces.</li>
+</ul>
+</li>
+<li class="">
+<p><code>port</code> (integer)</p>
+<ul>
+<li class="">the port number. 36462 is preferred.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="">
+<p><code>protocols</code> (string array)</p>
+<ul>
+<li class="">protocols which are served on the port. <code>http</code>, <code>https</code> and <code>proxy</code> are supported.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="">
+<p><code>tls</code></p>
+<ul>
+<li class="">the configuration for Transport Layer Security(TLS) support. Specify <code>null</code> to disable TLS.
+See <a href=#configuring-tls class="">Configuring TLS</a> for more information.</li>
+</ul>
+</li>
+<li class="">
+<p><code>encryption</code></p>
+<ul>
+<li class="">
+<p>the configuration for repository encryption at rest. Defaults to <code>null</code> (disabled).
+Requires a <code>KeyWrapper</code> implementation. Once enabled for a data directory, encryption must remain
+enabled. See <a class="" href=/centraldogma/encryption-at-rest>Encryption at rest</a> for setup, migration and key management.</p>
+</li>
+<li class="">
+<p><code>enabled</code> (boolean)</p>
+<ul>
+<li class="">whether to enable encrypted repository storage. Defaults to <code>false</code>.</li>
+</ul>
+</li>
+<li class="">
+<p><code>kekId</code> (string)</p>
+<ul>
+<li class="">the key encryption key (KEK) identifier. Required when <code>enabled</code> is <code>true</code>.</li>
+</ul>
+</li>
+<li class="">
+<p><code>encryptSessionCookie</code> (boolean)</p>
+<ul>
+<li class="">whether to encrypt session cookies. Defaults to <code>false</code> and takes effect only when <code>enabled</code> is <code>true</code>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="">
+<p><code>trustedProxyAddresses</code> (string array)</p>
+<ul>
+<li class="">the addresses or ranges of <a href=https://tools.ietf.org/html/rfc4632 target=_blank rel="noopener noreferrer" class="">Classless Inter-domain Routing (CIDR)</a>
+blocks of trusted proxy servers. e.g. <code>10.0.0.1</code> for a single address or <code>10.0.0.0/8</code> for a CIDR block.
+With <code>trustedProxyAddresses</code> and <code>clientAddressSources</code> properties, you can get a client address
+who initiated a request from the access log. If <code>null</code> or an empty array, the remote address of
+the connection is used as a client address.</li>
+</ul>
+</li>
+<li class="">
+<p><code>clientAddressSources</code> (string array)</p>
+<ul>
+<li class="">the HTTP header names to be used for retrieving a client address. <code>PROXY_PROTOCOL</code> is a reserved keyword
+for getting the source address specified in a
+<a href=https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt target=_blank rel="noopener noreferrer" class="">PROXY protocol</a> message.
+By default, <code>forwarded</code>, <code>x-forwarded-for</code> and <code>PROXY_PROTOCOL</code> are used when
+<code>trustedProxyAddresses</code> is configured. Otherwise, the remote address of the connection is used
+as a client address.</li>
+</ul>
+</li>
+<li class="">
+<p><code>numWorkers</code> (integer)</p>
+<ul>
+<li class="">the number of I/O worker threads. If <code>null</code>, the default value of <code>&lt;numCpuCores> * 2</code>
+is used.</li>
+</ul>
+</li>
+<li class="">
+<p><code>maxNumConnections</code> (integer)</p>
+<ul>
+<li class="">the maximum number of TCP/IP connections that can be handled concurrently.
+Any connection attempts that make the number of connections exceed this value will be rejected immediately.
+If <code>null</code>, no limit is enforced.</li>
+</ul>
+</li>
+<li class="">
+<p><code>requestTimeoutMillis</code> (integer)</p>
+<ul>
+<li class="">the maximum number of milliseconds allowed for handling a request.
+If a request takes more than this, the server may respond with a <code>503 Service Unavailable</code> response.
+If <code>null</code>, the default value of '10000 milliseconds' (10 seconds) is used.</li>
+</ul>
+</li>
+<li class="">
+<p><code>idleTimeoutMillis</code> (integer)</p>
+<ul>
+<li class="">the number of milliseconds before closing an idle connection.
+The server will close the connection if it stays idle for more than this without any pending requests.
+If <code>null</code>, the default value of '15000 milliseconds' (15 seconds) is used.</li>
+</ul>
+</li>
+<li class="">
+<p><code>maxFrameLength</code> (integer)</p>
+<ul>
+<li class="">the maximum length of request content. If a client sends a request whose content
+is longer than this, the server may respond with a <code>413 Request Entity Too Large</code> response.
+If <code>null</code>, the default value of '1048576 bytes' (1 MiB) is used.</li>
+</ul>
+</li>
+<li class="">
+<p><code>numRepositoryWorkers</code> (integer)</p>
+<ul>
+<li class="">the number of worker threads dedicated to handling repository reads and writes.
+If <code>null</code>, the default value of '16 threads' is used.</li>
+</ul>
+</li>
+<li class="">
+<p><code>maxRemovedRepositoryAgeMillis</code> (integer)</p>
+<ul>
+<li class="">the maximum allowed age of removed projects and repositories before they are purged.
+Set 0 to disable automatic purge.
+If <code>null</code>, the default value of '604800000 milliseconds' (7 days) is used.</li>
+</ul>
+</li>
+<li class="">
+<p><code>repositoryCacheSpec</code> (string)</p>
+<ul>
+<li class="">the cache specification string which determines the capacity and behavior of the repository
+access cache. Refer to <a href=https://static.javadoc.io/com.github.ben-manes.caffeine/caffeine/2.6.2/com/github/benmanes/caffeine/cache/CaffeineSpec.html target=_blank rel="noopener noreferrer" class="">the Caffeine API documentation</a> for more information.
+Note that the weight of the cache has been tuned to be roughly proportional to its memory usage.</li>
+</ul>
+</li>
+<li class="">
+<p><code>rateLimiting</code> (object)</p>
+<ul>
+<li class="">the global and ordered repository limits for content pushes and reverts on each server.
+Defaults to <code>{}</code> (disabled).
+See <a href=#rate-limiting class="">Rate limiting</a>.</li>
+</ul>
+</li>
+<li class="">
+<p><code>webAppEnabled</code> (boolean)</p>
+<ul>
+<li class="">whether to enable the web-based administrative console. Enabled by default.</li>
+</ul>
+</li>
+<li class="">
+<p><code>webAppTitle</code> (string)</p>
+<ul>
+<li class="">the title text which is displayed on the navigation bar of the web-based administrative console.
+If <code>null</code>, the default value of <code>Central Dogma at {{hostname}}</code> is used. Note that <code>{{hostname}}</code>
+will be replaced with the actual hostname that the server is running on.</li>
+</ul>
+</li>
+<li class="">
+<p><code>gracefulShutdownTimeout</code></p>
+<ul>
+<li class="">
+<p>the amount of time to wait after the initiation of shutdown procedure for requests to go away before
+the actual shutdown of the server.</p>
+</li>
+<li class="">
+<p><code>quietPeriodMillis</code> (integer)</p>
+<ul>
+<li class="">the number of milliseconds to wait for active requests to go end before shutting down.
+0 means the server will stop right away without waiting.</li>
+</ul>
+</li>
+<li class="">
+<p><code>timeoutMillis</code> (integer)</p>
+<ul>
+<li class="">the number of milliseconds to wait before shutting down the server regardless of active requests.
+This should be set to a time greater than <code>quietPeriodMillis</code> to ensure the server shuts down
+even if there is a stuck request.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="">
+<p><code>replication</code></p>
+<ul>
+<li class="">
+<p>the replication configuration.</p>
+</li>
+<li class="">
+<p><code>method</code> (string)</p>
+<ul>
+<li class="">the replication method. <code>NONE</code> indicates 'standalone mode' without replication. See <a href=#configuring-replication class="">Configuring replication</a>
+to learn how to configure ZooKeeper-based multi-master replication.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="">
+<p><code>accessLogFormat</code> (string)</p>
+<ul>
+<li class="">the format to be used for writing an access log. <code>common</code> and <code>combined</code> are pre-defined for NCSA
+common log format and NCSA combined log format, respectively. Also, a custom log format can be specified
+here. Read <a href=https://line.github.io/armeria/docs/server-access-log target=_blank rel="noopener noreferrer" class="">Writing an access log</a> for more
+information. Specify <code>null</code> to disable access logging feature.</li>
+</ul>
+</li>
+<li class="">
+<p><code>authentication</code></p>
+<ul>
+<li class="">the authentication configuration. If <code>null</code>, the authentication is disabled.
+See <a class="" href=/centraldogma/auth>Authentication and access control</a> to learn how to configure the authentication layer.</li>
+</ul>
+</li>
+<li class="">
+<p><code>cors</code></p>
+<ul>
+<li class="">
+<p>specify <code>null</code> to disable CORS entirely.</p>
+</li>
+<li class="">
+<p><code>allowedOrigins</code> (string or string array)</p>
+<ul>
+<li class="">the list of origins which are allowed a lenient CORS policy. If the literal value <code>*</code> is specified then
+all origins are allowed.</li>
+</ul>
+</li>
+<li class="">
+<p><code>maxAgeSeconds</code> (integer)</p>
+<ul>
+<li class="">how long in seconds the results of a preflight request can be cached. If not specified then the default
+value <code>7200</code> is applied.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="">
+<p><code>pluginConfigs</code></p>
+<ul>
+<li class="">the list of plugin configuration. See <a href=#configuring-plugins class="">Configuring plugins</a> for more information.</li>
+</ul>
+</li>
+<li class="">
+<p><code>management</code></p>
+<ul>
+<li class="">
+<p>the management server configuration. Read <a href=https://javadoc.io/doc/com.linecorp.armeria/armeria-javadoc/latest/com/linecorp/armeria/server/management/ManagementService.html target=_blank rel="noopener noreferrer" class="">ManagementService API documentation</a>
+to know more about the management service.</p>
+</li>
+<li class="">
+<p><code>port</code> (integer)</p>
+<ul>
+<li class="">the port number of the management service.
+If <code>0</code>, the management service uses the same port as the main service.</li>
+</ul>
+</li>
+<li class="">
+<p><code>address</code> (string)</p>
+<ul>
+<li class="">
+<p>the IP address of the management service. If <code>null</code>, the management will listen to all network interfaces.</p>
+</li>
+<li class="">
+<p>this option is ignored if <code>port</code> is set to <code>0</code>.</p>
+</li>
+</ul>
+</li>
+<li class="">
+<p><code>protocol</code></p>
+<ul>
+<li class="">
+<p>the protocol of the management service. <code>http</code> and <code>https</code> are supported. If not specified, <code>http</code> is used.</p>
+</li>
+<li class="">
+<p>this option is ignored if <code>port</code> is set to <code>0</code>.</p>
+</li>
+</ul>
+</li>
+<li class="">
+<p><code>path</code></p>
+<ul>
+<li class="">the path of the management service. If not specified, the management service is mounted at <code>/internal/management</code>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="">
+<p><code>zone</code></p>
+<ul>
+<li class="">
+<p>the zone information of the server. If not specified, <code>PluginTarget.ZONE_LEADER_ONLY</code> can't be used.</p>
+</li>
+<li class="">
+<p><code>currentZone</code> (string)</p>
+<ul>
+<li class="">
+<p>the current zone name. If the value starts with <code>env:</code>, the environment variable is used as the zone name.
+For example, if the value is <code>env:ZONE_NAME</code>, the environment variable named <code>ZONE_NAME</code> is used as the
+zone name.</p>
+</li>
+<li class="">
+<p>You can also dynamically load a zone name by implementing <code><a href=https://javadoc.io/doc/com.linecorp.centraldogma/centraldogma-javadoc/latest/com/linecorp/centraldogma/server/ConfigValueConverter.html title=ConfigValueConverter>ConfigValueConverter<span class=suffix_sw1f></span></a></code>.</p>
+</li>
+</ul>
+</li>
+<li class="">
+<p><code>allZones</code> (string array)</p>
+<ul>
+<li class="">
+<p>the list of zone names.</p>
+</li>
+<li class="">
+<p>the current zone name must be included in the list of zone names.</p>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id=rate-limiting>Rate limiting<a href=#rate-limiting class=hash-link aria-label="Direct link to Rate limiting" title="Direct link to Rate limiting" translate=no>​</a></h2>
+<p>Use <code>rateLimiting</code> to limit HTTP API v1 content pushes and reverts on each server:</p>
+<div class="language-json codeBlockContainer_Ckt0 theme-code-block" style=--prism-color:#393A34;--prism-background-color:#f6f8fa><div class=codeBlockContent_QJqH><pre tabindex=0 class="prism-code language-json codeBlock_bY9V thin-scrollbar" style=color:#393A34;background-color:#f6f8fa><code class=codeBlockLines_e6Vv><div class=token-line style=color:#393A34><span class="token property" style=color:#36acaa>"rateLimiting"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token punctuation" style=color:#393A34>{</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">  </span><span class="token property" style=color:#36acaa>"global"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token punctuation" style=color:#393A34>{</span><span class="token plain"> </span><span class="token property" style=color:#36acaa>"requests"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token number" style=color:#36acaa>10000</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"> </span><span class="token property" style=color:#36acaa>"timeUnit"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token string" style=color:#e3116c>"DAYS"</span><span class="token plain"> </span><span class="token punctuation" style=color:#393A34>}</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">  </span><span class="token property" style=color:#36acaa>"repositories"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token punctuation" style=color:#393A34>[</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">    </span><span class="token punctuation" style=color:#393A34>{</span><span class="token plain"> </span><span class="token property" style=color:#36acaa>"pattern"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token string" style=color:#e3116c>"payments/config"</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"> </span><span class="token property" style=color:#36acaa>"requests"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token number" style=color:#36acaa>20</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"> </span><span class="token property" style=color:#36acaa>"timeUnit"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token string" style=color:#e3116c>"MINUTES"</span><span class="token plain"> </span><span class="token punctuation" style=color:#393A34>}</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">    </span><span class="token punctuation" style=color:#393A34>{</span><span class="token plain"> </span><span class="token property" style=color:#36acaa>"pattern"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token string" style=color:#e3116c>"payments/blocked"</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"> </span><span class="token property" style=color:#36acaa>"requests"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token number" style=color:#36acaa>0</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"> </span><span class="token property" style=color:#36acaa>"timeUnit"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token string" style=color:#e3116c>"MINUTES"</span><span class="token plain"> </span><span class="token punctuation" style=color:#393A34>}</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">    </span><span class="token punctuation" style=color:#393A34>{</span><span class="token plain"> </span><span class="token property" style=color:#36acaa>"pattern"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token string" style=color:#e3116c>"payments/unlimited"</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"> </span><span class="token property" style=color:#36acaa>"requests"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token number" style=color:#36acaa>-1</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"> </span><span class="token property" style=color:#36acaa>"timeUnit"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token string" style=color:#e3116c>"MINUTES"</span><span class="token plain"> </span><span class="token punctuation" style=color:#393A34>}</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">    </span><span class="token punctuation" style=color:#393A34>{</span><span class="token plain"> </span><span class="token property" style=color:#36acaa>"pattern"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token string" style=color:#e3116c>"payments/.*"</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"> </span><span class="token property" style=color:#36acaa>"requests"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token number" style=color:#36acaa>200</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"> </span><span class="token property" style=color:#36acaa>"timeUnit"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token string" style=color:#e3116c>"HOURS"</span><span class="token plain"> </span><span class="token punctuation" style=color:#393A34>}</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">    </span><span class="token punctuation" style=color:#393A34>{</span><span class="token plain"> </span><span class="token property" style=color:#36acaa>"pattern"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token string" style=color:#e3116c>".*"</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"> </span><span class="token property" style=color:#36acaa>"requests"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token number" style=color:#36acaa>100</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"> </span><span class="token property" style=color:#36acaa>"timeUnit"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token string" style=color:#e3116c>"HOURS"</span><span class="token plain"> </span><span class="token punctuation" style=color:#393A34>}</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">  </span><span class="token punctuation" style=color:#393A34>]</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain"></span><span class="token punctuation" style=color:#393A34>}</span><br/></div></code></pre></div></div>
+<p><code>global</code> is an optional budget shared by all repositories on one server. <code>repositories</code> is an optional,
+ordered list of rules. The global limit omits <code>pattern</code>; every repository rule requires it.
+Patterns are Java regular expressions matching the entire <code>projectName/repoName</code>;
+the first matching rule wins. Each repository has its own budget, even when repositories match the same
+rule. Pushes and reverts share both budgets.</p>
+<p>Use <code>requests: -1</code> for unlimited requests or <code>requests: 0</code> to reject all requests. Values below <code>-1</code> are
+invalid. <code>timeUnit</code> is required but has no effect for these two values.</p>
+<p>After authentication and repository authorization, the repository limit is checked before the global
+limit. A repository rejection does not consume a global token. A global rejection retains the repository
+token already consumed. Tokens are not refunded if an admitted request fails. A matching repository rule
+with <code>-1</code> or <code>0</code> still wins over later rules. An unmatched or unlimited repository still uses the global
+budget. Omitting <code>rateLimiting</code> or setting it to <code>{}</code> disables all limits.</p>
+<p>The <code>content.push.rate.limiting.requests</code> counter tracks <code>passed</code> and <code>rejected</code> checks, tagged by <code>scope</code>
+(<code>repository</code> or <code>global</code>) and <code>pattern</code> (empty for the global limit). A request passing the repository
+check but rejected globally increments repository <code>passed</code> and global <code>rejected</code>.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id=configuring-replication>Configuring replication<a href=#configuring-replication class=hash-link aria-label="Direct link to Configuring replication" title="Direct link to Configuring replication" translate=no>​</a></h2>
+<p>Central Dogma features multi-master replication which allows a client to push commits to any of the available
+replicas, and thus it’s possible to update the settings of your application even when all replicas but one are
+down. The clients will automatically connect to an available replica.</p>
+<div class="theme-admonition theme-admonition-note admonition_xJq3 alert alert--secondary"><div class=admonitionHeading_Gvgb><span class=admonitionIcon_Rf37><svg viewBox="0 0 14 16"><path fill-rule=evenodd d="M6.3 5.69a.942.942 0 0 1-.28-.7c0-.28.09-.52.28-.7.19-.18.42-.28.7-.28.28 0 .52.09.7.28.18.19.28.42.28.7 0 .28-.09.52-.28.7a1 1 0 0 1-.7.3c-.28 0-.52-.11-.7-.3zM8 7.99c-.02-.25-.11-.48-.31-.69-.2-.19-.42-.3-.69-.31H6c-.27.02-.48.13-.69.31-.2.2-.3.44-.31.69h1v3c.02.27.11.5.31.69.2.2.42.31.69.31h1c.27 0 .48-.11.69-.31.2-.19.3-.42.31-.69H8V7.98v.01zM7 2.3c-3.14 0-5.7 2.54-5.7 5.68 0 3.14 2.56 5.7 5.7 5.7s5.7-2.55 5.7-5.7c0-3.15-2.56-5.69-5.7-5.69v.01zM7 .98c3.86 0 7 3.14 7 7s-3.14 7-7 7-7-3.12-7-7 3.14-7 7-7z"/></svg></span>note</div><div class=admonitionContent_BuS1><p>Central Dogma implements multi-master replication by embedding <a href=https://zookeeper.apache.org target=_blank rel="noopener noreferrer" class="">Apache ZooKeeper</a>.
+You may find it useful to have some prior administrative knowledge of ZooKeeper although it is not required.
+For more information about ZooKeeper administration, see
+<a href=https://zookeeper.apache.org/doc/r3.4.10/zookeeperAdmin.html target=_blank rel="noopener noreferrer" class="">ZooKeeper administrator's guide</a></div></div>
+<p>To enable replication, you need to update the <code>replication</code> section of <code>conf/dogma.json</code>. The following
+example shows the configuration of the first replica in a 3-replica cluster:</p>
+<div class="language-json codeBlockContainer_Ckt0 theme-code-block" style=--prism-color:#393A34;--prism-background-color:#f6f8fa><div class=codeBlockContent_QJqH><pre tabindex=0 class="prism-code language-json codeBlock_bY9V thin-scrollbar" style=color:#393A34;background-color:#f6f8fa><code class=codeBlockLines_e6Vv><div class=token-line style=color:#393A34><span class="token punctuation" style=color:#393A34>{</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">  ...</span><br/></div><div class=token-line style=color:#393A34><span class="token plain">  </span><span class="token property" style=color:#36acaa>"replication"</span><span class="token plain"> </span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token punctuation" style=color:#393A34>{</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">    </span><span class="token property" style=color:#36acaa>"method"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token string" style=color:#e3116c>"ZOOKEEPER"</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">    </span><span class="token property" style=color:#36acaa>"serverId"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token number" style=color:#36acaa>1</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">    </span><span class="token property" style=color:#36acaa>"servers"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token punctuation" style=color:#393A34>{</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">      </span><span class="token property" style=color:#36acaa>"1"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token punctuation" style=color:#393A34>{</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">        </span><span class="token property" style=color:#36acaa>"host"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token string" style=color:#e3116c>"replica1.example.com"</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">        </span><span class="token property" style=color:#36acaa>"quorumPort"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token number" style=color:#36acaa>36463</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">        </span><span class="token property" style=color:#36acaa>"electionPort"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token number" style=color:#36acaa>36464</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">        </span><span class="token property" style=color:#36acaa>"groupId"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token null keyword" style=color:#00009f>null</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">        </span><span class="token property" style=color:#36acaa>"weight"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token null keyword" style=color:#00009f>null</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">      </span><span class="token punctuation" style=color:#393A34>}</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">      </span><span class="token property" style=color:#36acaa>"2"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token punctuation" style=color:#393A34>{</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">        </span><span class="token property" style=color:#36acaa>"host"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token string" style=color:#e3116c>"replica2.example.com"</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">        </span><span class="token property" style=color:#36acaa>"quorumPort"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token number" style=color:#36acaa>36463</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">        </span><span class="token property" style=color:#36acaa>"electionPort"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token number" style=color:#36acaa>36464</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">        </span><span class="token property" style=color:#36acaa>"groupId"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token null keyword" style=color:#00009f>null</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">        </span><span class="token property" style=color:#36acaa>"weight"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token null keyword" style=color:#00009f>null</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">      </span><span class="token punctuation" style=color:#393A34>}</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">      </span><span class="token property" style=color:#36acaa>"3"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token punctuation" style=color:#393A34>{</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">        </span><span class="token property" style=color:#36acaa>"host"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token string" style=color:#e3116c>"replica3.example.com"</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">        </span><span class="token property" style=color:#36acaa>"quorumPort"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token number" style=color:#36acaa>36463</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">        </span><span class="token property" style=color:#36acaa>"electionPort"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token number" style=color:#36acaa>36464</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">        </span><span class="token property" style=color:#36acaa>"groupId"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token null keyword" style=color:#00009f>null</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">        </span><span class="token property" style=color:#36acaa>"weight"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token null keyword" style=color:#00009f>null</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">      </span><span class="token punctuation" style=color:#393A34>}</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">    </span><span class="token punctuation" style=color:#393A34>}</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">    </span><span class="token property" style=color:#36acaa>"secret"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token string" style=color:#e3116c>"CHANGE_ME"</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">    </span><span class="token property" style=color:#36acaa>"additionalProperties"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token punctuation" style=color:#393A34>{</span><span class="token punctuation" style=color:#393A34>}</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">    </span><span class="token property" style=color:#36acaa>"timeoutMillis"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token null keyword" style=color:#00009f>null</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">    </span><span class="token property" style=color:#36acaa>"numWorkers"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token null keyword" style=color:#00009f>null</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">    </span><span class="token property" style=color:#36acaa>"minimumLogCount"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token null keyword" style=color:#00009f>null</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">    </span><span class="token property" style=color:#36acaa>"maximumLogCount"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token null keyword" style=color:#00009f>null</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">    </span><span class="token property" style=color:#36acaa>"minLogAgeMillis"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token null keyword" style=color:#00009f>null</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">  </span><span class="token punctuation" style=color:#393A34>}</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain"></span><span class="token punctuation" style=color:#393A34>}</span><br/></div></code></pre></div></div>
+<p><code>CHANGE_ME</code> is intentionally invalid. Replace it with a unique secret before starting any replica.</p>
+<ul>
+<li class="">
+<p><code>method</code> (string)</p>
+<ul>
+<li class="">the replication method. <code>ZOOKEEPER</code> indicates Central Dogma will provide multi-master replication by
+embedding Apache ZooKeeper.</li>
+</ul>
+</li>
+<li class="">
+<p><code>serverId</code> (integer)</p>
+<ul>
+<li class="">
+<p>the unique positive integer ID of the replica. Be careful not to use a duplicate ID or not to change
+this value after joining the cluster. If <code>null</code> or unspecified, the <code>serverId</code> is auto-detected
+from the server list in the <code>servers</code> section.</p>
+<div class="theme-admonition theme-admonition-note admonition_xJq3 alert alert--secondary"><div class=admonitionHeading_Gvgb><span class=admonitionIcon_Rf37><svg viewBox="0 0 14 16"><path fill-rule=evenodd d="M6.3 5.69a.942.942 0 0 1-.28-.7c0-.28.09-.52.28-.7.19-.18.42-.28.7-.28.28 0 .52.09.7.28.18.19.28.42.28.7 0 .28-.09.52-.28.7a1 1 0 0 1-.7.3c-.28 0-.52-.11-.7-.3zM8 7.99c-.02-.25-.11-.48-.31-.69-.2-.19-.42-.3-.69-.31H6c-.27.02-.48.13-.69.31-.2.2-.3.44-.31.69h1v3c.02.27.11.5.31.69.2.2.42.31.69.31h1c.27 0 .48-.11.69-.31.2-.19.3-.42.31-.69H8V7.98v.01zM7 2.3c-3.14 0-5.7 2.54-5.7 5.68 0 3.14 2.56 5.7 5.7 5.7s5.7-2.55 5.7-5.7c0-3.15-2.56-5.69-5.7-5.69v.01zM7 .98c3.86 0 7 3.14 7 7s-3.14 7-7 7-7-3.12-7-7 3.14-7 7-7z"/></svg></span>note</div><div class=admonitionContent_BuS1><p>Internally, this value is used as the <code>myid</code> of the embedded ZooKeeper peer.</div></div>
+</li>
+</ul>
+</li>
+<li class="">
+<p><code>servers</code></p>
+<ul>
+<li class="">
+<p>a map whose key is the <code>serverId</code> of a replica in the cluster and whose value is a map which
+contains the properties required to connect to each other:</p>
+<ul>
+<li class="">
+<p><code>host</code> (string)</p>
+<ul>
+<li class="">the host name or IP address of the replica</li>
+</ul>
+</li>
+<li class="">
+<p><code>quorumPort</code> (integer)</p>
+<ul>
+<li class="">the TCP/IP port number which is used by ZooKeeper for reaching consensus</li>
+</ul>
+</li>
+<li class="">
+<p><code>electionPort</code> (integer)</p>
+<ul>
+<li class="">the TCP/IP port number which is used by ZooKeeper for leader election</li>
+</ul>
+</li>
+<li class="">
+<p><code>groupId</code> (integer)</p>
+<ul>
+<li class="">the group ID which is used by ZooKeeper for
+<a href=https://zookeeper.apache.org/doc/r3.5.8/zookeeperHierarchicalQuorums.html target=_blank rel="noopener noreferrer" class="">hierarchical quorums</a>
+If <code>null</code> or unspecified, hierarchical quorums are disabled.</li>
+</ul>
+</li>
+<li class="">
+<p><code>weight</code> (integer)</p>
+<ul>
+<li class="">the weight of the replica which is used by ZooKeeper for hierarchical quorums
+If <code>null</code> or unspecified, <code>1</code> is used by default.
+If <code>groupId</code> is <code>null</code>, this value will be ignored.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="">
+<p>It is highly recommended to have more than 3, preferably odd number of, replicas because the consensus
+algorithm requires more than half of all replicas to agree with each other to function correctly.
+If you had 2 replicas, losing just one replica would make your cluster stop to function.</p>
+<div class="theme-admonition theme-admonition-note admonition_xJq3 alert alert--secondary"><div class=admonitionHeading_Gvgb><span class=admonitionIcon_Rf37><svg viewBox="0 0 14 16"><path fill-rule=evenodd d="M6.3 5.69a.942.942 0 0 1-.28-.7c0-.28.09-.52.28-.7.19-.18.42-.28.7-.28.28 0 .52.09.7.28.18.19.28.42.28.7 0 .28-.09.52-.28.7a1 1 0 0 1-.7.3c-.28 0-.52-.11-.7-.3zM8 7.99c-.02-.25-.11-.48-.31-.69-.2-.19-.42-.3-.69-.31H6c-.27.02-.48.13-.69.31-.2.2-.3.44-.31.69h1v3c.02.27.11.5.31.69.2.2.42.31.69.31h1c.27 0 .48-.11.69-.31.2-.19.3-.42.31-.69H8V7.98v.01zM7 2.3c-3.14 0-5.7 2.54-5.7 5.68 0 3.14 2.56 5.7 5.7 5.7s5.7-2.55 5.7-5.7c0-3.15-2.56-5.69-5.7-5.69v.01zM7 .98c3.86 0 7 3.14 7 7s-3.14 7-7 7-7-3.12-7-7 3.14-7 7-7z"/></svg></span>note</div><div class=admonitionContent_BuS1><p>See <a href=http://bytecontinnum.com/2016/09/zookeeper-always-configured-odd-number-nodes/ target=_blank rel="noopener noreferrer" class="">here</a> or
+<a href=https://www.quora.com/HBase-Why-we-run-zookeeper-with-odd-number-of-instance target=_blank rel="noopener noreferrer" class="">here</a> if you are
+curious why odd number of replicas are preferred over even number of replicas.</div></div>
+</li>
+</ul>
+</li>
+<li class="">
+<p><code>secret</code> (string)</p>
+<ul>
+<li class="">the secret string which is used for replicas to authenticate each other. The replicas in the same
+cluster must have the same secret. <strong>This property is required</strong> when ZooKeeper replication is enabled.
+The secret must be at least 16 characters long. Generate a different random secret for each cluster with
+<code>openssl rand -hex 32</code>. You can secure this property by
+<a href=#hiding-sensitive-property-values class="">hiding sensitive property values</a>.</li>
+</ul>
+</li>
+<li class="">
+<p><code>allowInsecureSecret</code> (boolean)</p>
+<ul>
+<li class="">if <code>true</code>, allows the use of an insecure or missing <code>secret</code> for backward compatibility.
+When enabled with no <code>secret</code> set, the legacy default value is used with a warning.
+<strong>This property is deprecated and will be removed in a future release.</strong> It is strongly
+recommended to set a proper <code>secret</code> instead of relying on this flag.</li>
+</ul>
+</li>
+<li class="">
+<p><code>additionalProperties</code> (map of string key-value pairs)</p>
+<ul>
+<li class="">ZooKeeper <a href=https://zookeeper.apache.org/doc/current/zookeeperAdmin.html#sc_configuration target=_blank rel="noopener noreferrer" class="">configuration properties</a>.
+Currently, <code>initLimit</code>, <code>syncLimit</code>, <code>tickTime</code>, <code>syncEnabled</code>, <code>autopurge.snapRetainCount</code>,
+<code>autopurge.purgeInterval</code>, and <code>quorumListenOnAllIPs</code> can be set.
+It is recommended to leave this properties empty because Central Dogma sets the sensible defaults.</li>
+</ul>
+</li>
+<li class="">
+<p><code>timeoutMillis</code> (integer)</p>
+<ul>
+<li class="">the ZooKeeper timeout, in milliseconds. If <code>null</code> or unspecified, the default value of
+'1000 milliseconds' (1 second) is used.</li>
+</ul>
+</li>
+<li class="">
+<p><code>numWorkers</code> (integer)</p>
+<ul>
+<li class="">the number of worker threads dedicated for replication. If <code>null</code> or unspecified, the default value
+of '16 threads' is used.</li>
+</ul>
+</li>
+<li class="">
+<p><code>minimumLogCount</code> (integer)</p>
+<ul>
+<li class="">
+<p>the target number of log items to keep in ZooKeeper. Note that the log entries will still not be removed
+if they are younger than <code>minLogAgeMillis</code>. If <code>null</code> or unspecified, the default value of
+'1024 log entries' is used.</p>
+</li>
+<li class="">
+<p>The old name <code>maxLogCount</code> is accepted for compatibility, but is deprecated. Do not specify both names.</p>
+</li>
+</ul>
+</li>
+<li class="">
+<p><code>maximumLogCount</code> (integer)</p>
+<ul>
+<li class="">the observed log count at which new writes fail with an HTTP 500 replication error.
+If <code>null</code> or unspecified, the default is <code>Integer.MAX_VALUE</code>, effectively disabling the
+threshold. Concurrent writes on different paths can exceed it. It must be greater than
+<code>minimumLogCount</code>.</li>
+</ul>
+</li>
+<li class="">
+<p><code>minLogAgeMillis</code> (integer)</p>
+<ul>
+<li class="">the minimum allowed age of log items before they are removed from ZooKeeper. If <code>null</code> or unspecified,
+the default value of '86400000 milliseconds' (1 day) is used.</li>
+</ul>
+</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id=configuring-tls>Configuring TLS<a href=#configuring-tls class=hash-link aria-label="Direct link to Configuring TLS" title="Direct link to Configuring TLS" translate=no>​</a></h2>
+<p>Central Dogma supports TLS for its API and web pages. To enable TLS, a user may configure <code>tls</code> property
+in <code>dogma.json</code> as follows.</p>
+<div class="language-json codeBlockContainer_Ckt0 theme-code-block" style=--prism-color:#393A34;--prism-background-color:#f6f8fa><div class=codeBlockContent_QJqH><pre tabindex=0 class="prism-code language-json codeBlock_bY9V thin-scrollbar" style=color:#393A34;background-color:#f6f8fa><code class=codeBlockLines_e6Vv><div class=token-line style=color:#393A34><span class="token punctuation" style=color:#393A34>{</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">  </span><span class="token property" style=color:#36acaa>"dataDir"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token string" style=color:#e3116c>"./data"</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">  </span><span class="token property" style=color:#36acaa>"ports"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token punctuation" style=color:#393A34>[</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">    </span><span class="token punctuation" style=color:#393A34>{</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">      </span><span class="token property" style=color:#36acaa>"localAddress"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token punctuation" style=color:#393A34>{</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">        </span><span class="token property" style=color:#36acaa>"host"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token string" style=color:#e3116c>"*"</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">        </span><span class="token property" style=color:#36acaa>"port"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token number" style=color:#36acaa>36462</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">      </span><span class="token punctuation" style=color:#393A34>}</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">      </span><span class="token property" style=color:#36acaa>"protocols"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token punctuation" style=color:#393A34>[</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">        </span><span class="token string" style=color:#e3116c>"https"</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">      </span><span class="token punctuation" style=color:#393A34>]</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">    </span><span class="token punctuation" style=color:#393A34>}</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">  </span><span class="token punctuation" style=color:#393A34>]</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">  </span><span class="token property" style=color:#36acaa>"tls"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token punctuation" style=color:#393A34>{</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">    </span><span class="token property" style=color:#36acaa>"keyCertChain"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token string" style=color:#e3116c>"file:./cert/centraldogma.crt"</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">    </span><span class="token property" style=color:#36acaa>"key"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token string" style=color:#e3116c>"file:./cert/centraldogma.key"</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">    </span><span class="token property" style=color:#36acaa>"keyPassword"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token null keyword" style=color:#00009f>null</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">  </span><span class="token punctuation" style=color:#393A34>}</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">  </span><span class="token property" style=color:#36acaa>"trustedProxyAddresses"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token null keyword" style=color:#00009f>null</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">  </span><span class="token property" style=color:#36acaa>"clientAddressSources"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token null keyword" style=color:#00009f>null</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">  </span><span class="token property" style=color:#36acaa>"numWorkers"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token null keyword" style=color:#00009f>null</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">  </span><span class="token property" style=color:#36acaa>"maxNumConnections"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token null keyword" style=color:#00009f>null</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">  </span><span class="token property" style=color:#36acaa>"requestTimeoutMillis"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token null keyword" style=color:#00009f>null</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">  </span><span class="token property" style=color:#36acaa>"idleTimeoutMillis"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token null keyword" style=color:#00009f>null</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">  </span><span class="token property" style=color:#36acaa>"maxFrameLength"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token null keyword" style=color:#00009f>null</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">  </span><span class="token property" style=color:#36acaa>"numRepositoryWorkers"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token number" style=color:#36acaa>16</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">  </span><span class="token property" style=color:#36acaa>"repositoryCacheSpec"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token string" style=color:#e3116c>"maximumWeight=134217728,expireAfterAccess=5m"</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">  </span><span class="token property" style=color:#36acaa>"webAppEnabled"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token boolean" style=color:#36acaa>true</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">  </span><span class="token property" style=color:#36acaa>"webAppTitle"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token null keyword" style=color:#00009f>null</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">  </span><span class="token property" style=color:#36acaa>"gracefulShutdownTimeout"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token punctuation" style=color:#393A34>{</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">    </span><span class="token property" style=color:#36acaa>"quietPeriodMillis"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token number" style=color:#36acaa>1000</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">    </span><span class="token property" style=color:#36acaa>"timeoutMillis"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token number" style=color:#36acaa>10000</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">  </span><span class="token punctuation" style=color:#393A34>}</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">  </span><span class="token property" style=color:#36acaa>"replication"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token punctuation" style=color:#393A34>{</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">    </span><span class="token property" style=color:#36acaa>"method"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token string" style=color:#e3116c>"NONE"</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">  </span><span class="token punctuation" style=color:#393A34>}</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">  </span><span class="token property" style=color:#36acaa>"accessLogFormat"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token string" style=color:#e3116c>"common"</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">  </span><span class="token property" style=color:#36acaa>"authentication"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token null keyword" style=color:#00009f>null</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain"></span><span class="token punctuation" style=color:#393A34>}</span><br/></div></code></pre></div></div>
+<ul>
+<li class="">
+<p><code>tls</code></p>
+<ul>
+<li class="">
+<p>the configuration for TLS support. It will be applied to the port which is configured with <code>https</code>
+protocol. If <code>null</code>, a self-signed certificate will be generated for <code>https</code> protocol.</p>
+</li>
+<li class="">
+<p><code>keyCertChain</code> (string)</p>
+<ul>
+<li class="">the content of the certificate chain. If you want to use a file, specify <code>file:&lt;path></code>.
+You can secure this property by <a href=#hiding-sensitive-property-values class="">hiding sensitive property values</a>.</li>
+</ul>
+</li>
+<li class="">
+<p><code>key</code> (string)</p>
+<ul>
+<li class="">the content of the private key. If you want to use a file, specify <code>file:&lt;path></code>.
+You can secure this property by <a href=#hiding-sensitive-property-values class="">hiding sensitive property values</a>.</li>
+</ul>
+</li>
+<li class="">
+<p><code>keyPassword</code> (string)</p>
+<ul>
+<li class="">the password of the private key file. Specify <code>null</code> if no password is set. Note that <code>null</code>
+(no password) and <code>"null"</code> (password is 'null') are different.
+You can secure this property by <a href=#hiding-sensitive-property-values class="">hiding sensitive property values</a>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<p>If you run your Central Dogma with TLS, you need to enable TLS on the client side as well. In case of
+Java client, call the <code>useTls()</code> method when building a <code>CentralDogma</code> instance:</p>
+<div class="language-java codeBlockContainer_Ckt0 theme-code-block" style=--prism-color:#393A34;--prism-background-color:#f6f8fa><div class=codeBlockContent_QJqH><pre tabindex=0 class="prism-code language-java codeBlock_bY9V thin-scrollbar" style=color:#393A34;background-color:#f6f8fa><code class=codeBlockLines_e6Vv><div class=token-line style=color:#393A34><span class="token class-name">CentralDogma</span><span class="token plain"> dogma </span><span class="token operator" style=color:#393A34>=</span><span class="token plain"> </span><span class="token keyword" style=color:#00009f>new</span><span class="token plain"> </span><span class="token class-name">ArmeriaCentralDogmaBuilder</span><span class="token punctuation" style=color:#393A34>(</span><span class="token punctuation" style=color:#393A34>)</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">        </span><span class="token punctuation" style=color:#393A34>.</span><span class="token function" style=color:#d73a49>host</span><span class="token punctuation" style=color:#393A34>(</span><span class="token string" style=color:#e3116c>"centraldogma.example.com"</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"> </span><span class="token number" style=color:#36acaa>8443</span><span class="token punctuation" style=color:#393A34>)</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">        </span><span class="token punctuation" style=color:#393A34>.</span><span class="token function" style=color:#d73a49>accessToken</span><span class="token punctuation" style=color:#393A34>(</span><span class="token string" style=color:#e3116c>"appToken-********"</span><span class="token punctuation" style=color:#393A34>)</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">        </span><span class="token punctuation" style=color:#393A34>.</span><span class="token function" style=color:#d73a49>useTls</span><span class="token punctuation" style=color:#393A34>(</span><span class="token punctuation" style=color:#393A34>)</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">        </span><span class="token punctuation" style=color:#393A34>.</span><span class="token function" style=color:#d73a49>build</span><span class="token punctuation" style=color:#393A34>(</span><span class="token punctuation" style=color:#393A34>)</span><span class="token punctuation" style=color:#393A34>;</span><br/></div></code></pre></div></div>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id=configuring-plugins>Configuring plugins<a href=#configuring-plugins class=hash-link aria-label="Direct link to Configuring plugins" title="Direct link to Configuring plugins" translate=no>​</a></h2>
+<p>Central Dogma supports installing a plugin that runs on Central Dogma servers. You can configure the plugin
+with <code>pluginConfigs</code> property in <code>dogma.json</code> as follows.</p>
+<div class="language-json codeBlockContainer_Ckt0 theme-code-block" style=--prism-color:#393A34;--prism-background-color:#f6f8fa><div class=codeBlockContent_QJqH><pre tabindex=0 class="prism-code language-json codeBlock_bY9V thin-scrollbar" style=color:#393A34;background-color:#f6f8fa><code class=codeBlockLines_e6Vv><div class=token-line style=color:#393A34><span class="token punctuation" style=color:#393A34>{</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">  </span><span class="token property" style=color:#36acaa>"dataDir"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token string" style=color:#e3116c>"./data"</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">  </span><span class="token property" style=color:#36acaa>"ports"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token punctuation" style=color:#393A34>[</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">    </span><span class="token punctuation" style=color:#393A34>{</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">      </span><span class="token property" style=color:#36acaa>"localAddress"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token punctuation" style=color:#393A34>{</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">        </span><span class="token property" style=color:#36acaa>"host"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token string" style=color:#e3116c>"*"</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">        </span><span class="token property" style=color:#36acaa>"port"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token number" style=color:#36acaa>36462</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">      </span><span class="token punctuation" style=color:#393A34>}</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">      </span><span class="token property" style=color:#36acaa>"protocols"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token punctuation" style=color:#393A34>[</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">        </span><span class="token string" style=color:#e3116c>"https"</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">      </span><span class="token punctuation" style=color:#393A34>]</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">    </span><span class="token punctuation" style=color:#393A34>}</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">  </span><span class="token punctuation" style=color:#393A34>]</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">  ...</span><br/></div><div class=token-line style=color:#393A34><span class="token plain">  </span><span class="token property" style=color:#36acaa>"pluginConfigs"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token punctuation" style=color:#393A34>[</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">    </span><span class="token punctuation" style=color:#393A34>{</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">      </span><span class="token property" style=color:#36acaa>"type"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token string" style=color:#e3116c>"com.linecorp.centraldogma.server.mirror.MirroringServicePluginConfig"</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">      </span><span class="token property" style=color:#36acaa>"enabled"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token boolean" style=color:#36acaa>true</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">      </span><span class="token property" style=color:#36acaa>"numMirroringThreads"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token null keyword" style=color:#00009f>null</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">      </span><span class="token property" style=color:#36acaa>"maxNumFilesPerMirror"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token null keyword" style=color:#00009f>null</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">      </span><span class="token property" style=color:#36acaa>"maxNumBytesPerMirror"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token null keyword" style=color:#00009f>null</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">      </span><span class="token property" style=color:#36acaa>"zonePinned"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token boolean" style=color:#36acaa>false</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">      </span><span class="token property" style=color:#36acaa>"trustedHostKeys"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token punctuation" style=color:#393A34>{</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">        </span><span class="token property" style=color:#36acaa>"github.com"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token punctuation" style=color:#393A34>[</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">          </span><span class="token string" style=color:#e3116c>"SHA256:+DiY3wvvV6TuJJhbpZisF/zLDA0zPMSvHdkr4UvCOqU"</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">        </span><span class="token punctuation" style=color:#393A34>]</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">      </span><span class="token punctuation" style=color:#393A34>}</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">    </span><span class="token punctuation" style=color:#393A34>}</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">  </span><span class="token punctuation" style=color:#393A34>]</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain"></span><span class="token punctuation" style=color:#393A34>}</span><br/></div></code></pre></div></div>
+<p>Each configuration in <code>pluginConfigs</code> must have <code>type</code> that specifies the fully qualified class name of
+the plugin configuration class. The plugin configuration class must implement the <code>PluginConfig</code> interface
+that requires <code>enabled</code> property. The plugin configuration class can have additional properties that are
+specific to the plugin. The example above shows the configuration of the mirroring plugin and here are the
+properties that can be configured:</p>
+<ul>
+<li class="">
+<p><code>numMirroringThreads</code> (integer)</p>
+<ul>
+<li class="">the number of worker threads dedicated to periodic mirroring tasks. If <code>null</code>, the default value of
+'16 threads' is used.</li>
+</ul>
+</li>
+<li class="">
+<p><code>maxNumFilesPerMirror</code> (integer)</p>
+<ul>
+<li class="">the maximum allowed number of files in a mirror. If a Git repository contains more files than this,
+Central Dogma will reject to mirror the Git repository. If <code>null</code>, the default value of '8192 files'
+is used.</li>
+</ul>
+</li>
+<li class="">
+<p><code>maxNumBytesPerMirror</code> (integer)</p>
+<ul>
+<li class="">the maximum allowed number of bytes in a mirror. If the total size of the files in a Git repository exceeds
+this, Central Dogma will reject to mirror the Git repository. If <code>null</code>, the default value of
+'33554432 bytes' (32 MiB) is used.</li>
+</ul>
+</li>
+<li class="">
+<p><code>zonePinned</code> (boolean)</p>
+<ul>
+<li class="">whether the mirroring plugin is pinned to a specific zone. If <code>true</code>, a mirroring task will be executed
+only in the specified zone. If <code>false</code>, the plugin will be executed in the leader replica.</li>
+</ul>
+</li>
+<li class="">
+<p><code>trustedHostKeys</code> (object)</p>
+<ul>
+<li class="">
+<p>a map of hostname to a list of trusted SSH host key fingerprints (SHA-256) for <code>git+ssh://</code> mirrors.
+When an SSH mirror connects to a remote server, the server's host key fingerprint is verified against
+this list. If the fingerprint does not match any trusted key, the connection is rejected.</p>
+<p>If <code>null</code> or empty, SSH mirrors will accept any host key without verification and log a warning.
+It is strongly recommended to configure this property for all SSH mirror hosts.</p>
+<p>You can obtain a host's fingerprint by running:</p>
+<div class="language-shell codeBlockContainer_Ckt0 theme-code-block" style=--prism-color:#393A34;--prism-background-color:#f6f8fa><div class=codeBlockContent_QJqH><pre tabindex=0 class="prism-code language-shell codeBlock_bY9V thin-scrollbar" style=color:#393A34;background-color:#f6f8fa><code class=codeBlockLines_e6Vv><div class=token-line style=color:#393A34><span class="token plain">ssh-keyscan </span><span class="token operator" style=color:#393A34>&lt;</span><span class="token plain">hostname</span><span class="token operator" style=color:#393A34>></span><span class="token plain"> </span><span class="token operator file-descriptor important" style=color:#393A34>2</span><span class="token operator" style=color:#393A34>></span><span class="token plain">/dev/null </span><span class="token operator" style=color:#393A34>|</span><span class="token plain"> ssh-keygen </span><span class="token parameter variable" style=color:#36acaa>-lf</span><span class="token plain"> - </span><span class="token parameter variable" style=color:#36acaa>-E</span><span class="token plain"> sha256</span><br/></div></code></pre></div></div>
+<p><code>ssh-keyscan</code> does not authenticate the key it retrieves. Before trusting the fingerprint, verify it
+out of band against the fingerprint published by the Git host owner.</p>
+<p>Example:</p>
+<div class="language-json codeBlockContainer_Ckt0 theme-code-block" style=--prism-color:#393A34;--prism-background-color:#f6f8fa><div class=codeBlockContent_QJqH><pre tabindex=0 class="prism-code language-json codeBlock_bY9V thin-scrollbar" style=color:#393A34;background-color:#f6f8fa><code class=codeBlockLines_e6Vv><div class=token-line style=color:#393A34><span class="token property" style=color:#36acaa>"trustedHostKeys"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token punctuation" style=color:#393A34>{</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">  </span><span class="token property" style=color:#36acaa>"github.com"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token punctuation" style=color:#393A34>[</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">    </span><span class="token string" style=color:#e3116c>"SHA256:+DiY3wvvV6TuJJhbpZisF/zLDA0zPMSvHdkr4UvCOqU"</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">    </span><span class="token string" style=color:#e3116c>"SHA256:uNiVztksCsDhcc0u9e8BujQXVUpKZIDTMczCvj3tD2s"</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">  </span><span class="token punctuation" style=color:#393A34>]</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">  </span><span class="token property" style=color:#36acaa>"git.example.com"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token punctuation" style=color:#393A34>[</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">    </span><span class="token string" style=color:#e3116c>"SHA256:nThbg6kXUpJWGl7E1IGOCspRomTxdCARLviKw6E5SY8"</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">  </span><span class="token punctuation" style=color:#393A34>]</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain"></span><span class="token punctuation" style=color:#393A34>}</span><br/></div></code></pre></div></div>
+</li>
+</ul>
+</li>
+</ul>
+<p>For more information about mirroring, refer to <a class="" href=/centraldogma/mirroring>Mirroring</a>.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id=hiding-sensitive-property-values>Hiding sensitive property values<a href=#hiding-sensitive-property-values class=hash-link aria-label="Direct link to Hiding sensitive property values" title="Direct link to Hiding sensitive property values" translate=no>​</a></h2>
+<p>Central Dogma supports property value substitution through the use of
+<code><a href=https://javadoc.io/doc/com.linecorp.centraldogma/centraldogma-javadoc/latest/com/linecorp/centraldogma/server/ConfigValueConverter.html title=ConfigValueConverter>ConfigValueConverter<span class=suffix_sw1f></span></a></code>.
+If you want to hide sensitive information such as <code>tls.keyPasswords</code>, you can implement the converting logic
+with your own <code><a href=https://javadoc.io/doc/com.linecorp.centraldogma/centraldogma-javadoc/latest/com/linecorp/centraldogma/server/ConfigValueConverter.html title=ConfigValueConverter>ConfigValueConverter<span class=suffix_sw1f></span></a></code> and register it via
+<a href=https://docs.oracle.com/javase/tutorial/sound/SPI-intro.html target=_blank rel="noopener noreferrer" class="">SPI</a>:</p>
+<ul>
+<li class="">Your configuration file:</li>
+</ul>
+<div class="language-json codeBlockContainer_Ckt0 theme-code-block" style=--prism-color:#393A34;--prism-background-color:#f6f8fa><div class=codeBlockContent_QJqH><pre tabindex=0 class="prism-code language-json codeBlock_bY9V thin-scrollbar" style=color:#393A34;background-color:#f6f8fa><code class=codeBlockLines_e6Vv><div class=token-line style=color:#393A34><span class="token punctuation" style=color:#393A34>{</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">  </span><span class="token property" style=color:#36acaa>"tls"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token punctuation" style=color:#393A34>{</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">    </span><span class="token property" style=color:#36acaa>"keyCertChain"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token string" style=color:#e3116c>"file:./cert/centraldogma.crt"</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">    </span><span class="token property" style=color:#36acaa>"key"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token string" style=color:#e3116c>"file:./cert/centraldogma.key"</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">    </span><span class="token property" style=color:#36acaa>"keyPassword"</span><span class="token operator" style=color:#393A34>:</span><span class="token plain"> </span><span class="token string" style=color:#e3116c>"encryption:encrypted-password"</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">  </span><span class="token punctuation" style=color:#393A34>}</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain"></span><span class="token punctuation" style=color:#393A34>}</span><br/></div></code></pre></div></div>
+<ul>
+<li class="">Your converter:</li>
+</ul>
+<div class="language-java codeBlockContainer_Ckt0 theme-code-block" style=--prism-color:#393A34;--prism-background-color:#f6f8fa><div class=codeBlockContent_QJqH><pre tabindex=0 class="prism-code language-java codeBlock_bY9V thin-scrollbar" style=color:#393A34;background-color:#f6f8fa><code class=codeBlockLines_e6Vv><div class=token-line style=color:#393A34><span class="token keyword" style=color:#00009f>import</span><span class="token plain"> </span><span class="token import namespace" style=opacity:0.7>com</span><span class="token import namespace punctuation" style=opacity:0.7;color:#393A34>.</span><span class="token import namespace" style=opacity:0.7>linecorp</span><span class="token import namespace punctuation" style=opacity:0.7;color:#393A34>.</span><span class="token import namespace" style=opacity:0.7>centraldogma</span><span class="token import namespace punctuation" style=opacity:0.7;color:#393A34>.</span><span class="token import namespace" style=opacity:0.7>server</span><span class="token import namespace punctuation" style=opacity:0.7;color:#393A34>.</span><span class="token import class-name">ConfigValueConverter</span><span class="token punctuation" style=color:#393A34>;</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div><div class=token-line style=color:#393A34><span class="token plain"></span><span class="token keyword" style=color:#00009f>public</span><span class="token plain"> </span><span class="token keyword" style=color:#00009f>class</span><span class="token plain"> </span><span class="token class-name">MyConfigValueConverter</span><span class="token plain"> </span><span class="token keyword" style=color:#00009f>implements</span><span class="token plain"> </span><span class="token class-name">ConfigValueConverter</span><span class="token plain"> </span><span class="token punctuation" style=color:#393A34>{</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">    </span><span class="token annotation punctuation" style=color:#393A34>@Override</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">    </span><span class="token keyword" style=color:#00009f>public</span><span class="token plain"> </span><span class="token class-name">List</span><span class="token generics punctuation" style=color:#393A34>&lt;</span><span class="token generics class-name">String</span><span class="token generics punctuation" style=color:#393A34>></span><span class="token plain"> </span><span class="token function" style=color:#d73a49>supportedPrefixes</span><span class="token punctuation" style=color:#393A34>(</span><span class="token punctuation" style=color:#393A34>)</span><span class="token plain"> </span><span class="token punctuation" style=color:#393A34>{</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">        </span><span class="token keyword" style=color:#00009f>return</span><span class="token plain"> </span><span class="token class-name">List</span><span class="token punctuation" style=color:#393A34>.</span><span class="token function" style=color:#d73a49>of</span><span class="token punctuation" style=color:#393A34>(</span><span class="token string" style=color:#e3116c>"encryption"</span><span class="token punctuation" style=color:#393A34>)</span><span class="token punctuation" style=color:#393A34>;</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">    </span><span class="token punctuation" style=color:#393A34>}</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">    </span><span class="token annotation punctuation" style=color:#393A34>@Override</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">    </span><span class="token keyword" style=color:#00009f>public</span><span class="token plain"> </span><span class="token class-name">String</span><span class="token plain"> </span><span class="token function" style=color:#d73a49>convert</span><span class="token punctuation" style=color:#393A34>(</span><span class="token class-name">String</span><span class="token plain"> prefix</span><span class="token punctuation" style=color:#393A34>,</span><span class="token plain"> </span><span class="token class-name">String</span><span class="token plain"> value</span><span class="token punctuation" style=color:#393A34>)</span><span class="token plain"> </span><span class="token punctuation" style=color:#393A34>{</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">        </span><span class="token keyword" style=color:#00009f>assert</span><span class="token plain"> </span><span class="token string" style=color:#e3116c>"encryption"</span><span class="token punctuation" style=color:#393A34>.</span><span class="token function" style=color:#d73a49>equals</span><span class="token punctuation" style=color:#393A34>(</span><span class="token plain">prefix</span><span class="token punctuation" style=color:#393A34>)</span><span class="token punctuation" style=color:#393A34>;</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">        </span><span class="token keyword" style=color:#00009f>if</span><span class="token plain"> </span><span class="token punctuation" style=color:#393A34>(</span><span class="token string" style=color:#e3116c>"encrypted-password"</span><span class="token punctuation" style=color:#393A34>.</span><span class="token function" style=color:#d73a49>equals</span><span class="token punctuation" style=color:#393A34>(</span><span class="token plain">value</span><span class="token punctuation" style=color:#393A34>)</span><span class="token punctuation" style=color:#393A34>)</span><span class="token plain"> </span><span class="token punctuation" style=color:#393A34>{</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">            </span><span class="token comment" style=color:#999988;font-style:italic>// return the decrypted password that is stored in a safe place such as Vault.</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">        </span><span class="token punctuation" style=color:#393A34>}</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">        </span><span class="token punctuation" style=color:#393A34>.</span><span class="token punctuation" style=color:#393A34>.</span><span class="token punctuation" style=color:#393A34>.</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">    </span><span class="token punctuation" style=color:#393A34>}</span><span class="token plain"></span><br/></div><div class=token-line style=color:#393A34><span class="token plain"></span><span class="token punctuation" style=color:#393A34>}</span><br/></div></code></pre></div></div>
+<p>This feature enables you to enhance the security of your Central Dogma configuration by avoiding the
+exposure of sensitive information. Below is a list of properties that can be substituted:</p>
+<ul>
+<li class=""><code>replication.secret</code></li>
+<li class=""><code>tls.keyCertChain</code></li>
+<li class=""><code>tls.key</code></li>
+<li class=""><code>tls.keyPassword</code></li>
+<li class=""><code>authentication.properties.keyStore.password</code> (when SAML is used.)</li>
+<li class=""><code>authentication.properties.keyStore.keyPasswords</code> (when SAML is used.)</li>
+</ul></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col noPrint_WFHX"><a href=https://github.com/line/centraldogma/edit/main/site-new/src/content/docs/setup-configuration.mdx target=_blank rel="noopener noreferrer" class=theme-edit-this-page><svg fill=currentColor height=20 width=20 viewBox="0 0 40 40" class=iconEdit_Z9Sw aria-hidden=true><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"/></g></svg>Edit this page</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"><a class="pagination-nav__link pagination-nav__link--prev" href=/centraldogma/setup-installation><div class=pagination-nav__sublabel>Previous</div><div class=pagination-nav__label>Installation</div></a><a class="pagination-nav__link pagination-nav__link--next" href=/centraldogma/encryption-at-rest><div class=pagination-nav__sublabel>Next</div><div class=pagination-nav__label>Encryption at rest</div></a></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href=#core-properties class="table-of-contents__link toc-highlight">Core properties</a><li><a href=#rate-limiting class="table-of-contents__link toc-highlight">Rate limiting</a><li><a href=#configuring-replication class="table-of-contents__link toc-highlight">Configuring replication</a><li><a href=#configuring-tls class="table-of-contents__link toc-highlight">Configuring TLS</a><li><a href=#configuring-plugins class="table-of-contents__link toc-highlight">Configuring plugins</a><li><a href=#hiding-sensitive-property-values class="table-of-contents__link toc-highlight">Hiding sensitive property values</a></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="row footer__links"><div class="theme-layout-footer-column col footer__col"><div class=footer__title>Docs</div><ul class="footer__items clean-list"><li class=footer__item><a class=footer__link-item href=/centraldogma/>Documentation</a></ul></div><div class="theme-layout-footer-column col footer__col"><div class=footer__title>Community</div><ul class="footer__items clean-list"><li class=footer__item><a href=https://github.com/line/centraldogma/issues target=_blank rel="noopener noreferrer" class=footer__link-item>Issues<svg width=13.5 height=13.5 aria-label="(opens in new tab)" class=iconExternalLink_nPIU><use href=#theme-svg-external-link /></svg></a><li class=footer__item><a href=https://armeria.dev/s/discord target=_blank rel="noopener noreferrer" class=footer__link-item>Discord<svg width=13.5 height=13.5 aria-label="(opens in new tab)" class=iconExternalLink_nPIU><use href=#theme-svg-external-link /></svg></a></ul></div><div class="theme-layout-footer-column col footer__col"><div class=footer__title>More</div><ul class="footer__items clean-list"><li class=footer__item><a href=https://github.com/line/centraldogma/releases target=_blank rel="noopener noreferrer" class=footer__link-item>Release notes<svg width=13.5 height=13.5 aria-label="(opens in new tab)" class=iconExternalLink_nPIU><use href=#theme-svg-external-link /></svg></a><li class=footer__item><a href=https://github.com/line/centraldogma/blob/main/CONTRIBUTING.md target=_blank rel="noopener noreferrer" class=footer__link-item>Contributing<svg width=13.5 height=13.5 aria-label="(opens in new tab)" class=iconExternalLink_nPIU><use href=#theme-svg-external-link /></svg></a><li class=footer__item><a href=https://github.com/line/centraldogma/blob/main/LICENSE.txt target=_blank rel="noopener noreferrer" class=footer__link-item>License<svg width=13.5 height=13.5 aria-label="(opens in new tab)" class=iconExternalLink_nPIU><use href=#theme-svg-external-link /></svg></a></ul></div></div><div class="footer__bottom text--center"><div class=footer__copyright>© 2017-2026 LY Corporation</div></div></div></footer></div></body>
