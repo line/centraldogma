@@ -748,21 +748,6 @@ class DefaultMetaRepositoryWithMirrorTest {
                 '}');
     }
 
-    private static Change<?> preservingMirror(String id, String localPath, String remoteUri) {
-        return Change.ofJsonUpsert(
-                "/repos/repo/mirrors/" + id + ".json",
-                '{' +
-                "  \"id\": \"" + id + "\"," +
-                "  \"enabled\": true," +
-                "  \"direction\": \"REMOTE_TO_LOCAL\"," +
-                "  \"localRepo\": \"repo\"," +
-                "  \"localPath\": \"" + localPath + "\"," +
-                "  \"remoteUri\": \"" + remoteUri + "\"," +
-                "  \"credentialName\": \"\"," +
-                "  \"preserveRemoteCommitHistory\": true" +
-                '}');
-    }
-
     private MirrorRequest preservingMirrorRequest(String id, String remoteUrl) {
         return new MirrorRequest(id, true, project.name(), null, "REMOTE_TO_LOCAL", "repo", "/",
                                  "git+https", remoteUrl, "/", "main", null, "", null, true, false);
