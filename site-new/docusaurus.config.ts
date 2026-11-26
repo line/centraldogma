@@ -41,6 +41,7 @@ const config: Config = {
       'classic',
       {
         docs: {
+          routeBasePath: '/',
           sidebarPath: './sidebars.ts',
           path: 'src/content/docs',
           editUrl: 'https://github.com/line/centraldogma/edit/main/site-new/',
@@ -90,7 +91,7 @@ const config: Config = {
       links: [
         {
           title: 'Docs',
-          items: [{ label: 'Documentation', to: '/docs' }],
+          items: [{ label: 'Documentation', to: '/' }],
         },
         {
           title: 'Community',

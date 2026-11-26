@@ -16,7 +16,7 @@
 /**
  * Central Dogma client API.
  *
- * @see <a href="https://line.github.io/centraldogma/client-java.html" target="_blank">Java client library</a>
+ * @see <a href="https://line.github.io/centraldogma/client-java" target="_blank">Java client library</a>
  */
 @NullMarked
 package com.linecorp.centraldogma.client;

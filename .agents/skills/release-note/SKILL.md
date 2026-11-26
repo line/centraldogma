@@ -197,7 +197,7 @@ The following is an example of a well-formatted release note for reference:
                                 .join();
   ```
 
-  For detailed usage, see the [Templates and Variables](https://line.github.io/centraldogma/templates-variables.html) documentation.
+  For detailed usage, see the [Templates and Variables](https://line.github.io/centraldogma/templates-variables) documentation.
 
 ### Improvements
 
