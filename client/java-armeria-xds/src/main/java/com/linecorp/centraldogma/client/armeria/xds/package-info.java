@@ -15,7 +15,7 @@
  */
 /**
  * <a href="https://line.github.io/armeria/">Armeria</a>'s xDS-based Central Dogma client implementation.
- * @see <a href="https://line.github.io/centraldogma/client-java.html" target="_blank">Java client library</a>
+ * @see <a href="https://line.github.io/centraldogma/client-java" target="_blank">Java client library</a>
  */
 @NullMarked
 package com.linecorp.centraldogma.client.armeria.xds;

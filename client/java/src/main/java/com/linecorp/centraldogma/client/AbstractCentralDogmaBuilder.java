@@ -198,7 +198,7 @@ public abstract class AbstractCentralDogmaBuilder<B extends AbstractCentralDogma
     /**
      * Adds the host names (or IP addresses) and the port numbers of the Central Dogma servers loaded from the
      * client profile resources. When more than one profile is matched, the last matching one will be used. See
-     * <a href="https://line.github.io/centraldogma/client-java.html#using-client-profiles">Using client
+     * <a href="https://line.github.io/centraldogma/client-java#using-client-profiles">Using client
      * profiles</a> for more information.
      *
      * @param profiles the list of profile names
@@ -213,7 +213,7 @@ public abstract class AbstractCentralDogmaBuilder<B extends AbstractCentralDogma
     /**
      * Adds the host names (or IP addresses) and the port numbers of the Central Dogma servers loaded from the
      * client profile resources. When more than one profile is matched, the last matching one will be used. See
-     * <a href="https://line.github.io/centraldogma/client-java.html#using-client-profiles">Using client
+     * <a href="https://line.github.io/centraldogma/client-java#using-client-profiles">Using client
      * profiles</a> for more information.
      *
      * @param profiles the list of profile names
@@ -228,7 +228,7 @@ public abstract class AbstractCentralDogmaBuilder<B extends AbstractCentralDogma
     /**
      * Adds the host names (or IP address) and the port numbers of the Central Dogma servers loaded from the
      * client profile resources. When more than one profile is matched, the last matching one will be used. See
-     * <a href="https://line.github.io/centraldogma/client-java.html#using-client-profiles">Using client
+     * <a href="https://line.github.io/centraldogma/client-java#using-client-profiles">Using client
      * profiles</a> for more information.
      *
      * @param profiles the list of profile names
@@ -248,7 +248,7 @@ public abstract class AbstractCentralDogmaBuilder<B extends AbstractCentralDogma
     /**
      * Adds the host names (or IP address) and the port numbers of the Central Dogma servers loaded from the
      * client profile resources. When more than one profile is matched, the last matching one will be used. See
-     * <a href="https://line.github.io/centraldogma/client-java.html#using-client-profiles">Using client
+     * <a href="https://line.github.io/centraldogma/client-java#using-client-profiles">Using client
      * profiles</a> for more information.
      *
      * @param profiles the list of profile names

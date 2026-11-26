@@ -27,13 +27,7 @@ jobs:
 
       - name: Build the site
         run: |
-          ./gradlew --no-daemon --stacktrace :site-new:site :site:xref
-
-      - name: Preserve published reference files
-        run: |
-          cp -R site/build/site/apidocs site/build/site/xref site-new/build/
-          mkdir -p site-new/build/_static
-          cp site-new/build/schema-centraldogma-profiles.json site-new/build/_static/
+          ./gradlew --no-daemon --stacktrace :site-new:site
 
       - name: Deploy the site
         uses: peaceiris/actions-gh-pages@v4.1.0
