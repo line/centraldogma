@@ -196,6 +196,7 @@ import io.micrometer.core.instrument.binder.jvm.DiskSpaceMetrics;
 import io.micrometer.core.instrument.binder.jvm.ExecutorServiceMetrics;
 import io.micrometer.core.instrument.binder.jvm.JvmGcMetrics;
 import io.micrometer.core.instrument.binder.jvm.JvmMemoryMetrics;
+import io.micrometer.core.instrument.binder.jvm.JvmThreadDeadlockMetrics;
 import io.micrometer.core.instrument.binder.jvm.JvmThreadMetrics;
 import io.micrometer.core.instrument.binder.system.FileDescriptorMetrics;
 import io.micrometer.core.instrument.binder.system.ProcessorMetrics;
@@ -1234,6 +1235,7 @@ public class CentralDogma implements AutoCloseable {
         new JvmGcMetrics().bindTo(registry);
         new JvmMemoryMetrics().bindTo(registry);
         new JvmThreadMetrics().bindTo(registry);
+        new JvmThreadDeadlockMetrics().bindTo(registry);
 
         // Bind global thread pool metrics.
         ExecutorServiceMetrics.monitor(registry, ForkJoinPool.commonPool(), "commonPool");
