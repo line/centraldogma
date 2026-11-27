@@ -237,6 +237,7 @@ public class DefaultProject implements Project {
                                                                  members,
                                                                  null,
                                                                  appIds,
+                                                                 null,
                                                                  userAndTimestamp, null);
             final CommitResult result =
                     dogmaRepo.commit(headRev, creationTimeMillis, Author.SYSTEM,

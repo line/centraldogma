@@ -19,6 +19,7 @@ import {
   RadioGroup,
   Spacer,
   Stack,
+  Text,
   useDisclosure,
 } from '@chakra-ui/react';
 import { SerializedError } from '@reduxjs/toolkit';
@@ -39,6 +40,7 @@ type FormData = {
   type: 'TOKEN' | 'CERTIFICATE';
   certificateId?: string;
   isSystemAdmin: boolean;
+  scope: 'registered' | 'guest';
 };
 
 export const NewAppIdentity = () => {
@@ -52,6 +54,7 @@ export const NewAppIdentity = () => {
       type: 'TOKEN',
       certificateId: '',
       isSystemAdmin: false,
+      scope: 'registered',
     });
     onClose();
   };
@@ -70,6 +73,7 @@ export const NewAppIdentity = () => {
   } = useForm<FormData>({
     defaultValues: {
       type: 'TOKEN',
+      scope: 'registered',
     },
   });
   const [addNewAppIdentity, { isLoading }] = useAddNewAppIdentityMutation();
@@ -78,6 +82,7 @@ export const NewAppIdentity = () => {
   const { user } = useAppSelector((state) => state.auth);
 
   const selectedType = watch('type');
+  const isSystemAdminChecked = watch('isSystemAdmin');
 
   const onSubmit = async (formData: FormData) => {
     if (formData.type === 'CERTIFICATE' && !formData.certificateId) {
@@ -89,6 +94,8 @@ export const NewAppIdentity = () => {
     params.set('appId', formData.appId);
     params.set('type', formData.type);
     params.set('isSystemAdmin', String(formData.isSystemAdmin || false));
+    // A system admin identity always allows guest access.
+    params.set('allowGuestAccess', String(formData.isSystemAdmin || formData.scope === 'guest'));
     if (formData.type === 'CERTIFICATE' && formData.certificateId) {
       params.set('certificateId', formData.certificateId);
     }
@@ -157,6 +164,42 @@ export const NewAppIdentity = () => {
                 {errors.appId && (
                   <FormErrorMessage>The first/last character must be alphanumeric</FormErrorMessage>
                 )}
+              </FormControl>
+
+              <FormControl mt={4}>
+                <FormLabel>Scope</FormLabel>
+                <Controller
+                  name="scope"
+                  control={control}
+                  render={({ field: { onChange, value } }) => (
+                    <RadioGroup
+                      colorScheme="teal"
+                      value={isSystemAdminChecked ? 'guest' : value}
+                      onChange={onChange}
+                      isDisabled={isSystemAdminChecked}
+                    >
+                      <Stack spacing={2}>
+                        <Radio value="registered">
+                          Registered repositories only
+                          <Text fontSize="sm" color="gray.500">
+                            Accesses only the projects and repositories this app identity is granted a role for.
+                          </Text>
+                        </Radio>
+                        <Radio value="guest">
+                          Allow guest access
+                          <Text fontSize="sm" color="gray.500">
+                            Can also read public repositories without being granted any role.
+                          </Text>
+                        </Radio>
+                      </Stack>
+                    </RadioGroup>
+                  )}
+                />
+                <Text fontSize="sm" color="gray.500" mt={2}>
+                  {isSystemAdminChecked
+                    ? 'A system administrator-level app identity always allows guest access.'
+                    : 'The scope cannot be changed after creation.'}
+                </Text>
               </FormControl>
 
               {selectedType === 'CERTIFICATE' && (

@@ -36,8 +36,8 @@ final class RepositoryMetadataTransformer extends ProjectMetadataTransformer {
         });
     }
 
-    private static ProjectMetadata newProjectMetadata(ProjectMetadata projectMetadata,
-                                                      RepositoryMetadata repositoryMetadata) {
+    static ProjectMetadata newProjectMetadata(ProjectMetadata projectMetadata,
+                                              RepositoryMetadata repositoryMetadata) {
         final ImmutableMap.Builder<String, RepositoryMetadata> builder =
                 ImmutableMap.builderWithExpectedSize(projectMetadata.repos().size());
         for (Entry<String, RepositoryMetadata> entry : projectMetadata.repos().entrySet()) {
@@ -53,6 +53,7 @@ final class RepositoryMetadataTransformer extends ProjectMetadataTransformer {
                                    projectMetadata.members(),
                                    null,
                                    projectMetadata.appIds(),
+                                   projectMetadata.allowPublicRepositories(),
                                    projectMetadata.creation(),
                                    projectMetadata.removal());
     }

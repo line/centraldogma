@@ -109,12 +109,12 @@ class AppIdentityRegistryServiceTest {
 
     @Test
     void systemAdminToken() {
-        final Token token = appIdentityRegistryService.createToken("forAdmin1", true, null,
+        final Token token = appIdentityRegistryService.createToken("forAdmin1", true, null, false,
                                                                    systemAdminAuthor, systemAdmin).join()
                                                       .content();
         assertThat(token.isActive()).isTrue();
         assertThatThrownBy(
-                () -> appIdentityRegistryService.createToken("forAdmin2", true, null, guestAuthor, guest)
+                () -> appIdentityRegistryService.createToken("forAdmin2", true, null, false, guestAuthor, guest)
                                                 .join())
                 .isInstanceOf(IllegalArgumentException.class);
 
@@ -149,7 +149,7 @@ class AppIdentityRegistryServiceTest {
     void systemAdminAppIdentity() {
         final CertificateAppIdentity certificate =
                 (CertificateAppIdentity) appIdentityRegistryService.createAppIdentity(
-                        "certAdmin1", true, AppIdentityType.CERTIFICATE, null, "cert/123",
+                        "certAdmin1", true, AppIdentityType.CERTIFICATE, null, "cert/123", false,
                         systemAdminAuthor, systemAdmin).join().content();
         assertThat(certificate.isActive()).isTrue();
         assertThat(certificate.certificateId()).isEqualTo("cert/123");
@@ -157,11 +157,11 @@ class AppIdentityRegistryServiceTest {
                 () -> appIdentityRegistryService.createAppIdentity(
                         "certAdmin2", true,
                         AppIdentityType.CERTIFICATE, null,
-                        "cert-456", guestAuthor, guest).join())
+                        "cert-456", false, guestAuthor, guest).join())
                 .isInstanceOf(IllegalArgumentException.class);
 
         final Token token = (Token) appIdentityRegistryService.createAppIdentity(
-                "tokenAdmin1", true, AppIdentityType.TOKEN, null, null,
+                "tokenAdmin1", true, AppIdentityType.TOKEN, null, null, false,
                 systemAdminAuthor, systemAdmin).join().content();
         assertThat(token.isActive()).isTrue();
         assertThat(token.secret()).isNotNull();
@@ -214,12 +214,12 @@ class AppIdentityRegistryServiceTest {
 
     @Test
     void userToken() {
-        final Token userToken1 = appIdentityRegistryService.createToken("forUser1", false, null,
+        final Token userToken1 = appIdentityRegistryService.createToken("forUser1", false, null, false,
                                                                         systemAdminAuthor,
                                                                         systemAdmin)
                                                            .join().content();
-        final Token userToken2 = appIdentityRegistryService.createToken("forUser2", false, null, guestAuthor,
-                                                                        guest)
+        final Token userToken2 = appIdentityRegistryService.createToken("forUser2", false, null, false,
+                                                                        guestAuthor, guest)
                                                            .join().content();
         assertThat(userToken1.isActive()).isTrue();
         assertThat(userToken2.isActive()).isTrue();
@@ -251,14 +251,30 @@ class AppIdentityRegistryServiceTest {
     }
 
     @Test
+    void certificateGuestAccess() {
+        final CertificateAppIdentity guestCert =
+                (CertificateAppIdentity) appIdentityRegistryService.createAppIdentity(
+                        "certGuest", false, AppIdentityType.CERTIFICATE, null, "cert-guest", true,
+                        guestAuthor, guest).join().content();
+        assertThat(guestCert.allowGuestAccess()).isTrue();
+
+        // A system admin identity always allows guest access.
+        final CertificateAppIdentity adminCert =
+                (CertificateAppIdentity) appIdentityRegistryService.createAppIdentity(
+                        "certAdminGuest", true, AppIdentityType.CERTIFICATE, null, "cert-admin-guest",
+                        false, systemAdminAuthor, systemAdmin).join().content();
+        assertThat(adminCert.allowGuestAccess()).isTrue();
+    }
+
+    @Test
     void userCertificate() {
         final CertificateAppIdentity userCert1 =
                 (CertificateAppIdentity) appIdentityRegistryService.createAppIdentity(
-                        "certUser1", false, AppIdentityType.CERTIFICATE, null, "cert-user1",
+                        "certUser1", false, AppIdentityType.CERTIFICATE, null, "cert-user1", false,
                         systemAdminAuthor, systemAdmin).join().content();
         final CertificateAppIdentity userCert2 =
                 (CertificateAppIdentity) appIdentityRegistryService.createAppIdentity(
-                        "certUser2", false, AppIdentityType.CERTIFICATE, null, "cert-user2",
+                        "certUser2", false, AppIdentityType.CERTIFICATE, null, "cert-user2", false,
                         guestAuthor, guest).join().content();
         assertThat(userCert1.isActive()).isTrue();
         assertThat(userCert2.isActive()).isTrue();
@@ -295,7 +311,7 @@ class AppIdentityRegistryServiceTest {
 
     @Test
     void nonRandomToken() {
-        final Token token = appIdentityRegistryService.createToken("forAdmin1", true, "appToken-secret",
+        final Token token = appIdentityRegistryService.createToken("forAdmin1", true, "appToken-secret", false,
                                                                    systemAdminAuthor,
                                                                    systemAdmin)
                                                       .join().content();
@@ -305,7 +321,8 @@ class AppIdentityRegistryServiceTest {
         assertThat(tokens.stream().filter(t -> !StringUtil.isNullOrEmpty(t.secret()))).hasSize(1);
 
         assertThatThrownBy(() -> appIdentityRegistryService.createToken("forUser1", true,
-                                                                        "appToken-secret", guestAuthor, guest)
+                                                                        "appToken-secret", false,
+                                                                        guestAuthor, guest)
                                                            .join())
                 .isInstanceOf(IllegalArgumentException.class);
 
@@ -317,7 +334,7 @@ class AppIdentityRegistryServiceTest {
 
     @Test
     public void updateToken() {
-        final Token token = appIdentityRegistryService.createToken("forUpdate", true, null,
+        final Token token = appIdentityRegistryService.createToken("forUpdate", true, null, false,
                                                                    systemAdminAuthor, systemAdmin).join()
                                                       .content();
         assertThat(token.isActive()).isTrue();
@@ -352,7 +369,7 @@ class AppIdentityRegistryServiceTest {
     public void updateCertificate() {
         final CertificateAppIdentity certificate =
                 (CertificateAppIdentity) appIdentityRegistryService.createAppIdentity(
-                        "certUpdate", true, AppIdentityType.CERTIFICATE, null, "cert/update",
+                        "certUpdate", true, AppIdentityType.CERTIFICATE, null, "cert/update", false,
                         systemAdminAuthor, systemAdmin).join().content();
         assertThat(certificate.isActive()).isTrue();
 
@@ -385,7 +402,7 @@ class AppIdentityRegistryServiceTest {
 
     @Test
     void updateTokenLevel() {
-        final Token token = appIdentityRegistryService.createToken("forUpdate", false, null,
+        final Token token = appIdentityRegistryService.createToken("forUpdate", false, null, false,
                                                                    systemAdminAuthor, systemAdmin).join()
                                                       .content();
         assertThat(token.isActive()).isTrue();
@@ -415,7 +432,7 @@ class AppIdentityRegistryServiceTest {
     void updateCertificateLevel() {
         final CertificateAppIdentity certificate =
                 (CertificateAppIdentity) appIdentityRegistryService.createAppIdentity(
-                        "certLevelUpdate", false, AppIdentityType.CERTIFICATE, null, "cert-level",
+                        "certLevelUpdate", false, AppIdentityType.CERTIFICATE, null, "cert-level", false,
                         systemAdminAuthor, systemAdmin).join().content();
         assertThat(certificate.isActive()).isTrue();
         assertThat(certificate.isSystemAdmin()).isFalse();

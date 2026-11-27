@@ -1,7 +1,10 @@
 import {
+  Box,
   Button,
+  Checkbox,
   FormControl,
   FormErrorMessage,
+  FormHelperText,
   FormLabel,
   Input,
   Popover,
@@ -13,9 +16,11 @@ import {
   PopoverHeader,
   PopoverTrigger,
   Spacer,
+  Tooltip,
   useDisclosure,
 } from '@chakra-ui/react';
-import { useAddNewRepoMutation } from 'dogma/features/api/apiSlice';
+import { useAddNewRepoMutation, useGetMetadataByProjectNameQuery } from 'dogma/features/api/apiSlice';
+import { allowsPublicRepositories } from 'dogma/features/project/ProjectMetadataDto';
 import { newNotification } from 'dogma/features/notification/notificationSlice';
 import { useAppDispatch } from 'dogma/hooks';
 import Router from 'next/router';
@@ -30,10 +35,14 @@ const ENTITY_NAME_PATTERN = /^[0-9A-Za-z](?:[-+_0-9A-Za-z.]*[0-9A-Za-z])?$/;
 
 type FormData = {
   name: string;
+  isPublic: boolean;
 };
 
 export const NewRepo = ({ projectName }: { projectName: string }) => {
   const [addNewRepo, { isLoading }] = useAddNewRepoMutation();
+  const { data: metadata, isLoading: isMetadataLoading } = useGetMetadataByProjectNameQuery(projectName, {
+    skip: projectName === 'dogma',
+  });
   const {
     register,
     handleSubmit,
@@ -46,6 +55,7 @@ export const NewRepo = ({ projectName }: { projectName: string }) => {
   if (projectName === 'dogma') {
     return null;
   }
+  const publicAllowed = allowsPublicRepositories(metadata);
 
   const onSubmit = async (data: FormData) => {
     try {
@@ -89,6 +99,26 @@ export const NewRepo = ({ projectName }: { projectName: string }) => {
                   {errors.name && (
                     <FormErrorMessage>The first/last character must be alphanumeric</FormErrorMessage>
                   )}
+                </FormControl>
+                <FormControl mt={4}>
+                  <Tooltip
+                    label="The project settings do not allow public repositories."
+                    isDisabled={publicAllowed}
+                  >
+                    <Box display="inline-block">
+                      <Checkbox
+                        colorScheme="teal"
+                        isDisabled={!publicAllowed || isMetadataLoading}
+                        {...register('isPublic')}
+                      >
+                        Make this repository public
+                      </Checkbox>
+                    </Box>
+                  </Tooltip>
+                  <FormHelperText pl={1}>
+                    Readable by everyone who can sign in, including application tokens and certificates with
+                    guest access allowed.
+                  </FormHelperText>
                 </FormControl>
               </PopoverBody>
               <PopoverFooter

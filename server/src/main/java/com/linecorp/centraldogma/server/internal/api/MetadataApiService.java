@@ -36,6 +36,7 @@ import com.linecorp.armeria.server.annotation.Param;
 import com.linecorp.armeria.server.annotation.Patch;
 import com.linecorp.armeria.server.annotation.Post;
 import com.linecorp.armeria.server.annotation.ProducesJson;
+import com.linecorp.armeria.server.annotation.Put;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.ProjectRole;
 import com.linecorp.centraldogma.common.RepositoryRole;
@@ -139,7 +140,7 @@ public class MetadataApiService extends AbstractService {
             JsonNode payload,
             Author author) throws JsonProcessingException {
         final JsonNode guest = payload.get("guest");
-        if (guest.isTextual()) {
+        if (guest != null && guest.isTextual()) {
             // TODO(ikhoon): Move this validation to the constructor of ProjectRoles once GUEST WRITE role is
             //               migrated to GUEST READ.
             final String role = guest.asText();
@@ -149,6 +150,30 @@ public class MetadataApiService extends AbstractService {
         }
         final ProjectRoles projectRoles = Jackson.treeToValue(payload, ProjectRoles.class);
         return mds.updateRepositoryProjectRoles(author, projectName, repoName, projectRoles);
+    }
+
+    /**
+     * PUT /metadata/{projectName}/settings
+     *
+     * <p>Updates the settings of the specified {@code projectName}. A field which is not specified
+     * is left unchanged. The body of the request will be:
+     * <pre>{@code
+     * {
+     *   "allowPublicRepositories": false
+     * }
+     * }</pre>
+     */
+    @RequiresProjectRole(ProjectRole.OWNER)
+    @Put("/metadata/{projectName}/settings")
+    public CompletableFuture<Revision> updateProjectSettings(
+            @Param String projectName,
+            UpdateProjectSettingsRequest request,
+            Author author) {
+        final Boolean allowPublicRepositories = request.allowPublicRepositories();
+        if (allowPublicRepositories == null) {
+            throw new IllegalArgumentException("No settings are specified.");
+        }
+        return mds.updateAllowPublicRepositories(author, projectName, allowPublicRepositories);
     }
 
     /**

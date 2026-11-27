@@ -17,6 +17,7 @@
 import { useRouter } from 'next/router';
 import RepositorySettingsView from 'dogma/features/repo/settings/RepositorySettingsView';
 import { ProjectRolesForm } from 'dogma/features/repo/roles/ProjectRolesForm';
+import { allowsPublicRepositories } from 'dogma/features/project/ProjectMetadataDto';
 
 const RepositorySettingsPage = () => {
   const router = useRouter();
@@ -31,6 +32,7 @@ const RepositorySettingsPage = () => {
               projectName={projectName}
               repoName={repoName}
               projectRoles={metadata?.repos[repoName]?.roles.projects}
+              allowPublicRepositories={allowsPublicRepositories(metadata)}
             />
           </>
         )}

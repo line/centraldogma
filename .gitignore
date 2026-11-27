@@ -144,3 +144,6 @@ typings/
 
 # Codex
 AGENTS.md
+
+# Claude
+.claude/settings.json

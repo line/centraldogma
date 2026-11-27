@@ -28,18 +28,18 @@ export function findUserRepositoryRole(repoName: string, user: UserDto, metadata
   }
 
   const roles = metadata.repos[repoName]?.roles;
-  const memberOrGuestRole = projectRole === 'MEMBER' ? roles?.projects.member : roles?.projects.guest;
+  const memberRole = projectRole === 'MEMBER' ? roles?.projects.member : null;
   const userRepositoryRole = roles?.users[user.email];
 
-  if (userRepositoryRole === 'ADMIN' || memberOrGuestRole === 'ADMIN') {
+  if (userRepositoryRole === 'ADMIN' || memberRole === 'ADMIN') {
     return 'ADMIN';
   }
 
-  if (userRepositoryRole === 'WRITE' || memberOrGuestRole === 'WRITE') {
+  if (userRepositoryRole === 'WRITE' || memberRole === 'WRITE') {
     return 'WRITE';
   }
 
-  if (userRepositoryRole === 'READ' || memberOrGuestRole === 'READ') {
+  if (userRepositoryRole === 'READ' || memberRole === 'READ' || roles?.projects.guest === 'READ') {
     return 'READ';
   }
   return null;

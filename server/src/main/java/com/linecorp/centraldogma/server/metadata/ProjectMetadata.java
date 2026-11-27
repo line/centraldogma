@@ -16,6 +16,7 @@
 
 package com.linecorp.centraldogma.server.metadata;
 
+import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static java.util.Objects.requireNonNull;
 
@@ -50,6 +51,7 @@ public class ProjectMetadata implements Identifiable, HasWeight {
                                 ImmutableMap.of(),
                                 null,
                                 ImmutableMap.of(),
+                                false,
                                 new UserAndTimestamp(User.SYSTEM.id()),
                                 null);
 
@@ -74,6 +76,11 @@ public class ProjectMetadata implements Identifiable, HasWeight {
     private final Map<String, AppIdentityRegistration> appIds;
 
     /**
+     * Whether the repositories in this project can be made public.
+     */
+    private final boolean allowPublicRepositories;
+
+    /**
      * Specifies when this project is created by whom.
      */
     private final UserAndTimestamp creation;
@@ -93,6 +100,8 @@ public class ProjectMetadata implements Identifiable, HasWeight {
                            @JsonProperty("members") Map<String, Member> members,
                            @JsonProperty("tokens") @Nullable Map<String, AppIdentityRegistration> tokens,
                            @JsonProperty("appIds") @Nullable Map<String, AppIdentityRegistration> appIds,
+                           @JsonProperty("allowPublicRepositories")
+                           @Nullable Boolean allowPublicRepositories,
                            @JsonProperty("creation") UserAndTimestamp creation,
                            @JsonProperty("removal") @Nullable UserAndTimestamp removal) {
         this.name = requireNonNull(name, "name");
@@ -108,6 +117,7 @@ public class ProjectMetadata implements Identifiable, HasWeight {
             this.appIds = ImmutableMap.copyOf(tokens);
         }
 
+        this.allowPublicRepositories = firstNonNull(allowPublicRepositories, true);
         this.creation = requireNonNull(creation, "creation");
         this.removal = removal;
     }
@@ -147,6 +157,14 @@ public class ProjectMetadata implements Identifiable, HasWeight {
     @JsonProperty
     public Map<String, AppIdentityRegistration> appIds() {
         return appIds;
+    }
+
+    /**
+     * Returns whether the repositories in this project can be made public.
+     */
+    @JsonProperty
+    public boolean allowPublicRepositories() {
+        return allowPublicRepositories;
     }
 
     /**
@@ -244,22 +262,25 @@ public class ProjectMetadata implements Identifiable, HasWeight {
                repos.equals(that.repos) &&
                members.equals(that.members) &&
                appIds.equals(that.appIds) &&
+               allowPublicRepositories == that.allowPublicRepositories &&
                creation.equals(that.creation) &&
                Objects.equals(removal, that.removal);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(name, repos, members, appIds, creation, removal);
+        return Objects.hash(name, repos, members, appIds, allowPublicRepositories, creation, removal);
     }
 
     @Override
     public String toString() {
         return MoreObjects.toStringHelper(this)
+                          .omitNullValues()
                           .add("name", name())
                           .add("repos", repos())
                           .add("members", members())
                           .add("appIds", appIds())
+                          .add("allowPublicRepositories", allowPublicRepositories())
                           .add("creation", creation())
                           .add("removal", removal())
                           .toString();
@@ -280,6 +301,7 @@ public class ProjectMetadata implements Identifiable, HasWeight {
                                    members(),
                                    null,
                                    appIds(),
+                                   allowPublicRepositories(),
                                    creation(),
                                    removal());
     }

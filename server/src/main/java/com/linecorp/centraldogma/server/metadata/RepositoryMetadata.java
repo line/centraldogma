@@ -47,6 +47,12 @@ public final class RepositoryMetadata implements Identifiable, HasWeight {
     public static final ProjectRoles DEFAULT_PROJECT_ROLES = ProjectRoles.of(RepositoryRole.WRITE, null);
 
     /**
+     * The {@link ProjectRoles} of a public repository whose guests have the {@link RepositoryRole#READ} role.
+     */
+    public static final ProjectRoles PUBLIC_PROJECT_ROLES =
+            ProjectRoles.of(RepositoryRole.WRITE, RepositoryRole.READ);
+
+    /**
      * Creates a new instance with default properties.
      */
     public static RepositoryMetadata of(String name, UserAndTimestamp creation) {

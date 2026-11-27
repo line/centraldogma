@@ -30,6 +30,7 @@ import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
+import com.linecorp.centraldogma.server.metadata.ProjectRoles;
 import com.linecorp.centraldogma.server.metadata.RepositoryMetadata;
 import com.linecorp.centraldogma.server.metadata.Roles;
 import com.linecorp.centraldogma.server.metadata.UserAndTimestamp;
@@ -44,13 +45,14 @@ public final class RepositoryServiceUtil {
             Author author, String projectName, String repoName, boolean encrypt,
             @Nullable EncryptionStorageManager encryptionStorageManager) {
         return createRepository(commandExecutor, mds, author, projectName, repoName, true,
-                                encrypt, encryptionStorageManager);
+                                DEFAULT_PROJECT_ROLES, encrypt, encryptionStorageManager);
     }
 
     public static CompletableFuture<Revision> createRepository(
             CommandExecutor commandExecutor, MetadataService mds,
             Author author, String projectName, String repoName, boolean assignRoleToAuthor,
-            boolean encrypt, @Nullable EncryptionStorageManager encryptionStorageManager) {
+            ProjectRoles projectRoles, boolean encrypt,
+            @Nullable EncryptionStorageManager encryptionStorageManager) {
         final Map<String, RepositoryRole> users;
         final Map<String, RepositoryRole> appIds;
         if (!assignRoleToAuthor) {
@@ -66,7 +68,7 @@ public final class RepositoryServiceUtil {
             appIds = ImmutableMap.of();
         }
 
-        final Roles roles = new Roles(DEFAULT_PROJECT_ROLES, users, null, appIds);
+        final Roles roles = new Roles(projectRoles, users, null, appIds);
         final RepositoryMetadata repositoryMetadata =
                 RepositoryMetadata.of(repoName, roles, UserAndTimestamp.of(author));
 

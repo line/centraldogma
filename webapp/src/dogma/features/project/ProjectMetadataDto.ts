@@ -12,5 +12,11 @@ export interface ProjectMetadataDto {
   repos: RepositoriesMetadataDto;
   members: AppMemberDto;
   appIds: AppIdDto;
+  allowPublicRepositories?: boolean | null;
   creation: ProjectCreatorDto;
+}
+
+// Public repositories are allowed unless disallowed explicitly.
+export function allowsPublicRepositories(metadata: ProjectMetadataDto | undefined): boolean {
+  return metadata?.allowPublicRepositories !== false;
 }
