@@ -31,6 +31,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.BiFunction;
 import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -71,6 +72,7 @@ import io.envoyproxy.envoy.config.endpoint.v3.ClusterLoadAssignment.Policy.DropO
 import io.envoyproxy.envoy.config.endpoint.v3.LocalityLbEndpoints;
 import io.fabric8.kubernetes.client.Config;
 import io.fabric8.kubernetes.client.ConfigBuilder;
+import io.fabric8.kubernetes.client.OAuthTokenProvider;
 
 /**
  * Annotated service object for managing Kubernetes endpoint aggregators.
@@ -516,25 +518,35 @@ public final class XdsKubernetesService {
     public static CompletableFuture<KubernetesEndpointGroup> createKubernetesEndpointGroup(
             ServiceEndpointWatcher watcher, MetaRepository metaRepository, String group, String fileName,
             boolean logIfFail) {
+        return createKubernetesEndpointGroup(
+                watcher, metaRepository, group, fileName, logIfFail,
+                (unused, token) -> new XdsKubernetesOAuthTokenProvider(token));
+    }
+
+    static CompletableFuture<KubernetesEndpointGroup> createKubernetesEndpointGroup(
+            ServiceEndpointWatcher watcher, MetaRepository metaRepository, String group, String fileName,
+            boolean logIfFail,
+            BiFunction<String, String, OAuthTokenProvider> oauthTokenProviderFactory) {
         final Kubeconfig kubeconfig = watcher.getKubeconfig();
         final String serviceName = watcher.getServiceName();
 
         final CompletableFuture<KubernetesEndpointGroup> future =
-                toConfig(kubeconfig, metaRepository, group, fileName).thenApply(config -> {
-                    final KubernetesEndpointGroupBuilder kubernetesEndpointGroupBuilder =
-                            KubernetesEndpointGroup.builder(config).serviceName(serviceName);
-                    if (!isNullOrEmpty(kubeconfig.getNamespace())) {
-                        kubernetesEndpointGroupBuilder.namespace(kubeconfig.getNamespace());
-                    }
-                    if (!isNullOrEmpty(watcher.getPortName())) {
-                        kubernetesEndpointGroupBuilder.portName(watcher.getPortName());
-                    }
-                    if (nodeIpExtractor != null) {
-                        kubernetesEndpointGroupBuilder.nodeIpExtractor(
-                                node -> nodeIpExtractor.extract(watcher, node));
-                    }
-                    return kubernetesEndpointGroupBuilder.build();
-                });
+                toConfig(kubeconfig, metaRepository, group, fileName, oauthTokenProviderFactory)
+                        .thenApply(config -> {
+                            final KubernetesEndpointGroupBuilder kubernetesEndpointGroupBuilder =
+                                    KubernetesEndpointGroup.builder(config).serviceName(serviceName);
+                            if (!isNullOrEmpty(kubeconfig.getNamespace())) {
+                                kubernetesEndpointGroupBuilder.namespace(kubeconfig.getNamespace());
+                            }
+                            if (!isNullOrEmpty(watcher.getPortName())) {
+                                kubernetesEndpointGroupBuilder.portName(watcher.getPortName());
+                            }
+                            if (nodeIpExtractor != null) {
+                                kubernetesEndpointGroupBuilder.nodeIpExtractor(
+                                        node -> nodeIpExtractor.extract(watcher, node));
+                            }
+                            return kubernetesEndpointGroupBuilder.build();
+                        });
         if (logIfFail) {
             future.exceptionally(cause -> {
                 logger.warn("Failed to create KubernetesEndpointGroup. watcher: {}", watcher, cause);
@@ -546,7 +558,9 @@ public final class XdsKubernetesService {
     }
 
     private static CompletableFuture<Config> toConfig(Kubeconfig kubeconfig, MetaRepository metaRepository,
-                                                      String group, String fileName) {
+                                                      String group, String fileName,
+                                                      BiFunction<String, String,
+                                                      OAuthTokenProvider> oauthTokenProviderFactory) {
         final ConfigBuilder configBuilder = new ConfigBuilder()
                 .withMasterUrl(kubeconfig.getControlPlaneUrl())
                 .withTrustCerts(kubeconfig.getTrustCerts());
@@ -557,21 +571,25 @@ public final class XdsKubernetesService {
         }
         final CompletableFuture<Config> future = new CompletableFuture<>();
         // xDS only support repository credential so try using it first.
-        metaRepository.credential(credentialName(INTERNAL_PROJECT_XDS, group, credentialId))
+        final String repositoryCredentialName = credentialName(INTERNAL_PROJECT_XDS, group, credentialId);
+        metaRepository.credential(repositoryCredentialName)
                       .thenAccept(credential -> {
                           if (!(credential instanceof AccessTokenCredential)) {
                               future.completeExceptionally(new IllegalArgumentException(
                                       "credential must be an access token: " + credential.withoutSecret()));
                           } else {
-                              future.complete(configBuilder.withOauthToken(
-                                      ((AccessTokenCredential) credential).accessToken()).build());
+                              final String token = ((AccessTokenCredential) credential).accessToken();
+                              future.complete(configBuilder.withOauthTokenProvider(
+                                      oauthTokenProviderFactory.apply(repositoryCredentialName, token)).build());
                           }
                       })
                       .exceptionally(cause -> {
                           final Throwable peeled = Exceptions.peel(cause);
                           if (peeled instanceof EntryNotFoundException) {
                               // Try to use the legacy project credential for backward compatibility.
-                              metaRepository.credential(credentialName(INTERNAL_PROJECT_XDS, credentialId))
+                              final String projectCredentialName =
+                                      credentialName(INTERNAL_PROJECT_XDS, credentialId);
+                              metaRepository.credential(projectCredentialName)
                                             .handle((credential, cause1) -> {
                                                 if (cause1 != null) {
                                                     future.completeExceptionally(cause1);
@@ -587,8 +605,9 @@ public final class XdsKubernetesService {
                                                                 fileName, group, credentialId);
                                                     final String token =
                                                             ((AccessTokenCredential) credential).accessToken();
-                                                    future.complete(
-                                                            configBuilder.withOauthToken(token).build());
+                                                    future.complete(configBuilder.withOauthTokenProvider(
+                                                            oauthTokenProviderFactory.apply(projectCredentialName,
+                                                                                            token)).build());
                                                 }
                                                 return null;
                                             });

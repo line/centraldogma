@@ -36,6 +36,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.BiFunction;
 import java.util.regex.Matcher;
 
 import org.jspecify.annotations.Nullable;
@@ -62,6 +63,7 @@ import com.linecorp.centraldogma.xds.internal.XdsResourceWatchingService;
 
 import io.envoyproxy.envoy.config.endpoint.v3.ClusterLoadAssignment;
 import io.envoyproxy.envoy.config.endpoint.v3.LocalityLbEndpoints;
+import io.fabric8.kubernetes.client.OAuthTokenProvider;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.binder.jvm.ExecutorServiceMetrics;
 import io.netty.util.concurrent.DefaultThreadFactory;
@@ -72,6 +74,7 @@ final class XdsKubernetesEndpointFetchingService extends XdsResourceWatchingServ
     public static final CompletableFuture<?>[] EMPTY_FUTURES = new CompletableFuture[0];
 
     private final CommandExecutor commandExecutor;
+    private final BiFunction<String, String, OAuthTokenProvider> oauthTokenProviderFactory;
 
     // Only accessed by the executorService.
     private final Map<String, Map<String, KubernetesEndpointsUpdater>> kubernetesEndpointsUpdaters =
@@ -81,9 +84,11 @@ final class XdsKubernetesEndpointFetchingService extends XdsResourceWatchingServ
     private volatile boolean stopped;
 
     XdsKubernetesEndpointFetchingService(Project xdsProject, CommandExecutor commandExecutor,
-                                         MeterRegistry meterRegistry) {
+                                         MeterRegistry meterRegistry,
+                                         BiFunction<String, String, OAuthTokenProvider> oauthTokenProviderFactory) {
         super(xdsProject, "xds.k8s.fetching.service.", meterRegistry);
         this.commandExecutor = commandExecutor;
+        this.oauthTokenProviderFactory = oauthTokenProviderFactory;
         executorService = ExecutorServiceMetrics.monitor(
                 meterRegistry, Executors.newSingleThreadScheduledExecutor(
                         new DefaultThreadFactory("k8s-plugin-executor", true)), "k8sPluginExecutor");
@@ -139,7 +144,8 @@ final class XdsKubernetesEndpointFetchingService extends XdsResourceWatchingServ
                 : aggregator.getLocalityLbEndpointsList()) {
             final ServiceEndpointWatcher watcher = kubernetesLocalityLbEndpoints.getWatcher();
             final CompletableFuture<KubernetesEndpointGroup> future =
-                    createKubernetesEndpointGroup(watcher, xdsProject().metaRepo(), groupName, path, true);
+                    createKubernetesEndpointGroup(watcher, xdsProject().metaRepo(), groupName, path, true,
+                                                  oauthTokenProviderFactory);
             futures.add(future);
         }
 
