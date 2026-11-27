@@ -30,7 +30,15 @@ export const Breadcrumbs = ({
     .filter((v) => v.length > 0);
   const prefixes: string[] = [];
   return (
-    <Breadcrumb spacing="8px" separator={<FcNext />} mb={8} fontWeight="medium" fontSize="2xl">
+    <Breadcrumb
+      spacing="8px"
+      separator={<FcNext />}
+      mb={8}
+      maxWidth="100%"
+      overflowX="auto"
+      fontWeight="medium"
+      fontSize={{ base: 'lg', md: '2xl' }}
+    >
       {asPathNestedRoutes.map((page, i) => {
         const item = replaces[i] || page;
         prefixes.push(item);

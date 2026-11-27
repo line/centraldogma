@@ -65,6 +65,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.github.benmanes.caffeine.cache.Caffeine;
@@ -989,9 +990,9 @@ public class CentralDogma implements AutoCloseable {
                                   @Nullable SessionManager sessionManager, boolean needsTls,
                                   boolean mtlsEnabled) {
         final DependencyInjector dependencyInjector = DependencyInjector.ofSingletons(
-                // Use the default ObjectMapper without any configuration.
-                // See JacksonRequestConverterFunctionTest
-                new JacksonRequestConverterFunction(new ObjectMapper()),
+                // Keep module auto-discovery disabled to preserve null-field compatibility.
+                new JacksonRequestConverterFunction(
+                        new ObjectMapper().disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)),
                 new HttpApiRequestConverter(projectApiManager),
                 new RequiresRepositoryRoleDecoratorFactory(mds),
                 new RequiresProjectRoleDecoratorFactory(mds),

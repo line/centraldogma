@@ -10,9 +10,11 @@ import {
   Box,
   Button,
   ButtonGroup,
+  Flex,
   Heading,
   HStack,
   Spacer,
+  Stack,
   Text,
   Tooltip,
   useColorMode,
@@ -30,6 +32,7 @@ import { FaHistory } from 'react-icons/fa';
 import DiffView, { DiffMode } from 'dogma/common/components/DiffView';
 import DiffModeButton from 'dogma/common/components/DiffModeButton';
 import { PageTitle } from 'dogma/common/components/PageTitle';
+import { CommitSha } from 'dogma/features/history/CommitSha';
 
 const CommitViewPage = () => {
   const router = useRouter();
@@ -41,20 +44,20 @@ const CommitViewPage = () => {
     filePath = '/**';
   }
   const {
-    data: historyData,
-    isLoading: historyLoading,
+    currentData: historyData,
+    isFetching: historyFetching,
     error: historyError,
   } = useGetHistoryQuery({
     projectName,
     repoName,
     revision,
-    to: 1,
-    filePath,
+    to: revision,
+    filePath: '/**',
     maxCommits: 1,
   });
   const {
-    data: oldHistoryData,
-    isLoading: oldHistoryLoading,
+    currentData: oldHistoryData,
+    isFetching: oldHistoryFetching,
     error: oldHistoryError,
   } = useGetHistoryQuery(
     {
@@ -70,8 +73,8 @@ const CommitViewPage = () => {
     },
   );
   const {
-    data: newData,
-    isLoading: isNewLoading,
+    currentData: newData,
+    isFetching: newFetching,
     error: newError,
   } = useGetFilesQuery({
     projectName,
@@ -80,25 +83,26 @@ const CommitViewPage = () => {
     filePath,
     withContent: true,
   });
+  const previousRevision = revision > 2 ? oldHistoryData?.[0]?.revision : undefined;
   const {
-    data: oldData,
-    isLoading: isOldLoading,
+    currentData: oldData,
+    isFetching: oldFetching,
     error: oldError,
   } = useGetFilesQuery(
     {
       projectName,
       repoName,
-      revision: oldHistoryData?.[0]?.revision || 1,
+      revision: previousRevision || 1,
       filePath,
       withContent: true,
     },
     {
-      skip: !oldHistoryData || oldHistoryData.length == 0,
+      skip: !previousRevision,
     },
   );
   const {
-    data: headRev,
-    isLoading: isRevLoading,
+    currentData: headRev,
+    isFetching: revFetching,
     error: revError,
   } = useGetNormalisedRevisionQuery({
     projectName,
@@ -120,7 +124,13 @@ const CommitViewPage = () => {
 
   return (
     <Deferred
-      isLoading={historyLoading || oldHistoryLoading || isNewLoading || isOldLoading || isRevLoading}
+      isLoading={
+        (historyFetching && !historyData) ||
+        (revision > 2 && oldHistoryFetching && !oldHistoryData) ||
+        (newFetching && !newData) ||
+        (!!previousRevision && oldFetching && !oldData) ||
+        (revFetching && !headRev)
+      }
       error={historyError || oldHistoryError || newError || revError || oldError0}
     >
       {() => {
@@ -129,10 +139,6 @@ const CommitViewPage = () => {
         }
 
         const history = historyData[0];
-        let previousRevision;
-        if (revision > 2 && oldHistoryData && oldHistoryData.length > 0) {
-          previousRevision = oldHistoryData[0].revision;
-        }
         const oldData0 = !previousRevision ? [] : oldData || [];
         const newData0 = newData || [];
         const hasNext = filePath == '/**' && revision !== headRev.revision;
@@ -148,9 +154,23 @@ const CommitViewPage = () => {
                 <Box>Commit {revision}</Box>
               </HStack>
             </Heading>
-            <HStack marginBottom={2}>
-              <Spacer />
-              <ButtonGroup marginRight={1}>
+            {historyData?.[0]?.upstreamCommitId && (
+              <Stack
+                direction={{ base: 'column', lg: 'row' }}
+                align="flex-start"
+                marginBottom={4}
+                spacing={{ base: 2, lg: 6 }}
+              >
+                <CommitSha label="Upstream" sha={historyData[0].upstreamCommitId} abbreviated={false} />
+              </Stack>
+            )}
+            <Flex
+              marginBottom={2}
+              gap={2}
+              flexWrap="wrap"
+              justifyContent={{ base: 'flex-start', md: 'flex-end' }}
+            >
+              <ButtonGroup>
                 <Tooltip label="Move to the previous commit">
                   {previousRevision > 0 ? (
                     <Button
@@ -219,7 +239,7 @@ const CommitViewPage = () => {
               >
                 Browse files
               </Button>
-            </HStack>
+            </Flex>
             <Box padding={3} bg={commitTitleColorMode}>
               <Heading size="md" paddingBottom={2}>
                 {history.commitMessage.summary}

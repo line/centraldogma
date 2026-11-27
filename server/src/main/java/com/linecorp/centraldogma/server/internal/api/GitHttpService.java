@@ -83,8 +83,7 @@ public final class GitHttpService {
         packetLineFraming.flush();
         packetLineFraming.put("version 2");
         packetLineFraming.put(COMMAND_LS_REFS);
-        // Support limited options for now due to the unique characteristics of Git repositories in
-        // Central Dogma, such as having only a master branch and no tags, among other specifics.
+        // Central Dogma repositories have only a master branch. ls-refs still advertises mirror-created tags.
         packetLineFraming.put(COMMAND_FETCH + '=' + OPTION_WAIT_FOR_DONE + ' ' + OPTION_SHALLOW);
         // TODO(minwoox): Migrate hash function https://git-scm.com/docs/hash-function-transition
         packetLineFraming.put("object-format=sha1");

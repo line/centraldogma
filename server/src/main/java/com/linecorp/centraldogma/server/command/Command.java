@@ -29,6 +29,7 @@ import com.google.common.collect.ImmutableList;
 
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
+import com.linecorp.centraldogma.common.Commit;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.server.EncryptionConfig;
@@ -402,8 +403,23 @@ public interface Command<T> {
                                   String projectName, String repositoryName,
                                   Revision baseRevision, String summary, String detail,
                                   Markup markup, Iterable<Change<?>> changes) {
+        return push(timestamp, author, projectName, repositoryName, baseRevision, summary, detail, markup,
+                    null, false, changes);
+    }
+
+    /**
+     * Returns a new {@link Command} which is used to push the changes mirrored from an upstream Git commit.
+     * The upstream commit ID is recorded in the resulting {@link Commit} and may be published as a Git tag.
+     */
+    static Command<Revision> push(@Nullable Long timestamp, Author author,
+                                  String projectName, String repositoryName,
+                                  Revision baseRevision, String summary, String detail,
+                                  Markup markup, @Nullable String upstreamCommitId,
+                                  boolean publishUpstreamCommitTag,
+                                  Iterable<Change<?>> changes) {
         return new PushAsIsCommand(timestamp, author, projectName, repositoryName, baseRevision,
-                                   summary, detail, markup, changes);
+                                   summary, detail, markup, changes, upstreamCommitId,
+                                   publishUpstreamCommitTag);
     }
 
     /**
