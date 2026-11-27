@@ -72,10 +72,6 @@ public final class XdsGroupService {
             return CompletableFuture.completedFuture(
                     errorResponse(HttpStatus.FORBIDDEN, "Cannot create internal repository: " + groupId));
         }
-        if (xdsProject.repos().exists(groupId)) {
-            return CompletableFuture.completedFuture(
-                    errorResponse(HttpStatus.CONFLICT, "Group already exists: " + groupId));
-        }
         final User createUser = currentUser();
         if (createUser == null) {
             return CompletableFuture.completedFuture(
@@ -87,8 +83,7 @@ public final class XdsGroupService {
                     if (cause != null) {
                         final Throwable peeled = Exceptions.peel(cause);
                         if (peeled instanceof RepositoryExistsException) {
-                            return errorResponse(HttpStatus.CONFLICT,
-                                                 "Group already exists: " + groupId);
+                            return errorResponse(HttpStatus.CONFLICT, peeled);
                         }
                         return errorResponse(HttpStatus.INTERNAL_SERVER_ERROR, peeled);
                     }
