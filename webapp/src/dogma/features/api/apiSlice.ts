@@ -675,6 +675,7 @@ export const {
   useRegenerateAppIdentitySecretMutation,
   // File
   useGetFilesQuery,
+  useLazyGetFilesQuery,
   useGetFileContentQuery,
   usePushFileChangesMutation,
   useRevertRepositoryMutation,
