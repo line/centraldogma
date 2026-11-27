@@ -45,6 +45,8 @@ export function makeTraversalFileLinks(
   return links;
 }
 
+export const FILE_NAME_PATTERN = /^[-_.0-9a-zA-Z]*[-_0-9a-zA-Z]+$/;
+
 export function isJson(fileName: string): boolean {
   return fileName.endsWith('.json');
 }
